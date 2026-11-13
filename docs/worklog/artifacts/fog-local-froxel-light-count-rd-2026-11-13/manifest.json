@@ -1,0 +1,594 @@
+{
+  "schema": "fog-local-froxel-light-count-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "light_counts": [
+      1,
+      2,
+      3
+    ],
+    "light_prefix_order": [
+      [
+        -5.0,
+        9.0,
+        6.0
+      ],
+      [
+        9.0,
+        5.5,
+        30.0
+      ],
+      [
+        0.0,
+        15.0,
+        55.0
+      ]
+    ],
+    "reference_steps": 512,
+    "validation_steps": 256,
+    "direct_candidate_steps": 32,
+    "froxel_configurations": [
+      [
+        4,
+        32
+      ],
+      [
+        4,
+        64
+      ],
+      [
+        8,
+        64
+      ]
+    ]
+  },
+  "results": {
+    "1": {
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 2.105744899669719e-06,
+        "max_absolute_channel_error": 0.00013374561662293782,
+        "relative_rgb_l2": 4.442829194403877e-06,
+        "pixel_count": 5184
+      },
+      "shadow_masks": {
+        "density_ge_0.003": {
+          "pixel_count": 8,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.351978355373264e-05,
+              "max_absolute_channel_error": 0.00013374561662293782,
+              "relative_rgb_l2": 0.00010811510071346151,
+              "pixel_count": 8
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00042080915073248895,
+              "max_absolute_channel_error": 0.000922187108277378,
+              "relative_rgb_l2": 0.0008500748824387993,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.005372453683026569,
+              "max_absolute_channel_error": 0.008594946282979854,
+              "relative_rgb_l2": 0.01085287219885094,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.004838574164616162,
+              "max_absolute_channel_error": 0.007574473640822199,
+              "relative_rgb_l2": 0.009774384318872027,
+              "pixel_count": 8
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.007618512080480218,
+              "max_absolute_channel_error": 0.013383757275288177,
+              "relative_rgb_l2": 0.015390125784811704,
+              "pixel_count": 8
+            }
+          }
+        },
+        "density_ge_0.0001": {
+          "pixel_count": 8,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.351978355373264e-05,
+              "max_absolute_channel_error": 0.00013374561662293782,
+              "relative_rgb_l2": 0.00010811510071346151,
+              "pixel_count": 8
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00042080915073248895,
+              "max_absolute_channel_error": 0.000922187108277378,
+              "relative_rgb_l2": 0.0008500748824387993,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.005372453683026569,
+              "max_absolute_channel_error": 0.008594946282979854,
+              "relative_rgb_l2": 0.01085287219885094,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.004838574164616162,
+              "max_absolute_channel_error": 0.007574473640822199,
+              "relative_rgb_l2": 0.009774384318872027,
+              "pixel_count": 8
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.007618512080480218,
+              "max_absolute_channel_error": 0.013383757275288177,
+              "relative_rgb_l2": 0.015390125784811704,
+              "pixel_count": 8
+            }
+          }
+        },
+        "density_ge_1e-05": {
+          "pixel_count": 8,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.351978355373264e-05,
+              "max_absolute_channel_error": 0.00013374561662293782,
+              "relative_rgb_l2": 0.00010811510071346151,
+              "pixel_count": 8
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00042080915073248895,
+              "max_absolute_channel_error": 0.000922187108277378,
+              "relative_rgb_l2": 0.0008500748824387993,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.005372453683026569,
+              "max_absolute_channel_error": 0.008594946282979854,
+              "relative_rgb_l2": 0.01085287219885094,
+              "pixel_count": 8
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.004838574164616162,
+              "max_absolute_channel_error": 0.007574473640822199,
+              "relative_rgb_l2": 0.009774384318872027,
+              "pixel_count": 8
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.007618512080480218,
+              "max_absolute_channel_error": 0.013383757275288177,
+              "relative_rgb_l2": 0.015390125784811704,
+              "pixel_count": 8
+            }
+          }
+        }
+      },
+      "configurations": [
+        {
+          "name": "tile4_z32",
+          "tile_size": 4,
+          "depth_slices": 32,
+          "froxel_cell_count": 10752,
+          "light_evaluations": 10752,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520
+        },
+        {
+          "name": "tile4_z64",
+          "tile_size": 4,
+          "depth_slices": 64,
+          "froxel_cell_count": 21504,
+          "light_evaluations": 21504,
+          "estimated_bytes_R16F_density_RGBA16F_source": 215040
+        },
+        {
+          "name": "tile8_z64",
+          "tile_size": 8,
+          "depth_slices": 64,
+          "froxel_cell_count": 5376,
+          "light_evaluations": 5376,
+          "estimated_bytes_R16F_density_RGBA16F_source": 53760
+        }
+      ],
+      "metrics_vs_direct_512": {
+        "validation_direct_256": {
+          "rgb_rmse": 2.105744899669719e-06,
+          "max_absolute_channel_error": 0.00013374561662293782,
+          "relative_rgb_l2": 4.442829194403877e-06,
+          "pixel_count": 5184
+        },
+        "direct_32": {
+          "rgb_rmse": 2.006332104489075e-05,
+          "max_absolute_channel_error": 0.000922187108277378,
+          "relative_rgb_l2": 4.2330820076505655e-05,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z32": {
+          "rgb_rmse": 0.0021432784220948974,
+          "max_absolute_channel_error": 0.021690626672549895,
+          "relative_rgb_l2": 0.004522019712317776,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z64": {
+          "rgb_rmse": 0.0021078598652604255,
+          "max_absolute_channel_error": 0.02125557068393069,
+          "relative_rgb_l2": 0.00444729147797537,
+          "pixel_count": 5184
+        },
+        "froxel_tile8_z64": {
+          "rgb_rmse": 0.003769750183988998,
+          "max_absolute_channel_error": 0.036348797980597924,
+          "relative_rgb_l2": 0.007953649169784359,
+          "pixel_count": 5184
+        }
+      },
+      "light_evaluation_arithmetic": {
+        "direct_32": 165888,
+        "direct_256_validation": 1327104,
+        "direct_512_reference": 2654208
+      }
+    },
+    "2": {
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 3.385828733559e-05,
+        "max_absolute_channel_error": 0.0005815472699426394,
+        "relative_rgb_l2": 7.095397604529134e-05,
+        "pixel_count": 5184
+      },
+      "shadow_masks": {
+        "density_ge_0.003": {
+          "pixel_count": 1309,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 6.592894445638065e-05,
+              "max_absolute_channel_error": 0.0005815472699426394,
+              "relative_rgb_l2": 0.00015423434859515028,
+              "pixel_count": 1309
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00048292814044778777,
+              "max_absolute_channel_error": 0.0031957986261330618,
+              "relative_rgb_l2": 0.0011297633804756475,
+              "pixel_count": 1309
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.0025151927990454325,
+              "max_absolute_channel_error": 0.016272768542072602,
+              "relative_rgb_l2": 0.005884048745974439,
+              "pixel_count": 1309
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.002634590453690348,
+              "max_absolute_channel_error": 0.01680081681275314,
+              "relative_rgb_l2": 0.006163367937867932,
+              "pixel_count": 1309
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.0039700889151056355,
+              "max_absolute_channel_error": 0.02705412994940415,
+              "relative_rgb_l2": 0.009287636602331244,
+              "pixel_count": 1309
+            }
+          }
+        },
+        "density_ge_0.0001": {
+          "pixel_count": 1883,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.5937267840558445e-05,
+              "max_absolute_channel_error": 0.0005815472699426394,
+              "relative_rgb_l2": 0.00012579307682215776,
+              "pixel_count": 1883
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00041102172339656484,
+              "max_absolute_channel_error": 0.0031957986261330618,
+              "relative_rgb_l2": 0.0009243155631800621,
+              "pixel_count": 1883
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.002350092686425651,
+              "max_absolute_channel_error": 0.016272768542072602,
+              "relative_rgb_l2": 0.0052849451046728425,
+              "pixel_count": 1883
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.0024245173641699023,
+              "max_absolute_channel_error": 0.01680081681275314,
+              "relative_rgb_l2": 0.005452313114702084,
+              "pixel_count": 1883
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.003743099487084989,
+              "max_absolute_channel_error": 0.02705412994940415,
+              "relative_rgb_l2": 0.008417572389734375,
+              "pixel_count": 1883
+            }
+          }
+        },
+        "density_ge_1e-05": {
+          "pixel_count": 1910,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.557713845346162e-05,
+              "max_absolute_channel_error": 0.0005815472699426394,
+              "relative_rgb_l2": 0.00012455085911847918,
+              "pixel_count": 1910
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00040852254052240963,
+              "max_absolute_channel_error": 0.0031957986261330618,
+              "relative_rgb_l2": 0.000915517329736876,
+              "pixel_count": 1910
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.002351641580828385,
+              "max_absolute_channel_error": 0.016272768542072602,
+              "relative_rgb_l2": 0.005270134220317539,
+              "pixel_count": 1910
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.00242491970671902,
+              "max_absolute_channel_error": 0.01680081681275314,
+              "relative_rgb_l2": 0.0054343537859202744,
+              "pixel_count": 1910
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.0038129348972081468,
+              "max_absolute_channel_error": 0.02705412994940415,
+              "relative_rgb_l2": 0.008544958060548101,
+              "pixel_count": 1910
+            }
+          }
+        }
+      },
+      "configurations": [
+        {
+          "name": "tile4_z32",
+          "tile_size": 4,
+          "depth_slices": 32,
+          "froxel_cell_count": 10752,
+          "light_evaluations": 21504,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520
+        },
+        {
+          "name": "tile4_z64",
+          "tile_size": 4,
+          "depth_slices": 64,
+          "froxel_cell_count": 21504,
+          "light_evaluations": 43008,
+          "estimated_bytes_R16F_density_RGBA16F_source": 215040
+        },
+        {
+          "name": "tile8_z64",
+          "tile_size": 8,
+          "depth_slices": 64,
+          "froxel_cell_count": 5376,
+          "light_evaluations": 10752,
+          "estimated_bytes_R16F_density_RGBA16F_source": 53760
+        }
+      ],
+      "metrics_vs_direct_512": {
+        "validation_direct_256": {
+          "rgb_rmse": 3.385828733559e-05,
+          "max_absolute_channel_error": 0.0005815472699426394,
+          "relative_rgb_l2": 7.095397604529134e-05,
+          "pixel_count": 5184
+        },
+        "direct_32": {
+          "rgb_rmse": 0.0002484328311683717,
+          "max_absolute_channel_error": 0.0031957986261330618,
+          "relative_rgb_l2": 0.0005206198700149754,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z32": {
+          "rgb_rmse": 0.0016177425742269227,
+          "max_absolute_channel_error": 0.016272768542072602,
+          "relative_rgb_l2": 0.0033901675746749586,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z64": {
+          "rgb_rmse": 0.0016380331566396465,
+          "max_absolute_channel_error": 0.01680081681275314,
+          "relative_rgb_l2": 0.0034326888482464095,
+          "pixel_count": 5184
+        },
+        "froxel_tile8_z64": {
+          "rgb_rmse": 0.0026998152483602594,
+          "max_absolute_channel_error": 0.02705412994940415,
+          "relative_rgb_l2": 0.005657776619359771,
+          "pixel_count": 5184
+        }
+      },
+      "light_evaluation_arithmetic": {
+        "direct_32": 331776,
+        "direct_256_validation": 2654208,
+        "direct_512_reference": 5308416
+      }
+    },
+    "3": {
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 3.4058851074602684e-05,
+        "max_absolute_channel_error": 0.0005819613650519528,
+        "relative_rgb_l2": 7.10995467185364e-05,
+        "pixel_count": 5184
+      },
+      "shadow_masks": {
+        "density_ge_0.003": {
+          "pixel_count": 2275,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 5.0371354457290446e-05,
+              "max_absolute_channel_error": 0.0005819613650519528,
+              "relative_rgb_l2": 9.843143392449148e-05,
+              "pixel_count": 2275
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00036921595751033143,
+              "max_absolute_channel_error": 0.003201001246491031,
+              "relative_rgb_l2": 0.0007214905478938546,
+              "pixel_count": 2275
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.002000176649648586,
+              "max_absolute_channel_error": 0.031475673905859036,
+              "relative_rgb_l2": 0.003908575773838464,
+              "pixel_count": 2275
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.0020581916904411006,
+              "max_absolute_channel_error": 0.046116995807379824,
+              "relative_rgb_l2": 0.004021943852102806,
+              "pixel_count": 2275
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.004982435269382804,
+              "max_absolute_channel_error": 0.11114346966700911,
+              "relative_rgb_l2": 0.009736252941483642,
+              "pixel_count": 2275
+            }
+          }
+        },
+        "density_ge_0.0001": {
+          "pixel_count": 4066,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 3.838065242799524e-05,
+              "max_absolute_channel_error": 0.0005819613650519528,
+              "relative_rgb_l2": 8.198768104836343e-05,
+              "pixel_count": 4066
+            },
+            "direct_32": {
+              "rgb_rmse": 0.0002820882610084319,
+              "max_absolute_channel_error": 0.003201001246491031,
+              "relative_rgb_l2": 0.0006025890887195337,
+              "pixel_count": 4066
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.0015594184796101248,
+              "max_absolute_channel_error": 0.031475673905859036,
+              "relative_rgb_l2": 0.003331186335799268,
+              "pixel_count": 4066
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.0015980166384726262,
+              "max_absolute_channel_error": 0.046116995807379824,
+              "relative_rgb_l2": 0.0034136386480367892,
+              "pixel_count": 4066
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.0038014531926931407,
+              "max_absolute_channel_error": 0.11114346966700911,
+              "relative_rgb_l2": 0.008120558462822563,
+              "pixel_count": 4066
+            }
+          }
+        },
+        "density_ge_1e-05": {
+          "pixel_count": 4093,
+          "metrics_vs_direct_512": {
+            "validation_direct_256": {
+              "rgb_rmse": 3.827868766828979e-05,
+              "max_absolute_channel_error": 0.0005819613650519528,
+              "relative_rgb_l2": 8.167268790554592e-05,
+              "pixel_count": 4093
+            },
+            "direct_32": {
+              "rgb_rmse": 0.00028143730323370637,
+              "max_absolute_channel_error": 0.003201001246491031,
+              "relative_rgb_l2": 0.0006004840403927029,
+              "pixel_count": 4093
+            },
+            "froxel_tile4_z32": {
+              "rgb_rmse": 0.0015603906953075618,
+              "max_absolute_channel_error": 0.031475673905859036,
+              "relative_rgb_l2": 0.0033293017611506345,
+              "pixel_count": 4093
+            },
+            "froxel_tile4_z64": {
+              "rgb_rmse": 0.001598718009874908,
+              "max_absolute_channel_error": 0.046116995807379824,
+              "relative_rgb_l2": 0.003411078201033909,
+              "pixel_count": 4093
+            },
+            "froxel_tile8_z64": {
+              "rgb_rmse": 0.003808537741169566,
+              "max_absolute_channel_error": 0.11114346966700911,
+              "relative_rgb_l2": 0.008126023467850301,
+              "pixel_count": 4093
+            }
+          }
+        }
+      },
+      "configurations": [
+        {
+          "name": "tile4_z32",
+          "tile_size": 4,
+          "depth_slices": 32,
+          "froxel_cell_count": 10752,
+          "light_evaluations": 32256,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520
+        },
+        {
+          "name": "tile4_z64",
+          "tile_size": 4,
+          "depth_slices": 64,
+          "froxel_cell_count": 21504,
+          "light_evaluations": 64512,
+          "estimated_bytes_R16F_density_RGBA16F_source": 215040
+        },
+        {
+          "name": "tile8_z64",
+          "tile_size": 8,
+          "depth_slices": 64,
+          "froxel_cell_count": 5376,
+          "light_evaluations": 16128,
+          "estimated_bytes_R16F_density_RGBA16F_source": 53760
+        }
+      ],
+      "metrics_vs_direct_512": {
+        "validation_direct_256": {
+          "rgb_rmse": 3.4058851074602684e-05,
+          "max_absolute_channel_error": 0.0005819613650519528,
+          "relative_rgb_l2": 7.10995467185364e-05,
+          "pixel_count": 5184
+        },
+        "direct_32": {
+          "rgb_rmse": 0.0002504009643164407,
+          "max_absolute_channel_error": 0.003201001246491031,
+          "relative_rgb_l2": 0.0005227244754024935,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z32": {
+          "rgb_rmse": 0.001437912770205884,
+          "max_absolute_channel_error": 0.031475673905859036,
+          "relative_rgb_l2": 0.0030017144723554355,
+          "pixel_count": 5184
+        },
+        "froxel_tile4_z64": {
+          "rgb_rmse": 0.0014670044303997255,
+          "max_absolute_channel_error": 0.046116995807379824,
+          "relative_rgb_l2": 0.0030624447608945636,
+          "pixel_count": 5184
+        },
+        "froxel_tile8_z64": {
+          "rgb_rmse": 0.0034838569871875245,
+          "max_absolute_channel_error": 0.11114346966700911,
+          "relative_rgb_l2": 0.00727272485142479,
+          "pixel_count": 5184
+        }
+      },
+      "light_evaluation_arithmetic": {
+        "direct_32": 497664,
+        "direct_256_validation": 3981312,
+        "direct_512_reference": 7962624
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Light counts use the first N fixed lights; this does not represent arbitrary light selection.",
+    "Density threshold affects shadow-mask pixel counts and prevents direct comparison of mask-region metrics across thresholds.",
+    "Shadow mask is an analytic AABB probe, not shadow-map filtering or volumetric shadowing.",
+    "Memory estimates are arithmetic scenarios, not a production resource layout.",
+    "No temporal reprojection, anisotropic scattering, or backend parity."
+  ],
+  "source_script_sha256": "cffeebe51cac11ed22d11f1e5da42e219ebd510d811c595162a05134715e2aa0",
+  "proxy_script_sha256": "9651c6e8f825c64a464bb648c4823fbc3e875ce4d486daedb9ef2ef9229f1d92"
+}

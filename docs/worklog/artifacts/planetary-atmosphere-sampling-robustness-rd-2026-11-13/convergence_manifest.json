@@ -1,0 +1,291 @@
+{
+  "schema": "planetary-atmosphere-sampling-convergence-rd-v1",
+  "fixed_sun_steps_for_view_convergence": 192,
+  "levels_view_x_sun": [
+    [
+      128,
+      48
+    ],
+    [
+      256,
+      96
+    ],
+    [
+      512,
+      192
+    ],
+    [
+      1024,
+      384
+    ]
+  ],
+  "reference": "uniform 1024x384 view/sun midpoint; high-resolution numeric reference, not exact solution",
+  "cases": [
+    {
+      "name": "sunward_high_sun_low_camera",
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 75.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.109381654946615,
+        0.9659258262890683,
+        0.23456971600980447
+      ],
+      "convergence_levels_uniform_view": [
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "radiance_rgb": [
+            0.8998454014507445,
+            0.9614326400108291,
+            1.074513657395176
+          ]
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "radiance_rgb": [
+            0.9093447148074535,
+            0.9702119484121985,
+            1.0816027775506936
+          ]
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "radiance_rgb": [
+            0.9117209041623591,
+            0.9724067063950749,
+            1.083372043162716
+          ]
+        },
+        {
+          "view_steps": 1024,
+          "sun_steps": 384,
+          "radiance_rgb": [
+            0.9123148920402,
+            0.9729552520702704,
+            1.0838140441187878
+          ]
+        }
+      ],
+      "candidate_errors_to_1024x384": {
+        "uniform_32": {
+          "view_steps": 32,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            0.7258890446606211,
+            0.7980647734057693,
+            0.9358392891775207
+          ],
+          "relative_rgb_l2_to_1024x384": 0.17186029297372574
+        },
+        "altitude_biased_32": {
+          "view_steps": 32,
+          "view_sampling": "altitude_biased",
+          "radiance_rgb": [
+            0.9180847489041701,
+            0.9783740414158687,
+            1.0883814108975751
+          ],
+          "relative_rgb_l2_to_1024x384": 0.005317486279592994
+        },
+        "uniform_64": {
+          "view_steps": 64,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            0.859813281282978,
+            0.9237512000616921,
+            1.0422720906281182
+          ],
+          "relative_rgb_l2_to_1024x384": 0.048344620334133684
+        }
+      },
+      "reference_step_deltas_relative_rgb_l2": [
+        0.011264125207826443,
+        0.0026814736091072973,
+        0.0005361665815863107
+      ]
+    },
+    {
+      "name": "sunward_mid_sun_low_camera",
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 18.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.40193385173382307,
+        0.30901699437494745,
+        0.8619499266302464
+      ],
+      "convergence_levels_uniform_view": [
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "radiance_rgb": [
+            2.4633799849665428,
+            2.3196482348357454,
+            1.881665032840545
+          ]
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "radiance_rgb": [
+            2.4803011154108443,
+            2.33244498594995,
+            1.887248574865828
+          ]
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "radiance_rgb": [
+            2.4844058409328036,
+            2.3355328332183274,
+            1.888564275072034
+          ]
+        },
+        {
+          "view_steps": 1024,
+          "sun_steps": 384,
+          "radiance_rgb": [
+            2.4854233082856316,
+            2.336297104387717,
+            1.888887714451669
+          ]
+        }
+      ],
+      "candidate_errors_to_1024x384": {
+        "uniform_32": {
+          "view_steps": 32,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            2.0591065120245364,
+            1.990127967137022,
+            1.688904274409605
+          ],
+          "relative_rgb_l2_to_1024x384": 0.14988890646096276
+        },
+        "altitude_biased_32": {
+          "view_steps": 32,
+          "view_sampling": "altitude_biased",
+          "radiance_rgb": [
+            2.499204766472811,
+            2.3470851175348204,
+            1.8943076107234673
+          ],
+          "relative_rgb_l2_to_1024x384": 0.004698877207890921
+        },
+        "uniform_64": {
+          "view_steps": 64,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            2.370039478928875,
+            2.242847496446427,
+            1.835230815279308
+          ],
+          "relative_rgb_l2_to_1024x384": 0.04049006189961434
+        }
+      },
+      "reference_step_deltas_relative_rgb_l2": [
+        0.007322782913203186,
+        0.0016965978264548707,
+        0.00033673795660781584
+      ]
+    },
+    {
+      "name": "horizon_high_sun_low_camera",
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "convergence_levels_uniform_view": [
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "radiance_rgb": [
+            0.4998621344301634,
+            0.6176606802423007,
+            0.6554249085045564
+          ]
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "radiance_rgb": [
+            0.4995592638139241,
+            0.617637947287667,
+            0.6573111819609103
+          ]
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "radiance_rgb": [
+            0.49947128052886947,
+            0.6176154147987681,
+            0.6577645861228658
+          ]
+        },
+        {
+          "view_steps": 1024,
+          "sun_steps": 384,
+          "radiance_rgb": [
+            0.4994484591711102,
+            0.6176086462901669,
+            0.6578766991914448
+          ]
+        }
+      ],
+      "candidate_errors_to_1024x384": {
+        "uniform_32": {
+          "view_steps": 32,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            0.49235093153266923,
+            0.5983950765824231,
+            0.5944445786645526
+          ],
+          "relative_rgb_l2_to_1024x384": 0.06463068153180515
+        },
+        "altitude_biased_32": {
+          "view_steps": 32,
+          "view_sampling": "altitude_biased",
+          "radiance_rgb": [
+            0.49235093153266923,
+            0.5983950765824231,
+            0.5944445786645526
+          ],
+          "relative_rgb_l2_to_1024x384": 0.06463068153180515
+        },
+        "uniform_64": {
+          "view_steps": 64,
+          "view_sampling": "uniform",
+          "radiance_rgb": [
+            0.4976750561276834,
+            0.612729757716472,
+            0.6411250349837001
+          ],
+          "relative_rgb_l2_to_1024x384": 0.0170044257398408
+        }
+      },
+      "reference_step_deltas_relative_rgb_l2": [
+        0.0024113822647717,
+        0.0005594730079806295,
+        0.00011112794798292852
+      ]
+    }
+  ],
+  "limitations": [
+    "Three selected CPU rays only, chosen from the preceding 54-case robustness sweep.",
+    "Sun integration is held at 192 steps to isolate view-integration convergence.",
+    "No HLSL/GPU execution, full image, camera sequence, or runtime cost measurement."
+  ]
+}

@@ -3,7 +3,7 @@
 **最終更新:** 2026-11-13
 
 ### Fog / Atmospheric Scattering R&D
-- **M-FOG-RD-1** Fog・大気散乱の方式比較（In Progress: source audit・CPU積分／画像fixture・GPU式mirror診断・cloud/light fog積分監査・球状大気single-scattering参照）
+- **M-FOG-RD-1** Fog・大気散乱の方式比較（In Progress: source audit・CPU積分／画像fixture・GPU式mirror診断・cloud/light fog積分監査・局所fog froxel CPU proxy・light count・depth slice・camera temporal・XY tile・Gaussian/fine/hard-boundary volume・subsample injection・grid/integration convergence・interval oracle・single/multi-box coverage/transmittance probes・球状大気single-scattering参照）
   - 既存CPU AtmosphereFog、GPU height fog試作、cloud shader内fogを区別し、linear HDR/depth契約を固定した決定論的fixtureでuniform／analytic height／raymarch height／single scattering／froxel／大気LUTを段階評価する
   - 画質・数値誤差・GPU時間・memoryを比較して用途別の採用方式を提案する。runtime統合、UI、既定値変更はこのR&Dの対象外
   - 詳細: `docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md`

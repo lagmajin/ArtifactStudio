@@ -1,7 +1,7 @@
 # Fog and Atmospheric Scattering R&D
 
 **最終更新:** 2026-11-13
-**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
+**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、惑星大気sample配置の太陽高度／camera高度robustness・局所fog froxel CPU proxy・light count sweep・log/linear depth distribution sweep・camera translation temporal CPU proxy・froxel XY spatial resolution / fine-volume stress sweep・hard-edged volume boundary・subsample injection・integration convergence decomposition・hard-box ray-interval oracle convergence・projected-box coverage negative result・per-froxel ray-box depth occupancy・multi-box overlap/transmittance sweep、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
 
 ## 目的
 
@@ -650,12 +650,133 @@ alpha合成契約の感度確認用に`tools/fog_alpha_compositing_rd.py`を追�
 view積分と太陽方向transmittance積分の誤差源を分けるため、地平線中心rayとsunward-upper rayで片方のstep数を固定した独立sweepを追加した。view側はsun steps=192固定・512×192結果基準、sun側はview steps=128固定・128×256結果基準で、最大相対RGB誤差を比較した。地平線rayのview steps 32／64／128／256では`5.87 / 1.48 / 0.354 / 0.071%`、sun steps 8／16／32／64／128では`7.78 / 2.66 / 0.790 / 0.200 / 0.041%`。sunward-upper rayではview側が`13.64 / 3.73 / 0.913 / 0.184%`、sun側が`3.60 / 1.05 / 0.284 / 0.070 / 0.014%`だった。今回の固定条件では地平線rayはsun-path積分、forward散乱近傍はview積分がより強い制約となる。これは選んだ2 rayのCPU数値収束であり、全画素の誤差上限やGPU時間を示さない。
 
 view方向の同一sample budgetを保った診断候補として、放射方向外向きrayは`t=L*u²`、惑星中心へ向かうrayは`t=L*(1-(1-u)²)`へ寄せ、接線付近では`smoothstep(abs(radial_direction_y)/0.1)`でlinear mappingと滑らかにblendし、各u-cellのworld距離幅を積分weightとする`altitude_biased`配置を試した。uniform 32×16に対し、参照をuniform 512×192に固定した32-step ray誤差はzenithで`6.191%→0.269%`、sunward-upperで`13.642%→0.497%`へ低下した。center horizonはuniform `5.868%`に対してbiased `6.375%`、groundwardは`0.006%→0.016%`と小さく悪化した。全96×54画像ではbiased 32×16のRMSE `0.01204`、uniform 32×16は`0.02487`で、約52%低下した（双方ともuniform 128×48画像参照）。初期のhard angle thresholdは小さなpitchでsample配置が切り替わり、horizon proxyの最大相対誤差を一時約25%まで跳ねさせた。smoothstep blend後は最大`6.59%`となり不連続は解消したが、uniformの`4.76%`より残差は大きく、接線付近での安定性はなお弱い。
+view方向の同一sample budgetを保った診断候補として、放射方向外向きrayは`t=L*u²`、惑星中心へ向かうrayは`t=L*(1-(1-u)²)`へ寄せ、接線付近では`smoothstep(abs(radial_direction_y)/0.1)`でlinear mappingと滑らかにblendし、各u-cellのworld距離幅を積分weightとする`altitude_biased`配置を試した。uniform 32×16に対し、参照をuniform 512×192に固定した32-step ray誤差はzenithで`6.191%→0.269%`、sunward-upperで`13.642%→0.497%`へ低下した。center horizonはuniform `5.868%`に対してbiased `6.375%`、groundwardは`0.006%→0.016%`と小さく悪化した。全96×54画像ではbiased 32×16のRMSE `0.01204`、uniform 32×16は`0.02487`で、約52%低下した（双方ともuniform 128×48画像参照）。初期のhard angle thresholdは小さなpitchでsample配置が切り替わり、horizon proxyの最大相対誤差を一時約25%まで跳ねさせた。smoothstep blend後は最大`6.59%`となり不連続は解消したが、uniformの`4.76%`より残差は大きく、接線付近での安定性はなお弱い。
+
+この配置の条件依存性を測る追試として`tools/planetary_scattering_sampling_robustness_rd.py`で太陽高度2/18/75°、camera altitude 0.5/2/10 km、horizon・低角度・sun-aligned・zenithを含む重複なし51 ray組を比較した。sun積分48 step固定、uniform 128×48参照で、altitude-biased 32はuniform 32に対し36組で誤差が小さく、6組で大きく、9組で同等。median relative RGB L2は`0.00115`対`0.00410`、p95は`0.0241`対`0.1137`だった。一方uniform 64のmedianは`0.000861`、p95は`0.0257`で、biased32よりmedianが小さく、p95は近い。altitude-biased配置は全角度でuniformを上回るものではない。
+
+主要outlierを`tools/planetary_scattering_sampling_convergence_rd.py`でsun積分192 step固定・uniform view 128/256/512/1024で追試した。1024×384参照に対するsun-aligned ray（太陽高度75°／18°、camera高度0.5 km）のrelative RGB L2は、altitude-biased 32で`0.532% / 0.470%`、uniform 32で`17.19% / 14.99%`、uniform 64で`4.83% / 4.05%`だった。horizon/high-sun rayではbiased32とuniform32が同じ`6.46%`、uniform64は`1.70%`。512×192から1024×384へ増やしたreferenceの相対変化はこれら3 rayで`0.054% / 0.034% / 0.011%`で、選択caseのreference収束は確認した。manifestは`docs/worklog/artifacts/planetary-atmosphere-sampling-robustness-rd-2026-11-13/`にある。これは54組のselected CPU raysと3 outlierだけで、全画面・全高度やGPU性能の保証ではない。
 
 同じrayをcamera-right軸回りに−1°から+1°へpitchさせる5方向のcamera-motion proxyで、各方向のuniform 512×192を基準にした。sunward-upperではuniform 32×16の最大frame相対誤差`13.47%`・連続frame差分RMSE `0.001313`に対し、biasedは`1.24%`・`0.000203`。center horizonではuniformが`4.76%`・`0.03189`、biasedが`6.59%`・`0.04002`で、biasedはわずかに悪化した。したがってsunward rayのsample収束改善はcamera angular sweepでも残る一方、horizon付近はuniformが優位である。このray rotationは静的な大気場を通るcamera pitchの数値proxyで、rendered sequence、reprojection、実GPU temporal stability試験ではない。別カメラ高度、gの高い鋭いpeak、float/GPU実装での品質やper-sample mapping演算の実時間コストは未検証。Capture名は`rayleigh_mie_g076_altitude_biased_32x16`。
 
 太陽高度を0°／5°／18°／45°／75°へ掃引した同じCPU sky fixtureでは、Rec.709重みを使ったtone mapping前の平均linear luminance proxyは`0.1136 / 0.4214 / 0.4957 / 0.3481 / 0.2629`。カメラ高度0.5／2／10／50 kmではそれぞれ`0.5778 / 0.4957 / 0.3929 / 0.2386`。低い太陽ほど長い斜め大気経路となり赤寄りの散乱が残り、高度上昇では光学深度が減って散乱radianceが低下する傾向がこの固定view条件で見えた。RGB primaries、solar radiance、sun disk、surface illuminationを較正していないため、Rec.709 weighted metricは物理輝度ではなくパラメータ応答を見るproxyである。
 
 Captureとmanifestは `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12/` にある。PFMはlinear radiance、PNGは同じReinhard+gammaのpreview。manifestは位相関数球面積分、6 rayのstep convergence、sun-elevation／camera-altitude radiance summaryを保持する。現状は黒い惑星surface radiance、sun disk、雲、地形shadow、多重散乱、spectral integrationを含まないため、主にsky angular responseとstep convergenceを比較する。
+
+## 現時点の用途別候補（CPU/source evidenceに限定）
+
+下表はR&Dを次段階へ進めるための候補整理であり、GPU実測・production採用の決定ではない。
+
+| 用途 | 次に評価する候補 | 現時点の根拠 | 採用前に必要な証拠 |
+|---|---|---|---|
+| Composition / 2D postprocess | camera rayとworld positionをdepthから復元し、指数height densityを解析積分するF2を基準にする。world depthがない時だけF1を比較基準にする。 | synthetic world-height sceneでcamera-height-only候補のRMSEはcamera y=2/8/20 mで`0.01829/0.01677/0.03420`。`heightFogCS.hlsl` source式mirrorは`0.03217/0.03800/0.04788`。depth encodingの仮定を誤るとBeer–Lambert透過率p95差が大きくなる。 | 実Compositionのdepth format・clear値・clip convention・inverse view-projection、HDR/alpha契約を確定し、同一GPU imageをF0〜F3でcapture。GPU時間とresource lifetimeも記録する。 |
+| Cloud / light shader内fog | 既存`fogHF.hlsli`のanalytic height integralと太陽LUT応答を基準にし、水平極限処理を独立候補として比較する。 | 175 CPU式条件のsource積分最大誤差は水平rayで`10.68%`。真の水平極限＋`expm1`候補は同じ数値参照に対して最大`5.14e-7`。太陽透過の影響はcamera高・太陽角で変わる。 | HLSLの水平・準水平ray capture、既存cloud/light visual baseline、GPU instruction/time、位相・太陽透過を一度に変えないfactor comparison。 |
+| 3D viewport / 局所fogとshadow | 局所密度・複数light・遮蔽が要求される場合にF5 froxelを独立検証する。既存cloud shaderをそのまま一般viewport passと見なさない。 | 3-light局所fog CPU proxyではtile4×32 sliceがrelative RGB L2`0.00300`、tile4×64は`0.00306`で、当fixtureではsliceを倍にしても改善しなかった。tile8×64はcell数をtile4×64の1/4に減らす一方、誤差は`0.00727`へ増えた。既存shadow proxyでは境界位置・core幅誤差がcamera-motion residualを左右した。 | 実viewportのdepth/shadow入力、fog injection、temporal reprojection、複数camera motion、GPU memory/time、ghostingとbackend parity。 |
+| Planetary sky / aerial perspective | F6 atmosphere LUT系を独立候補とし、height fogとは別の入力・品質予算にする。 | 球状大気single-scattering CPU fixtureでRayleigh/Mie位相、太陽角・高度・step収束を比較済み。32×16 altitude-biased sample配置はこの画像でuniform 32×16よりRMSEが約52%低い一方、horizon ray誤差はuniformよりわずかに高い。 | LUT生成／参照時間、複数散乱・地面反射・sun disk、全視野の視覚比較、カメラ高度と太陽角のcoverage、GPU memory。 |
+| CPU renderer | `AtmosphereFogRenderer`はCPU reference/fallbackとして扱い、GPU Composition品質の代理にしない。 | `applyToImage()`のRGB8 depth/colorにはalphaがなく、`applyToPixel()`はheight-resolved ray oracleではない。`evaluateFog()`は独立ray積分で散乱式を持つがGPU pathの契約とは異なる。 | CPU runtimeを用途に残す場合は設定・色域・既存出力との互換性を別途比較し、GPU採用とは別判定にする。 |
+
+現段階では、画質とCPU数値の比較はあるがGPU時間・memory・backend差の証拠がなく、production採用できる方式はまだ決めない。特にF2/F3、F4、F5、F6を共通の「fog quality」値で順位付けせず、上表の用途ごとに入力契約とGPU captureを埋める。
+
+### F5局所fog / froxel CPU proxy（2026-11-13）
+
+`tools/fog_local_froxel_proxy_rd.py`では96×54の同一sceneへGaussian局所密度3領域、point light 3灯、analytic AABB遮蔽2個を置き、direct raymarch 512 stepを参照に、256 stepで参照収束を検証した。256対512のrelative RGB L2は`7.11e-5`。direct32/64はそれぞれ`5.23e-4 / 1.96e-4`だった。
+
+tile×depth sliceのfroxel gridを三線形sampleするCPU proxyは、tile2×64=`0.00249`、tile4×64=`0.00306`、tile8×64=`0.00727`、tile4×32=`0.00300`のrelative RGB L2。tile8×64のfar-surface maskはRMSE`0.00469`、relative RGB L2`0.01015`となり、深度のある局所fogではfull-image平均だけで粗いgridの誤差を見逃し得る。64 midpoint probeでdensity`>=0.003`かつどれかのlight segmentがAABBを横切るpixel（2,275 pixels）をまとめたshadow-influenced maskでは、tile2/4/8×64のrelative RGB L2が`0.00330/0.00402/0.00974`、direct32は`0.000721`だった。shadow mask内でfroxel errorが増える傾向は見えたが、maskはshadow boundary pixel単独ではなく、probe ray上で影響を受ける領域全体を示す。tile4では32から64 slicesへ増やしても当fixtureで誤差改善はなく、tile4×32はtile4×64のhalf slice数でわずかに低い誤差だった。これは特定配置の結果であり、一般的なslice数の優劣を意味しない。
+
+memory arithmeticはgrid cell数と仮定bytes/cellを明示しており、tile4×32は10,752 cells、tile2×64は82,944 cells（7.71倍）。例示的なR16F density + RGBA16F sourceならそれぞれ107,520 bytesと829,440 bytes。これは実際のGPU resource layout、alignment、history、driver allocationを測った値ではない。scriptはinjection light-evaluation回数、pixel×slice積分数、三線形lookupの最大cell-read数も別々に保存する。CPU elapsed timeをGPU時間へ換算しない。
+
+このproxyはisotropic phase、hard AABB shadow、固定3 point lights、synthetic Gaussian densityを使い、temporal reprojection、複数backend、実shadow-map filteringを含まない。PFM/PNG capture、差分表示gain 24、region別metric、memory算術と全条件は`docs/worklog/artifacts/fog-local-froxel-proxy-rd-2026-11-13/manifest.json`にある。sampled froxelの品質・費用tradeoffを形にした段階であり、GPU F5候補の採用を示さない。
+
+### F5局所fog / light count sweep（2026-11-13）
+
+`tools/fog_local_froxel_light_count_rd.py`で同じsceneの先頭1/2/3灯を比較した。512 step referenceに対する256 stepのrelative RGB L2は順に`4.44e-6 / 7.10e-5 / 7.11e-5`。direct32は`4.23e-5 / 5.21e-4 / 5.23e-4`。全画像relative RGB L2ではtile4×32が`0.00452 / 0.00339 / 0.00300`、tile4×64が`0.00445 / 0.00343 / 0.00306`、tile8×64が`0.00795 / 0.00566 / 0.00727`だった。この固定順序・sceneでは灯数増加でfroxel誤差が単調増加せず、誤差を直接的な灯数スケーリングとみなせない。
+
+light evaluationの演算算術はlight countに比例する。tile4×32は10,752 cellのままなので1/2/3灯で10,752 / 21,504 / 32,256 evaluation、tile4×64は21,504 / 43,008 / 64,512、tile8×64は5,376 / 10,752 / 16,128。direct32は5184×32×N、すなわちN=1/2/3で165,888 / 331,776 / 497,664 light evaluation。memory算術は灯数を増やしても同じ仮定resource layoutのもとで不変。
+
+shadow influence maskは64 midpoint probe、density閾値`0.003 / 0.0001 / 0.00001`の感度をmanifestへ記録した。閾値`0.003`では1/2/3灯で8 / 1,309 / 2,275 pixelであり、1灯のmaskは小さくregion誤差の代表性が低い。したがって主比較は全画像誤差とし、mask値は遮蔽配置に依存する診断とする。灯数は固定light配列のprefixであり、任意light選択、shadow map、実行時間、GPU memory/performanceは測っていない。詳細は`docs/worklog/artifacts/fog-local-froxel-light-count-rd-2026-11-13/manifest.json`。
+
+### F5局所fog / log-linear depth distribution CPU sweep（2026-11-13）
+
+`tools/fog_local_froxel_depth_distribution_rd.py`でtile4、3灯を固定し、log / linear view-Z分割と16 / 32 / 64 slicesを比較した。512-step direct基準に対する256-step validationはrelative RGB L2`7.11e-5`。全画像のrelative RGB L2はlog 16/32/64で`0.00531 / 0.00300 / 0.00306`、linearでは`0.01238 / 0.00500 / 0.00327`だった。このfixtureではlog配置が16/32/64すべてで低い全体誤差を示し、32 slices logはlinearより約40%低いが、64 slicesでは差が小さくなる。
+
+view-Z帯別では、log配置がnear (`<20`) のrelative RGB L2を16/32/64 slicesで`0.00244 / 0.00156 / 0.00145`に保ち、linearでは`0.01367 / 0.00575 / 0.00238`だった。一方mid (`20–50`) 64 slicesはlog`0.00588`、linear`0.00574`、far (`>=50`) 64 slicesはlog`0.00380`、linear`0.00369`でlinearがわずかに低い。従ってlog配置の全体優位はnear regionに多くのsliceを割り当てるこの固定fixtureと画像寄与に依存し、遠景精度や別sceneでの一般優位を示さない。
+
+同じslice数ならgrid cell数、light evaluation数、仮定memory算術はdistribution間で等しい。log配置はnear-to-farのbin幅が非一様（32 slicesで約`0.093`から`18.89` view-Z unit）、linearは一定幅（約`3.734`）。実depth discontinuity、production projection/depth convention、GPU filtering、時間安定性、GPU costは含まない。詳細なband counts/metricsは`docs/worklog/artifacts/fog-local-froxel-depth-distribution-rd-2026-11-13/manifest.json`。
+
+### F5局所fog / camera translation temporal CPU proxy（2026-11-13）
+
+`tools/fog_local_froxel_temporal_rd.py`で固定scene・固定3灯に対してcameraをX方向へ`-0.4, -0.2, 0, +0.2, +0.4`移動し、tile4×32 log gridを各frameで再構築する候補と、最初のgridをscreen coordinateへそのまま再利用するnegative controlを比較した。512-step direct referenceの256-step validation relative RGB L2はframeごとに`0.00056–0.00071`（center poseは`7.11e-5`）で、端poseのreference convergenceがcenterより低いため、そのposeでの差分はわずかに弱い基準となる。
+
+再構築候補のreference比relative RGB L2は左から`0.01135 / 0.01109 / 0.00300 / 0.01079 / 0.01049`。screen-space froxel gridの固定camera sampling誤差はpose依存であり、中央frameのみの静止metricではsequenceを代表しない。初期grid流用controlは`0.01135 / 0.00959 / 0.00347 / 0.00952 / 0.01117`で、rebuildより良いframeも悪いframeもあった。これは補間／history filterやmotion-vector reprojectionを持たず、temporal reuseの有効性を示すものではない。
+
+隣接frameの`candidate-reference` residual image差分RMSEはrebuildで`0.00064–0.00448`、stale controlで`0.00151–0.00392`、最大channel変化はrebuildで最大`0.0581`、staleで最大`0.0519`だった。差分はpose間のapproximation error driftを測り、実sceneのframe差そのものとは分けている。`candidate-reference`誤差は中央で小さく、左右poseで高くなるため、一定方向へ蓄積するghostingはこの短いsequenceだけでは評価できない。captureとframe別metricsは`docs/worklog/artifacts/fog-local-froxel-temporal-rd-2026-11-13/manifest.json`。
+
+このCPU studyは単一方向の静的translation、screen-space再構築grid、analytic Gaussian medium、hard AABB visibilityのみで、GPU temporal reprojection、motion vector、jitter、disocclusion rejection、history clamp、回転・前後移動、動的light/volumeを含まない。従ってtemporal stabilityの合否やproduction history設計の判断には使わず、reprojectionを含むGPU実験前にpose依存空間誤差が残ることを示す診断とする。
+
+### F5局所fog / XY tile幅とfine volume stress CPU sweep（2026-11-13）
+
+`tools/fog_local_froxel_spatial_resolution_rd.py`で96×54、3 lights、log depth 32 slicesを固定し、XY tile幅`1/2/4/8/16`と、baseline Gaussian、sigma半減Gaussian、Xへ0.5 world unit移動したbaseline volumeを比較した。512-step direct referenceの256-step validation relative RGB L2はbaseline / fine / shiftedで`7.11e-5 / 2.86e-6 / 6.53e-5`。
+
+baseline sceneの全画像relative RGB L2はtile1/2/4/8/16で`0.00141 / 0.00335 / 0.00300 / 0.00716 / 0.01555`。fog-only（source surfaceを黒にして散乱radianceだけを比較）のrelative RGB L2は`0.0252 / 0.0971 / 0.0926 / 0.1385 / 0.2974`。tile幅と誤差は厳密な単調関係ではなく、tile2がtile4をわずかに上回る例が引き続き見られた。tile4からtile1へ細分化するとbaseline fog-only誤差は`9.26%`から`2.52%`へ下がる一方、grid cell数は`10,752`から`165,888`（15.4倍）になる。
+
+sigma半減volumeでは全画像metricはtile2/4で`0.000613 / 0.00106`と小さく見えるが、fog-only relative RGB L2は`0.483 / 0.911`に達し、tile8/16では`1.62 / 2.82`。fog signal自体が小さくsurface RGBで正規化したmetricが細いvolumeの消失を隠すこと、粗いgridがこのthin Gaussianの散乱寄与をほぼ再現できないことを示す。tile1でもfog-only誤差は`0.0294`。半幅は三軸すべてのsigmaを半分にしamplitudeは固定しているため総積分密度も下がるstress caseで、hard-edged volume境界を直接評価したものではない。
+
+baselineをX方向へ0.5移動した条件はfog-only relative RGB L2がtile1/2/4/8/16で`0.0251 / 0.0991 / 0.0942 / 0.1405 / 0.3007`であり、今回の粗いworld-space offsetではphase感度に大差は出なかった。ただしpixel phaseを厳密に半pixel相当へ揃えた摂動ではない。tile1は多くのcell数を要してもfinite direct-to-grid sampling差が残るため、単にtile幅を縮めれば精度問題がなくなるわけではない。局所volumeを扱う候補では、適応解像度、volume-aware injection、解析的積分などを今後比較する価値がある（提案、未検証）。詳細な全画像/fog-only誤差、cell/memory arithmeticは`docs/worklog/artifacts/fog-local-froxel-spatial-resolution-rd-2026-11-13/manifest.json`。
+
+### F5局所fog / hard-edged volume boundary CPU stress sweep（2026-11-13）
+
+`tools/fog_local_froxel_hard_boundary_rd.py`でbinary density box（inside`0.035` / outside`0`、概ね4×8×4 world unit）を使い、centered、X +0.5、depth +0.5の三配置をtile1/2/4/8 pixel×log depth 16/32/64 slicesで比較した。各候補を同一512-step direct referenceへ照合し、surface込みとsurfaceを黒にしたfog-onlyのRGB RMSE / relative L2をmanifestへ保存した。
+
+centered boxの全画像relative L2はtile1/2/4/8×32 slicesで`0.00241 / 0.00284 / 0.00463 / 0.00478`、fog-only relative L2は`0.316 / 0.395 / 0.592 / 0.547`。tile4×64でもfog-only relative L2`0.590`であり、depth sliceを倍にするだけではXY方向のhard boundary差を解消しなかった。tile4×32でboxをXへ0.5ずらすとfog-only relative L2`0.438`、depthへ0.5ずらすと`0.573`。depth +0.5ではtile4×64が`0.497`に改善するが依然大きく、配置とslice境界の影響を受ける。
+
+fog-only relative L2は小さいfog reference energyに対して正規化されるため、surface RGB込みの誤差より大きくなり得る。manifest内のfog-only RMSEとfull-image RMSEも併記して評価する。今回のboxはCPU analytic binary densityでproduction volume rasterization、filtering、shadow/depth edgeとの合成は含まない。tile/sample配置によるhard boundary leakageとhaloの可能性を示すstress evidenceであり、productionでの漏れ量を主張するものではない。詳細は`docs/worklog/artifacts/fog-local-froxel-hard-boundary-rd-2026-11-13/manifest.json`。
+
+### F5 hard-box direct referenceのray-interval oracle監査（2026-11-13）
+
+前項の512-step uniform direct referenceが短いhard-box intersectionを十分解像するか確認するため、`tools/fog_local_froxel_hard_boundary_oracle_rd.py`でslab intersectionからray-box区間を求め、その区間内だけpoint-light scatteringをmidpoint quadratureした。密度区間とBeer-Lambert transmittanceはbinary boxに対して解析的に与え、区間内照明だけを数値積分する。
+
+8/16/32/64/128-step interval quadratureを256-step oracleと比較したとき、128→256差は3配置のfull-image relative L2が`9.3–9.7e-6`、fog-only relative L2が`0.00153–0.00188`。従ってこのsceneでは256-step interval resultを収束targetとして使える。従来uniform512 raymarchとinterval256 oracleとの差はfull-image relative L2`0.000141–0.000149`、最大channel差`0.00202–0.00246`だった。boxと交差するpixel rayは配置ごとに60 / 65 / 60本で、全pixel一様stepではbox境界区間のsamplingが少数rayへ集中する。
+
+同oracleを基準にしたtile2/4/8×32のfog-only relative L2はcentered配置で`0.402 / 0.590 / 0.548`、X shiftで`0.485 / 0.437 / 0.552`、depth shiftで`0.553 / 0.575 / 0.564`。tile4×64 depth shiftは`0.498`。以前のuniform512基準で見た同傾向がinterval oracleでも残るため、hard-box局所誤差はuniform referenceの収束不足だけでは説明されない。ただしfog-only relative値は小さい参照fog energyで正規化されるため、absolute RMSEとpixel coverageも合わせて読む。reference定義・全収束値・froxel比較は`docs/worklog/artifacts/fog-local-froxel-hard-boundary-oracle-rd-2026-11-13/manifest.json`。
+
+### F5 projected-box coverage approximation negative result（2026-11-13）
+
+`tools/fog_local_froxel_box_coverage_rd.py`でAABB 8頂点をscreenへ投影し、screen上の投影矩形overlap率と正確なview-Z区間overlap率を掛けてfroxel density coverageとする近似を実装し、ray-interval oracleと比較した。tile4×32 fog-only relative L2はcenter-sample baselineのcentered / X shift / depth shift=`0.592 / 0.438 / 0.573`に対し、coverage候補は`0.669 / 0.581 / 0.688`で全配置悪化。tile2/8×32およびtile4×64でも系統的な改善は得られなかった。
+
+この方法はprojected boxをscreen-aligned rectangleに外接させ、XY/depth occupancyを分離積として仮定するため、froxel内の真のray-box交差形状・相関を失う。今回のsynthetic条件ではdensity coverageを平均化するだけの提案を支持しないnegative resultである。exact projected footprint、各froxel内box-ray coverage integral、volume-aligned/adaptive gridなどは別候補だが未検証。詳細なfull/fog-only誤差・cell算術は`docs/worklog/artifacts/fog-local-froxel-box-coverage-rd-2026-11-13/manifest.json`。
+
+### F5 per-froxel ray-box depth occupancy CPU probe
+
+前項のprojected-box rectangle案とは別に、`tools/fog_local_froxel_ray_box_coverage_rd.py`で各XY froxelのstratified subpixel rayとAABBの交差区間を求め、区間を各log-depth sliceへclipしてslice内occupancy fractionを注入した。交差区間内の照明もfraction-weightして平均し、ray-interval oracleと比較した。
+
+tile4×32のcenter-sample baseline fog-only relative L2（center / X shift / depth shift=`0.592 / 0.438 / 0.573`）に対し、XY中心ray一本でdepth occupancyを正確にした候補は`0.437 / 0.322 / 0.459`へ改善した。grid cell数は同じ10,752であり、box/slice区間処理と点灯評価が追加される。XY ray数を2×2へ増やすとcentered / depth shiftは`0.428 / 0.449`と小幅改善するが、X shiftは`0.333`へ悪化した。4×4 / 8×8で一貫した追加改善はなく、評価ray-box testsは1×1の10,752から4×4の172,032、8×8の688,128へ増える。tile4×64も常に良くなるわけではなく、centeredは1×1で`0.464`とtile4×32より悪く、depth-shiftでは2×2で`0.444`。
+
+この結果は、粗いdepth sampleでbox区間をまるごとmissする誤差をslice occupancy fractionが減らす可能性を示す。一方XY位置のdensity/lighting代表誤差、後段transmittance/scatteringの非線形近似は残る。screen-space AABB外接coverage negative resultと異なり、ray-box geometryを各rayで保つためこのsynthetic boxでは改善したが、任意密度volume、実GPU時間、shadow filter・depth discontinuityとの結合で有効とは未確認。結果、coverage算術、cell/memory費用は`docs/worklog/artifacts/fog-local-froxel-ray-box-coverage-rd-2026-11-13/manifest.json`。
+
+### F5 multi-box additive density coverage CPU probe
+
+`tools/fog_local_froxel_multi_box_coverage_rd.py`で2つのAABB密度volumeを重複、分離、depth-staggered overlapの3配置へ置いた。oracleは全ray/box区間endpointで積分区間を分割し、重なり中は各boxの一定密度を加算して照明を積分する。128対256 substeps/oracleのfull-image relative L2は`5.7e-6–1.21e-5`。
+
+tile4×32、center-sample baselineのfog-only relative L2はoverlap / disjoint / staggered overlapで`0.457 / 0.631 / 0.706`。各XY cellのcenter rayでboxごとのslice occupancyを計算して密度加算する1×1 coverageは`0.350 / 0.474 / 0.387`へ改善した。2×2は`0.349 / 0.452 / 0.385`とやや改善、4×4は`0.373 / 0.462 / 0.390`で改善が戻った。全画像relative L2もbaseline`0.00260 / 0.00385 / 0.00419`からcoverage1×1`0.00155 / 0.00284 / 0.00278`へ低下した。
+
+同manifestにはBeer–Lambert透過率を散乱RGBから独立して測るmetricもある。volume交差pixelのoptical-depth RMSEはcenter-sampleからxy1×1 occupancyでoverlap`0.0302→0.0176`、disjoint`0.0335→0.0249`、staggered overlap`0.0419→0.0219`へ低減。transmittance RMSEは同順に`0.0282→0.0164`、`0.0314→0.0233`、`0.0376→0.0203`。ただし最大absolute tau errorはoccupancy後も`0.051 / 0.069 / 0.114`で、staggered配置の極端ray誤差が残る。2×2ではmean RMSEが少し下がる場合があるが4×4は戻る。平均誤差だけでなくmaxと交差ray範囲を確認する。
+
+各boxの密度occupancyを足し合わせる方法はこの2-box homogeneous additive-medium fixtureで動作し、重なりを含む複数volumeへ概念を拡張できた。ただしcoverage法はboxごとのintersection/light evaluationを行うためvolume数とXY ray数に応じて計算数が増え、XY sample増加は単調改善しない。異なるanisotropic phase、媒体ごとのalbedo/emission、shadow-map filtering、GPU runtimeは未検証。詳細は`docs/worklog/artifacts/fog-local-froxel-multi-box-coverage-rd-2026-11-13/manifest.json`。
+
+### F5局所fog / XY subsample injection CPU probe（2026-11-13）
+
+`tools/fog_local_froxel_injection_sampling_rd.py`でhard-edged box三配置、tile4/8、32 depth slicesを固定し、各froxelのXY injectionを1×1 / 2×2 / 4×4評価点の平均にした。cell数と仮定memoryは不変で、field/light evaluation数のみ1/4/16倍になるproxyである。
+
+tile4 centered boxのfog-only relative RGB L2は`0.592 / 0.537 / 0.502`（1×1 / 2×2 / 4×4）と改善したが、light evaluationは`32,256 / 129,024 / 516,096`へ増えた。depth-shift boxは`0.573 / 0.503 / 0.509`で2×2が改善、4×4はやや戻る。一方X-shift boxは`0.438 / 0.454 / 0.458`とsubsampleで悪化。tile8では2×2 / 4×4が全3配置で1×1よりfog-only誤差を増やした。全画像指標も同様に条件依存であり、subsampleの一様な解決効果は確認できない。
+
+この比較はfield sample平均と後段のBeer-Lambert integrationの非線形性を保持した簡易proxyで、CPU/GPU時間を計測していない。subsampleはgrid memoryを変えずに計算評価を増やす算術案だが、改善量が配置依存で小さく、コストに対して安定した解決策とは示せなかった。box被覆率のanalytic integration、volume-aligned grid、adaptive local resolutionなどは候補仮説として残るが未検証。詳細は`docs/worklog/artifacts/fog-local-froxel-injection-sampling-rd-2026-11-13/manifest.json`。
+
+### F5局所fog / froxel representation vs integration error CPU sweep（2026-11-13）
+
+`tools/fog_local_froxel_integration_convergence_rd.py`でhard box三配置、tile4×32、tile8×32、tile4×64のgridを一度構築し、各slice内ray integrationだけを1/2/4/8 substepsへ増やした。substep=1は従来のlog-bin geometric midpoint sampleを維持し、追加substep条件は各slice内を等しいview-Z間隔で評価する。512-step direct referenceと比較する際にgrid constructionは固定なので、sampling/integration寄与の変化を切り分ける。
+
+centered boxのtile4×32 fog-only relative L2はsubsteps 1/2/4/8で`0.592 / 0.614 / 0.612 / 0.611`、tile4×64は`0.590 / 0.601 / 0.600 / 0.600`。substep増加でdirect referenceへのfog-only誤差は改善せず、full-image RMSE変化も僅少だった。tile8×32はfog-only`0.547 / 0.543 / 0.543 / 0.543`と少し改善するが、全体差は限定的。X/depth-shiftでも同様に1→8 substepsの差は小さく、fog-only相対誤差は配置次第で増加または減少した。
+
+従ってこのstress fixtureでは、主要誤差は1 sample/sliceの単純な積分不足より、既に構築された粗いgrid representationとinterpolationの寄与が大きい。ただしsample integrationを細分するとgrid近似誤差との相殺が外れ、direct referenceに対する誤差が増える場合もあるため「substeps増で誤差が減らない=純粋な空間誤差」と断定はしない。CPU operation countも1/2/4/8倍に増える。`manifest.json`は全image/fog-only RGB RMSEとrelative L2を保存する。製品GPUでは実測しておらず、hard box proxyの診断である。
 
 ### R&D通過条件
 
@@ -681,7 +802,7 @@ Captureとmanifestは `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12
 
 2026-11-13の実行環境監査では、`dxc` / `glslangValidator` / `ShaderMake`のstandalone commandはPATH上にない。Artifact/ArtifactCoreのsource検索でも`heightFogCS.hlsl`のproduct compile/PSO/dispatch callerは見つからなかった。一方`ArtifactCore::GpuContext::CompileShader()`はDiligent runtime APIとして存在するが、初期化済み`IRenderDevice`が必要でshader単体compile CLIの代わりにはならない。したがってshader実行・GPU時間計測には既存GPU hostか専用harnessが必要であり、現在は後者もない。リポジトリ指示により子repo編集とbuild/CMake/test実行はユーザーの明示指示なしに行わないため、この区間はCPU式mirrorまでを確認範囲とする。GPU計測へ進む場合の作業単位は、既存render hostを利用できるかの確認、必要なら子repo内のR&D専用harness追加、明示許可後のconfigure/build/dispatch/captureである。本番render passやUIへの接続はこの計画から自動的に含めない。
 
-### Phase 3 — 散乱・体積方式のfeasibility（CPU single-scattering参照あり）
+### Phase 3 — 散乱・体積方式のfeasibility（CPU single-scattering/F5 proxyあり）
 
 F4ではsingle scatteringと位相関数を追加し、影なし／単純なshadow visibilityの範囲を比較する。局所volume・ライト影・時間安定性が必要と確認された場合に限ってF5のfroxel grid/reprojectionを小さな独立fixtureで評価する。F6の大気LUTはplanetary sky用途が明確になった場合に独立評価し、height fogの代替扱いをしない。
 
@@ -745,6 +866,19 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 - `tools/fog_shadow_penumbra_rd.py` / `docs/worklog/artifacts/fog-shadow-penumbra-rd-2026-11-12/manifest.json` / `raw_cases.csv` — cubic smoothstep penumbra幅と遮蔽core幅の推定誤差がsample quadratureへ与える影響。
 - `tools/fog_shadow_boundary_sensitivity_rd.py` / `docs/worklog/artifacts/fog-shadow-boundary-sensitivity-rd-2026-11-12/manifest.json` / `raw_cases.csv` — 推定shadow境界をray長の0.1〜2%ずらしたときのsingle-scattering積分誤差。
 - `tools/planetary_atmosphere_scattering_rd.py` — 球状惑星Rayleigh/Mie single-scattering比較、sun elevation sweep。
+- `tools/planetary_scattering_sampling_robustness_rd.py` / `tools/planetary_scattering_sampling_convergence_rd.py` — 太陽高度・camera altitudeをまたぐsampling候補robustnessとselected-ray収束確認。
+- `tools/fog_local_froxel_proxy_rd.py` — Gaussian local density、3 lights、AABB shadowを使うfroxel tile/depth CPU image proxyとoperation/memory算術。
+- `tools/fog_local_froxel_light_count_rd.py` — 同じsynthetic sceneで1/2/3 point-light prefixの画質、shadow-mask閾値感度、light-evaluation算術を比較するCPU-only driver。
+- `tools/fog_local_froxel_depth_distribution_rd.py` — tile4/3-lightの局所fog fixtureでlog/linear view-Z bin配置とslice数を比較し、奥行き帯別誤差・bin幅・費用算術を記録するCPU-only driver。
+- `tools/fog_local_froxel_temporal_rd.py` — 静的局所fog sceneのcamera translation sequenceにおけるgrid再構築／初期grid流用のframe誤差とcandidate-reference residual driftを比較するCPU-only driver。
+- `tools/fog_local_froxel_spatial_resolution_rd.py` — XY tile幅とGaussian volumeのscale/position stressを比較し、全画像とfog-only誤差およびcell/memory算術を記録するCPU-only driver。
+- `tools/fog_local_froxel_hard_boundary_rd.py` — binary box densityでhard volume境界のtile/depth resolutionと配置感度を比較するCPU-only driver。
+- `tools/fog_local_froxel_hard_boundary_oracle_rd.py` — ray-box slab intervalでhard-boundary散乱referenceを構築し、uniform raymarch収束とfroxel誤差を監査するCPU-only driver。
+- `tools/fog_local_froxel_box_coverage_rd.py` — projected AABB screen-rectangle × view-Z overlap率によるfroxel density近似をray-interval oracleと比較するCPU-only negative-result probe。
+- `tools/fog_local_froxel_ray_box_coverage_rd.py` — stratified XY raysと厳密ray/AABB区間からslice occupancyを作るCPU-only probe。
+- `tools/fog_local_froxel_multi_box_coverage_rd.py` — additive densityの2-box重複/分離条件でcenter-sampleとray-box slice coverageを比較するCPU-only probe。
+- `tools/fog_local_froxel_injection_sampling_rd.py` — hard box volumeに対するfroxel内XY injection 1×1/2×2/4×4平均の画質と評価数を比較するCPU-only driver。
+- `tools/fog_local_froxel_integration_convergence_rd.py` — grid構築を固定し、log-depth slice内ray integration substep数を増やしてrepresentation/integration誤差寄与を診断するCPU-only driver。
 - `docs/worklog/artifacts/fog-atmosphere-rd-2026-11-12/manifest.json` / `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12/manifest.json` — capture契約、hash、誤差／輝度summary。
 
 ## 実行制約・状態

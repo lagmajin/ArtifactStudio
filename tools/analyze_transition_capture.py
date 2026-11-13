@@ -16,6 +16,8 @@ import math
 import os
 import re
 import statistics
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -31,6 +33,7 @@ EXPECTED_KINDS = {
     "Spin", "LinearWipe", "RadialWipe", "Flip", "Cube", "Doors",
     "LightLeak", "GradientWipe", "IrisWipe", "BlockDissolve",
 }
+EXPECTED_REVIEW_FIXTURES = {"fine_lines", "natural_texture", "transparent_edge"}
 SAFE_KIND = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
@@ -85,6 +88,56 @@ def write_review_html(directory: Path, result: dict[str, Any]) -> Path:
             for progress in result["progress_steps"]
         ) + '</div></section>',
     ]
+    for fixture in result.get("review_fixtures", []):
+        input_figures = []
+        for key, title in (("input_a", "Input A"), ("input_b", "Input B")):
+            relative = fixture.get(key)
+            if relative and relative in result["images"]:
+                input_figures.append(f'<figure><a href="{escape(relative)}"><img src="{escape(relative)}" alt="{escape(title)}"></a><figcaption>{escape(title)}</figcaption></figure>')
+        transition_sections = []
+        for transition in fixture.get("transitions", []):
+            kind_name = transition.get("kind", "unknown")
+            figures = []
+            for key, title in (("sheet", "Progress strip"), ("alpha_sheet", "Alpha 77 strip")):
+                relative = transition.get(key)
+                if relative and relative in result["images"]:
+                    figures.append(f'<figure><a href="{escape(relative)}"><img src="{escape(relative)}" alt="{escape(kind_name)} {escape(title)}"></a><figcaption>{escape(title)}</figcaption></figure>')
+            for lane in ("sequence", "alpha_sequence"):
+                sequence = transition.get(lane)
+                if not sequence or not sequence.get("frames"):
+                    continue
+                paths = [frame["path"] for frame in sequence["frames"]]
+                lane_title = "Alpha=77 probe" if lane == "alpha_sequence" else ("Source alpha" if fixture.get("alpha_contract") != "opaque RGBA8" else "Opaque")
+                figures.append(
+                    f'<figure class="sequence-figure"><figcaption>{escape(lane_title)} · {len(paths)} lossless PNG frames</figcaption>'
+                    f'<div class="sequence-player" data-kind="{escape(fixture["name"] + "-" + kind_name + "-" + lane, quote=True)}" data-fps="{sequence["fps"]}" data-frames="{escape(json.dumps(paths), quote=True)}">'
+                    f'<img class="sequence-image" src="{escape(paths[0])}" alt="{escape(fixture["name"])} {escape(kind_name)} frame">'
+                    f'<div><button type="button" class="sequence-play">Play</button> '
+                    f'<button type="button" class="sequence-step" data-delta="-1">◀ Frame</button> '
+                    f'<button type="button" class="sequence-step" data-delta="1">Frame ▶</button> '
+                    f'<label>Frame <input class="sequence-index" type="number" min="0" max="{len(paths)-1}" value="0"></label> / {len(paths)-1} '
+                    f'<span class="sequence-progress">p=0</span> · {sequence["fps"]} fps</div></div>'
+                    + (f'<video controls loop muted playsinline src="{escape(transition.get(lane + "_video", ""))}"></video>' if transition.get(lane + "_video") else "")
+                    + '</figure>')
+            reviewer_fields = []
+            for reviewer_index in range(2):
+                attrs = (f'data-fixture="{escape(fixture["name"], quote=True)}" '
+                         f'data-transition="{escape(kind_name, quote=True)}" data-reviewer="{reviewer_index}"')
+                reviewer_fields.append(
+                    f'<fieldset class="fixture-review"><legend>Independent reviewer {reviewer_index + 1}</legend>'
+                    f'<label>Reviewer ID <input class="fixture-reviewer" {attrs} value="Reviewer {reviewer_index + 1}"></label> '
+                    f'<label>Visual judgment <select class="fixture-status" {attrs}>'
+                    '<option value="not-reviewed">Not reviewed</option>'
+                    '<option value="looks-good">Looks good</option>'
+                    '<option value="needs-attention">Needs attention</option></select></label> '
+                    f'<label>Observations <textarea class="fixture-notes" {attrs} rows="2" '
+                    'placeholder="Direction, temporal feel, boundary motion, artifacts, alpha fringe"></textarea></label>'
+                    '</fieldset>')
+            transition_sections.append(
+                f'<details><summary>{escape(kind_name)} · 2 sequences · frame review</summary>'
+                f'<div class="images">{"".join(figures)}</div><h4>Independent visual review</h4>'
+                f'<div class="fixture-reviews">{"".join(reviewer_fields)}</div></details>')
+        sections.append(f'<section><h2>Fixture: {escape(fixture["name"])}</h2><p>{escape(fixture.get("description", ""))} · {escape(fixture.get("alpha_contract", ""))}</p><p>SHA-256: A {escape(fixture.get("input_a_sha256", ""))} · B {escape(fixture.get("input_b_sha256", ""))}</p><div class="images">{"".join(input_figures)}</div><p>For each transition, watch the clip at normal speed, then use the frame controls to inspect boundaries and defects. Record judgments independently.</p>{"".join(transition_sections)}</section>')
     comparison = result.get("comparison")
     if comparison:
         baseline_link = comparison.get("baseline_review_href")
@@ -107,6 +160,7 @@ def write_review_html(directory: Path, result: dict[str, Any]) -> Path:
             f'<p>Status: {"comparable settings" if comparison["conditions_match"] else "capture conditions differ"}; '
             f'{len(changed)} changed images, {len(added)} added, {len(removed)} removed. '
             f'Input fixtures {"match" if comparison["input_fixtures_match"] else "differ"}. '
+            f'Temporal review matrix {"matches" if comparison.get("temporal_review_matrix_match") else "differs"}. '
             f'{baseline_anchor}</p>'
             f'{"<details><summary>Changed image files</summary><ul>" + "".join(links) + "</ul></details>" if links else ""}'
             '</section>'
@@ -124,6 +178,47 @@ def write_review_html(directory: Path, result: dict[str, Any]) -> Path:
             f'alt="{escape(name)} progress strip"></a><figcaption>Progress strip</figcaption></figure>'
         ]
         alpha_sheet = f"transition_alpha_{name}_sheet.png"
+        sequence = kind.get("temporal_sequence")
+        if sequence and sequence.get("frames"):
+            frame_paths = [item["path"] for item in sequence["frames"]]
+            sequence_markup = (
+                f'<div class="sequence-player" data-kind="{escape(name, quote=True)}" '
+                f'data-fps="{sequence["fps"]}" '
+                f'data-frames="{escape(json.dumps(frame_paths), quote=True)}">'
+                f'<img class="sequence-image" src="{escape(frame_paths[0])}" alt="{escape(name)} sequence frame">'
+                f'<div><button type="button" class="sequence-play">Play</button> '
+                f'<button type="button" class="sequence-step" data-delta="-1">◀ Frame</button> '
+                f'<button type="button" class="sequence-step" data-delta="1">Frame ▶</button> '
+                f'<label>Frame <input class="sequence-index" type="number" min="0" '
+                f'max="{len(frame_paths)-1}" value="0"></label> / {len(frame_paths)-1} '
+                f'<span class="sequence-progress">p=0</span> · {sequence["fps"]} fps</div></div>'
+            )
+            video_path = kind.get("temporal_video")
+            if video_path:
+                sequence_markup += (f'<video controls loop muted playsinline '
+                                    f'src="{escape(video_path)}"></video>')
+            figures.insert(1, f'<figure class="sequence-figure"><figcaption>Continuous sequence · '
+                            f'{sequence["frame_count"]} lossless PNG frames</figcaption>{sequence_markup}</figure>')
+        alpha_sequence = kind.get("temporal_alpha_sequence")
+        if alpha_sequence and alpha_sequence.get("frames"):
+            paths = [item["path"] for item in alpha_sequence["frames"]]
+            alpha_markup = (
+                f'<div class="sequence-player" data-kind="{escape(name + "-alpha", quote=True)}" '
+                f'data-fps="{alpha_sequence["fps"]}" '
+                f'data-frames="{escape(json.dumps(paths), quote=True)}">'
+                f'<img class="sequence-image" src="{escape(paths[0])}" alt="{escape(name)} alpha sequence frame">'
+                f'<div><button type="button" class="sequence-play">Play</button> '
+                f'<button type="button" class="sequence-step" data-delta="-1">◀ Frame</button> '
+                f'<button type="button" class="sequence-step" data-delta="1">Frame ▶</button> '
+                f'<label>Frame <input class="sequence-index" type="number" min="0" '
+                f'max="{len(paths)-1}" value="0"></label> / {len(paths)-1} '
+                f'<span class="sequence-progress">p=0</span> · alpha=77 · {alpha_sequence["fps"]} fps</div></div>'
+            )
+            if kind.get("temporal_alpha_video"):
+                alpha_markup += (f'<video controls loop muted playsinline '
+                                 f'src="{escape(kind["temporal_alpha_video"])}"></video>')
+            figures.insert(2, f'<figure class="sequence-figure"><figcaption>Transparent input sequence · '
+                            f'{len(paths)} lossless PNG frames</figcaption>{alpha_markup}</figure>')
         if alpha_sheet in result["images"]:
             figures.append(
                 f'<figure><a href="{escape(alpha_sheet)}">'
@@ -179,9 +274,18 @@ figure{{margin:0;width:min(320px,100%)}} img{{display:block;width:100%;height:au
 figcaption{{color:#b9bec8;margin-top:4px}} .pass{{color:#72d69a}} .fail{{color:#ff7777}}
 .summary{{padding:12px;border:1px solid #555b66;background:#22252b}}
 button,select,textarea{{font:inherit;color:inherit;background:#252a32;border:1px solid #656c78;border-radius:4px;padding:6px}}
+input{{font:inherit;color:inherit;background:#252a32;border:1px solid #656c78;border-radius:4px;padding:5px;width:5em}}
 .review{{display:grid;grid-template-columns:minmax(200px,300px) minmax(250px,1fr);gap:12px;margin:10px 0}}
 .review label{{display:grid;gap:5px}} textarea{{resize:vertical}}
-@media(max-width:700px){{.review{{grid-template-columns:1fr}}}}
+.fixture-reviews{{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:12px}}
+.fixture-review{{border:1px solid #454952;border-radius:5px;padding:10px;display:grid;gap:8px}}
+.fixture-review label{{display:grid;gap:5px}} .fixture-review input{{width:auto}}
+details{{margin:12px 0;border:1px solid #454952;border-radius:5px;padding:10px}}
+summary{{cursor:pointer;font-weight:600;padding:4px}}
+.sequence-figure{{width:min(760px,100%)}} .sequence-player img{{width:min(640px,100%);image-rendering:auto}}
+.sequence-player video{{display:block;width:min(640px,100%);margin-top:8px;background:#000}}
+.sequence-player>div{{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}}
+@media(max-width:700px){{.review,.fixture-reviews{{grid-template-columns:1fr}}}}
 </style></head><body>
 <h1>Transition capture review</h1>
 <div class="summary"><strong class="{status_class}">{status}</strong> · {result["captured_kind_count"]}/{len(EXPECTED_KINDS)} expected kinds · {len(result["images"])} images checked<br>
@@ -192,9 +296,33 @@ Automatic checks verify capture integrity, exact endpoints, alpha, and per-step 
 {"".join(sections)}
 <script>
 (() => {{
+  for (const player of document.querySelectorAll(".sequence-player")) {{
+    const frames = JSON.parse(player.dataset.frames);
+    const image = player.querySelector(".sequence-image");
+    const indexField = player.querySelector(".sequence-index");
+    const progress = player.querySelector(".sequence-progress");
+    const play = player.querySelector(".sequence-play");
+    let index = 0, timer = null;
+    const show = (next) => {{
+      index = Math.max(0, Math.min(frames.length - 1, next));
+      image.src = frames[index]; indexField.value = index;
+      progress.textContent = `p=${{(index / (frames.length - 1)).toFixed(3)}}`;
+      if (index === frames.length - 1 && timer !== null) {{ clearInterval(timer); timer = null; play.textContent = "Play"; }}
+    }};
+    player.querySelectorAll(".sequence-step").forEach(button => button.addEventListener("click", () => show(index + Number(button.dataset.delta))));
+    indexField.addEventListener("change", () => show(Number(indexField.value) || 0));
+    play.addEventListener("click", () => {{
+      if (timer !== null) {{ clearInterval(timer); timer = null; play.textContent = "Play"; return; }}
+      if (index >= frames.length - 1) show(0);
+      play.textContent = "Pause"; timer = setInterval(() => show(index + 1), 1000 / Number(player.dataset.fps));
+    }});
+  }}
   const storageKey = "transition-review-{result["capture_report"]["sha256"]}";
   const statusFields = [...document.querySelectorAll(".review-status")];
   const noteFields = [...document.querySelectorAll(".review-notes")];
+  const fixtureReviewerFields = [...document.querySelectorAll(".fixture-reviewer")];
+  const fixtureStatusFields = [...document.querySelectorAll(".fixture-status")];
+  const fixtureNoteFields = [...document.querySelectorAll(".fixture-notes")];
   const status = document.getElementById("save-state");
   const read = () => {{
     try {{ return JSON.parse(localStorage.getItem(storageKey) || "{{}}"); }}
@@ -204,26 +332,64 @@ Automatic checks verify capture integrity, exact endpoints, alpha, and per-step 
     const reviews = {{}};
     for (const field of statusFields) reviews[field.dataset.kind] = {{status: field.value, notes: ""}};
     for (const field of noteFields) reviews[field.dataset.kind].notes = field.value;
-    try {{ localStorage.setItem(storageKey, JSON.stringify(reviews)); status.textContent = "Saved in this browser."; }}
+    const fixtureReviews = {{}};
+    for (const field of fixtureReviewerFields) {{
+      const byTransition = fixtureReviews[field.dataset.fixture] ||= {{}};
+      const reviewers = byTransition[field.dataset.transition] ||= [];
+      reviewers[Number(field.dataset.reviewer)] ||= {{}};
+      reviewers[Number(field.dataset.reviewer)].reviewer_id = field.value;
+    }}
+    for (const field of fixtureStatusFields) {{
+      const reviewer = fixtureReviews[field.dataset.fixture][field.dataset.transition][Number(field.dataset.reviewer)];
+      reviewer.status = field.value; reviewer.notes = "";
+    }}
+    for (const field of fixtureNoteFields) fixtureReviews[field.dataset.fixture][field.dataset.transition][Number(field.dataset.reviewer)].notes = field.value;
+    const data = {{reviews, fixture_reviews: fixtureReviews}};
+    try {{ localStorage.setItem(storageKey, JSON.stringify(data)); status.textContent = "Saved in this browser."; }}
     catch (_) {{ status.textContent = "Browser storage unavailable; export your notes before closing."; }}
   }};
   const saved = read();
-  for (const field of statusFields) if (saved[field.dataset.kind]) field.value = saved[field.dataset.kind].status;
-  for (const field of noteFields) if (saved[field.dataset.kind]) field.value = saved[field.dataset.kind].notes;
-  for (const field of [...statusFields, ...noteFields]) field.addEventListener("change", save);
-  for (const field of noteFields) field.addEventListener("input", save);
+  const savedReviews = saved.reviews || saved;
+  for (const field of statusFields) if (savedReviews[field.dataset.kind]) field.value = savedReviews[field.dataset.kind].status;
+  for (const field of noteFields) if (savedReviews[field.dataset.kind]) field.value = savedReviews[field.dataset.kind].notes;
+  for (const field of fixtureReviewerFields) {{
+    const reviewer = saved.fixture_reviews?.[field.dataset.fixture]?.[field.dataset.transition]?.[Number(field.dataset.reviewer)];
+    if (reviewer?.reviewer_id) field.value = reviewer.reviewer_id;
+  }}
+  for (const field of fixtureStatusFields) {{
+    const reviewer = saved.fixture_reviews?.[field.dataset.fixture]?.[field.dataset.transition]?.[Number(field.dataset.reviewer)];
+    if (reviewer?.status) field.value = reviewer.status;
+  }}
+  for (const field of fixtureNoteFields) {{
+    const reviewer = saved.fixture_reviews?.[field.dataset.fixture]?.[field.dataset.transition]?.[Number(field.dataset.reviewer)];
+    if (reviewer?.notes) field.value = reviewer.notes;
+  }}
+  for (const field of [...statusFields, ...fixtureReviewerFields, ...fixtureStatusFields, ...fixtureNoteFields]) field.addEventListener("change", save);
+  for (const field of [...noteFields, ...fixtureNoteFields]) field.addEventListener("input", save);
   document.getElementById("export-review").addEventListener("click", () => {{
     const reviews = {{}};
     for (const field of statusFields) reviews[field.dataset.kind] = {{status: field.value, notes: ""}};
     for (const field of noteFields) reviews[field.dataset.kind].notes = field.value;
+    const fixtureReviews = {{}};
+    for (const field of fixtureReviewerFields) {{
+      const byTransition = fixtureReviews[field.dataset.fixture] ||= {{}};
+      const reviewers = byTransition[field.dataset.transition] ||= [];
+      reviewers[Number(field.dataset.reviewer)] ||= {{}};
+      reviewers[Number(field.dataset.reviewer)].reviewer_id = field.value;
+    }}
+    for (const field of fixtureStatusFields) {{
+      const reviewer = fixtureReviews[field.dataset.fixture][field.dataset.transition][Number(field.dataset.reviewer)];
+      reviewer.status = field.value; reviewer.notes = "";
+    }}
+    for (const field of fixtureNoteFields) fixtureReviews[field.dataset.fixture][field.dataset.transition][Number(field.dataset.reviewer)].notes = field.value;
     const payload = {{schema_version: 1, capture_report_sha256: "{result["capture_report"]["sha256"]}",
-                     exported_at: new Date().toISOString(), reviews}};
+                     exported_at: new Date().toISOString(), reviews, fixture_reviews: fixtureReviews}};
     const blob = new Blob([JSON.stringify(payload, null, 2) + "\\n"], {{type: "application/json"}});
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob); link.download = "transition_visual_review.json";
     link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     status.textContent = "Visual review exported.";
-    try {{ localStorage.setItem(storageKey, JSON.stringify(reviews)); }} catch (_) {{}}
+    try {{ localStorage.setItem(storageKey, JSON.stringify({{reviews, fixture_reviews: fixtureReviews}})); }} catch (_) {{}}
   }});
 }})();
 </script>
@@ -501,6 +667,78 @@ def check_capture(directory: Path) -> dict[str, Any]:
         elif alpha_probe_count > 0:
             kind_failures.append("semi-transparent alpha probe lane is missing")
 
+        temporal = entry.get("temporalSequence")
+        temporal_summary = None
+        temporal_alpha_summary = None
+        if isinstance(temporal, dict):
+            temporal_frames = temporal.get("frames", [])
+            frame_count = int(temporal.get("frameCount", 0))
+            temporal_fps = int(temporal.get("fps", 0))
+            if frame_count != len(temporal_frames) or frame_count < 2 or temporal_fps <= 0:
+                kind_failures.append("temporal sequence has invalid frame count or fps")
+            frame_indices = [int(item.get("frameIndex", -1)) for item in temporal_frames]
+            progresses = [float(item.get("progress", -1)) for item in temporal_frames]
+            if frame_indices != list(range(frame_count)):
+                kind_failures.append("temporal frame indices are missing or out of order")
+            expected_progresses = [i / (frame_count - 1) for i in range(frame_count)] if frame_count > 1 else []
+            if len(progresses) != len(expected_progresses) or any(
+                    abs(actual - expected) > 1e-9
+                    for actual, expected in zip(progresses, expected_progresses)):
+                kind_failures.append("temporal progress mapping is inconsistent")
+            sequence_image_records = []
+            for item in temporal_frames:
+                relative = str(item.get("path", ""))
+                if not relative.startswith(f"sequences/{name}/") or ".." in Path(relative).parts:
+                    kind_failures.append(f"unsafe temporal frame path: {relative}")
+                    continue
+                if inspect_image(relative, input_size):
+                    sequence_image_records.append(images[relative])
+            if len(sequence_image_records) != frame_count:
+                kind_failures.append("temporal sequence image set is incomplete")
+            temporal_summary = {"frame_count": frame_count, "fps": temporal_fps,
+                                "duration_seconds": float(temporal.get("durationSeconds", 0)),
+                                "frames": temporal_frames}
+        elif run_manifest is not None:
+            kind_failures.append("runner capture has no temporal sequence; rebuild the test executable")
+        else:
+            warnings.append(f"{name} has no temporal sequence")
+
+        temporal_alpha = entry.get("temporalAlphaSequence")
+        if isinstance(temporal_alpha, dict):
+            alpha_frames = temporal_alpha.get("frames", [])
+            alpha_count = int(temporal_alpha.get("frameCount", 0))
+            alpha_fps = int(temporal_alpha.get("fps", 0))
+            if int(temporal_alpha.get("alphaValue", -1)) != 77:
+                kind_failures.append("temporal alpha lane does not declare alpha 77")
+            if alpha_count != len(alpha_frames) or alpha_count < 2 or alpha_fps <= 0:
+                kind_failures.append("temporal alpha lane has invalid frame count or fps")
+            if alpha_frames and isinstance(temporal, dict) and alpha_frames[0].get("path"):
+                previous_alpha: bytes | None = None
+                for index, item in enumerate(alpha_frames):
+                    relative = str(item.get("path", ""))
+                    if not relative.startswith(f"sequences/{name}/") or ".." in Path(relative).parts:
+                        kind_failures.append(f"unsafe temporal alpha frame path: {relative}")
+                        continue
+                    if not inspect_image(relative, input_size, keep_pixels=True):
+                        continue
+                    pixels = pixel_data.get(relative)
+                    if pixels is None:
+                        continue
+                    if any(value != 77 for value in pixels[3::4]):
+                        kind_failures.append(f"temporal alpha frame {index} does not preserve alpha 77")
+                    if index == 0 and "alpha_input_A.png" in pixel_data and pixels != pixel_data["alpha_input_A.png"]:
+                        kind_failures.append("temporal alpha first frame differs from alpha input A")
+                    if index == alpha_count - 1 and "alpha_input_B.png" in pixel_data and pixels != pixel_data["alpha_input_B.png"]:
+                        kind_failures.append("temporal alpha last frame differs from alpha input B")
+                    if previous_alpha is not None:
+                        measured = changed_pixel_count(previous_alpha, pixels, input_size)
+                        if measured == 0 or measured != int(item.get("changedFromPrevious", -1)):
+                            kind_failures.append(f"temporal alpha frame {index} has invalid adjacent pixel change count")
+                    previous_alpha = pixels
+            temporal_alpha_summary = {"frame_count": alpha_count, "fps": alpha_fps,
+                                      "alpha_value": temporal_alpha.get("alphaValue"),
+                                      "frames": alpha_frames}
+
         if kind_failures:
             failures.extend(f"{name}: {message}" for message in kind_failures)
 
@@ -516,6 +754,8 @@ def check_capture(directory: Path) -> dict[str, Any]:
                              "alpha_probe_changed_pixels": alpha_probe_changes,
                              "alpha_probe_bad_alpha_pixel_count": alpha_probe_bad_alpha,
                              "timing_by_progress": timing_summaries,
+                             "temporal_sequence": temporal_summary,
+                             "temporal_alpha_sequence": temporal_alpha_summary,
                              "checks_passed": not kind_failures,
                              "failures": kind_failures})
 
@@ -526,6 +766,112 @@ def check_capture(directory: Path) -> dict[str, Any]:
         rows = (kind_count + columns - 1) // columns
         inspect_image(f"all_p{stem}.png", (max(1, width // 2) * columns,
                                             max(1, height // 2) * rows))
+
+    review_fixtures: list[dict[str, Any]] = []
+    seen_review_fixtures: set[str] = set()
+    temporal_contract = report.get("temporalSequenceContract")
+    expected_fixture_frame_count = (int(temporal_contract.get("frameCount", 0))
+                                    if isinstance(temporal_contract, dict) else 0)
+    expected_fixture_fps = (int(temporal_contract.get("fps", 0))
+                            if isinstance(temporal_contract, dict) else 0)
+    if expected_fixture_frame_count < 2 or expected_fixture_fps <= 0:
+        failures.append("temporalSequenceContract must declare frameCount and fps for fixture review")
+    for fixture in report.get("reviewFixtures", []):
+        name = str(fixture.get("name", ""))
+        if name not in EXPECTED_REVIEW_FIXTURES or name in seen_review_fixtures:
+            failures.append(f"unexpected or duplicate review fixture: {name!r}")
+        seen_review_fixtures.add(name)
+        checked: dict[str, Any] = {"name": name, "description": fixture.get("description", ""),
+                                   "alpha_contract": fixture.get("alphaContract", "")}
+        for source_key, output_key in (("inputA", "input_a"), ("inputB", "input_b")):
+            relative = fixture.get(source_key)
+            if not isinstance(relative, str) or ".." in Path(relative).parts or not inspect_image(relative, input_size):
+                failures.append(f"invalid review fixture image for {name}: {relative!r}")
+                continue
+            checked[output_key] = relative
+            checked[output_key + "_sha256"] = images[relative]["sha256"]
+        checked_transitions: list[dict[str, Any]] = []
+        seen_fixture_kinds: set[str] = set()
+        for capture in fixture.get("transitionCaptures", []):
+            kind_name = str(capture.get("kind", ""))
+            if kind_name not in EXPECTED_KINDS or kind_name in seen_fixture_kinds:
+                failures.append(f"review fixture {name} has unexpected or duplicate transition kind: {kind_name!r}")
+            seen_fixture_kinds.add(kind_name)
+            checked_capture: dict[str, Any] = {"kind": kind_name}
+            for source_key, output_key in (("sheet", "sheet"), ("alphaSheet", "alpha_sheet")):
+                relative = capture.get(source_key)
+                if not isinstance(relative, str) or ".." in Path(relative).parts or not inspect_image(relative, input_size):
+                    failures.append(f"invalid review fixture {name} {kind_name} {output_key}: {relative!r}")
+                    continue
+                checked_capture[output_key] = relative
+            for source_key, output_key, alpha_lane in (("sequence", "sequence", False),
+                                                        ("alphaSequence", "alpha_sequence", True)):
+                frames = capture.get(source_key, [])
+                if len(frames) != int(capture.get("frameCount", 0)) or len(frames) < 2:
+                    failures.append(f"review fixture {name} {kind_name} {output_key} has incomplete frame count")
+                if len(frames) != expected_fixture_frame_count:
+                    failures.append(f"review fixture {name} {kind_name} {output_key} does not match the declared frame count")
+                if int(capture.get("fps", 0)) != expected_fixture_fps:
+                    failures.append(f"review fixture {name} {kind_name} {output_key} has invalid fps")
+                previous: bytes | None = None
+                for index, frame in enumerate(frames):
+                    relative = str(frame.get("path", ""))
+                    relative_path = Path(relative)
+                    expected_folder = Path("sequences") / f"review_{name}" / kind_name
+                    expected_stem = "alpha_frame_" if alpha_lane else "frame_"
+                    if (relative_path.parent != expected_folder or
+                            not relative_path.name.startswith(expected_stem) or
+                            ".." in relative_path.parts or
+                            not inspect_image(relative, input_size, keep_pixels=True)):
+                        failures.append(f"invalid review fixture sequence frame for {name} {kind_name}: {relative}")
+                        continue
+                    expected_progress = index / (len(frames) - 1) if len(frames) > 1 else 0.0
+                    if int(frame.get("frameIndex", -1)) != index or not math.isclose(
+                            float(frame.get("progress", -1.0)), expected_progress,
+                            rel_tol=0.0, abs_tol=1e-9):
+                        failures.append(f"review fixture {name} {kind_name} {output_key} frame {index} has invalid frame/progress mapping")
+                    pixels = pixel_data.get(relative)
+                    if pixels is None:
+                        continue
+                    if alpha_lane and any(value != 77 for value in pixels[3::4]):
+                        failures.append(f"review fixture {name} {kind_name} alpha frame {index} changed alpha 77")
+                    if index == 0:
+                        reference = pixel_data.get(checked.get("input_a", ""))
+                        endpoint_matches = reference is None or (
+                            pixels[::4] == reference[::4] and pixels[1::4] == reference[1::4]
+                            and pixels[2::4] == reference[2::4]
+                            and (alpha_lane or pixels[3::4] == reference[3::4]))
+                        if not endpoint_matches:
+                            failures.append(f"review fixture {name} {kind_name} sequence start differs from input A")
+                    if index == len(frames) - 1:
+                        reference = pixel_data.get(checked.get("input_b", ""))
+                        endpoint_matches = reference is None or (
+                            pixels[::4] == reference[::4] and pixels[1::4] == reference[1::4]
+                            and pixels[2::4] == reference[2::4]
+                            and (alpha_lane or pixels[3::4] == reference[3::4]))
+                        if not endpoint_matches:
+                            failures.append(f"review fixture {name} {kind_name} sequence end differs from input B")
+                    if previous is not None and changed_pixel_count(previous, pixels, input_size) != int(frame.get("changedFromPrevious", -1)):
+                        failures.append(f"review fixture {name} {kind_name} sequence frame {index} changed-pixel count mismatch")
+                    previous = pixels
+                checked_capture[output_key] = {"fps": int(capture.get("fps", 0)), "frames": frames}
+            for key, output_key in (("progressFrames", "progress"), ("alphaProgressFrames", "alpha_progress")):
+                paths = capture.get(key, [])
+                checked_capture[output_key] = paths
+                for relative in paths:
+                    if not isinstance(relative, str) or ".." in Path(relative).parts or not inspect_image(relative, input_size):
+                        failures.append(f"invalid review fixture progress image for {name} {kind_name}: {relative!r}")
+                    elif output_key == "alpha_progress":
+                        _, _, _, pixels = read_png(directory / relative)
+                        if any(value != 77 for value in pixels[3::4]):
+                            failures.append(f"review fixture {name} {kind_name} alpha progress image does not preserve alpha 77")
+            checked_transitions.append(checked_capture)
+        if seen_fixture_kinds != EXPECTED_KINDS:
+            failures.append(f"review fixture {name} transition set is incomplete: missing={sorted(EXPECTED_KINDS - seen_fixture_kinds)}")
+        checked["transitions"] = checked_transitions
+        review_fixtures.append(checked)
+    if seen_review_fixtures != EXPECTED_REVIEW_FIXTURES:
+        failures.append(f"review fixture set is incomplete: missing={sorted(EXPECTED_REVIEW_FIXTURES - seen_review_fixtures)}")
 
     result = {
         "schema_version": 1,
@@ -552,12 +898,85 @@ def check_capture(directory: Path) -> dict[str, Any]:
         "expected_kinds": sorted(EXPECTED_KINDS),
         "captured_kind_count": len(names),
         "kinds": kind_results,
+        "review_fixtures": review_fixtures,
         "images": images,
         "warnings": warnings,
         "failures": failures,
         "passed": not failures,
     }
+    temporal_contract = report.get("temporalSequenceContract")
+    if temporal_contract is not None and not isinstance(temporal_contract, dict):
+        failures.append("temporalSequenceContract must be an object")
+        result["passed"] = False
+    result["temporal_sequence_contract"] = temporal_contract
     return result
+
+
+def encode_temporal_videos(directory: Path, result: dict[str, Any]) -> None:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        result["warnings"].append("ffmpeg unavailable; lossless source PNG sequences remain reviewable")
+        result["video_encoding"] = {"available": False, "reason": "ffmpeg not found",
+                                     "source_frames": "lossless PNG; pixel checks use these frames"}
+        return
+    encoded: list[dict[str, Any]] = []
+    for kind in result["kinds"]:
+        for lane, sequence_key, video_key, stem in (
+                ("opaque", "temporal_sequence", "temporal_video", "frame_%04d.png"),
+                ("alpha", "temporal_alpha_sequence", "temporal_alpha_video", "alpha_frame_%04d.png")):
+            sequence = kind.get(sequence_key)
+            if not sequence or not sequence.get("frames"):
+                continue
+            relative = f"sequences/{kind['name']}_{lane}.mkv"
+            target = directory / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            first = Path(sequence["frames"][0]["path"])
+            pattern = first.parent / stem
+            command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+                       "-framerate", str(sequence["fps"]), "-start_number", "0",
+                       "-i", str(directory / pattern), "-an", "-c:v", "ffv1",
+                       "-level", "3", "-pix_fmt", "bgra", str(target)]
+            completed = subprocess.run(command, capture_output=True, text=True, check=False)
+            if completed.returncode:
+                result["warnings"].append(f"{kind['name']} {lane} FFV1 encoding failed: {completed.stderr.strip()}")
+                continue
+            kind[video_key] = relative
+            encoded.append({"path": relative, "sha256": sha256(target),
+                            "codec": "FFV1", "container": "Matroska", "pixel_format": "bgra",
+                            "fps": sequence["fps"], "frame_count": sequence["frame_count"],
+                            "lane": lane})
+    for fixture in result.get("review_fixtures", []):
+        for transition in fixture.get("transitions", []):
+            for lane in ("sequence", "alpha_sequence"):
+                sequence = transition.get(lane)
+                if not sequence or not sequence.get("frames"):
+                    continue
+                name = fixture["name"]
+                kind_name = transition["kind"]
+                lane_name = "alpha" if lane == "alpha_sequence" else "source"
+                relative = f"sequences/review_{name}_{kind_name}_{lane_name}.mkv"
+                target = directory / relative
+                first = Path(sequence["frames"][0]["path"])
+                pattern = first.parent / ("alpha_frame_%04d.png" if lane_name == "alpha" else "frame_%04d.png")
+                command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-framerate",
+                           str(sequence["fps"]), "-start_number", "0", "-i", str(directory / pattern),
+                           "-an", "-c:v", "ffv1", "-level", "3", "-pix_fmt", "bgra", str(target)]
+                completed = subprocess.run(command, capture_output=True, text=True, check=False)
+                if completed.returncode:
+                    result["warnings"].append(f"review fixture {name} {kind_name} {lane_name} FFV1 encoding failed: {completed.stderr.strip()}")
+                    continue
+                transition[lane_name + "_video"] = relative
+                encoded.append({"path": relative, "sha256": sha256(target), "codec": "FFV1",
+                                "container": "Matroska", "pixel_format": "bgra", "fps": sequence["fps"],
+                                "frame_count": len(sequence["frames"]), "lane": lane_name,
+                                "fixture": name, "transition": kind_name})
+    result["temporal_videos"] = encoded
+    result["video_encoding"] = {
+        "available": True, "encoder_path": str(Path(ffmpeg).resolve()),
+        "codec": "FFV1", "container": "Matroska", "pixel_format": "bgra",
+        "lossless": True,
+        "display_conversion": "player display conversion is external; source PNG frames remain pixel-check authority",
+    }
 
 
 def compare_captures(current: dict[str, Any], baseline_path: Path,
@@ -581,18 +1000,42 @@ def compare_captures(current: dict[str, Any], baseline_path: Path,
         if current_images[name].get("sha256") != baseline_images[name].get("sha256")
     ]
     input_names = {"input_A.png", "input_B.png", "alpha_input_A.png", "alpha_input_B.png"}
+    current_fixture_inputs = {f"review_fixture:{item['name']}:A": item.get("input_a_sha256")
+                              for item in current.get("review_fixtures", [])}
+    current_fixture_inputs.update({f"review_fixture:{item['name']}:B": item.get("input_b_sha256")
+                                   for item in current.get("review_fixtures", [])})
+    baseline_fixture_inputs = {f"review_fixture:{item['name']}:A": item.get("input_a_sha256")
+                               for item in baseline.get("review_fixtures", [])}
+    baseline_fixture_inputs.update({f"review_fixture:{item['name']}:B": item.get("input_b_sha256")
+                                    for item in baseline.get("review_fixtures", [])})
+    fixture_sets_match = current_fixture_inputs == baseline_fixture_inputs and all(
+        digest for digest in current_fixture_inputs.values())
     shared_inputs = input_names & current_names & baseline_names
     input_fixtures_match = bool(shared_inputs) and all(
         current_images[name].get("sha256") == baseline_images[name].get("sha256")
         for name in shared_inputs
-    ) and (input_names & current_names) == (input_names & baseline_names)
+    ) and (input_names & current_names) == (input_names & baseline_names) and fixture_sets_match
+    def temporal_review_matrix(report: dict[str, Any]) -> dict[str, dict[str, tuple[int, int, int, int]]]:
+        return {
+            fixture["name"]: {
+                transition["kind"]: (
+                    transition.get("sequence", {}).get("fps", 0),
+                    len(transition.get("sequence", {}).get("frames", [])),
+                    transition.get("alpha_sequence", {}).get("fps", 0),
+                    len(transition.get("alpha_sequence", {}).get("frames", [])),
+                )
+                for transition in fixture.get("transitions", [])
+            }
+            for fixture in report.get("review_fixtures", [])
+        }
+    temporal_review_match = temporal_review_matrix(current) == temporal_review_matrix(baseline)
     settings_match = (
         current.get("frame") == baseline.get("frame")
         and current.get("progress_steps") == baseline.get("progress_steps")
         and current.get("expected_kinds") == baseline.get("expected_kinds")
         and current.get("alpha_probe_checks") == baseline.get("alpha_probe_checks")
     )
-    conditions_match = settings_match and input_fixtures_match and (
+    conditions_match = settings_match and input_fixtures_match and temporal_review_match and (
         current.get("execution_path") == baseline.get("execution_path")
     )
     current_run = (current.get("run_manifest") or {}).get("metadata") or {}
@@ -623,6 +1066,7 @@ def compare_captures(current: dict[str, Any], baseline_path: Path,
         "conditions_match": conditions_match,
         "settings_match": settings_match,
         "input_fixtures_match": input_fixtures_match,
+        "temporal_review_matrix_match": temporal_review_match,
         "execution_path_match": current.get("execution_path") == baseline.get("execution_path"),
         "source_revision_match": bool(current_source) and current_source == baseline_source,
         "binary_hash_match": bool(current_binary) and current_binary == baseline_binary,
@@ -652,6 +1096,7 @@ def main() -> int:
     output = args.output.resolve() if args.output else directory / "verification_report.json"
     try:
         result = check_capture(directory)
+        encode_temporal_videos(directory, result)
         if args.baseline:
             result["comparison"] = compare_captures(
                 result, args.baseline.expanduser().resolve(), directory

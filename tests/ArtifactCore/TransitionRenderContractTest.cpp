@@ -73,6 +73,8 @@ constexpr double kFps = 30.0;
 constexpr std::array<double, 5> kSteps{0.0, 0.25, 0.5, 0.75, 1.0};
 constexpr int kTimingWarmupCount = 2;
 constexpr int kTimingSampleCount = 7;
+constexpr int kSequenceFrameCount = 31;
+constexpr int kSequenceFps = 30;
 
 Image inputA(const int width = kWidth, const int height = kHeight)
 {
@@ -86,11 +88,12 @@ Image inputB(const int width = kWidth, const int height = kHeight)
 
 ArtifactTestTransitionBridge::RenderOptions optionsAt(const double progress,
                                                       const int width = kWidth,
-                                                      const int height = kHeight)
+                                                      const int height = kHeight,
+                                                      const int frameIndex = kFrameIndex)
 {
     ArtifactTestTransitionBridge::RenderOptions options;
     options.progress = progress;
-    options.frameIndex = kFrameIndex;
+    options.frameIndex = frameIndex;
     options.fps = kFps;
     options.width = width;
     options.height = height;
@@ -135,6 +138,64 @@ bool writePng(const Image& image, const QString& path)
     return !qimage.isNull() && qimage.save(path, "PNG");
 }
 
+QString sequenceStem(const int frameIndex)
+{
+    return QStringLiteral("frame_") + QString::number(frameIndex).rightJustified(4, QChar('0'));
+}
+
+QJsonArray writeTemporalSequence(const TransitionKind kind, const QString& directory)
+{
+    QJsonArray frames;
+    const QString name = kindLabel(kind);
+    const Image a = inputA();
+    const Image b = inputB();
+    Image previous;
+    for (int frameIndex = 0; frameIndex < kSequenceFrameCount; ++frameIndex) {
+        const double progress = static_cast<double>(frameIndex) /
+                                static_cast<double>(kSequenceFrameCount - 1);
+        const RenderResult result = ArtifactTestTransitionBridge::render(
+            kind, a, b, optionsAt(progress, kWidth, kHeight, frameIndex));
+        const int changed = previous.empty() ? 0 :
+            ArtifactTestTransitionRenderer::difference(previous, result.image).changedPixels;
+        const QString relative = QStringLiteral("sequences/") + name + QStringLiteral("/") +
+                                 sequenceStem(frameIndex) + QStringLiteral(".png");
+        writePng(result.image, directory + QStringLiteral("/") + relative);
+        frames.append(QJsonObject{{QStringLiteral("frameIndex"), frameIndex},
+                                  {QStringLiteral("progress"), progress},
+                                  {QStringLiteral("path"), relative},
+                                  {QStringLiteral("changedFromPrevious"), changed}});
+        previous = result.image;
+    }
+    return frames;
+}
+
+QJsonArray writeTemporalAlphaSequence(const TransitionKind kind, const QString& directory)
+{
+    QJsonArray frames;
+    const QString name = kindLabel(kind);
+    const Image a = withUniformAlpha(inputA(), 77u);
+    const Image b = withUniformAlpha(inputB(), 77u);
+    Image previous;
+    for (int frameIndex = 0; frameIndex < kSequenceFrameCount; ++frameIndex) {
+        const double progress = static_cast<double>(frameIndex) /
+                                static_cast<double>(kSequenceFrameCount - 1);
+        const RenderResult result = ArtifactTestTransitionBridge::render(
+            kind, a, b, optionsAt(progress, kWidth, kHeight, frameIndex));
+        const int changed = previous.empty() ? 0 :
+            ArtifactTestTransitionRenderer::difference(previous, result.image).changedPixels;
+        const QString relative = QStringLiteral("sequences/") + name +
+                                 QStringLiteral("/alpha_") + sequenceStem(frameIndex) +
+                                 QStringLiteral(".png");
+        writePng(result.image, directory + QStringLiteral("/") + relative);
+        frames.append(QJsonObject{{QStringLiteral("frameIndex"), frameIndex},
+                                  {QStringLiteral("progress"), progress},
+                                  {QStringLiteral("path"), relative},
+                                  {QStringLiteral("changedFromPrevious"), changed}});
+        previous = result.image;
+    }
+    return frames;
+}
+
 QString progressStem(const double progress)
 {
     const int percent = static_cast<int>(std::lround(progress * 100.0));
@@ -147,6 +208,73 @@ Image withUniformAlpha(Image image, const std::uint8_t alpha)
         image.pixels[index] = alpha;
     }
     return image;
+}
+
+QJsonObject writeReviewFixtureTransition(const TransitionKind kind, const QString& name,
+                                        const QString& directory, const Image& a,
+                                        const Image& b)
+{
+    const QString transitionName = QString::fromLatin1(ArtifactTestTransitionBridge::kindName(kind));
+    const QString base = QStringLiteral("review_") + name + QStringLiteral("_") + transitionName;
+    const QString sequenceDirectory = QStringLiteral("sequences/review_") + name +
+                                      QStringLiteral("/") + transitionName;
+    QDir().mkpath(directory + QStringLiteral("/") + sequenceDirectory);
+    const Image alphaA = withUniformAlpha(a, 77u);
+    const Image alphaB = withUniformAlpha(b, 77u);
+    std::vector<Image> progressFrames;
+    std::vector<Image> alphaProgressFrames;
+    QJsonArray progressArtifacts;
+    QJsonArray alphaProgressArtifacts;
+    for (const double progress : kSteps) {
+        const auto result = ArtifactTestTransitionBridge::render(kind, a, b, optionsAt(progress));
+        const auto alphaResult = ArtifactTestTransitionBridge::render(kind, alphaA, alphaB, optionsAt(progress));
+        const QString stem = progressStem(progress);
+        const QString framePath = base + QStringLiteral("_p") + stem + QStringLiteral(".png");
+        const QString alphaPath = base + QStringLiteral("_alpha_p") + stem + QStringLiteral(".png");
+        writePng(result.image, directory + QStringLiteral("/") + framePath);
+        writePng(alphaResult.image, directory + QStringLiteral("/") + alphaPath);
+        progressArtifacts.append(framePath);
+        alphaProgressArtifacts.append(alphaPath);
+        progressFrames.push_back(result.image);
+        alphaProgressFrames.push_back(alphaResult.image);
+    }
+    const QString sheetPath = base + QStringLiteral("_sheet.png");
+    const QString alphaSheetPath = base + QStringLiteral("_alpha_sheet.png");
+    writePng(ArtifactTestTransitionRenderer::makeContactSheet(progressFrames, 5, 2),
+             directory + QStringLiteral("/") + sheetPath);
+    writePng(ArtifactTestTransitionRenderer::makeContactSheet(alphaProgressFrames, 5, 2),
+             directory + QStringLiteral("/") + alphaSheetPath);
+
+    QJsonArray sequences[2];
+    const Image inputs[2]{a, alphaA};
+    const Image outputs[2]{b, alphaB};
+    for (int lane = 0; lane < 2; ++lane) {
+        Image previous;
+        for (int frameIndex = 0; frameIndex < kSequenceFrameCount; ++frameIndex) {
+            const double progress = static_cast<double>(frameIndex) / (kSequenceFrameCount - 1);
+            const auto result = ArtifactTestTransitionBridge::render(
+                kind, inputs[lane], outputs[lane], optionsAt(progress, kWidth, kHeight, frameIndex));
+            const int changed = previous.empty() ? 0 :
+                ArtifactTestTransitionRenderer::difference(previous, result.image).changedPixels;
+            const QString relative = QStringLiteral("sequences/review_") + name +
+                QStringLiteral("/") + transitionName +
+                (lane ? QStringLiteral("/alpha_") : QStringLiteral("/")) +
+                sequenceStem(frameIndex) + QStringLiteral(".png");
+            writePng(result.image, directory + QStringLiteral("/") + relative);
+            sequences[lane].append(QJsonObject{{QStringLiteral("frameIndex"), frameIndex},
+                {QStringLiteral("progress"), progress}, {QStringLiteral("path"), relative},
+                {QStringLiteral("changedFromPrevious"), changed}});
+            previous = result.image;
+        }
+    }
+    return QJsonObject{{QStringLiteral("progressFrames"), progressArtifacts},
+        {QStringLiteral("alphaProgressFrames"), alphaProgressArtifacts},
+        {QStringLiteral("sheet"), sheetPath}, {QStringLiteral("alphaSheet"), alphaSheetPath},
+        {QStringLiteral("kind"), transitionName},
+        {QStringLiteral("frameCount"), kSequenceFrameCount},
+        {QStringLiteral("fps"), kSequenceFps},
+        {QStringLiteral("sequence"), sequences[0]},
+        {QStringLiteral("alphaSequence"), sequences[1]}};
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +304,11 @@ QJsonObject statsToJson(const FrameStats& stats)
 // entry. `directory` may be empty to skip the PNG write.
 QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directory)
 {
+    QDir().mkpath(directory + QStringLiteral("/sequences/") + kindLabel(kind));
+    const QJsonArray temporalFrames = writeTemporalSequence(
+        kind, directory);
+    const QJsonArray temporalAlphaFrames = writeTemporalAlphaSequence(
+        kind, directory);
     const Image a = inputA();
     const Image b = inputB();
     const Image alphaA = withUniformAlpha(inputA(), 77u);
@@ -285,7 +418,20 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
         {QStringLiteral("steps"), steps},
         {QStringLiteral("alphaProbe"),
          QJsonObject{{QStringLiteral("alphaValue"), 77},
-                     {QStringLiteral("steps"), alphaSteps}}}};
+                     {QStringLiteral("steps"), alphaSteps}}},
+        {QStringLiteral("temporalSequence"),
+         QJsonObject{{QStringLiteral("frameCount"), kSequenceFrameCount},
+                     {QStringLiteral("fps"), kSequenceFps},
+                     {QStringLiteral("durationSeconds"),
+                      static_cast<double>(kSequenceFrameCount - 1) / kSequenceFps},
+                     {QStringLiteral("progressMapping"),
+                      QStringLiteral("frameIndex/(frameCount-1)")},
+                     {QStringLiteral("frames"), temporalFrames}}},
+        {QStringLiteral("temporalAlphaSequence"),
+         QJsonObject{{QStringLiteral("alphaValue"), 77},
+                     {QStringLiteral("frameCount"), kSequenceFrameCount},
+                     {QStringLiteral("fps"), kSequenceFps},
+                     {QStringLiteral("frames"), temporalAlphaFrames}}}};
 }
 
 QJsonObject writeArtifacts(const QString& directory)
@@ -305,6 +451,51 @@ QJsonObject writeArtifacts(const QString& directory)
                  {withUniformAlpha(inputA(), 77u), withUniformAlpha(inputB(), 77u)},
                  2, 2),
              directory + QStringLiteral("/alpha_inputs.png"));
+
+    const std::array<QString, 3> reviewFixtureNames{
+        QStringLiteral("fine_lines"), QStringLiteral("natural_texture"),
+        QStringLiteral("transparent_edge")};
+    QJsonArray reviewFixtures;
+    for (std::size_t index = 0; index < reviewFixtureNames.size(); ++index) {
+        const QString& fixtureName = reviewFixtureNames[index];
+        Image fixtureA;
+        Image fixtureB;
+        QString description;
+        QString alphaContract = QStringLiteral("opaque RGBA8");
+        if (index == 0) {
+            fixtureA = ArtifactTestTransitionRenderer::makeFineLineFixture(kWidth, kHeight, false);
+            fixtureB = ArtifactTestTransitionRenderer::makeFineLineFixture(kWidth, kHeight, true);
+            description = QStringLiteral("synthetic high-contrast crossing fine lines; integer periodic pattern");
+        } else if (index == 1) {
+            fixtureA = ArtifactTestTransitionRenderer::makeNaturalTextureFixture(kWidth, kHeight, false);
+            fixtureB = ArtifactTestTransitionRenderer::makeNaturalTextureFixture(kWidth, kHeight, true);
+            description = QStringLiteral("synthetic deterministic grain and low-frequency color variation; not photographic");
+        } else {
+            fixtureA = ArtifactTestTransitionRenderer::makeTransparentEdgeFixture(kWidth, kHeight, false);
+            fixtureB = ArtifactTestTransitionRenderer::makeTransparentEdgeFixture(kWidth, kHeight, true);
+            alphaContract = QStringLiteral("straight RGBA8, soft alpha edge");
+            description = QStringLiteral("synthetic opposing colored matte shapes with a linear soft alpha boundary");
+        }
+        const QString prefix = QStringLiteral("fixture_") + fixtureName;
+        writePng(fixtureA, directory + QStringLiteral("/") + prefix + QStringLiteral("_A.png"));
+        writePng(fixtureB, directory + QStringLiteral("/") + prefix + QStringLiteral("_B.png"));
+        writePng(ArtifactTestTransitionRenderer::makeContactSheet({fixtureA, fixtureB}, 2, 2),
+                 directory + QStringLiteral("/") + prefix + QStringLiteral("_inputs.png"));
+        QJsonArray transitionCaptures;
+        for (const TransitionKind kind : ArtifactTestTransitionBridge::concreteKinds()) {
+            transitionCaptures.append(writeReviewFixtureTransition(
+                kind, fixtureName, directory, fixtureA, fixtureB));
+        }
+        reviewFixtures.append(QJsonObject{
+            {QStringLiteral("name"), fixtureName},
+            {QStringLiteral("source"), QStringLiteral("generated deterministically in ArtifactTestTransitionRenderer")},
+            {QStringLiteral("description"), description},
+            {QStringLiteral("width"), kWidth}, {QStringLiteral("height"), kHeight},
+            {QStringLiteral("alphaContract"), alphaContract},
+            {QStringLiteral("inputA"), prefix + QStringLiteral("_A.png")},
+            {QStringLiteral("inputB"), prefix + QStringLiteral("_B.png")},
+            {QStringLiteral("transitionCaptures"), transitionCaptures}});
+    }
 
     QJsonArray transitions;
     for (const TransitionKind kind : ArtifactTestTransitionBridge::concreteKinds()) {
@@ -329,6 +520,13 @@ QJsonObject writeArtifacts(const QString& directory)
         {QStringLiteral("height"), kHeight},
         {QStringLiteral("frameIndex"), kFrameIndex},
         {QStringLiteral("fps"), kFps},
+        {QStringLiteral("reviewFixtures"), reviewFixtures},
+        {QStringLiteral("temporalSequenceContract"),
+         QJsonObject{{QStringLiteral("frameCount"), kSequenceFrameCount},
+                     {QStringLiteral("fps"), kSequenceFps},
+                     {QStringLiteral("codec"), QStringLiteral("PNG RGBA lossless source frames")},
+                     {QStringLiteral("videoEncoding"),
+                      QStringLiteral("optional ffmpeg FFV1 in Matroska; source PNGs remain authoritative")}}},
         {QStringLiteral("timing"),
          QJsonObject{{QStringLiteral("clock"), QStringLiteral("steady_clock")},
                      {QStringLiteral("warmupCount"), kTimingWarmupCount},

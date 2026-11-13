@@ -1,4 +1,17 @@
-**最終更新:** 2026-11-12
+**最終更新:** 2026-11-13
+
+## 2026-11-13: 局所fogの全画像誤差は細いvolumeの消失を隠し得る
+- **関連:** `tools/fog_local_froxel_spatial_resolution_rd.py`、`tools/fog_local_froxel_hard_boundary_rd.py`、F5 froxel CPU proxy。
+- **確認できた事実:** Gaussian sigma半減stressでtile4の全画像relative RGB L2は`0.00106`だが、fog-only relative L2は`0.911`。hard binary box centered / tile4×32でも全画像relative L2`0.00463`に対しfog-only relative L2`0.592`。両比較はCPU synthetic proxyで、異なる単純化sceneを使う。
+- **価値または懸念:** surface RGB込みの集約誤差だけでは局所fog contributionの取りこぼしを見落とす。R&D quality reportではfog-only absolute RMSEとreference energyを合わせ、volume内・境界・外側regionを分けるべき。
+- **未検証:** GPU froxel injection、実scene depth edge、filtering、temporal reprojection上で同じ誤差傾向が出るかは未確認。adaptive resolution / volume-aware injectionが改善するという仮説も未検証であり、製品変更の根拠ではない。
+- **追記（subsample probe）:** hard box CPU proxyではtile4 centered配置のXY 2×2/4×4注入平均がfog-only relative L2を`0.592`から`0.537/0.502`へ下げる一方、evaluationは4/16倍。Xずらしとtile8条件では改善せず悪化する例があった。平均sample増加だけではrobustな境界解決にならず、配置を使ったcoverage integration等を別途検討する必要がある（仮説、未検証）。manifest: `docs/worklog/artifacts/fog-local-froxel-injection-sampling-rd-2026-11-13/manifest.json`。
+- **追記（integration separation）:** hard box CPU proxyでfixed froxel gridのslice内ray integrationを1から8 substepsへ増やしても、tile4×32 centered fog-only relative L2は`0.592`から`0.611`へわずかに悪化し、tile8×32は`0.547`から`0.543`へわずかに改善した。integration精度とgrid representation errorは相互作用し、単純なsample増がdirect reference errorを必ず減らすとは限らない。
+- **追記（reference validation）:** 解析ray-box区間と区間内scatter quadratureのoracleを作成。128→256区間sampleでfull-image relative L2差は約`1e-5`。従来uniform512 raymarchとの差は約`1.4e-4`で、hard boxを横切る60–65本のray境界を全画面一様sampleが十分解像しない差があった。oracle比較後もtile4 fog-only relative L2約`0.44–0.59`が残るため、以前のhard-boundary差はreference収束不足だけでは説明されない。
+- **追記（coverage approximation negative result）:** projected AABBをscreen rectangleへ投影しXY overlap×view-Z overlapでdensityを平均するCPU案は、tile4×32 fog-only relative L2をcenter/X/depth配置でbaseline`0.592/0.438/0.573`から`0.669/0.581/0.688`へ悪化させた。screen矩形外接とseparable occupancy仮定が粗いため、この単純coverage平均は採用候補として支持されない。exact per-froxel ray-box coverageやvolume-aligned gridは未検証。manifest: `docs/worklog/artifacts/fog-local-froxel-box-coverage-rd-2026-11-13/manifest.json`。
+- **追記（ray-box depth occupancy probe）:** 各XY cellの中心rayでAABB交差区間を各depth sliceにclipしてoccupancy fractionを入れると、tile4×32 fog-only relative L2がcenter/X/depth配置で`0.592/0.438/0.573`から`0.437/0.322/0.459`へ改善。2×2以上のXY raysは追加効果が小さく配置依存。これはbinary AABB CPU proxyだけの結果で、GPU時間・任意density・transmittance近似への一般化は未検証。manifest: `docs/worklog/artifacts/fog-local-froxel-ray-box-coverage-rd-2026-11-13/manifest.json`。
+- **追記（multi-box extension）:** additive homogeneous mediumの2-box overlap / disjoint / staggered overlap CPU oracleで、tile4×32 center-sample fog-only relative L2`0.457/0.631/0.706`がcenter-ray per-slice occupancyで`0.350/0.474/0.387`へ低下。各boxの密度occupancyを加算できたが、異種phase/albedoやGPU performanceは未検証。manifest: `docs/worklog/artifacts/fog-local-froxel-multi-box-coverage-rd-2026-11-13/manifest.json`。
+- **追記（transmittance validation）:** 同multi-box fixtureで交差pixelのoptical-depth RMSEはcenter-sampleからper-slice occupancyへ3配置すべて低下（`0.0302/0.0335/0.0419`から`0.0176/0.0249/0.0219`）。staggered配置の最大absolute tau errorは`0.114`残るため、平均値改善だけでworst-ray品質を保証しない。
 
 ## 2026-11-12: FBX RT PBR needs explicit multi-buffer evidence before Composition integration
 - **関連:** `tests/Artifact/Model3DLightCompositionIntegrationTest.cpp::CompositionControllerDisplaysLitFbxAndRegistersRayTracingGeometry`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp`、`ArtifactCore/include/Graphics/RayTracingManager.ixx`、`Artifact/src/Render/ArtifactIRenderer.cpp`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`。
@@ -14297,3 +14310,24 @@
 - **価値 / 懸念:** 体積一定という条件だけでは画面上の遮蔽supportや散乱画像を揃えられず、全体image metricとsilhouette-local metricの両方が要る。通常のscene motionとnumerical residualは別指標として測る必要がある。ただしこれは単一camera path、single-scene CPU proxyで、形状の知覚評価や一般sceneへの外挿ではない。
 - **次に確認すること:** 別sceneと複数camera orientationでsupport差を確認し、可能ならworld-point再投影とproduction GPU outputを別々に比較する。
 - **未検証:** 複数scene、複数camera、temporal image stability、alpha、実shadow map、GPU/backend、runtime。
+
+## 2026-11-13: 3D ギャップ分析（2026-08-08）は陳腐化しており IBL/シャドウは既に実装済み
+- **関連:** `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md`, `docs/planned/DESIGN_3D_IBL_SHADOW_ENHANCEMENT_2026-11-13.md`, `ArtifactCore/src/Graphics/MeshRenderer.cpp`, `Artifact/src/Render/ArtifactIRenderer.cpp`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`.
+- **確認できた事実:** 2026-11-13 の精査で、split-sum IBL（equirect→cube 変換、specular prefilter、irradiance 16px、BRDF LUT+Eavg）と 1024² 単一シャドウマップ（depth prepass、caster 登録、単発/3×3 PCF、単一 Directional/Spot ライト）が既に実装されていた。分析文書はこれを 🔴 未実装と判定していた。また `Artifact/App/shaders/PBR_PS.hlsl` は存在せず、実体は MeshRenderer.cpp 内のインライン HLSL（`MeshPSSource`）。`Light.cppm` → 実体は `Light.cpp`、`ArtifactIRenderer.cppm` → 実体は `ArtifactIRenderer.cpp` + `.ixx`。分析文書には 2026-11-13 訂正ブロックを追記済み。
+- **価値 / 懸念:** 旧分析を根拠に新規導入設計を立てると存在しないファイル・重複実装を狙ってしまう。同分析の残り未実装判定（デフォーマ、パーティクルインスタンス等）も未再検証のため、引用前の個別確認が要る。併せて、`MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` の P0/P1 系実装（Box zoom、Tumble pivot、IRR、種別フィルタ、露出等）がコード存在のみでビルド・実機未確認のまま約 2 か月経過している点も、計画系文書の「実装済み」記述はコード存在と動作確認を区別して読むべきことを示している。
+- **次に確認すること:** 3D 系の残り未実装判定を次回触る時に個別再照合する。P0/P1 未確認実装のビルド・実機検証をユーザー指示時にまとめて行う。
+- **未検証:** 本件は静的照合のみ。実行動作、D3D12/Vulkan parity、性能は未確認。
+
+## 2026-11-13: 未接続の環境マップ bake 種シェーダと未リンクの DiligentFX 資源がある
+- **関連:** `Artifact/shaders/filterEnvMapCS.hlsl`, `Artifact/shaders/irradianceEnvMapCS.hlsl`, `Artifact/shaders/irradianceEnvMapCB.hlsl`, `ArtifactCore/CMakeLists.txt` L4709–4713, `libs/DiligentEngine/DiligentFX/PBR/interface/PBR_Renderer.hpp`, `libs/DiligentEngine/DiligentFX/Components/interface/ShadowMapManager.hpp`, `docs/planned/MILESTONE_ENVIRONMENT_MAP_2026-03-28.md`.
+- **確認できた事実:** `filterEnvMapCS.hlsl`（D_GGX/ImportanceSampleGGX、roughness filter）と irradiance 系 CS がリポジトリ内に存在するが現行コードからは参照されていない（環境マップマイルストーンの計画残骸）。in-tree の DiligentFX には `CreateIrradianceCube` / `CreatePrefilteredEnvMap` / `PrecomputeBRDF` と CSM 用 `DistributeCascades` / `SnapCascades` が実装済み。ただしアプリは DiligentCore interface のみ include し DiligentFX は未リンク（`DILIGENT_BUILD_FX` は ON と記載、実ビルド状況は未検証）。
+- **価値 / 懸念:** IBL bake の GPU 化（DESIGN_3D_IBL_SHADOW_ENHANCEMENT §1-A1）と CSM（§1-B1）は、ゼロから書かずに種シェーダ移植を第一候補にできる。DiligentFX をリンクすると依存グラフが広がるため、数式自前実装 + 種シェーダ移植の方が AGENTS.md の最小変更方針に合う。
+- **次に確認すること:** 種シェーダの動作可否と CMake 組み込み状況（`Shaders_SOURCE.vcxitems` のみか）。`DILIGENT_BUILD_FX` の実ビルド状況。
+- **未検証:** 種シェーダの動作、DiligentFX ビルド実態、push constants の Diligent DX12 バックエンドでの挙動。
+
+## 2026-11-13: X-Ray 減衰係数 0.35f がハードコードで永続化もない
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp` L21210–21222, L45327–45331, L46424–46428, `docs/planned/DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md` §D4.
+- **確認できた事実:** X-Ray は bool トグルのみ。減衰はレイヤー描画ループ内で係数 0.35f が 2 か所にハードコード。`LayeredConfigStore` への保存なし（Rig overlay の `Viewport/RigOverlayVisible` は保存されるが X-Ray は非対称）。減衰基準は「選択レイヤーあり時のみ選択以外を減衰」の単一選択前提。
+- **価値 / 懸念:** 不透明度 API 追加は係数差し替えだけで済む低コスト変更。ただし 3D の depth 共有条件 `opacity >= 0.9999f` は減衰係数 <1 で外れるため、不透明度化しても係数既定 0.35 維持なら挙動変化は起きない（現行と同一）。複数選択時の挙動と Blender 型「全体半透明」の対応は未決。
+- **次に確認すること:** P1-1（Isolate 状態復元）/ P1-2（Ghosted）と一緒に X-Ray の選択基準・複数選択仕様を設計する。
+- **未検証:** 減衰が RAM preview キャッシュ・depth 共有経路へ与える現行の実際の影響範囲、スライダ UI の使い勝手。

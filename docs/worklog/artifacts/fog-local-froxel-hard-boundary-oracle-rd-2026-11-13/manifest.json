@@ -1,0 +1,508 @@
+{
+  "schema": "fog-local-froxel-hard-boundary-oracle-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "boxes": {
+      "centered": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.0
+        ]
+      },
+      "x_shift_half": {
+        "minimum": [
+          -1.5,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.5,
+          8.0,
+          19.0
+        ]
+      },
+      "depth_shift_half": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.5
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.5
+        ]
+      }
+    },
+    "density_inside": 0.035,
+    "light_count": 3,
+    "exact_ray_box_interval": "slab intersection in ray-distance parameter, clipped to scene surface distance",
+    "scattering_quadrature_steps_inside_interval": [
+      8,
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "froxel_configurations": [
+      [
+        2,
+        32
+      ],
+      [
+        4,
+        32
+      ],
+      [
+        8,
+        32
+      ],
+      [
+        4,
+        64
+      ]
+    ]
+  },
+  "results": {
+    "centered": {
+      "ray_box_intersection_pixel_count": 60,
+      "maximum_ray_interval_length": 4.092086959104369,
+      "uniform_raymarch_512_vs_exact_interval_256": {
+        "rgb_rmse": 6.886292831735684e-05,
+        "max_absolute_channel_error": 0.0020182676728462967,
+        "relative_rgb_l2": 0.0001412708728658889,
+        "pixel_count": 5184
+      },
+      "oracle_convergence": {
+        "8": {
+          "full_image": {
+            "rgb_rmse": 4.7114303436671416e-05,
+            "max_absolute_channel_error": 0.002575892196374538,
+            "relative_rgb_l2": 9.665401884005145e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 4.711430343665261e-05,
+            "max_absolute_channel_error": 0.0025758921963742326,
+            "relative_rgb_l2": 0.016733643972319863,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "full_image": {
+            "rgb_rmse": 1.9187343319248425e-05,
+            "max_absolute_channel_error": 0.0006316416279072978,
+            "relative_rgb_l2": 3.936243788814452e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.9187343319197278e-05,
+            "max_absolute_channel_error": 0.0006316416279101844,
+            "relative_rgb_l2": 0.006814791866971282,
+            "pixel_count": 5184
+          }
+        },
+        "32": {
+          "full_image": {
+            "rgb_rmse": 1.3402989114840146e-05,
+            "max_absolute_channel_error": 0.0005933534318939143,
+            "relative_rgb_l2": 2.749595489955707e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.3402989114820458e-05,
+            "max_absolute_channel_error": 0.0005933534318942058,
+            "relative_rgb_l2": 0.0047603558081642915,
+            "pixel_count": 5184
+          }
+        },
+        "64": {
+          "full_image": {
+            "rgb_rmse": 6.681954778633141e-06,
+            "max_absolute_channel_error": 0.00031918060945490545,
+            "relative_rgb_l2": 1.370789199781932e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 6.681954778654043e-06,
+            "max_absolute_channel_error": 0.00031918060945307705,
+            "relative_rgb_l2": 0.0023732379372959755,
+            "pixel_count": 5184
+          }
+        },
+        "128": {
+          "full_image": {
+            "rgb_rmse": 4.731943654507893e-06,
+            "max_absolute_channel_error": 0.0002361023765290668,
+            "relative_rgb_l2": 9.707484516833175e-06,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 4.731943654411911e-06,
+            "max_absolute_channel_error": 0.00023610237652928884,
+            "relative_rgb_l2": 0.0016806501345493071,
+            "pixel_count": 5184
+          }
+        }
+      },
+      "froxel_metrics_vs_exact_interval_256": {
+        "tile2_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0013901873559692335,
+            "max_absolute_channel_error": 0.03582205945286332,
+            "relative_rgb_l2": 0.002851940601767804,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.001131182116564427,
+            "max_absolute_channel_error": 0.018838829125347976,
+            "relative_rgb_l2": 0.40176331656680453,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0022512923400030927,
+            "max_absolute_channel_error": 0.06976641462797584,
+            "relative_rgb_l2": 0.004618479662712284,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0016609259497045294,
+            "max_absolute_channel_error": 0.035663703219113316,
+            "relative_rgb_l2": 0.5899130726640647,
+            "pixel_count": 5184
+          }
+        },
+        "tile8_z32": {
+          "full_image": {
+            "rgb_rmse": 0.002329649039824387,
+            "max_absolute_channel_error": 0.047951209350958424,
+            "relative_rgb_l2": 0.004779226811419503,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0015433003668937596,
+            "max_absolute_channel_error": 0.024779707497640868,
+            "relative_rgb_l2": 0.5481358525585286,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z64": {
+          "full_image": {
+            "rgb_rmse": 0.002251071660603608,
+            "max_absolute_channel_error": 0.06974128209273789,
+            "relative_rgb_l2": 0.004618026943489468,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0016566247426057514,
+            "max_absolute_channel_error": 0.03559741037350132,
+            "relative_rgb_l2": 0.5883854077514561,
+            "pixel_count": 5184
+          }
+        }
+      }
+    },
+    "x_shift_half": {
+      "ray_box_intersection_pixel_count": 65,
+      "maximum_ray_interval_length": 4.1003185722664455,
+      "uniform_raymarch_512_vs_exact_interval_256": {
+        "rgb_rmse": 7.000364066344952e-05,
+        "max_absolute_channel_error": 0.0020182676728462967,
+        "relative_rgb_l2": 0.00014361128170309459,
+        "pixel_count": 5184
+      },
+      "oracle_convergence": {
+        "8": {
+          "full_image": {
+            "rgb_rmse": 4.6897918527497574e-05,
+            "max_absolute_channel_error": 0.002575892196374538,
+            "relative_rgb_l2": 9.621028456678202e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 4.6897918527485824e-05,
+            "max_absolute_channel_error": 0.0025758921963742326,
+            "relative_rgb_l2": 0.015764298499240194,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "full_image": {
+            "rgb_rmse": 1.8664852567400266e-05,
+            "max_absolute_channel_error": 0.0006316416279072978,
+            "relative_rgb_l2": 3.829062852445599e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.8664852567364542e-05,
+            "max_absolute_channel_error": 0.0006316416279101844,
+            "relative_rgb_l2": 0.006274016343471573,
+            "pixel_count": 5184
+          }
+        },
+        "32": {
+          "full_image": {
+            "rgb_rmse": 1.311399711785497e-05,
+            "max_absolute_channel_error": 0.0005933534318939143,
+            "relative_rgb_l2": 2.690314270082189e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.3113997117821468e-05,
+            "max_absolute_channel_error": 0.0005933534318942058,
+            "relative_rgb_l2": 0.004408147985551888,
+            "pixel_count": 5184
+          }
+        },
+        "64": {
+          "full_image": {
+            "rgb_rmse": 6.548832630620369e-06,
+            "max_absolute_channel_error": 0.00031918060945490545,
+            "relative_rgb_l2": 1.343481908696627e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 6.54883263065291e-06,
+            "max_absolute_channel_error": 0.00031918060945307705,
+            "relative_rgb_l2": 0.0022013290920506745,
+            "pixel_count": 5184
+          }
+        },
+        "128": {
+          "full_image": {
+            "rgb_rmse": 4.542402167402942e-06,
+            "max_absolute_channel_error": 0.0002361023765290668,
+            "relative_rgb_l2": 9.318661016615565e-06,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 4.542402167333519e-06,
+            "max_absolute_channel_error": 0.00023610237652928884,
+            "relative_rgb_l2": 0.0015268861799798957,
+            "pixel_count": 5184
+          }
+        }
+      },
+      "froxel_metrics_vs_exact_interval_256": {
+        "tile2_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0017741902836100496,
+            "max_absolute_channel_error": 0.06446244224119946,
+            "relative_rgb_l2": 0.00363972128020264,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0014431362322108994,
+            "max_absolute_channel_error": 0.035454845650720206,
+            "relative_rgb_l2": 0.4850968028849328,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0017895595045610974,
+            "max_absolute_channel_error": 0.05236372865644601,
+            "relative_rgb_l2": 0.003671250976353292,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0013015110215634854,
+            "max_absolute_channel_error": 0.02349093820102839,
+            "relative_rgb_l2": 0.43749080744282987,
+            "pixel_count": 5184
+          }
+        },
+        "tile8_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0024326597894425836,
+            "max_absolute_channel_error": 0.05249323352875079,
+            "relative_rgb_l2": 0.0049905603051276295,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0016425085340645534,
+            "max_absolute_channel_error": 0.02861344736401165,
+            "relative_rgb_l2": 0.5521139451715271,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z64": {
+          "full_image": {
+            "rgb_rmse": 0.0017886807356976087,
+            "max_absolute_channel_error": 0.05216938967094309,
+            "relative_rgb_l2": 0.0036694481969319604,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.001299170497417604,
+            "max_absolute_channel_error": 0.023630685679718648,
+            "relative_rgb_l2": 0.43670406205116113,
+            "pixel_count": 5184
+          }
+        }
+      }
+    },
+    "depth_shift_half": {
+      "ray_box_intersection_pixel_count": 60,
+      "maximum_ray_interval_length": 4.092086959104369,
+      "uniform_raymarch_512_vs_exact_interval_256": {
+        "rgb_rmse": 7.243819847046474e-05,
+        "max_absolute_channel_error": 0.0024648402405511582,
+        "relative_rgb_l2": 0.00014859867068747293,
+        "pixel_count": 5184
+      },
+      "oracle_convergence": {
+        "8": {
+          "full_image": {
+            "rgb_rmse": 3.977364433284875e-05,
+            "max_absolute_channel_error": 0.0019068452010154724,
+            "relative_rgb_l2": 8.159107765038466e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 3.977364433279797e-05,
+            "max_absolute_channel_error": 0.001906845201015618,
+            "relative_rgb_l2": 0.015950184997673155,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "full_image": {
+            "rgb_rmse": 1.942318629458771e-05,
+            "max_absolute_channel_error": 0.0006431590012959676,
+            "relative_rgb_l2": 3.9844442915952585e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.9423186294552945e-05,
+            "max_absolute_channel_error": 0.0006431590012988542,
+            "relative_rgb_l2": 0.007789163398007269,
+            "pixel_count": 5184
+          }
+        },
+        "32": {
+          "full_image": {
+            "rgb_rmse": 1.2237259410252827e-05,
+            "max_absolute_channel_error": 0.0005872937395154931,
+            "relative_rgb_l2": 2.510333663202257e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 1.2237259410204197e-05,
+            "max_absolute_channel_error": 0.0005872937395128563,
+            "relative_rgb_l2": 0.004907434426277094,
+            "pixel_count": 5184
+          }
+        },
+        "64": {
+          "full_image": {
+            "rgb_rmse": 6.8738880532673745e-06,
+            "max_absolute_channel_error": 0.0003249164852865416,
+            "relative_rgb_l2": 1.4100994347429958e-05,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 6.873888053293957e-06,
+            "max_absolute_channel_error": 0.00032491648528476524,
+            "relative_rgb_l2": 0.0027565939189767253,
+            "pixel_count": 5184
+          }
+        },
+        "128": {
+          "full_image": {
+            "rgb_rmse": 4.682620707600015e-06,
+            "max_absolute_channel_error": 0.0002403527257538174,
+            "relative_rgb_l2": 9.605860266758396e-06,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 4.68262070757948e-06,
+            "max_absolute_channel_error": 0.00024035272575403943,
+            "relative_rgb_l2": 0.0018778431751157996,
+            "pixel_count": 5184
+          }
+        }
+      },
+      "froxel_metrics_vs_exact_interval_256": {
+        "tile2_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0015561327018336782,
+            "max_absolute_channel_error": 0.04071406836907954,
+            "relative_rgb_l2": 0.0031922280756343426,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0013778217312437318,
+            "max_absolute_channel_error": 0.024698313730241207,
+            "relative_rgb_l2": 0.5525395491363019,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z32": {
+          "full_image": {
+            "rgb_rmse": 0.0021423950876386126,
+            "max_absolute_channel_error": 0.06976641462797584,
+            "relative_rgb_l2": 0.00439487823872751,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0014332322884772755,
+            "max_absolute_channel_error": 0.03683474916452005,
+            "relative_rgb_l2": 0.5747605111206775,
+            "pixel_count": 5184
+          }
+        },
+        "tile8_z32": {
+          "full_image": {
+            "rgb_rmse": 0.002276332203807676,
+            "max_absolute_channel_error": 0.04836792372457677,
+            "relative_rgb_l2": 0.0046696348980410545,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.001405249614839844,
+            "max_absolute_channel_error": 0.025950753443047602,
+            "relative_rgb_l2": 0.5635387880743311,
+            "pixel_count": 5184
+          }
+        },
+        "tile4_z64": {
+          "full_image": {
+            "rgb_rmse": 0.0014774322446432767,
+            "max_absolute_channel_error": 0.06974128209273789,
+            "relative_rgb_l2": 0.0030307830981511105,
+            "pixel_count": 5184
+          },
+          "fog_only": {
+            "rgb_rmse": 0.0012427389653700694,
+            "max_absolute_channel_error": 0.03178836608760332,
+            "relative_rgb_l2": 0.4983681212516921,
+            "pixel_count": 5184
+          }
+        }
+      }
+    }
+  },
+  "oracle_definition": "Density/transmittance interval is exact for a binary box. Point-light scattering integral inside that interval uses midpoint quadrature; 256-step result is compared against 128-step convergence in manifest.",
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Exact interval handles the box medium only; point-light source and analytic AABB visibility remain numerically sampled.",
+    "The 256-step interval reference is a convergence target, not symbolic closed-form single scattering.",
+    "Box uses one hard-edged volume and synthetic scene surfaces."
+  ],
+  "source_script_sha256": "fa0d7e97fc537c24bdd39ee7e1ee2d477baf079f66e84c870e557de5b9ea3f4a",
+  "proxy_script_sha256": "b6a13ee9e2d63e4b402f56f92c43abd2ebe5ebbf583a2f9b9a8beceae706bc58",
+  "hard_boundary_script_sha256": "58cd0d2a72d07624a03a31b8ba0720a553b6ddf4618efe080d1d3c2c716470e4"
+}

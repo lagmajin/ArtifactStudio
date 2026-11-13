@@ -31,7 +31,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-1 | Isolate Select の状態復元 | Not Started | 同上 |
 | P1-2 | Ghosted context display | Not Started | 同上 |
 | P1-3 | Per-viewport 設定 + Apply to all split views | Not Started | `PaneState` / 表示設定 |
-| P1-4 | Maya 風シェーディングトグル | Not Started | 同上 |
+| P1-4 | Maya 風シェーディングトグル | **部分実装（コード変更のみ、ビルド・実機未確認、2026-11-13）** — Shaded / Wireframe / Wireframe on Shaded と X-Ray 不透明度を実装。Bounding Box / Backface culling は未着手 | 同上。詳細設計は `DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md` |
 | P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | **実装済み（コード変更のみ、ビルド・実機未確認、2026-09-26）** | 表示専用 compute 段（`ArtifactIRenderer` / `ViewerHelperShaders`） |
 | P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **enum 拡張済み（コード変更のみ、ビルド・実機未確認）** / readback overlay での実描画反映は別マイルストーン | `ViewportChannelDisplayMode` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
@@ -185,8 +185,8 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 - P2-8 View Regions は IRR（部分レンダー）と違い表示のみをクリップする。ROI の
   描画スキップ機構を表示クリップにも流用できるかを P0-3 で確認する。
 - 未確認候補: Fly / Walk navigation、Annotations（VP 注釈）、Measurement overlay、
-  View Lock（Lock to Object / Camera to View）、X-Ray 不透明度スライダ、
-  SteeringWheels、Sample Points、Dope Sheet in Viewer、Show Flags。
+  View Lock（Lock to Object / Camera to View）、SteeringWheels、Sample Points、
+  Dope Sheet in Viewer、Show Flags。
   着手前に現行コードでの有無を再確認する。
 
 ## 受入条件
@@ -285,6 +285,14 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   が既存の `SetViewports + SetScissorRects` 一括呼び出し経路を使うため、
   新規 API を追加せずに済む。`Insight.md` に着手記録を追加。ビルド・実機
   確認は未実施。
+- 2026-11-13: P1-4 部分実装（S1: X-Ray 不透明度、S2: shading モード）を着手。
+  設計は `docs/planned/DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md`（§6 実装記録）。
+  `Artifact` 子リポジトリのみ変更（`ArtifactIRenderer`、`Artifact3DModelLayer`、
+  `ArtifactCompositionRenderController`、`ArtifactCompositionEditor`）。
+  shadingMode は PS 内分岐のため PSO 再生成なし。Render Queue は独自
+  `ArtifactIRenderer` インスタンスで描画するため波及しない。
+  新規 `ShortcutId` は `ArtifactCore` 変更を伴うため未登録（メニュー操作のみ）。
+  ビルド・実機確認は未実施（ユーザー明示指示待ち）。
 - 2026-09-22: P0-3d（`renderPartialRegion(RenderQuality, RenderROI)`
   private 関数 + D4 Preview 強制ダウングレード）を着手。
   `ProgressiveRenderer::setRenderCallback` のシグネチャが
@@ -321,4 +329,5 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 - `docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md`
 - `docs/planned/P0_DESIGN_NOTES_2026-09-22.md`（P0 着手前調査メモ）
 - `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md`（P0-3b/c 設計統合 decision doc）
+- `docs/planned/DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md`（P1-4 と X-Ray 不透明度の詳細設計）
 - `Insight.md`（2026-09-22 の項目）

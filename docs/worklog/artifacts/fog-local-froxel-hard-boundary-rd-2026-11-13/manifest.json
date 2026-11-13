@@ -1,0 +1,764 @@
+{
+  "schema": "fog-local-froxel-hard-boundary-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "boxes": {
+      "centered": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.0
+        ]
+      },
+      "x_shift_half": {
+        "minimum": [
+          -1.5,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.5,
+          8.0,
+          19.0
+        ]
+      },
+      "depth_shift_half": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.5
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.5
+        ]
+      }
+    },
+    "density_inside": 0.035,
+    "density_outside": 0.0,
+    "light_count": 3,
+    "tile_widths_pixels": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "depth_slices": [
+      16,
+      32,
+      64
+    ],
+    "depth_distribution": "logarithmic view-Z",
+    "reference_steps": 512
+  },
+  "results": {
+    "centered": {
+      "tile1_z16": {
+        "tile_width_pixels": 1,
+        "depth_slices": 16,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0036429148734433564,
+          "max_absolute_channel_error": 0.09129579388292752,
+          "relative_rgb_l2": 0.007473382465585038,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002409374485949088,
+          "max_absolute_channel_error": 0.04867568243358119,
+          "relative_rgb_l2": 0.8546569831409446,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z16": {
+        "tile_width_pixels": 2,
+        "depth_slices": 16,
+        "froxel_cell_count": 20736,
+        "light_evaluations": 62208,
+        "estimated_bytes_R16F_density_RGBA16F_source": 207360,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.003148942370360105,
+          "max_absolute_channel_error": 0.09170243899774577,
+          "relative_rgb_l2": 0.006460005658475048,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0013602305391153368,
+          "max_absolute_channel_error": 0.035140909975662445,
+          "relative_rgb_l2": 0.48250304621224394,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z16": {
+        "tile_width_pixels": 4,
+        "depth_slices": 16,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0029650863722257515,
+          "max_absolute_channel_error": 0.08486308390703312,
+          "relative_rgb_l2": 0.0060828279751131645,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0015475127304729794,
+          "max_absolute_channel_error": 0.026216874332567565,
+          "relative_rgb_l2": 0.5489360700510836,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z16": {
+        "tile_width_pixels": 8,
+        "depth_slices": 16,
+        "froxel_cell_count": 1344,
+        "light_evaluations": 4032,
+        "estimated_bytes_R16F_density_RGBA16F_source": 13440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0026862465654151637,
+          "max_absolute_channel_error": 0.09471385055452364,
+          "relative_rgb_l2": 0.00551079250480429,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0026762051352780965,
+          "max_absolute_channel_error": 0.05821245803329989,
+          "relative_rgb_l2": 0.9493075570118794,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z32": {
+        "tile_width_pixels": 1,
+        "depth_slices": 32,
+        "froxel_cell_count": 165888,
+        "light_evaluations": 497664,
+        "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0011730520343088933,
+          "max_absolute_channel_error": 0.03548361924646015,
+          "relative_rgb_l2": 0.0024064977659322886,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0008917502363593862,
+          "max_absolute_channel_error": 0.02225545499220833,
+          "relative_rgb_l2": 0.31632300049940926,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z32": {
+        "tile_width_pixels": 2,
+        "depth_slices": 32,
+        "froxel_cell_count": 41472,
+        "light_evaluations": 124416,
+        "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001385384418533146,
+          "max_absolute_channel_error": 0.03636892147482029,
+          "relative_rgb_l2": 0.002842094306687434,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0011146126051141106,
+          "max_absolute_channel_error": 0.017782724656118742,
+          "relative_rgb_l2": 0.3953770789941967,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z32": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "froxel_cell_count": 10752,
+        "light_evaluations": 32256,
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002256676733058058,
+          "max_absolute_channel_error": 0.06976641462797584,
+          "relative_rgb_l2": 0.004629536761969042,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001668563089895151,
+          "max_absolute_channel_error": 0.03595184100748224,
+          "relative_rgb_l2": 0.5918752377044371,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z32": {
+        "tile_width_pixels": 8,
+        "depth_slices": 32,
+        "froxel_cell_count": 2688,
+        "light_evaluations": 8064,
+        "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002331172024415263,
+          "max_absolute_channel_error": 0.04859107898515669,
+          "relative_rgb_l2": 0.00478236267845041,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0015411216920267693,
+          "max_absolute_channel_error": 0.025067845286009794,
+          "relative_rgb_l2": 0.5466690311704822,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z64": {
+        "tile_width_pixels": 1,
+        "depth_slices": 64,
+        "froxel_cell_count": 331776,
+        "light_evaluations": 995328,
+        "estimated_bytes_R16F_density_RGBA16F_source": 3317760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0011266663918730003,
+          "max_absolute_channel_error": 0.030993383152204568,
+          "relative_rgb_l2": 0.0023113383513210894,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0007629013688129742,
+          "max_absolute_channel_error": 0.014214985247734308,
+          "relative_rgb_l2": 0.2706175341800192,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z64": {
+        "tile_width_pixels": 2,
+        "depth_slices": 64,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001234020249037257,
+          "max_absolute_channel_error": 0.02909185842058204,
+          "relative_rgb_l2": 0.0025315730978404142,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0008415684962410179,
+          "max_absolute_channel_error": 0.015300081400342141,
+          "relative_rgb_l2": 0.298522457300981,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z64": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "froxel_cell_count": 21504,
+        "light_evaluations": 64512,
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0022563355034163433,
+          "max_absolute_channel_error": 0.06974128209273789,
+          "relative_rgb_l2": 0.004628836734735433,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0016643098485508699,
+          "max_absolute_channel_error": 0.03588554816187025,
+          "relative_rgb_l2": 0.5903665214641546,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z64": {
+        "tile_width_pixels": 8,
+        "depth_slices": 64,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0023306578911841103,
+          "max_absolute_channel_error": 0.048634640812091456,
+          "relative_rgb_l2": 0.004781307942227315,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001546479056064731,
+          "max_absolute_channel_error": 0.024946650065715715,
+          "relative_rgb_l2": 0.5485694034924163,
+          "pixel_count": 5184
+        }
+      }
+    },
+    "x_shift_half": {
+      "tile1_z16": {
+        "tile_width_pixels": 1,
+        "depth_slices": 16,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.003720848592671394,
+          "max_absolute_channel_error": 0.09129579388292752,
+          "relative_rgb_l2": 0.007633255864205335,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0025881748564884214,
+          "max_absolute_channel_error": 0.05360652223561648,
+          "relative_rgb_l2": 0.8696157024501567,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z16": {
+        "tile_width_pixels": 2,
+        "depth_slices": 16,
+        "froxel_cell_count": 20736,
+        "light_evaluations": 62208,
+        "estimated_bytes_R16F_density_RGBA16F_source": 207360,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0029388051478205566,
+          "max_absolute_channel_error": 0.07952637987679356,
+          "relative_rgb_l2": 0.006028907403687852,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001453775924521112,
+          "max_absolute_channel_error": 0.0445137164718559,
+          "relative_rgb_l2": 0.48846250423853804,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z16": {
+        "tile_width_pixels": 4,
+        "depth_slices": 16,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.003530530131922881,
+          "max_absolute_channel_error": 0.08486308390703312,
+          "relative_rgb_l2": 0.007242820867888511,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0017376517899395825,
+          "max_absolute_channel_error": 0.052408986575673486,
+          "relative_rgb_l2": 0.5838435831079415,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z16": {
+        "tile_width_pixels": 8,
+        "depth_slices": 16,
+        "froxel_cell_count": 1344,
+        "light_evaluations": 4032,
+        "estimated_bytes_R16F_density_RGBA16F_source": 13440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002701597296458823,
+          "max_absolute_channel_error": 0.11288384037809185,
+          "relative_rgb_l2": 0.005542279641943178,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0024987828430587298,
+          "max_absolute_channel_error": 0.04046268034781824,
+          "relative_rgb_l2": 0.8395803675664981,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z32": {
+        "tile_width_pixels": 1,
+        "depth_slices": 32,
+        "froxel_cell_count": 165888,
+        "light_evaluations": 497664,
+        "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0013071007274052951,
+          "max_absolute_channel_error": 0.03548361924646015,
+          "relative_rgb_l2": 0.0026814943000435824,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0010616407216884956,
+          "max_absolute_channel_error": 0.02225545499220833,
+          "relative_rgb_l2": 0.3567067501743048,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z32": {
+        "tile_width_pixels": 2,
+        "depth_slices": 32,
+        "froxel_cell_count": 41472,
+        "light_evaluations": 124416,
+        "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0017687433740758744,
+          "max_absolute_channel_error": 0.06437867741556202,
+          "relative_rgb_l2": 0.00362854612225587,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0014324983312200448,
+          "max_absolute_channel_error": 0.035433221016395004,
+          "relative_rgb_l2": 0.48131332372680813,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z32": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "froxel_cell_count": 10752,
+        "light_evaluations": 32256,
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001786908237262165,
+          "max_absolute_channel_error": 0.052332657065721544,
+          "relative_rgb_l2": 0.0036658110216426236,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001302790671634594,
+          "max_absolute_channel_error": 0.02256320076707177,
+          "relative_rgb_l2": 0.4377321038487174,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z32": {
+        "tile_width_pixels": 8,
+        "depth_slices": 32,
+        "froxel_cell_count": 2688,
+        "light_evaluations": 8064,
+        "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002431681629284761,
+          "max_absolute_channel_error": 0.05249323352875079,
+          "relative_rgb_l2": 0.0049885523676446875,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0016427153720194319,
+          "max_absolute_channel_error": 0.028159522363095674,
+          "relative_rgb_l2": 0.5519453519854329,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z64": {
+        "tile_width_pixels": 1,
+        "depth_slices": 64,
+        "froxel_cell_count": 331776,
+        "light_evaluations": 995328,
+        "estimated_bytes_R16F_density_RGBA16F_source": 3317760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0011499873000514224,
+          "max_absolute_channel_error": 0.030993383152204568,
+          "relative_rgb_l2": 0.0023591788494615644,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0008136640436308776,
+          "max_absolute_channel_error": 0.014214985247734308,
+          "relative_rgb_l2": 0.2733876449988093,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z64": {
+        "tile_width_pixels": 2,
+        "depth_slices": 64,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0014626829506010565,
+          "max_absolute_channel_error": 0.04177288098661602,
+          "relative_rgb_l2": 0.0030006685120537815,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0010401833804495042,
+          "max_absolute_channel_error": 0.023431195602280762,
+          "relative_rgb_l2": 0.349497175122805,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z64": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "froxel_cell_count": 21504,
+        "light_evaluations": 64512,
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0017861493837070673,
+          "max_absolute_channel_error": 0.052138318080218626,
+          "relative_rgb_l2": 0.0036642542468356795,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0013002874838953236,
+          "max_absolute_channel_error": 0.022444668049923858,
+          "relative_rgb_l2": 0.436891043454829,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z64": {
+        "tile_width_pixels": 8,
+        "depth_slices": 64,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002427124228257259,
+          "max_absolute_channel_error": 0.051648278594876196,
+          "relative_rgb_l2": 0.004979202939079593,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0016499884474810488,
+          "max_absolute_channel_error": 0.028074934572391595,
+          "relative_rgb_l2": 0.5543890742906207,
+          "pixel_count": 5184
+        }
+      }
+    },
+    "depth_shift_half": {
+      "tile1_z16": {
+        "tile_width_pixels": 1,
+        "depth_slices": 16,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0035300999540905783,
+          "max_absolute_channel_error": 0.09209635262982752,
+          "relative_rgb_l2": 0.007241597270646371,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0023852513644463127,
+          "max_absolute_channel_error": 0.0541539620840536,
+          "relative_rgb_l2": 0.9606892795933722,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z16": {
+        "tile_width_pixels": 2,
+        "depth_slices": 16,
+        "froxel_cell_count": 20736,
+        "light_evaluations": 62208,
+        "estimated_bytes_R16F_density_RGBA16F_source": 207360,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.003084391314808246,
+          "max_absolute_channel_error": 0.09007886111122887,
+          "relative_rgb_l2": 0.006327276852611085,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0012682870226302858,
+          "max_absolute_channel_error": 0.03983563705284318,
+          "relative_rgb_l2": 0.510818173820077,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z16": {
+        "tile_width_pixels": 4,
+        "depth_slices": 16,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0028202229214020964,
+          "max_absolute_channel_error": 0.08357107829950206,
+          "relative_rgb_l2": 0.005785365535209355,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0012642432740607933,
+          "max_absolute_channel_error": 0.024924868725036527,
+          "relative_rgb_l2": 0.5091895044236403,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z16": {
+        "tile_width_pixels": 8,
+        "depth_slices": 16,
+        "froxel_cell_count": 1344,
+        "light_evaluations": 4032,
+        "estimated_bytes_R16F_density_RGBA16F_source": 13440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.002812329465675155,
+          "max_absolute_channel_error": 0.09471385055452364,
+          "relative_rgb_l2": 0.005769173011430545,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0028988192670727484,
+          "max_absolute_channel_error": 0.05821245803329989,
+          "relative_rgb_l2": 1.1675350593508436,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z32": {
+        "tile_width_pixels": 1,
+        "depth_slices": 32,
+        "froxel_cell_count": 165888,
+        "light_evaluations": 497664,
+        "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0012759534285862748,
+          "max_absolute_channel_error": 0.040268607377686005,
+          "relative_rgb_l2": 0.0026174728721817834,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0009087242943892724,
+          "max_absolute_channel_error": 0.023895328627759085,
+          "relative_rgb_l2": 0.3659998693380792,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z32": {
+        "tile_width_pixels": 2,
+        "depth_slices": 32,
+        "froxel_cell_count": 41472,
+        "light_evaluations": 124416,
+        "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0015399732389004513,
+          "max_absolute_channel_error": 0.041153909606046146,
+          "relative_rgb_l2": 0.003159079388323693,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0013515941113671592,
+          "max_absolute_channel_error": 0.025734357359360138,
+          "relative_rgb_l2": 0.5443711268784335,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z32": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "froxel_cell_count": 10752,
+        "light_evaluations": 32256,
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0021312527148876414,
+          "max_absolute_channel_error": 0.06976641462797584,
+          "relative_rgb_l2": 0.004372021768194953,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0014225946784770281,
+          "max_absolute_channel_error": 0.036545858910619365,
+          "relative_rgb_l2": 0.5729674772187819,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z32": {
+        "tile_width_pixels": 8,
+        "depth_slices": 32,
+        "froxel_cell_count": 2688,
+        "light_evaluations": 8064,
+        "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0022645103588567507,
+          "max_absolute_channel_error": 0.04779772413685213,
+          "relative_rgb_l2": 0.0046453846200715,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001388188681740679,
+          "max_absolute_channel_error": 0.025661863189146917,
+          "relative_rgb_l2": 0.559110039503404,
+          "pixel_count": 5184
+        }
+      },
+      "tile1_z64": {
+        "tile_width_pixels": 1,
+        "depth_slices": 64,
+        "froxel_cell_count": 331776,
+        "light_evaluations": 995328,
+        "estimated_bytes_R16F_density_RGBA16F_source": 3317760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0005017230015987339,
+          "max_absolute_channel_error": 0.016886493212902143,
+          "relative_rgb_l2": 0.001029227491076495,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0004586488664783067,
+          "max_absolute_channel_error": 0.013840425207593748,
+          "relative_rgb_l2": 0.18472646350446256,
+          "pixel_count": 5184
+        }
+      },
+      "tile2_z64": {
+        "tile_width_pixels": 2,
+        "depth_slices": 64,
+        "froxel_cell_count": 82944,
+        "light_evaluations": 248832,
+        "estimated_bytes_R16F_density_RGBA16F_source": 829440,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.000824337677073984,
+          "max_absolute_channel_error": 0.029996701948454052,
+          "relative_rgb_l2": 0.0016910346874095229,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0008401395415012885,
+          "max_absolute_channel_error": 0.01922977022423896,
+          "relative_rgb_l2": 0.33837651784349093,
+          "pixel_count": 5184
+        }
+      },
+      "tile4_z64": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "froxel_cell_count": 21504,
+        "light_evaluations": 64512,
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001472878210417525,
+          "max_absolute_channel_error": 0.06974128209273789,
+          "relative_rgb_l2": 0.0030214415929482722,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001233144691606538,
+          "max_absolute_channel_error": 0.031499475833702634,
+          "relative_rgb_l2": 0.4966641684277467,
+          "pixel_count": 5184
+        }
+      },
+      "tile8_z64": {
+        "tile_width_pixels": 8,
+        "depth_slices": 64,
+        "froxel_cell_count": 5376,
+        "light_evaluations": 16128,
+        "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+        "full_image_metrics_vs_direct_512": {
+          "rgb_rmse": 0.0019301129696665863,
+          "max_absolute_channel_error": 0.06621512496852489,
+          "relative_rgb_l2": 0.003959406530962516,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_direct_512": {
+          "rgb_rmse": 0.001655666694536009,
+          "max_absolute_channel_error": 0.03193342312745814,
+          "relative_rgb_l2": 0.6668400939746488,
+          "pixel_count": 5184
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Boxes use a hard binary density and analytic scene-space test, not production volume injection or rasterized depth.",
+    "Point-light visibility remains the existing analytic AABB shadow proxy.",
+    "Memory estimates are arithmetic scenarios, not production resource layouts.",
+    "No temporal reprojection, jitter, filtering, or backend parity."
+  ],
+  "source_script_sha256": "58cd0d2a72d07624a03a31b8ba0720a553b6ddf4618efe080d1d3c2c716470e4",
+  "proxy_script_sha256": "c9da5bd6e81850da6ec301ba8263fe04b14ef893573c6841f7fefc217015010f"
+}

@@ -1,0 +1,573 @@
+{
+  "schema": "fog-local-froxel-multi-box-coverage-rd-v1",
+  "method": {
+    "density_composition": "additive extinction density; overlapping boxes contribute independently and sum",
+    "source_composition": "scattering source weighted by each box's density times slice occupancy",
+    "oracle": "exact ray/AABB intervals partitioned at every box entry/exit; constant active density integrated with midpoint source quadrature"
+  },
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "boxes_by_scenario": {
+      "overlap": [
+        {
+          "minimum": [
+            -2.5,
+            0.0,
+            15.0
+          ],
+          "maximum": [
+            1.5,
+            8.0,
+            19.0
+          ]
+        },
+        {
+          "minimum": [
+            -0.5,
+            1.0,
+            17.0
+          ],
+          "maximum": [
+            3.5,
+            7.0,
+            21.0
+          ]
+        }
+      ],
+      "disjoint": [
+        {
+          "minimum": [
+            -5.0,
+            0.0,
+            15.0
+          ],
+          "maximum": [
+            -1.0,
+            8.0,
+            19.0
+          ]
+        },
+        {
+          "minimum": [
+            2.0,
+            0.0,
+            19.0
+          ],
+          "maximum": [
+            6.0,
+            8.0,
+            23.0
+          ]
+        }
+      ],
+      "staggered_overlap": [
+        {
+          "minimum": [
+            -3.0,
+            0.0,
+            14.0
+          ],
+          "maximum": [
+            1.0,
+            8.0,
+            20.0
+          ]
+        },
+        {
+          "minimum": [
+            -1.0,
+            2.0,
+            17.0
+          ],
+          "maximum": [
+            3.0,
+            7.0,
+            24.0
+          ]
+        }
+      ]
+    },
+    "density_per_box": 0.025,
+    "tile_width": 4,
+    "depth_slices": 32,
+    "light_count": 3,
+    "xy_rays_per_axis": [
+      1,
+      2,
+      4
+    ],
+    "oracle_steps_per_interval": 128
+  },
+  "results": {
+    "overlap": {
+      "center_sample_baseline": {
+        "froxel_cell_count": 10752,
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.001268450753245995,
+          "max_absolute_channel_error": 0.03525354437708872,
+          "relative_rgb_l2": 0.0026017134936209417,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0008955272743192316,
+          "max_absolute_channel_error": 0.02099773149621932,
+          "relative_rgb_l2": 0.45686682370868287,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0035642085984771547,
+            "max_absolute_optical_depth_error": 0.062414158066064374,
+            "transmittance_rmse": 0.0033329449567534083,
+            "max_absolute_transmittance_error": 0.05879151021026052
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 70,
+            "optical_depth_rmse": 0.030179202334403604,
+            "max_absolute_optical_depth_error": 0.062414158066064374,
+            "transmittance_rmse": 0.028165348630476185,
+            "max_absolute_transmittance_error": 0.05879151021026052
+          }
+        }
+      },
+      "xy1x1": {
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 21504,
+        "nonempty_box_slice_intersections": 71,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 3.657033996040112e-06,
+          "max_absolute_channel_error": 0.00017373211887065226,
+          "relative_rgb_l2": 7.500925573799459e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0007575455566444279,
+          "max_absolute_channel_error": 0.02784102149554679,
+          "relative_rgb_l2": 0.0015537981996626786,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0006853815275258963,
+          "max_absolute_channel_error": 0.01763126720546298,
+          "relative_rgb_l2": 0.3496577831729329,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0022275803055658593,
+            "max_absolute_optical_depth_error": 0.05110583724840555,
+            "transmittance_rmse": 0.0020999487503995163,
+            "max_absolute_transmittance_error": 0.047865567053693936
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 70,
+            "optical_depth_rmse": 0.01758479229342994,
+            "max_absolute_optical_depth_error": 0.05110583724840555,
+            "transmittance_rmse": 0.016432018164671807,
+            "max_absolute_transmittance_error": 0.047865567053693936
+          }
+        }
+      },
+      "xy2x2": {
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 86016,
+        "nonempty_box_slice_intersections": 319,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 3.657033996040112e-06,
+          "max_absolute_channel_error": 0.00017373211887065226,
+          "relative_rgb_l2": 7.500925573799459e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0007564985337857995,
+          "max_absolute_channel_error": 0.021089416254370108,
+          "relative_rgb_l2": 0.0015516506559031338,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0006845824474594021,
+          "max_absolute_channel_error": 0.014404356278160658,
+          "relative_rgb_l2": 0.3492501203553536,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0022830173269060895,
+            "max_absolute_optical_depth_error": 0.04137159684770232,
+            "transmittance_rmse": 0.0021790102228802077,
+            "max_absolute_transmittance_error": 0.03853786260746983
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 70,
+            "optical_depth_rmse": 0.01617272153420331,
+            "max_absolute_optical_depth_error": 0.04137159684770232,
+            "transmittance_rmse": 0.01513989707471646,
+            "max_absolute_transmittance_error": 0.03853786260746983
+          }
+        }
+      },
+      "xy4x4": {
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 344064,
+        "nonempty_box_slice_intersections": 1276,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 3.657033996040112e-06,
+          "max_absolute_channel_error": 0.00017373211887065226,
+          "relative_rgb_l2": 7.500925573799459e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0008139870805043715,
+          "max_absolute_channel_error": 0.02524578460045479,
+          "relative_rgb_l2": 0.0016695651491096038,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0007306888769825011,
+          "max_absolute_channel_error": 0.014340851236615213,
+          "relative_rgb_l2": 0.3727720147887525,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0024335165989590305,
+            "max_absolute_optical_depth_error": 0.04218316107742469,
+            "transmittance_rmse": 0.0023280073936787046,
+            "max_absolute_transmittance_error": 0.0411043312888556
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 70,
+            "optical_depth_rmse": 0.017066956468677136,
+            "max_absolute_optical_depth_error": 0.04218316107742469,
+            "transmittance_rmse": 0.01602199212991811,
+            "max_absolute_transmittance_error": 0.0411043312888556
+          }
+        }
+      }
+    },
+    "disjoint": {
+      "center_sample_baseline": {
+        "froxel_cell_count": 10752,
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0018754998304656172,
+          "max_absolute_channel_error": 0.04879725785640421,
+          "relative_rgb_l2": 0.003847177405314623,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0016838864482117922,
+          "max_absolute_channel_error": 0.028426881258079625,
+          "relative_rgb_l2": 0.63079759036173,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.005507195149675955,
+            "max_absolute_optical_depth_error": 0.07808430249405926,
+            "transmittance_rmse": 0.005249716573000318,
+            "max_absolute_transmittance_error": 0.07332840036525434
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 86,
+            "optical_depth_rmse": 0.033472276548199814,
+            "max_absolute_optical_depth_error": 0.07808430249405926,
+            "transmittance_rmse": 0.03136709018285398,
+            "max_absolute_transmittance_error": 0.07332840036525434
+          }
+        }
+      },
+      "xy1x1": {
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 21504,
+        "nonempty_box_slice_intersections": 71,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 2.782511569057764e-06,
+          "max_absolute_channel_error": 8.069648889363901e-05,
+          "relative_rgb_l2": 5.70771346636057e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.001385511188491933,
+          "max_absolute_channel_error": 0.04272617297596393,
+          "relative_rgb_l2": 0.0028420729517493245,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.001264170981938275,
+          "max_absolute_channel_error": 0.027135975226701758,
+          "relative_rgb_l2": 0.47356875522023784,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.004018316827459292,
+            "max_absolute_optical_depth_error": 0.0686234602600299,
+            "transmittance_rmse": 0.003828237560189598,
+            "max_absolute_transmittance_error": 0.06413595695718044
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 86,
+            "optical_depth_rmse": 0.02491379025161686,
+            "max_absolute_optical_depth_error": 0.0686234602600299,
+            "transmittance_rmse": 0.023273122505611064,
+            "max_absolute_transmittance_error": 0.06413595695718044
+          }
+        }
+      },
+      "xy2x2": {
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 86016,
+        "nonempty_box_slice_intersections": 344,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 2.782511569057764e-06,
+          "max_absolute_channel_error": 8.069648889363901e-05,
+          "relative_rgb_l2": 5.70771346636057e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0012853122395405643,
+          "max_absolute_channel_error": 0.0313852725298458,
+          "relative_rgb_l2": 0.002636536738852799,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0012073037242117893,
+          "max_absolute_channel_error": 0.030619640391896876,
+          "relative_rgb_l2": 0.4522658169001149,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0037382042591330117,
+            "max_absolute_optical_depth_error": 0.0557505174192197,
+            "transmittance_rmse": 0.003570289420767091,
+            "max_absolute_transmittance_error": 0.051739834515115324
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 86,
+            "optical_depth_rmse": 0.021808118075230948,
+            "max_absolute_optical_depth_error": 0.0557505174192197,
+            "transmittance_rmse": 0.020266413875792345,
+            "max_absolute_transmittance_error": 0.051739834515115324
+          }
+        }
+      },
+      "xy4x4": {
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 344064,
+        "nonempty_box_slice_intersections": 1276,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 2.782511569057764e-06,
+          "max_absolute_channel_error": 8.069648889363901e-05,
+          "relative_rgb_l2": 5.70771346636057e-06,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0012787406609222317,
+          "max_absolute_channel_error": 0.03405485075131187,
+          "relative_rgb_l2": 0.0026230565836605577,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.001232640301043647,
+          "max_absolute_channel_error": 0.030200118532536843,
+          "relative_rgb_l2": 0.4617571051223837,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0037852376518249763,
+            "max_absolute_optical_depth_error": 0.05492991223233273,
+            "transmittance_rmse": 0.003605040366876424,
+            "max_absolute_transmittance_error": 0.05145018534653145
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 86,
+            "optical_depth_rmse": 0.0231034224991409,
+            "max_absolute_optical_depth_error": 0.05492991223233273,
+            "transmittance_rmse": 0.02147522251026808,
+            "max_absolute_transmittance_error": 0.05145018534653145
+          }
+        }
+      }
+    },
+    "staggered_overlap": {
+      "center_sample_baseline": {
+        "froxel_cell_count": 10752,
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0020446946899673178,
+          "max_absolute_channel_error": 0.05404502363779873,
+          "relative_rgb_l2": 0.004194779833854719,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0020800224444928236,
+          "max_absolute_channel_error": 0.030348957767751643,
+          "relative_rgb_l2": 0.7061069271374842,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0067193914346648795,
+            "max_absolute_optical_depth_error": 0.09921510736589297,
+            "transmittance_rmse": 0.006242305259891627,
+            "max_absolute_transmittance_error": 0.09399301750306865
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 84,
+            "optical_depth_rmse": 0.04185608744918181,
+            "max_absolute_optical_depth_error": 0.09921510736589297,
+            "transmittance_rmse": 0.03761047843921025,
+            "max_absolute_transmittance_error": 0.09399301750306865
+          }
+        }
+      },
+      "xy1x1": {
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 21504,
+        "nonempty_box_slice_intersections": 88,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 5.908907872511392e-06,
+          "max_absolute_channel_error": 0.00023500245732255287,
+          "relative_rgb_l2": 1.2122380766838283e-05,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0013543327483410983,
+          "max_absolute_channel_error": 0.05344129819743715,
+          "relative_rgb_l2": 0.002778472369956164,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.001139725341364534,
+          "max_absolute_channel_error": 0.03245390275596748,
+          "relative_rgb_l2": 0.38690349746099006,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.003612648687448832,
+            "max_absolute_optical_depth_error": 0.11382229385411453,
+            "transmittance_rmse": 0.003420985314569517,
+            "max_absolute_transmittance_error": 0.10706055970737938
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 84,
+            "optical_depth_rmse": 0.021949359572351834,
+            "max_absolute_optical_depth_error": 0.11382229385411453,
+            "transmittance_rmse": 0.020348969669927372,
+            "max_absolute_transmittance_error": 0.10706055970737938
+          }
+        }
+      },
+      "xy2x2": {
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 86016,
+        "nonempty_box_slice_intersections": 331,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 5.908907872511392e-06,
+          "max_absolute_channel_error": 0.00023500245732255287,
+          "relative_rgb_l2": 1.2122380766838283e-05,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.0013509619867414912,
+          "max_absolute_channel_error": 0.047140757754494333,
+          "relative_rgb_l2": 0.0027715571063463246,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0011330826171135336,
+          "max_absolute_channel_error": 0.02487742884112297,
+          "relative_rgb_l2": 0.38464848640516497,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.003667851458295439,
+            "max_absolute_optical_depth_error": 0.09413970216592975,
+            "transmittance_rmse": 0.0034751047541614153,
+            "max_absolute_transmittance_error": 0.08940770770413053
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 84,
+            "optical_depth_rmse": 0.022456036066869814,
+            "max_absolute_optical_depth_error": 0.09413970216592975,
+            "transmittance_rmse": 0.020766892792445407,
+            "max_absolute_transmittance_error": 0.08940770770413053
+          }
+        }
+      },
+      "xy4x4": {
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "ray_box_interval_tests": 344064,
+        "nonempty_box_slice_intersections": 1375,
+        "validation_oracle_128_vs_256": {
+          "rgb_rmse": 5.908907872511392e-06,
+          "max_absolute_channel_error": 0.00023500245732255287,
+          "relative_rgb_l2": 1.2122380766838283e-05,
+          "pixel_count": 5184
+        },
+        "full_image_metrics_vs_oracle": {
+          "rgb_rmse": 0.00136896040498331,
+          "max_absolute_channel_error": 0.04773318682256533,
+          "relative_rgb_l2": 0.002808481641951819,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_oracle": {
+          "rgb_rmse": 0.0011502001262822593,
+          "max_absolute_channel_error": 0.026072744637043413,
+          "relative_rgb_l2": 0.39045938129785146,
+          "pixel_count": 5184
+        },
+        "transmittance_metrics": {
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0037215799036238984,
+            "max_absolute_optical_depth_error": 0.09641508306800282,
+            "transmittance_rmse": 0.0035268130078002003,
+            "max_absolute_transmittance_error": 0.09146624963094585
+          },
+          "volume_intersecting_pixels": {
+            "pixel_count": 84,
+            "optical_depth_rmse": 0.022805356061051413,
+            "max_absolute_optical_depth_error": 0.09641508306800282,
+            "transmittance_rmse": 0.02111083683377561,
+            "max_absolute_transmittance_error": 0.09146624963094585
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic AABB proxy; no GPU runtime/performance measurement.",
+    "Only additive homogeneous box media are covered; overlapping heterogeneous phase functions or anisotropy are not represented.",
+    "Each froxel stores average density and density-weighted source separately; nonlinear multi-medium scattering remains approximated after injection.",
+    "Lighting uses analytic hard-AABB visibility, not filtered shadow maps."
+  ],
+  "source_script_sha256": "c1e9aeab684ca0e0e59f5fb6e9410b8115793bab4509a15459b72f9915a0ebb5",
+  "proxy_script_sha256": "b6a13ee9e2d63e4b402f56f92c43abd2ebe5ebbf583a2f9b9a8beceae706bc58"
+}

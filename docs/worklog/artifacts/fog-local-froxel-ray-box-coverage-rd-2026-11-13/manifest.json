@@ -1,0 +1,731 @@
+{
+  "schema": "fog-local-froxel-ray-box-coverage-rd-v1",
+  "method": {
+    "description": "For every froxel XY cell and log-depth slice, trace stratified subpixel rays, compute exact ray/AABB interval, clip its view-Z interval to the slice, and average occupied fraction. Lighting is averaged over occupied ray intervals.",
+    "compared_to": "center-sample froxel grid and ray-box interval oracle"
+  },
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "tile_width": 4,
+    "boxes": {
+      "centered": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.0
+        ]
+      },
+      "x_shift_half": {
+        "minimum": [
+          -1.5,
+          0.0,
+          15.0
+        ],
+        "maximum": [
+          2.5,
+          8.0,
+          19.0
+        ]
+      },
+      "depth_shift_half": {
+        "minimum": [
+          -2.0,
+          0.0,
+          15.5
+        ],
+        "maximum": [
+          2.0,
+          8.0,
+          19.5
+        ]
+      }
+    },
+    "density_inside": 0.035,
+    "light_count": 3,
+    "depth_slices": [
+      32,
+      64
+    ],
+    "xy_rays_per_axis": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "oracle_quadrature_steps": 256
+  },
+  "results": {
+    "centered": {
+      "z32_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 10752,
+        "coverage_light_evaluations_upper_bound": 174,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 10752,
+          "nonempty_subray_intervals": 58,
+          "sum_of_froxel_coverage_fractions": 21.147527651127277,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0015030236611698177,
+          "max_absolute_channel_error": 0.04534996499485178,
+          "relative_rgb_l2": 0.003083421947626147,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0012292968149560247,
+          "max_absolute_channel_error": 0.025174259338732092,
+          "relative_rgb_l2": 0.43661083232269465,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 43008,
+        "coverage_light_evaluations_upper_bound": 666,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 43008,
+          "nonempty_subray_intervals": 222,
+          "sum_of_froxel_coverage_fractions": 24.05922496725944,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013972872667488052,
+          "max_absolute_channel_error": 0.0482312496200461,
+          "relative_rgb_l2": 0.0028665059218552333,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0012050193849750983,
+          "max_absolute_channel_error": 0.021512580269856457,
+          "relative_rgb_l2": 0.4279881882373381,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 172032,
+        "coverage_light_evaluations_upper_bound": 2532,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 172032,
+          "nonempty_subray_intervals": 844,
+          "sum_of_froxel_coverage_fractions": 22.807315794813135,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014314464496598105,
+          "max_absolute_channel_error": 0.040684046325308754,
+          "relative_rgb_l2": 0.002936582778941298,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001203938900421705,
+          "max_absolute_channel_error": 0.022318709397850876,
+          "relative_rgb_l2": 0.42760443123542496,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 688128,
+        "coverage_light_evaluations_upper_bound": 10728,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 688128,
+          "nonempty_subray_intervals": 3576,
+          "sum_of_froxel_coverage_fractions": 23.167737569131308,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014259372765019853,
+          "max_absolute_channel_error": 0.04245827387132406,
+          "relative_rgb_l2": 0.002925280824177066,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0012112166097333504,
+          "max_absolute_channel_error": 0.021961471078874244,
+          "relative_rgb_l2": 0.4301892640286945,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 21504,
+        "coverage_light_evaluations_upper_bound": 210,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 21504,
+          "nonempty_subray_intervals": 70,
+          "sum_of_froxel_coverage_fractions": 42.55055371303864,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014642155669200758,
+          "max_absolute_channel_error": 0.043836186244941344,
+          "relative_rgb_l2": 0.0030038079451013538,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013051724490296501,
+          "max_absolute_channel_error": 0.025941193527303005,
+          "relative_rgb_l2": 0.4635596727840464,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 86016,
+        "coverage_light_evaluations_upper_bound": 864,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 86016,
+          "nonempty_subray_intervals": 288,
+          "sum_of_froxel_coverage_fractions": 48.286348056756786,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014203359939782094,
+          "max_absolute_channel_error": 0.048212921538477005,
+          "relative_rgb_l2": 0.0029137899089540665,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011817054428523634,
+          "max_absolute_channel_error": 0.021522599809699356,
+          "relative_rgb_l2": 0.41970774729655963,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 344064,
+        "coverage_light_evaluations_upper_bound": 3396,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 344064,
+          "nonempty_subray_intervals": 1132,
+          "sum_of_froxel_coverage_fractions": 45.738965791073504,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014399727421709944,
+          "max_absolute_channel_error": 0.04066635099895288,
+          "relative_rgb_l2": 0.0029540742916433684,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011938345021749149,
+          "max_absolute_channel_error": 0.022055091266564835,
+          "relative_rgb_l2": 0.4240156399240208,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 1376256,
+        "coverage_light_evaluations_upper_bound": 14040,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 1376256,
+          "nonempty_subray_intervals": 4680,
+          "sum_of_froxel_coverage_fractions": 46.4729458304809,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0014282095236361001,
+          "max_absolute_channel_error": 0.042441133994502334,
+          "relative_rgb_l2": 0.0029299422921664035,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0012065252765445492,
+          "max_absolute_channel_error": 0.02193082696546895,
+          "relative_rgb_l2": 0.4285230375621931,
+          "pixel_count": 5184
+        }
+      }
+    },
+    "x_shift_half": {
+      "z32_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 10752,
+        "coverage_light_evaluations_upper_bound": 153,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 10752,
+          "nonempty_subray_intervals": 51,
+          "sum_of_froxel_coverage_fractions": 23.538466593264808,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001031872336839669,
+          "max_absolute_channel_error": 0.03977334484496098,
+          "relative_rgb_l2": 0.0021168686005910084,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0009591237440429378,
+          "max_absolute_channel_error": 0.019798955506186516,
+          "relative_rgb_l2": 0.32240051314730045,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 43008,
+        "coverage_light_evaluations_upper_bound": 633,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 43008,
+          "nonempty_subray_intervals": 211,
+          "sum_of_froxel_coverage_fractions": 22.63774830940756,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001094323235609793,
+          "max_absolute_channel_error": 0.03984377687693996,
+          "relative_rgb_l2": 0.0022449855603789365,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0009892495197738344,
+          "max_absolute_channel_error": 0.018644178805485384,
+          "relative_rgb_l2": 0.3325270120635517,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 172032,
+        "coverage_light_evaluations_upper_bound": 2754,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 172032,
+          "nonempty_subray_intervals": 918,
+          "sum_of_froxel_coverage_fractions": 23.225555152258384,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001131830237580651,
+          "max_absolute_channel_error": 0.03751695210741035,
+          "relative_rgb_l2": 0.0023219305388804297,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0010011184873426023,
+          "max_absolute_channel_error": 0.01874713480762332,
+          "relative_rgb_l2": 0.3365166549625686,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 688128,
+        "coverage_light_evaluations_upper_bound": 10602,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 688128,
+          "nonempty_subray_intervals": 3534,
+          "sum_of_froxel_coverage_fractions": 23.150169104844764,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011354724878312869,
+          "max_absolute_channel_error": 0.03720167295487398,
+          "relative_rgb_l2": 0.0023294025535045256,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0010136452559662684,
+          "max_absolute_channel_error": 0.019094526322105277,
+          "relative_rgb_l2": 0.3407274115593385,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 21504,
+        "coverage_light_evaluations_upper_bound": 207,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 21504,
+          "nonempty_subray_intervals": 69,
+          "sum_of_froxel_coverage_fractions": 47.19745351191458,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0010293721019466568,
+          "max_absolute_channel_error": 0.03855420314466851,
+          "relative_rgb_l2": 0.002111739411106842,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001039065025973596,
+          "max_absolute_channel_error": 0.020499543186668592,
+          "relative_rgb_l2": 0.34927203048400757,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 86016,
+        "coverage_light_evaluations_upper_bound": 831,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 86016,
+          "nonempty_subray_intervals": 277,
+          "sum_of_froxel_coverage_fractions": 45.45462755875279,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011016491919294653,
+          "max_absolute_channel_error": 0.03882435707595633,
+          "relative_rgb_l2": 0.0022600146355355706,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0009680559842021434,
+          "max_absolute_channel_error": 0.018568612091454526,
+          "relative_rgb_l2": 0.325403002480683,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 344064,
+        "coverage_light_evaluations_upper_bound": 3546,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 344064,
+          "nonempty_subray_intervals": 1182,
+          "sum_of_froxel_coverage_fractions": 46.60857594085115,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011357768668917839,
+          "max_absolute_channel_error": 0.036894215811254405,
+          "relative_rgb_l2": 0.0023300269819854914,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.000993097637497825,
+          "max_absolute_channel_error": 0.01877386486271445,
+          "relative_rgb_l2": 0.3338205209945642,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 1376256,
+        "coverage_light_evaluations_upper_bound": 13914,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 1376256,
+          "nonempty_subray_intervals": 4638,
+          "sum_of_froxel_coverage_fractions": 46.43972181195822,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011327863016826131,
+          "max_absolute_channel_error": 0.036462441937012424,
+          "relative_rgb_l2": 0.002323891888172722,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0010112949932195056,
+          "max_absolute_channel_error": 0.019105551030934805,
+          "relative_rgb_l2": 0.3399373926276902,
+          "pixel_count": 5184
+        }
+      }
+    },
+    "depth_shift_half": {
+      "z32_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 10752,
+        "coverage_light_evaluations_upper_bound": 102,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 10752,
+          "nonempty_subray_intervals": 34,
+          "sum_of_froxel_coverage_fractions": 17.86116988556593,
+          "max_froxel_coverage_fraction": 0.9538311225589758
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001383471405614124,
+          "max_absolute_channel_error": 0.04823325283301483,
+          "relative_rgb_l2": 0.002838033194492137,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011453831433478818,
+          "max_absolute_channel_error": 0.02897990452898137,
+          "relative_rgb_l2": 0.45932610239967725,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 43008,
+        "coverage_light_evaluations_upper_bound": 432,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 43008,
+          "nonempty_subray_intervals": 144,
+          "sum_of_froxel_coverage_fractions": 22.582260156138968,
+          "max_froxel_coverage_fraction": 0.9538311225589758
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013065657990489136,
+          "max_absolute_channel_error": 0.04763777890287679,
+          "relative_rgb_l2": 0.002680270147573409,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011208401271138612,
+          "max_absolute_channel_error": 0.02211864086290133,
+          "relative_rgb_l2": 0.449483764441958,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 172032,
+        "coverage_light_evaluations_upper_bound": 1596,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 172032,
+          "nonempty_subray_intervals": 532,
+          "sum_of_froxel_coverage_fractions": 20.77918960018251,
+          "max_froxel_coverage_fraction": 0.9538311225589756
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013594851727019377,
+          "max_absolute_channel_error": 0.038558158187170566,
+          "relative_rgb_l2": 0.002788828183864984,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011127344315142414,
+          "max_absolute_channel_error": 0.024946979093371954,
+          "relative_rgb_l2": 0.44623318616285995,
+          "pixel_count": 5184
+        }
+      },
+      "z32_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 32,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 10752,
+        "coverage_ray_box_tests": 688128,
+        "coverage_light_evaluations_upper_bound": 6672,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 688128,
+          "nonempty_subray_intervals": 2224,
+          "sum_of_froxel_coverage_fractions": 20.88573076968253,
+          "max_froxel_coverage_fraction": 0.9538311225589752
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013532379595614858,
+          "max_absolute_channel_error": 0.037965819707647785,
+          "relative_rgb_l2": 0.002776012741352965,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011289705446504506,
+          "max_absolute_channel_error": 0.025492844770082804,
+          "relative_rgb_l2": 0.4527442568105185,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy1x1": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 1,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 21504,
+        "coverage_light_evaluations_upper_bound": 138,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 21504,
+          "nonempty_subray_intervals": 46,
+          "sum_of_froxel_coverage_fractions": 36.30919306125063,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013490902497857206,
+          "max_absolute_channel_error": 0.046016684616886794,
+          "relative_rgb_l2": 0.0027675041896207263,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001236098836945873,
+          "max_absolute_channel_error": 0.030279063093560994,
+          "relative_rgb_l2": 0.49570527054864744,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy2x2": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 2,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 86016,
+        "coverage_light_evaluations_upper_bound": 630,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 86016,
+          "nonempty_subray_intervals": 210,
+          "sum_of_froxel_coverage_fractions": 45.708326697467676,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013244380595062498,
+          "max_absolute_channel_error": 0.047617730514572854,
+          "relative_rgb_l2": 0.002716933043700282,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.001108045024341861,
+          "max_absolute_channel_error": 0.02203486031794959,
+          "relative_rgb_l2": 0.4443526214526454,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy4x4": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 4,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 344064,
+        "coverage_light_evaluations_upper_bound": 2460,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 344064,
+          "nonempty_subray_intervals": 820,
+          "sum_of_froxel_coverage_fractions": 42.00934309529671,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.00136542770127287,
+          "max_absolute_channel_error": 0.038647463706006135,
+          "relative_rgb_l2": 0.002801018600866077,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011055868739836916,
+          "max_absolute_channel_error": 0.02475346172856589,
+          "relative_rgb_l2": 0.4433668442219539,
+          "pixel_count": 5184
+        }
+      },
+      "z64_xy8x8": {
+        "tile_width_pixels": 4,
+        "depth_slices": 64,
+        "xy_rays_per_axis": 8,
+        "froxel_cell_count": 21504,
+        "coverage_ray_box_tests": 1376256,
+        "coverage_light_evaluations_upper_bound": 9984,
+        "coverage_accounting": {
+          "ray_box_interval_evaluations": 1376256,
+          "nonempty_subray_intervals": 3328,
+          "sum_of_froxel_coverage_fractions": 42.25023300833762,
+          "max_froxel_coverage_fraction": 1.0
+        },
+        "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+        "full_image_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0013616656536327466,
+          "max_absolute_channel_error": 0.03806097396139041,
+          "relative_rgb_l2": 0.0027933011908505144,
+          "pixel_count": 5184
+        },
+        "fog_only_metrics_vs_interval_oracle": {
+          "rgb_rmse": 0.0011198015425786282,
+          "max_absolute_channel_error": 0.025152843297913684,
+          "relative_rgb_l2": 0.4490672671420354,
+          "pixel_count": 5184
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock measurement.",
+    "XY occupancy is estimated from finite stratified rays; convergence in XY is not guaranteed for subpixel volumes.",
+    "Binary box density is exact only for this analytic AABB; arbitrary density fields need other integration methods.",
+    "Point-light visibility remains analytic hard-AABB shadowing.",
+    "Grid values store averaged density and occupancy-conditioned source lighting; nonlinear scattering/transmittance remains approximated after injection."
+  ],
+  "source_script_sha256": "f76434364f7802d7dde747a815bd9bb38ac1f3ce93a16402ff3fce05567ea4a1",
+  "proxy_script_sha256": "b6a13ee9e2d63e4b402f56f92c43abd2ebe5ebbf583a2f9b9a8beceae706bc58",
+  "oracle_script_sha256": "fa0d7e97fc537c24bdd39ee7e1ee2d477baf079f66e84c870e557de5b9ea3f4a"
+}

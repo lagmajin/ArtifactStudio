@@ -1,9 +1,9 @@
 # Transition Effects R&D Suite
 
-**最終更新:** 2026-11-12
+**最終更新:** 2026-11-13
 **ステータス:** In Progress
 
-**進捗:** 2026-11-12 — 既存 `TransitionRenderContractTest` が入力A/Bの原寸PNGも保存するよう変更し、`tools/analyze_transition_capture.py` で全kindのprogress 0/1を入力画像と画素単位比較、隣接progress間の変更画素数をPNGから再計算してreport値と照合する仕組みを追加。全capture frameのalphaを不透明入力契約（alpha=255）と照合するほか、既存の alpha=77 contract と同じ半透明入力fixtureで全kind・全progressのPNG、strip、原寸入力をcaptureし、alpha保持と端点完全一致も検証する。期待する16 kind、progress列、画素数、全PNGの存在・形式・寸法・読込可否を確認し、画像とcapture reportのSHA-256を `verification_report.json` に記録する。さらに `review.html` を生成し、入力、全kind grid、kind別progress stripと各フレームを一覧できる。kind別の目視判定とメモをブラウザ内に保存し、capture report hash付きJSONとしてexportできる。captureには各kind／progressごとのwarm-up後CPU adapter render raw timingsを7回保存し、解析器がmin/median/maxを算出する。`tools/run_transition_capture.py` は既存test exe実行、source revision／dirty状態、exe hash、OS／CPU、build configをrun manifestへ記録し、解析まで連続実行する。空のcapture directoryのみ受け付けて既存データを保護する。`--baseline` は入力・条件一致とPNGのchanged/added/removedを検査し、差分を目視できる。合成fixtureでopaqueとalpha=77の16 kind・203 PNG、timing／provenance、レビュー出力、1画像だけ変更したbaseline比較がPASS。初回実行で隣接画像比較の前フレーム保持漏れを発見して修正後、各段階を再実行してPASSした。runner、実トランジションcapture、ブラウザでの実操作、C++ testは未実施。旧capture reportにはtimingがない。
+**進捗:** 2026-11-13 — 既存静止画captureに全kindの31フレーム連続PNG列を追加し、analyzerは連番・progress mapping・PNG形式／寸法を検証する。ffmpegがある環境ではFFV1/Matroskaを生成し、review HTMLに動画再生とPNGフレーム送りを出す。通常fixtureとalpha laneのFFV1動画はdecode後に元PNGとの31フレーム全画素一致を確認した。追加の細線・人工粒状texture・透明境界fixtureをCrossfadeへ通すcapture出力とanalyzer/HTML接続を追加し、合成bundleで16 kind、3 fixture、1,420 PNGの解析PASS、38動画生成を確認した。Node DOM stubでレビューHTMLの再生・pause・frame-step・終端停止も確認した。baseline比較はfixture A/Bのhash集合も比較するよう強化。前段ではfixtureごとに2名の独立判定欄を追加したが、評価範囲との不一致を解消するため、captureを全16 kind×3 fixtureへ拡張し、各組み合わせでsource-alpha laneとalpha=77 laneの31フレームPNG、progress strip、動画を出力する実装に更新した。HTMLではkind別に折り畳んで表示し、判定者ID・判定・メモをfixture×kind×判定者で保存する。analyzerの構造smokeでは既存の合成PNGを各kindパスへ複製した疑似matrixを使い、48組・4,207 PNGをPASS、HTMLに48パネル／96判定者欄を生成し、JS exportでfixture×kind×2名の独立レコード保存を確認した。FFV1動画も同じ疑似matrixから128本を生成し、source-alpha／alpha=77各31フレームのdecode画像をPNGと全画素比較して一致した。このsmokeはmatrix配線検証であり、全kindを各fixtureで実レンダーした証拠ではない。実ビルドは未達：MSVC Ninja構成は現Toolsetに1041 clui.dllしかなく、VSLANG=1033でもgenerated `msvc_deps_prefix` と実出力が不一致になりinclude一覧が漏れたため停止。既存ClangCL構成はCMake再生成後、`AnimatableTransform2D.cpp.obj.ddi -> AnimatableValue.ixx.obj`の依存循環でNinjaが停止した。C++ test executable未生成のため実renderer capture・実ブラウザ目視・評価者2名の品質判定は未実施。
 
 ## 目的
 
@@ -19,7 +19,7 @@
 - 既存契約テストは実験基盤として有用だが、テストの存在は実行成功、実装経路の製品利用、視覚品質、性能を証明しない。
 - 既存計画では NLE→Video 接続、`Artifact` の別系統、旧計画の前提訂正が記録されている。R&Dではこれらの統合未完了をレンダー品質評価と混同しない。
 - 現状のMCP lab説明は「CPU・GPU deviceなし」。したがって、この時点でGPU parityや実時間性能を測定済みとして扱わない。
-- `tools/analyze_transition_capture.py` は既存contract testのcapture bundleを検査する。画像ファイルの整合性に加え、progress端点を原寸入力A/Bと画素単位比較し、隣接progress間の変更画素数を画像から再計算する。見た目の良し悪しは目視が必要であり、runtime測定値は生成しない。
+- `tools/analyze_transition_capture.py` は既存contract testのcapture bundleを検査する。画像ファイルの整合性に加え、不透明・alpha=77の両入力でprogress端点を原寸入力A/Bと画素単位比較し、隣接progress間の変更画素数を画像から再計算する。raw timingの要約も行う。見た目の良し悪しや連続再生時の安定性は別途目視が必要。
 
 ## R&D対象と評価軸
 
@@ -95,10 +95,17 @@
 - Wipe/reveal系はcoverage領域と境界の位置・形状を評価し、crossfadeとは別の指標で扱う。
 - motion/deformation系は特徴点の移動、反転、画面外流出と時間差分を評価する。単一の汎用「品質スコア」へまとめない。
 - 指標は既知のsynthetic fixture上で妥当性確認し、スクリーンショットを併記して数値だけで品質判定しない。
+- **連続フレーム動画レビュー（実装済み・実capture未検証）:** transition durationとfpsを固定し、各フレームのprogressを `frameIndex / (durationFrames - 1)` から決定して連続PNG列を生成する。各フレームを単体で保存し、ffmpeg利用可能時はFFV1/Matroskaのロスレス動画も作る。表示用動画のcodec／pixel formatを記録し、画素検査は元PNG列を使う。
+- 時間評価では通常速度で全体を複数回再生し、スローモーション／フレーム送りで局所を確認する。開始・終了の飛び、境界の停滞／急加速、flicker、shimmer、ghosting、ちらつくalpha fringe、予期しないフレーム重複・欠落をkind別に記録する。
+- 時間指標は隣接フレーム差分の平均だけにせず、フレーム差分分布と最大局所変化、境界または特徴領域の位置・速度変化、alpha／色の時間安定性を採用する。意図した大きな動きと欠陥を分離できる根拠がない値は合否にせず参考値とする。
+- **評価素材と条件:** 初期は既存の番号付き象限・格子・alpha fixtureを使い、位置対応と境界が追えることを確認する。連続時間評価では3種類のfixture（高コントラスト／細線、自然な質感、透明境界）を選び、全具象transition kindを各fixtureに適用する。各fixture／kindごとにsource alphaを維持したlaneとalpha=77の契約laneを保存し、SHA-256、寸法、alpha契約を固定する。frame rate、duration、progress mapping、入力、出力backendを記録する。
+- **比較・合否:** 現行実装captureを条件固定のbaselineとする。視覚判定は全fixture／kind組み合わせごとに2名が通常速度再生とフレーム送りで独立に記録し、重大欠陥（フレーム欠落、端点不一致、意図しない全画面flash、破綻したalpha fringe）が1件でもあれば要調査。それ以外の許容差はbaseline取得後、候補比較前にレビュー観察を基に確定する。baseline未取得・判定者不足は未検証と明記し、合格扱いにしない。
+- **経路・性能:** このcapture harnessで確認できるのは現状CPU adapter経路。GPU／実アプリpreview・最終出力の一致は未検証とし、別経路captureなしで一般化しない。render時間は既存のraw sample契約に加え連続シーケンスの総時間とフレーム時間分布を記録するが、予算・合否閾値は対象host/buildのbaseline後に定める。
 
 ### Phase 4 — 比較・報告
 
 - kindごとに入力、全条件、progress strip、解析値、raw timing、未対応条件をひとまとめにした結果bundleを出す。
+- 連続PNG列と再生用動画をbundleに含め、動画で全体のテンポを見た後、同じフレーム列を1枚ずつ確認できるようにする。動画codecによる見かけの差と元レンダーの差を混同しない。
 - 2回目以降のcaptureでは `--baseline <previous-capture-directory>` を使い、条件とfixtureが同じ比較かを確認してから画像hash差分と目視レビューを行う。CPU timing比較は同host/build/measurement contractの時だけ同条件として扱う。
 - build、host、実行経路が一致する比較と、異なる環境の参考比較を分離する。
 - 次の作業候補（不具合、未実装、統合、最適化）は根拠付きで提示し、別途承認された依頼なしに製品範囲へ拡張しない。
@@ -108,13 +115,14 @@
 - 全 `TransitionKind` と具象factory登録の静的台帳がある。
 - fixture、capture条件、結果の出所がhashとmanifestで追跡できる。
 - 端点・alpha・進行挙動・境界・時間一貫性をカバーする測定／目視資料がある。
+- 連続フレームを動画再生とフレーム単位の両方で確認し、判定、再生条件、評価者、重大欠陥、未検証経路を記録している。
 - raw timingと実際のbackend情報が保存され、未測定・未対応が明確である。
 - NLE、Artifact effect、ArtifactPrの接続状態を混同しない説明がある。
 
 ## 制約・検証状態
 
 - これはR&D準備計画であり、アルゴリズム実装・統合作業を自動的に承認するものではない。
-- C++ contract testとMCP self-checkの起動、実captureの生成、実データの解析、ブラウザでの目視判定は未実施。合成fixture smokeは解析器の配線確認だけで、rendererを通さない。新captureはraw CPU timingを含むが、source revision、binary hash、build config、host/CPU情報はまだ付与しないため、性能比較とbackend parityには不足する。
+- C++ contract testとMCP self-checkの起動、実captureの生成、実データの解析、ブラウザでの目視判定、連続フレーム動画の生成・再生確認は未実施。合成fixture smokeは解析器の配線確認だけで、rendererを通さない。runnerはsource revision、binary hash、build config、host/CPU情報を記録するが、CPU timingは診断値でありbackend parityの証拠にはならない。
 - 解析器はPillowを必要とする。これは既存の `tools/ui_visual_compare.py` と同じ画像依存である。
 - ビルド、テスト、CMake configureは明示指示を得てから行う。
 - 子リポジトリ／サブモジュールは変更しない。

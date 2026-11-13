@@ -1,0 +1,370 @@
+{
+  "schema": "fog-local-froxel-depth-distribution-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "tile_size": 4,
+    "light_count": 3,
+    "near_view_z": 0.5,
+    "far_view_z": 120.0,
+    "depth_distributions": [
+      "log",
+      "linear"
+    ],
+    "slice_counts": [
+      16,
+      32,
+      64
+    ],
+    "reference_steps": 512,
+    "validation_steps": 256,
+    "reference_validation_direct_256_vs_512": {
+      "rgb_rmse": 3.4058851074602684e-05,
+      "max_absolute_channel_error": 0.0005819613650519528,
+      "relative_rgb_l2": 7.10995467185364e-05,
+      "pixel_count": 5184
+    }
+  },
+  "results": {
+    "log_z16": {
+      "tile_size": 4,
+      "depth_slices": 16,
+      "distribution": "log",
+      "grid_dimensions": [
+        24,
+        14,
+        16
+      ],
+      "froxel_cell_count": 5376,
+      "light_evaluations": 16128,
+      "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+      "depth_bin_width_view_z": {
+        "first": 0.2042602992911111,
+        "median": 3.164386949783264,
+        "last": 34.80422783962928,
+        "min": 0.2042602992911111,
+        "max": 34.80422783962928
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.0025435096475493932,
+        "max_absolute_channel_error": 0.04601717778739561,
+        "relative_rgb_l2": 0.005309702979083705,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.0012226493112059943,
+            "max_absolute_channel_error": 0.021948342966912726,
+            "relative_rgb_l2": 0.0024421441988538724,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0033355631462185257,
+            "max_absolute_channel_error": 0.019746537424061517,
+            "relative_rgb_l2": 0.009345035932712555,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.0032401676234600652,
+            "max_absolute_channel_error": 0.04601717778739561,
+            "relative_rgb_l2": 0.006762972015027231,
+            "pixel_count": 2340
+          }
+        }
+      }
+    },
+    "linear_z16": {
+      "tile_size": 4,
+      "depth_slices": 16,
+      "distribution": "linear",
+      "grid_dimensions": [
+        24,
+        14,
+        16
+      ],
+      "froxel_cell_count": 5376,
+      "light_evaluations": 16128,
+      "estimated_bytes_R16F_density_RGBA16F_source": 53760,
+      "depth_bin_width_view_z": {
+        "first": 7.46875,
+        "median": 7.46875,
+        "last": 7.46875,
+        "min": 7.46875,
+        "max": 7.46875
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.005932565049148517,
+        "max_absolute_channel_error": 0.0929604031062965,
+        "relative_rgb_l2": 0.012384524802342051,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.006844514555809629,
+            "max_absolute_channel_error": 0.0929604031062965,
+            "relative_rgb_l2": 0.013671370329365974,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0055640280890730115,
+            "max_absolute_channel_error": 0.017038931734104312,
+            "relative_rgb_l2": 0.01558838497240154,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.0049356642587220535,
+            "max_absolute_channel_error": 0.051380231833064505,
+            "relative_rgb_l2": 0.010301861859128836,
+            "pixel_count": 2340
+          }
+        }
+      }
+    },
+    "log_z32": {
+      "tile_size": 4,
+      "depth_slices": 32,
+      "distribution": "log",
+      "grid_dimensions": [
+        24,
+        14,
+        32
+      ],
+      "froxel_cell_count": 10752,
+      "light_evaluations": 32256,
+      "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+      "depth_bin_width_view_z": {
+        "first": 0.0934055524222499,
+        "median": 1.44703259589871,
+        "last": 18.888711514270142,
+        "min": 0.0934055524222499,
+        "max": 18.888711514270142
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.001437912770205884,
+        "max_absolute_channel_error": 0.031475673905859036,
+        "relative_rgb_l2": 0.0030017144723554355,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.0007799810772282471,
+            "max_absolute_channel_error": 0.014295735554557432,
+            "relative_rgb_l2": 0.0015579498107187249,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0023243354562260186,
+            "max_absolute_channel_error": 0.013560073048996424,
+            "relative_rgb_l2": 0.006511943382854172,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.0016844000675767413,
+            "max_absolute_channel_error": 0.031475673905859036,
+            "relative_rgb_l2": 0.0035157287655898577,
+            "pixel_count": 2340
+          }
+        }
+      }
+    },
+    "linear_z32": {
+      "tile_size": 4,
+      "depth_slices": 32,
+      "distribution": "linear",
+      "grid_dimensions": [
+        24,
+        14,
+        32
+      ],
+      "froxel_cell_count": 10752,
+      "light_evaluations": 32256,
+      "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+      "depth_bin_width_view_z": {
+        "first": 3.734375,
+        "median": 3.734375,
+        "last": 3.734375,
+        "min": 3.734375,
+        "max": 3.734375
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.0023958733850674434,
+        "max_absolute_channel_error": 0.047011156593782744,
+        "relative_rgb_l2": 0.005001504933333628,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.002880124245413201,
+            "max_absolute_channel_error": 0.047011156593782744,
+            "relative_rgb_l2": 0.00575281779775132,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0021090337579844787,
+            "max_absolute_channel_error": 0.011232793594310508,
+            "relative_rgb_l2": 0.005908746255939577,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.0018548862644296566,
+            "max_absolute_channel_error": 0.04222003378589978,
+            "relative_rgb_l2": 0.003871572509572908,
+            "pixel_count": 2340
+          }
+        }
+      }
+    },
+    "log_z64": {
+      "tile_size": 4,
+      "depth_slices": 64,
+      "distribution": "log",
+      "grid_dimensions": [
+        24,
+        14,
+        64
+      ],
+      "froxel_cell_count": 21504,
+      "light_evaluations": 64512,
+      "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+      "depth_bin_width_view_z": {
+        "first": 0.04470430162715344,
+        "median": 0.6925560628231935,
+        "last": 9.848492437517763,
+        "min": 0.04470430162715344,
+        "max": 9.848492437517763
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.0014670044303997255,
+        "max_absolute_channel_error": 0.046116995807379824,
+        "relative_rgb_l2": 0.0030624447608945636,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.0007235278896439601,
+            "max_absolute_channel_error": 0.012580498673517404,
+            "relative_rgb_l2": 0.0014451890842355215,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0020973301067754137,
+            "max_absolute_channel_error": 0.01090741362138059,
+            "relative_rgb_l2": 0.005875956877865101,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.001822085110657439,
+            "max_absolute_channel_error": 0.046116995807379824,
+            "relative_rgb_l2": 0.0038031089882982812,
+            "pixel_count": 2340
+          }
+        }
+      }
+    },
+    "linear_z64": {
+      "tile_size": 4,
+      "depth_slices": 64,
+      "distribution": "linear",
+      "grid_dimensions": [
+        24,
+        14,
+        64
+      ],
+      "froxel_cell_count": 21504,
+      "light_evaluations": 64512,
+      "estimated_bytes_R16F_density_RGBA16F_source": 215040,
+      "depth_bin_width_view_z": {
+        "first": 1.8671875,
+        "median": 1.8671875,
+        "last": 1.8671875,
+        "min": 1.8671875,
+        "max": 1.8671875
+      },
+      "metrics_vs_direct_512": {
+        "rgb_rmse": 0.0015657220253460073,
+        "max_absolute_channel_error": 0.04477237277593449,
+        "relative_rgb_l2": 0.0032685226534943687,
+        "pixel_count": 5184
+      },
+      "view_depth_band_metrics_vs_direct_512": {
+        "view_z_lt_20": {
+          "pixel_count": 2354,
+          "metrics": {
+            "rgb_rmse": 0.0011905836473978897,
+            "max_absolute_channel_error": 0.02156149139408292,
+            "relative_rgb_l2": 0.002378095600344363,
+            "pixel_count": 2354
+          }
+        },
+        "view_z_20_to_50": {
+          "pixel_count": 490,
+          "metrics": {
+            "rgb_rmse": 0.0020500108954597013,
+            "max_absolute_channel_error": 0.010246454473641142,
+            "relative_rgb_l2": 0.0057433856415644875,
+            "pixel_count": 490
+          }
+        },
+        "view_z_ge_50": {
+          "pixel_count": 2340,
+          "metrics": {
+            "rgb_rmse": 0.001767764975591952,
+            "max_absolute_channel_error": 0.04477237277593449,
+            "relative_rgb_l2": 0.003689730423979412,
+            "pixel_count": 2340
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Linear and logarithmic bins use the same nominal view-Z interval and sample counts.",
+    "The analytic AABB shadow and Gaussian volumes do not model production depth discontinuities or shadow filtering.",
+    "Memory estimates are arithmetic scenarios, not a production resource layout."
+  ],
+  "source_script_sha256": "d7acd27b2f71ca5e105bbf8c267d075f349b63b3836ff8a3e395ef541d89df0f",
+  "proxy_script_sha256": "7d987e4913e23d097c95d9ee8c0da73d39999d5b384fc1217e2dc2529345b9c1"
+}
