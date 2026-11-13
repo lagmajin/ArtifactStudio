@@ -1,0 +1,481 @@
+{
+  "absorption": 0.7,
+  "depth_encodings": {
+    "linear_euclidean": "depth=(ray_distance-near)/(far-near); tests an explicit linear range input",
+    "linear_view_z": "depth=(view_z-near)/(far-near); conventional linear eye-depth input",
+    "perspective_device_z": "far/(far-near) - far*near/((far-near)*view_z); hypothetical forward-Z 0..1 perspective depth"
+  },
+  "height_medium": {
+    "camera_y": 4.0,
+    "falloff": 0.08,
+    "ground": 0.0
+  },
+  "interpretation": "distance decode error and Beer-Lambert transmittance error are isolated from heightFogCS.hlsl's separate optical-depth equation",
+  "near_far_sweeps": {
+    "near_0.1_far_1000": {
+      "far": 1000.0,
+      "methods": {
+        "linear_euclidean": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 9.155485012099815e-18,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 62.4092776664572,
+              "samples": 36864,
+              "signed_error_mean": 2.8912057932946783e-19,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 8.34610078920436e-18,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 100.7859074967072,
+              "samples": 20858,
+              "signed_error_mean": -8.516429376739144e-19,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 1.2301640162051596e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 60.04870228226803,
+              "samples": 11552,
+              "signed_error_mean": -2.4603280324103192e-18,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 3.552713678800501e-15,
+              "absolute_error_mean": 1.0210222992929092e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 12.399297346617518,
+              "samples": 16006,
+              "signed_error_mean": 1.775690955292016e-18,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 0.0,
+              "absolute_error_mean": 0.0,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 65.00394298994526,
+              "samples": 8420,
+              "signed_error_mean": 0.0,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 1.1102230246251565e-16,
+              "0.008": 1.1102230246251565e-16,
+              "0.02": 1.1102230246251565e-16
+            },
+            "mean_by_density": {
+              "0.002": 6.0233454026972465e-21,
+              "0.008": 1.807003620809174e-20,
+              "0.02": 3.312839971483486e-20
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.0,
+              "0.008": 0.0,
+              "0.02": 0.0
+            }
+          }
+        },
+        "linear_view_z": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 10.561946859141496,
+              "absolute_error_p95": 32.880174570098816,
+              "decoded_distance_mean": 51.847330807315714,
+              "samples": 36864,
+              "signed_error_mean": -10.561946859141496,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 17.51279724410038,
+              "absolute_error_p95": 34.47634792718718,
+              "decoded_distance_mean": 83.2731102526068,
+              "samples": 20858,
+              "signed_error_mean": -17.51279724410038,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 35.32355740485794,
+              "absolute_error_mean": 10.838622318189177,
+              "absolute_error_p95": 31.945435757278418,
+              "decoded_distance_mean": 49.21007996407885,
+              "samples": 11552,
+              "signed_error_mean": -10.838622318189177,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 5.967209502576258,
+              "absolute_error_mean": 1.5040412406564054,
+              "absolute_error_p95": 4.0676572930307575,
+              "decoded_distance_mean": 10.89525610596111,
+              "samples": 16006,
+              "signed_error_mean": -1.5040412406564054,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 10.569021620471641,
+              "absolute_error_p95": 31.891993978585305,
+              "decoded_distance_mean": 54.43492136947363,
+              "samples": 8420,
+              "signed_error_mean": -10.569021620471641,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 0.03700991752341398,
+              "0.008": 0.10928854102508334,
+              "0.02": 0.14946629887343238
+            },
+            "mean_by_density": {
+              "0.002": 0.009738754915609117,
+              "0.008": 0.02923996449234771,
+              "0.02": 0.04254150983152458
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.03008746883294955,
+              "0.008": 0.0878175731404448,
+              "0.02": 0.11743885173888335
+            }
+          }
+        },
+        "perspective_device_z": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 979.7744457337635,
+              "absolute_error_mean": 932.6241344716618,
+              "absolute_error_p95": 979.5622278697023,
+              "decoded_distance_mean": 995.0334121381189,
+              "samples": 36864,
+              "signed_error_mean": 932.6241344716618,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 974.5487514295394,
+              "absolute_error_mean": 897.6537907533342,
+              "absolute_error_p95": 969.7925825877916,
+              "decoded_distance_mean": 998.4396982500415,
+              "samples": 20858,
+              "signed_error_mean": 897.6537907533342,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 979.7744457337635,
+              "absolute_error_mean": 935.6930107032654,
+              "absolute_error_p95": 979.7091440996909,
+              "decoded_distance_mean": 995.7417129855334,
+              "samples": 11552,
+              "signed_error_mean": 935.6930107032654,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 979.7744457337635,
+              "absolute_error_mean": 978.1952596295323,
+              "absolute_error_p95": 979.6843669958249,
+              "decoded_distance_mean": 990.5945569761499,
+              "samples": 16006,
+              "signed_error_mean": 978.1952596295323,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 979.3416230908837,
+              "absolute_error_mean": 928.5598314909442,
+              "absolute_error_p95": 979.1190373001047,
+              "decoded_distance_mean": 993.5637744808895,
+              "samples": 8420,
+              "signed_error_mean": 928.5598314909442,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 0.6247227348192652,
+              "0.008": 0.948714518917612,
+              "0.02": 0.9190869548848888
+            },
+            "mean_by_density": {
+              "0.002": 0.5761524132934299,
+              "0.008": 0.7752334372935601,
+              "0.02": 0.6023458583526193
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.6238135681804954,
+              "0.008": 0.9426396050872563,
+              "0.02": 0.9043702366609339
+            }
+          }
+        }
+      },
+      "near": 0.1
+    },
+    "near_0.1_far_120": {
+      "far": 120.0,
+      "methods": {
+        "linear_euclidean": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 2.920117851227625e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 62.4092776664572,
+              "samples": 36864,
+              "signed_error_mean": -2.3129646346357427e-18,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 3.4065717506956575e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 100.7859074967072,
+              "samples": 20858,
+              "signed_error_mean": -5.109857626043486e-18,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 7.105427357601002e-15,
+              "absolute_error_mean": 4.982164265630896e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 60.04870228226803,
+              "samples": 11552,
+              "signed_error_mean": -7.996066105333538e-18,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 3.552713678800501e-15,
+              "absolute_error_mean": 2.2862021049384706e-17,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 12.399297346617518,
+              "samples": 16006,
+              "signed_error_mean": 1.331768216469012e-18,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 0.0,
+              "absolute_error_mean": 0.0,
+              "absolute_error_p95": 0.0,
+              "decoded_distance_mean": 65.00394298994526,
+              "samples": 8420,
+              "signed_error_mean": 0.0,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 1.1102230246251565e-16,
+              "0.008": 1.1102230246251565e-16,
+              "0.02": 1.1102230246251565e-16
+            },
+            "mean_by_density": {
+              "0.002": 4.216341781888073e-20,
+              "0.008": 1.2347858075529356e-19,
+              "0.02": 2.409338161078899e-19
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.0,
+              "0.008": 0.0,
+              "0.02": 0.0
+            }
+          }
+        },
+        "linear_view_z": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 10.561946859141496,
+              "absolute_error_p95": 32.880174570098816,
+              "decoded_distance_mean": 51.847330807315714,
+              "samples": 36864,
+              "signed_error_mean": -10.561946859141496,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 17.51279724410038,
+              "absolute_error_p95": 34.47634792718718,
+              "decoded_distance_mean": 83.2731102526068,
+              "samples": 20858,
+              "signed_error_mean": -17.51279724410038,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 35.32355740485794,
+              "absolute_error_mean": 10.838622318189177,
+              "absolute_error_p95": 31.945435757278418,
+              "decoded_distance_mean": 49.21007996407885,
+              "samples": 11552,
+              "signed_error_mean": -10.838622318189177,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 5.967209502576258,
+              "absolute_error_mean": 1.5040412406564054,
+              "absolute_error_p95": 4.0676572930307575,
+              "decoded_distance_mean": 10.89525610596111,
+              "samples": 16006,
+              "signed_error_mean": -1.5040412406564054,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 40.29212930451803,
+              "absolute_error_mean": 10.569021620471641,
+              "absolute_error_p95": 31.891993978585305,
+              "decoded_distance_mean": 54.43492136947363,
+              "samples": 8420,
+              "signed_error_mean": -10.569021620471641,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 0.03700991752341398,
+              "0.008": 0.10928854102508334,
+              "0.02": 0.14946629887343238
+            },
+            "mean_by_density": {
+              "0.002": 0.009738754915609117,
+              "0.008": 0.02923996449234771,
+              "0.02": 0.04254150983152458
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.03008746883294955,
+              "0.008": 0.0878175731404448,
+              "0.02": 0.11743885173888335
+            }
+          }
+        },
+        "perspective_device_z": {
+          "distance_error": {
+            "all": {
+              "absolute_error_max": 110.15374052562488,
+              "absolute_error_mean": 57.10175806895467,
+              "absolute_error_p95": 108.77096518516142,
+              "decoded_distance_mean": 119.49200945657428,
+              "samples": 36864,
+              "signed_error_mean": 57.08273179011707,
+              "true_distance_mean": 62.4092776664572
+            },
+            "far_surface_distance_ge_20": {
+              "absolute_error_max": 99.41037358501515,
+              "absolute_error_mean": 19.14848294700711,
+              "absolute_error_p95": 94.16056141447757,
+              "decoded_distance_mean": 119.90076379000497,
+              "samples": 20858,
+              "signed_error_mean": 19.114856293297784,
+              "true_distance_mean": 100.7859074967072
+            },
+            "near_horizon_abs_ray_y_le_0_15": {
+              "absolute_error_max": 107.17158873123888,
+              "absolute_error_mean": 59.546004736875965,
+              "absolute_error_p95": 107.10814632995559,
+              "decoded_distance_mean": 119.577005558264,
+              "samples": 11552,
+              "signed_error_mean": 59.52830327599599,
+              "true_distance_mean": 60.04870228226803
+            },
+            "near_surface_distance_lt_20": {
+              "absolute_error_max": 110.15374052562488,
+              "absolute_error_mean": 106.56004949052047,
+              "absolute_error_p95": 109.43929944855262,
+              "decoded_distance_mean": 118.95934683713799,
+              "samples": 16006,
+              "signed_error_mean": 106.56004949052047,
+              "true_distance_mean": 12.399297346617518
+            },
+            "steep_ray_abs_ray_y_gt_0_35": {
+              "absolute_error_max": 110.15374052562488,
+              "absolute_error_mean": 54.3319095970686,
+              "absolute_error_p95": 109.7212969839684,
+              "decoded_distance_mean": 119.31565293770674,
+              "samples": 8420,
+              "signed_error_mean": 54.31170994776148,
+              "true_distance_mean": 65.00394298994526
+            }
+          },
+          "transmittance_absolute_error": {
+            "max_by_density": {
+              "0.002": 0.10505115830340195,
+              "0.008": 0.34907708770720647,
+              "0.02": 0.6191869685646054
+            },
+            "mean_by_density": {
+              "0.002": 0.054212363030669265,
+              "0.008": 0.17763087914962136,
+              "0.02": 0.3056601365109194
+            },
+            "medium_density": [
+              0.002,
+              0.008,
+              0.02
+            ],
+            "p95_by_density": {
+              "0.002": 0.10363805921507252,
+              "0.008": 0.34338417660497234,
+              "0.02": 0.6051404282554136
+            }
+          }
+        }
+      },
+      "near": 0.1
+    }
+  },
+  "regions": {
+    "far_surface_distance_ge_20": "true ray distance >= 20 scene units",
+    "near_horizon_abs_ray_y_le_0_15": "abs(ray direction y) <= 0.15",
+    "near_surface_distance_lt_20": "true ray distance < 20 scene units",
+    "steep_ray_abs_ray_y_gt_0_35": "abs(ray direction y) > 0.35"
+  },
+  "scene": {
+    "camera_position": [
+      0.0,
+      4.0,
+      0.0
+    ],
+    "generator": "tools/fog_height_image_fixture_rd.py",
+    "projection": "synthetic perspective rays; view forward is +Z",
+    "sample_count": 36864,
+    "size": [
+      256,
+      144
+    ]
+  },
+  "schema": "fog-depth-encoding-rd-v1",
+  "scope": "CPU encoding diagnostic only; no product depth texture, shader, or GPU execution",
+  "script_sha256": "72169394546fb10da63f4921829e3aac3f39bfe43f64786b26f7ac3fa9b40386",
+  "source_fixture_manifest": {
+    "path": "docs/worklog/artifacts/fog-atmosphere-rd-2026-11-12/manifest.json",
+    "sha256": "66600e16e893c82b90e93a94d63e9198366bc008ec0ce1f3349a0af8d090cd04"
+  }
+}

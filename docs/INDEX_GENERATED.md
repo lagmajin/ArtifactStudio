@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-13 11:36
+> Generated: 2026-11-13 11:43
 > Total documents: 1493
 
 ---
@@ -952,7 +952,7 @@
 | 336 | `docs/planned/MILESTONE_FIGMA_BOOLEAN_FILL_STROKE_2026-07-07.md` | M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone | 2026-07-07 | --- | 2026-11-10 | 8.2 KB | FIGMA, BOOLEAN, FILL, STROKE |
 | 337 | `docs/planned/MILESTONE_FIGMA_COMPONENT_INSTANCE_2026-07-07.md` | M-FIGMA-2 Component / Instance System Milestone | 2026-07-07 | --- | 2026-11-10 | 8.5 KB | FIGMA, COMPONENT, INSTANCE |
 | 338 | `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md` | Fluid Component vs Pyro Domain Split (2026-07-01) | 2026-07-01 | In Progress | 2026-10-29 | 51.6 KB | FLUID, COMPONENT, PYRO, DOMAIN |
-| 339 | `docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md` | Fog and Atmospheric Scattering R&D | 2026-11-13 | In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施） | 2026-11-12 | 160.7 KB | FOG, ATMOSPHERIC, SCATTERING |
+| 339 | `docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md` | Fog and Atmospheric Scattering R&D | 2026-11-13 | In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施） | 2026-11-13 | 161.7 KB | FOG, ATMOSPHERIC, SCATTERING |
 | 340 | `docs/planned/MILESTONE_FONT_USAGE_REPORT_2026-07-09.md` | MILESTONE: 使用フォントインベントリ出力（Font Usage Report） | 2026-08-15 | Phase 1〜4・出力導線実装済み、runtime/build検証 pending | 2026-11-10 | 12.4 KB | FONT, USAGE, REPORT |
 | 341 | `docs/planned/MILESTONE_FORM_GRID_PARTICLE_LAYER_2026-06-26.md` | Form Grid Particle Layer Milestone | 2026-08-04 | Implementation present; static audit completed 2026-08-15. | 2026-11-10 | 9.7 KB | FORM, GRID, PARTICLE, LAYER |
 | 342 | `docs/planned/MILESTONE_FRACTURE_COMPONENT_STATIC_IMAGE_2026-09-10.md` | Fracture Component — Static Image MVP | 2026-09-10 | In progress — 破砕設定の統一、保存／再読込、seek再現、Undo/Redo、静止画 GPU テクスチャ破片描画まで実装済み。runtime受入確認と実 GPU 表示確認が未完了。 | 2026-09-11 | 5.1 KB | FRACTURE, COMPONENT, STATIC, IMAGE |
@@ -1361,7 +1361,7 @@
 | 745 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 3.8 KB | WORKSPACE, MANAGER |
 | 746 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-08-04 | --- | 2026-11-10 | 5.3 KB | WORKSPACE, PRESETS |
 | 747 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-11-10 | 5.8 KB | ZOOM, FIT |
-| 748 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-13 | --- | 2026-11-12 | 288.2 KB | BACKLOG |
+| 748 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-13 | --- | 2026-11-13 | 288.2 KB | BACKLOG |
 | 749 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-11-10 | 8.9 KB | NEXT, PHASE, ROADMAP |
 | 750 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 22.2 KB | DESIGN, NOTES |
 | 751 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |
@@ -1440,7 +1440,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-13 | --- | 2026-11-10 | 318.9 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-13 | --- | 2026-11-13 | 318.9 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

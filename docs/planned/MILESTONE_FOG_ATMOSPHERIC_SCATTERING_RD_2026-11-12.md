@@ -679,6 +679,8 @@ Captureとmanifestは `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12
 
 `heightFogCS.hlsl`のsource equation mirrorは実施済み。2026-11-12の静的host検索でも当該shaderのcompile/PSO/dispatch参照は確認できず、Composition preview depthのsample view・depth encoding・camera matrixもshaderへの公開契約としては特定できなかった。次にGPU capture可能環境で対象resourceとmatrix規約を確認し、既存capture経路の有無を判定する。F1/F2/F3を同一入力で比較し、camera-height近似とworld-position再構成の差、depth精度、HDR/alpha維持を記録する。適切なhost matrixまたはdepthが得られなければ、render passを新規接続せず必要契約を文書化して停止する。
 
+2026-11-13の実行環境監査では、`dxc` / `glslangValidator` / `ShaderMake`のstandalone commandはPATH上にない。Artifact/ArtifactCoreのsource検索でも`heightFogCS.hlsl`のproduct compile/PSO/dispatch callerは見つからなかった。一方`ArtifactCore::GpuContext::CompileShader()`はDiligent runtime APIとして存在するが、初期化済み`IRenderDevice`が必要でshader単体compile CLIの代わりにはならない。したがってshader実行・GPU時間計測には既存GPU hostか専用harnessが必要であり、現在は後者もない。リポジトリ指示により子repo編集とbuild/CMake/test実行はユーザーの明示指示なしに行わないため、この区間はCPU式mirrorまでを確認範囲とする。GPU計測へ進む場合の作業単位は、既存render hostを利用できるかの確認、必要なら子repo内のR&D専用harness追加、明示許可後のconfigure/build/dispatch/captureである。本番render passやUIへの接続はこの計画から自動的に含めない。
+
 ### Phase 3 — 散乱・体積方式のfeasibility（CPU single-scattering参照あり）
 
 F4ではsingle scatteringと位相関数を追加し、影なし／単純なshadow visibilityの範囲を比較する。局所volume・ライト影・時間安定性が必要と確認された場合に限ってF5のfroxel grid/reprojectionを小さな独立fixtureで評価する。F6の大気LUTはplanetary sky用途が明確になった場合に独立評価し、height fogの代替扱いをしない。
