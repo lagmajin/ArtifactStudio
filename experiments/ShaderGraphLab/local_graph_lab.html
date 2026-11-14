@@ -367,16 +367,18 @@
       }).join('');
       const outputs = op.outputs.map(pin => `<div class="socket-row"><button class="small" ${ambiguous?'disabled':`data-output-node="${esc(id)}" data-output-socket="${esc(pin.socketId)}"`}>Set Output</button><span class="socket-label">${esc(pin.socketId)} <span class="small">${esc(pin.valueType)}</span><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="output" data-node="${esc(id)}"`} title="${esc(pin.valueType)} output"></button></span></div>`).join('');
       const params = op.parameters.map(param => {
-        const exposure=node.nodeId!==undefined&&(node.nodeId===null||['string','number','boolean'].includes(typeof node.nodeId))
+        const exposure=param.valueType==='RampStops'?null:node.nodeId!==undefined&&(node.nodeId===null||['string','number','boolean'].includes(typeof node.nodeId))
           ? exposuresByNodeParameter.get(inputKey(node.nodeId,param.parameterId)):null;
         const value = exposure ? exposure.value : nodeParameters[param.parameterId];
-        const editor = Array.isArray(value)
+        const editor = param.valueType==='RampStops'&&Array.isArray(value)
+          ? `<div data-ramp-editor data-node="${esc(id)}" data-param="${esc(param.parameterId)}">${value.map((stop,index)=>`<div class="param"><span>Stop ${index+1}</span><input type="number" step="any" data-param="${esc(param.parameterId)}" data-ramp-index="${index}" data-ramp-field="position" data-node="${esc(id)}" value="${esc(stop.position)}" aria-label="Stop ${index+1} position" ${ambiguous?'disabled':''}><span class="vector-inputs">${stop.color.map((lane,laneIndex)=>`<input type="number" step="any" data-param="${esc(param.parameterId)}" data-ramp-index="${index}" data-ramp-field="color" data-lane="${laneIndex}" data-node="${esc(id)}" value="${esc(lane)}" aria-label="Stop ${index+1} color ${laneIndex}" ${ambiguous?'disabled':''}>`).join('')}</span><button type="button" data-ramp-remove="${index}" data-node="${esc(id)}" data-param="${esc(param.parameterId)}" ${ambiguous||value.length<=2?'disabled':''}>Remove</button></div>`).join('')}<button type="button" data-ramp-add data-node="${esc(id)}" data-param="${esc(param.parameterId)}" ${ambiguous||value.length>=32?'disabled':''}>Add stop</button></div>`
+          : Array.isArray(value)
           ? `<span class="vector-inputs">${value.map((component,index)=>`<input type="number" step="any" data-param="${esc(param.parameterId)}" data-lane="${index}" data-node="${esc(id)}" value="${esc(component)}" aria-label="${esc(param.parameterId)} component ${index}" ${(exposure||ambiguous)?'disabled':''}>`).join('')}</span>`
           : `<input type="number" step="any" data-param="${esc(param.parameterId)}" data-node="${esc(id)}" value="${esc(value)}" aria-label="${esc(param.parameterId)}" ${(exposure||ambiguous)?'disabled':''}>`;
-        const exposureAction=ambiguous?'disabled':exposure
+        const exposureAction=ambiguous||param.valueType==='RampStops'?'disabled':exposure
           ? `data-unexpose-node="${esc(id)}" data-unexpose-param="${esc(param.parameterId)}" title="Disconnect this parameter from the graph input"`
           : `data-expose-node="${esc(id)}" data-expose-param="${esc(param.parameterId)}" title="Expose as graph parameter"`;
-        return `<label class="param"><span>${esc(param.parameterId)}</span>${editor}${exposure?`<span class="small">↗ ${esc(exposure.label)}</span>`:''}<button ${exposureAction}>${exposure?'Unexpose':'Expose'}</button></label>`;
+        return `<div class="param"><span>${esc(param.parameterId)}</span>${editor}${exposure?`<span class="small">↗ ${esc(exposure.label)}</span>`:''}${param.valueType==='RampStops'?'<span class="small">Node parameter · 2–32 stops</span>':`<button ${exposureAction}>${exposure?'Unexpose':'Expose'}</button>`}</div>`;
       }).join('');
       const active = graphOutput().nodeId === node.nodeId;
       const warning=[
@@ -452,11 +454,34 @@
       if(!op) return;
       const definition=op.parameters.find(item=>item.parameterId===input.dataset.param);
       let value;
-      if (definition.valueType==='Vector4F32') {
+      if (definition.valueType==='RampStops') {
+        const editor=nodesEl.querySelector(`[data-ramp-editor][data-node="${CSS.escape(input.dataset.node)}"][data-param="${CSS.escape(input.dataset.param)}"]`);
+        value=[...editor.querySelectorAll('[data-ramp-index]')].reduce((stops,field)=>{
+          const index=Number(field.dataset.rampIndex);
+          stops[index]??={position:0,color:[0,0,0,0]};
+          if(field.dataset.rampField==='position') stops[index].position=field.valueAsNumber;
+          else stops[index].color[Number(field.dataset.lane)]=field.valueAsNumber;
+          return stops;
+        },[]);
+      } else if (definition.valueType==='Vector4F32') {
         value=[...nodesEl.querySelectorAll(`[data-node="${CSS.escape(input.dataset.node)}"][data-param="${CSS.escape(input.dataset.param)}"]`)].map(component=>component.valueAsNumber);
       } else value=input.valueAsNumber;
       post({type:'parameter',nodeId:input.dataset.node,values:{[input.dataset.param]:value}});
     }));
+    nodesEl.querySelectorAll('[data-ramp-add]').forEach(button => button.onclick=()=>{
+      const node=documentNodes().find(item=>item&&item.nodeId===button.dataset.node);
+      const stops=Array.isArray(node?.parameters?.[button.dataset.param])?node.parameters[button.dataset.param].map(stop=>({position:stop.position,color:[...stop.color]})):[];
+      if(stops.length>=32) return;
+      stops.push({position:0.5,color:[1,1,1,1]});
+      post({type:'parameter',nodeId:button.dataset.node,values:{[button.dataset.param]:stops}});
+    });
+    nodesEl.querySelectorAll('[data-ramp-remove]').forEach(button => button.onclick=()=>{
+      const node=documentNodes().find(item=>item&&item.nodeId===button.dataset.node);
+      const stops=Array.isArray(node?.parameters?.[button.dataset.param])?node.parameters[button.dataset.param].map(stop=>({position:stop.position,color:[...stop.color]})):[];
+      if(stops.length<=2) return;
+      stops.splice(Number(button.dataset.rampRemove),1);
+      post({type:'parameter',nodeId:button.dataset.node,values:{[button.dataset.param]:stops}});
+    });
     nodesEl.querySelectorAll('[data-expose-node]').forEach(button => button.onclick = () =>
       openExposeDialog(button.dataset.exposeNode,button.dataset.exposeParam));
     nodesEl.querySelectorAll('[data-unexpose-node]').forEach(button => button.onclick = () =>

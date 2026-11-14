@@ -9,6 +9,7 @@ or Python code.
 from __future__ import annotations
 
 import argparse
+import copy
 import heapq
 import hashlib
 import json
@@ -33,7 +34,7 @@ VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION = {
     "vector4.mixrgb.lighten.saturated_factor": "lighten",
     "vector4.mixrgb.difference.saturated_factor": "difference",
 }
-MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_two_stop"}
+MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_stops"}
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
@@ -44,12 +45,14 @@ BUILTIN_IMPLEMENTATIONS = {
     *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
     "vector4.separate_channels",
-    "vector4.ramp.linear_two_stop",
+    "vector4.ramp.linear_stops",
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
 MAX_GRAPH_NODES = 4096
 MAX_GRAPH_LINKS = 16384
+MIN_RAMP_STOPS = 2
+MAX_RAMP_STOPS = 32
 FORBIDDEN_CODE_FIELDS = {"hlsl", "source", "code", "expression", "python", "shadersource"}
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 
@@ -561,7 +564,7 @@ class Socket:
 class Parameter:
     parameter_id: str
     value_type: str
-    default: float | tuple[float, float, float, float] | None
+    default: Any
 
 
 @dataclass(frozen=True)
@@ -729,6 +732,33 @@ def _f32(value: Any, label: str, *, path: str = "/", code: str = "value.float32.
     return 0.0 if result == 0.0 else result
 
 
+def _canonical_ramp_stops(value: Any, path: str, *, code: str) -> list[dict[str, Any]]:
+    if (not isinstance(value, list) or
+            not MIN_RAMP_STOPS <= len(value) <= MAX_RAMP_STOPS):
+        raise ContractError(
+            f"ramp stops must contain {MIN_RAMP_STOPS} to {MAX_RAMP_STOPS} entries",
+            code=code, path=path)
+    stops = []
+    for index, stop in enumerate(value):
+        stop_path = f"{path}/{index}"
+        if not isinstance(stop, dict) or set(stop) != {"position", "color"}:
+            raise ContractError("ramp stop must contain position and color",
+                                code=code, path=stop_path)
+        position = _f32(stop.get("position"), "ramp stop position",
+                        path=f"{stop_path}/position", code=code)
+        color = stop.get("color")
+        if not isinstance(color, list) or len(color) != 4:
+            raise ContractError("ramp stop color must contain four Float32 lanes",
+                                code=code, path=f"{stop_path}/color")
+        stops.append({
+            "position": position,
+            "color": [_f32(component, f"ramp stop color[{lane}]",
+                            path=f"{stop_path}/color/{lane}", code=code)
+                      for lane, component in enumerate(color)],
+        })
+    return stops
+
+
 def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
     document = _load_json(path)
     _reject_code_payload(document)
@@ -818,7 +848,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 raise ContractError(f"duplicate parameterId {parameter_id} in {path_label}", code="parameter.id.duplicate", path=f"{parameter_pointer}/parameterId")
             parameter_ids.add(parameter_id)
             parameter_type = parameter.get("valueType")
-            if not isinstance(parameter_type, str) or parameter_type not in {"Float32", "Vector4F32"}:
+            if not isinstance(parameter_type, str) or parameter_type not in {"Float32", "Vector4F32", "RampStops"}:
                 raise ContractError(f"{parameter_path}.valueType is unsupported", code="parameter.type.unsupported", path=f"{parameter_pointer}/valueType")
             default = parameter.get("default")
             default_path = f"/operations/{index}/parameters/{parameter_index}/default"
@@ -827,7 +857,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
             elif parameter_type == "Float32":
                 canonical_default = _f32(default, f"{parameter_path}.default", path=default_path,
                                           code="registry.parameter.default.invalid")
-            else:
+            elif parameter_type == "Vector4F32":
                 if not isinstance(default, list) or len(default) != 4:
                     raise ContractError(f"{parameter_path}.default must contain four Float32 values",
                                         code="registry.parameter.default.invalid", path=default_path)
@@ -835,6 +865,9 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                                                 path=f"{default_path}/{component}",
                                                 code="registry.parameter.default.invalid")
                                           for component, value in enumerate(default))
+            else:
+                canonical_default = _canonical_ramp_stops(
+                    default, default_path, code="registry.parameter.default.invalid")
             parameters.append(Parameter(parameter_id, parameter_type, canonical_default))
 
         operation = Operation(
@@ -910,15 +943,15 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 [("x", "Float"), ("y", "Float"), ("z", "Float"), ("w", "Float")] or
                 operation.parameters):
             raise ContractError(f"{path_label} vector4.separate_channels requires one Vector4 input, Float x/y/z/w outputs, and no parameters", code="operation.signature.invalid", path=path)
-        if implementation_id == "vector4.ramp.linear_two_stop" and (
+        if implementation_id == "vector4.ramp.linear_stops" and (
                 [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
-                [("factor", "Float", True), ("position_a", "Float", True),
-                 ("color_a", "Vector4", True), ("position_b", "Float", True),
-                 ("color_b", "Vector4", True)] or
+                [("factor", "Float", True)] or
                 [(item.socket_id, item.value_type) for item in operation.outputs] !=
                 [("color", "Vector4"), ("alpha", "Float")] or
-                operation.parameters):
-            raise ContractError(f"{path_label} vector4.ramp.linear_two_stop requires typed two-stop inputs, Vector4 color and Float alpha outputs, and no parameters", code="operation.signature.invalid", path=path)
+                len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "stops" or
+                operation.parameters[0].value_type != "RampStops" or
+                operation.parameters[0].default is None):
+            raise ContractError(f"{path_label} vector4.ramp.linear_stops requires a Float factor input, RampStops parameter, Vector4 color and Float alpha outputs", code="operation.signature.invalid", path=path)
         if implementation_id == "float.divide.positive_floor_1e5" and operation.outputs[0].value_type != "Float":
             raise ContractError(f"{path_label} float.divide.positive_floor_1e5 requires Float input and output sockets", code="operation.signature.invalid", path=path)
         registry[registry_key] = operation
@@ -983,7 +1016,7 @@ def instantiate_node(operation: Operation, node_id: str, *, x: float = 0.0, y: f
     """Create editable node state from a registered operation's defaults."""
     if not isinstance(node_id, str) or not IDENTIFIER.fullmatch(node_id):
         raise ContractError("nodeId is invalid", code="node.id.invalid", path="/nodeId")
-    parameters = {item.parameter_id: list(item.default) if isinstance(item.default, tuple) else item.default
+    parameters = {item.parameter_id: copy.deepcopy(item.default)
                   for item in operation.parameters if item.default is not None}
     return {
         "nodeId": node_id,
@@ -2039,7 +2072,7 @@ def migrate_document_versions(document: Any, registry: dict[tuple[str, int], Ope
     return seal_document(migrated, registry)
 
 
-def _canonical_parameters(raw: Any, operation: Operation, node_id: str, node_index: int) -> dict[str, float]:
+def _canonical_parameters(raw: Any, operation: Operation, node_id: str, node_index: int) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ContractError(f"node {node_id} parameters must be an object", code="node.parameters.invalid", path=f"/nodes/{node_index}/parameters")
     definitions = {parameter.parameter_id: parameter for parameter in operation.parameters}
@@ -2063,7 +2096,7 @@ def _canonical_parameters(raw: Any, operation: Operation, node_id: str, node_ind
                 path=parameter_path,
                 code="parameter.float32.invalid",
             )
-        else:
+        elif definition.value_type == "Vector4F32":
             if not isinstance(value, (list, tuple)) or len(value) != 4:
                 raise ContractError(f"node {node_id}.{parameter_id} must contain four Float32 values",
                                     code="parameter.vector4.invalid", path=parameter_path)
@@ -2072,6 +2105,12 @@ def _canonical_parameters(raw: Any, operation: Operation, node_id: str, node_ind
                      path=f"{parameter_path}/{index}", code="parameter.float32.invalid")
                 for index, component in enumerate(value)
             ]
+        elif definition.value_type == "RampStops":
+            result[parameter_id] = _canonical_ramp_stops(
+                value, parameter_path, code="parameter.ramp_stops.invalid")
+        else:
+            raise ContractError(f"node {node_id}.{parameter_id} has an unsupported parameter type",
+                                code="parameter.type.unsupported", path=parameter_path)
     return result
 
 
@@ -3408,22 +3447,26 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
                 hlsl_lines.append(f"float {variable} = ({vector}).{channel.socket_id};")
                 expressions[(node_id, channel.socket_id)] = variable
             continue
-        elif implementation_id == "vector4.ramp.linear_two_stop":
+        elif implementation_id == "vector4.ramp.linear_stops":
             factor = expressions[writers[(node_id, "factor")]]
-            position_a = expressions[writers[(node_id, "position_a")]]
-            color_a = expressions[writers[(node_id, "color_a")]]
-            position_b = expressions[writers[(node_id, "position_b")]]
-            color_b = expressions[writers[(node_id, "color_b")]]
-            hlsl_lines.extend([
-                f"float {symbol}_position_a = saturate({position_a});",
-                f"float {symbol}_position_b = saturate({position_b});",
-                f"float {symbol}_factor = saturate({factor});",
-                f"float {symbol}_t = saturate(({symbol}_factor - min({symbol}_position_a, {symbol}_position_b)) / max(abs({symbol}_position_b - {symbol}_position_a), 1e-5f));",
-                f"float4 {symbol}_color_a = {color_a};",
-                f"float4 {symbol}_color_b = {color_b};",
-                f"float4 {symbol}_color = lerp({symbol}_position_a <= {symbol}_position_b ? {symbol}_color_a : {symbol}_color_b, {symbol}_position_a <= {symbol}_position_b ? {symbol}_color_b : {symbol}_color_a, {symbol}_t);",
-                f"float {symbol}_alpha = {symbol}_color.a;",
-            ])
+            stops = data["parameters"]["stops"]
+            ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
+            hlsl_lines.append(f"float {symbol}_factor = saturate({factor});")
+            for stop_index, (_, stop) in enumerate(ordered):
+                hlsl_lines.append(f"float {symbol}_stop_{stop_index} = saturate({stop['position']:.9g}f);")
+                hlsl_lines.append(f"float4 {symbol}_stop_color_{stop_index} = float4({', '.join(f'{lane:.9g}f' for lane in stop['color'])});")
+            hlsl_lines.append(f"float4 {symbol}_color = {symbol}_stop_color_0;")
+            for stop_index in range(1, len(ordered)):
+                previous_position = f"{symbol}_stop_{stop_index - 1}"
+                current_position = f"{symbol}_stop_{stop_index}"
+                previous_color = f"{symbol}_stop_color_{stop_index - 1}"
+                current_color = f"{symbol}_stop_color_{stop_index}"
+                local_t = f"{symbol}_t_{stop_index}"
+                hlsl_lines.extend([
+                    f"float {local_t} = saturate(({symbol}_factor - {previous_position}) / max({current_position} - {previous_position}, 1e-5f));",
+                    f"if ({symbol}_factor >= {previous_position}) {symbol}_color = lerp({previous_color}, {current_color}, {local_t});",
+                ])
+            hlsl_lines.append(f"float {symbol}_alpha = {symbol}_color.a;")
             expressions[(node_id, "color")] = f"{symbol}_color"
             expressions[(node_id, "alpha")] = f"{symbol}_alpha"
             continue

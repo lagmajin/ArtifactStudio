@@ -10,47 +10,20 @@
       "layout": {"x": 0.0, "y": 0.0}
     },
     {
-      "nodeId": "position_a",
-      "operationId": "artifact.rd.constant.float32",
-      "semanticVersion": 1,
-      "parameters": {"value": 0.25},
-      "layout": {"x": 0.0, "y": 140.0}
-    },
-    {
-      "nodeId": "color_a",
-      "operationId": "artifact.rd.constant.vector4.float32",
-      "semanticVersion": 1,
-      "parameters": {"value": [0.0, 0.0, 0.0, 0.2]},
-      "layout": {"x": 0.0, "y": 280.0}
-    },
-    {
-      "nodeId": "position_b",
-      "operationId": "artifact.rd.constant.float32",
-      "semanticVersion": 1,
-      "parameters": {"value": 0.75},
-      "layout": {"x": 0.0, "y": 420.0}
-    },
-    {
-      "nodeId": "color_b",
-      "operationId": "artifact.rd.constant.vector4.float32",
-      "semanticVersion": 1,
-      "parameters": {"value": [1.0, 0.5, 0.25, 0.8]},
-      "layout": {"x": 0.0, "y": 560.0}
-    },
-    {
       "nodeId": "ramp",
-      "operationId": "artifact.color.ramp.linear_two_stop",
+      "operationId": "artifact.color.ramp.linear_stops",
       "semanticVersion": 1,
-      "parameters": {},
+      "parameters": {"stops": [
+        {"position": 0.0, "color": [0.0, 0.0, 0.0, 1.0]},
+        {"position": 0.5, "color": [1.0, 0.0, 0.0, 0.2]},
+        {"position": 0.5, "color": [0.0, 1.0, 0.0, 0.8]},
+        {"position": 1.0, "color": [1.0, 0.5, 0.25, 1.0]}
+      ]},
       "layout": {"x": 380.0, "y": 240.0}
     }
   ],
   "links": [
-    {"from": {"nodeId": "factor", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "factor"}},
-    {"from": {"nodeId": "position_a", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "position_a"}},
-    {"from": {"nodeId": "color_a", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "color_a"}},
-    {"from": {"nodeId": "position_b", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "position_b"}},
-    {"from": {"nodeId": "color_b", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "color_b"}}
+    {"from": {"nodeId": "factor", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "factor"}}
   ],
   "output": {"nodeId": "ramp", "socketId": "color"}
 }

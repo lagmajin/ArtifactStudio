@@ -5823,8 +5823,8 @@
       "vector4SeparateDocumentSha256": "F81E339823B9B70D9510A488B68B853494517D499E3E8297038E4062BF8565B7",
       "vector4RampDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
-      "vector4RampCandidateSha256": "00E7B5B0920DD0B9772145707BB848B0232B29EE6DBA405FBD372B2DFF2B74B7",
-      "vector4RampDocumentSha256": "C2425B2475234AB9D4F48C8EEF22675F080908363AFC9EB17A6F21E7634118AE",
+      "vector4RampCandidateSha256": "F33CE00FCE2F64AE046FBDCEE214AA8DBA2BB6A9BEEBF103303949B9677C39B5",
+      "vector4RampDocumentSha256": "8F36900F46AF7C0DE4ADAE92741B50A7D3621393AF10B8A1F29FB7A7D6EB608C",
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
@@ -5851,7 +5851,7 @@
         "vector4.mixrgb.lighten.saturated_factor",
         "vector4.mixrgb.difference.saturated_factor",
         "vector4.separate_channels",
-        "vector4.ramp.linear_two_stop"
+        "vector4.ramp.linear_stops"
       ],
       "contractChecks": [
         "layoutExcludedFromSemanticIdentity",
@@ -5942,7 +5942,7 @@
         "vector4MixCandidateMatchesLegacyMixRgbDefaultContract",
         "vector4MixAllLegacyModesLowerAsTypedGraphs",
         "vector4SeparateChannelsSupportsLinksFromEachOutput",
-        "vector4RampLowersLinearTwoStopWithSortedPositionsAndBothOutputs",
+        "vector4RampLowersEditableStableStopsAndBothOutputs",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
@@ -6008,7 +6008,7 @@
           "path": "/nodes/0/semanticVersion"
         }
       },
-      "registrySha256": "7F5A4A8315005CBB377C1961F46CFA19B4B757D135C63849BF5BDB431A6F5D1E",
+      "registrySha256": "317A840616E23ED7690C8C26C2B0395DB7C4CA88478AB1928E4B995501419661",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {

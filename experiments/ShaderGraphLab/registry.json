@@ -378,23 +378,24 @@
       "parameters": []
     },
     {
-      "operationId": "artifact.color.ramp.linear_two_stop",
+      "operationId": "artifact.color.ramp.linear_stops",
       "semanticVersion": 1,
-      "displayName": "Color Ramp (Two Stop, Linear)",
+      "displayName": "Color Ramp (Linear)",
       "category": "Color",
-      "implementationId": "vector4.ramp.linear_two_stop",
+      "implementationId": "vector4.ramp.linear_stops",
       "inputs": [
-        {"socketId": "factor", "valueType": "Float", "required": true},
-        {"socketId": "position_a", "valueType": "Float", "required": true},
-        {"socketId": "color_a", "valueType": "Vector4", "required": true},
-        {"socketId": "position_b", "valueType": "Float", "required": true},
-        {"socketId": "color_b", "valueType": "Vector4", "required": true}
+        {"socketId": "factor", "valueType": "Float", "required": true}
       ],
       "outputs": [
         {"socketId": "color", "valueType": "Vector4"},
         {"socketId": "alpha", "valueType": "Float"}
       ],
-      "parameters": []
+      "parameters": [
+        {"parameterId": "stops", "valueType": "RampStops", "default": [
+          {"position": 0.0, "color": [0.0, 0.0, 0.0, 1.0]},
+          {"position": 1.0, "color": [1.0, 1.0, 1.0, 1.0]}
+        ]}
+      ]
     }
   ]
 }

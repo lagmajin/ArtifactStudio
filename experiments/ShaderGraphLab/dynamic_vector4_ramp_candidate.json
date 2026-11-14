@@ -1,21 +1,17 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
-  "semanticHashSha256": "F56F348567A35A72938BA9114831914FDD9A1F6F05C4E7CFB544BAFF0CBD1606",
-  "shaderStructureHashSha256": "F56F348567A35A72938BA9114831914FDD9A1F6F05C4E7CFB544BAFF0CBD1606",
+  "semanticHashSha256": "F25D0326F2DD4A4FF6C5F22670535EA800CA47AAAFED43975183CD8511E1ABD9",
+  "shaderStructureHashSha256": "F25D0326F2DD4A4FF6C5F22670535EA800CA47AAAFED43975183CD8511E1ABD9",
   "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
   "parameterValues": [],
   "parameterBindings": [],
   "parameterBlock": null,
   "topologicalNodeIds": [
-    "color_a",
-    "color_b",
     "factor",
-    "position_a",
-    "position_b",
     "ramp"
   ],
   "outputType": "Vector4",
-  "hlslBody": "float4 n_color_a_value = float4(0.0f, 0.0f, 0.0f, 0.200000003f);\nfloat4 n_color_b_value = float4(1.0f, 0.5f, 0.25f, 0.800000012f);\nfloat n_factor_value = 0.400000006f;\nfloat n_position_a_value = 0.25f;\nfloat n_position_b_value = 0.75f;\nfloat n_ramp_position_a = saturate(n_position_a_value);\nfloat n_ramp_position_b = saturate(n_position_b_value);\nfloat n_ramp_factor = saturate(n_factor_value);\nfloat n_ramp_t = saturate((n_ramp_factor - min(n_ramp_position_a, n_ramp_position_b)) / max(abs(n_ramp_position_b - n_ramp_position_a), 1e-5f));\nfloat4 n_ramp_color_a = n_color_a_value;\nfloat4 n_ramp_color_b = n_color_b_value;\nfloat4 n_ramp_color = lerp(n_ramp_position_a <= n_ramp_position_b ? n_ramp_color_a : n_ramp_color_b, n_ramp_position_a <= n_ramp_position_b ? n_ramp_color_b : n_ramp_color_a, n_ramp_t);\nfloat n_ramp_alpha = n_ramp_color.a;\nreturn n_ramp_color;\n",
+  "hlslBody": "float n_factor_value = 0.400000006f;\nfloat n_ramp_factor = saturate(n_factor_value);\nfloat n_ramp_stop_0 = saturate(0f);\nfloat4 n_ramp_stop_color_0 = float4(0f, 0f, 0f, 1f);\nfloat n_ramp_stop_1 = saturate(0.5f);\nfloat4 n_ramp_stop_color_1 = float4(1f, 0f, 0f, 0.200000003f);\nfloat n_ramp_stop_2 = saturate(0.5f);\nfloat4 n_ramp_stop_color_2 = float4(0f, 1f, 0f, 0.800000012f);\nfloat n_ramp_stop_3 = saturate(1f);\nfloat4 n_ramp_stop_color_3 = float4(1f, 0.5f, 0.25f, 1f);\nfloat4 n_ramp_color = n_ramp_stop_color_0;\nfloat n_ramp_t_1 = saturate((n_ramp_factor - n_ramp_stop_0) / max(n_ramp_stop_1 - n_ramp_stop_0, 1e-5f));\nif (n_ramp_factor >= n_ramp_stop_0) n_ramp_color = lerp(n_ramp_stop_color_0, n_ramp_stop_color_1, n_ramp_t_1);\nfloat n_ramp_t_2 = saturate((n_ramp_factor - n_ramp_stop_1) / max(n_ramp_stop_2 - n_ramp_stop_1, 1e-5f));\nif (n_ramp_factor >= n_ramp_stop_1) n_ramp_color = lerp(n_ramp_stop_color_1, n_ramp_stop_color_2, n_ramp_t_2);\nfloat n_ramp_t_3 = saturate((n_ramp_factor - n_ramp_stop_2) / max(n_ramp_stop_3 - n_ramp_stop_2, 1e-5f));\nif (n_ramp_factor >= n_ramp_stop_2) n_ramp_color = lerp(n_ramp_stop_color_2, n_ramp_stop_color_3, n_ramp_t_3);\nfloat n_ramp_alpha = n_ramp_color.a;\nreturn n_ramp_color;\n",
   "warnings": [],
   "limitations": [
     "prototype supports Float/Vector4 sockets and 24 closed implementation IDs only",
