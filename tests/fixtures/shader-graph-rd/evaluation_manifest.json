@@ -6354,6 +6354,34 @@
           }
         ],
         "runtimeStatus": "synthetic binding records only; project asset resolution, asset relinking, texture loading, GPU bindings, and cache invalidation remain unverified"
+      },
+      "genericImageResourceReferenceProposal": {
+        "status": "schema-proposal-only-not-accepted-by-current-prototype",
+        "fixture": "tests/fixtures/shader-graph-rd/generic_image_resource_reference_proposal.json",
+        "purpose": "replace fixed material-slot selection with a node-specific Image resource reference while keeping project asset resolution and GPU objects outside ArtifactCore document values",
+        "documentContract": {
+          "resourceTable": "document resources have unique stable resourceId values and typed projectAsset sources containing a canonical Asset UUID; node resourceReferences map a declared operation resource socket to a resourceId",
+          "nodeIdentity": "resource assignment is attached to the Image Texture node, so two nodes can select different assets or deliberately share one declared resource",
+          "hashBoundary": "document persistence hash includes the selected Asset UUID; typed shader structure and emitted source identity include symbolic resource usage, while resolved binding identity includes Asset UUID, source revision, sampler, UV, and color interpretation",
+          "missingResource": "missing, deleted, or unresolved project Asset keeps the graph document repairable, emits a stable diagnostic, and produces no applicable resolved binding key",
+          "layerBoundary": "ArtifactCore stores backend-neutral resource reference IDs and stable asset identity as values; Artifact resolves AssetDatabase/path and AssetManager revision; renderer adapter owns texture and sampler objects"
+        },
+        "acceptanceGates": [
+          "schema-v3 documents migrate to v4 without changing active graph semantics or node layout",
+          "duplicate resource IDs, dangling node resource references, wrong resource kinds, malformed UUIDs, and unsupported asset types reject atomically with stable JSON Pointer diagnostics",
+          "project save-reload, clipboard, copy-paste, undo-redo, and layer duplication preserve resource references and allow relinking without changing node IDs",
+          "changing only Asset UUID or source revision changes resource binding identity but not typed shader structure or emitted HLSL identity",
+          "two image nodes can bind distinct assets; two nodes may share a resource ID without duplicate texture loading when the renderer adapter supports reuse",
+          "missing/deleted/relinked assets preserve the document and last-known-good effective shader according to the reviewed apply policy",
+          "bounded GPU resource lifetime, sampler compatibility, sRGB versus linear decoding, alpha behavior, UV transform, Vulkan/D3D12 parity, and repeated baseline image evaluation pass before renderer promotion"
+        ],
+        "sourceEvidence": [
+          "ArtifactCore/include/Asset/AssetDatabase.ixx::AssetInfo.id and absolutePath",
+          "Artifact/include/Project/ArtifactProjectItems.ixx::FootageItem.assetId and filePath",
+          "ArtifactCore/include/Utils/AssetManager.ixx::sourceVersion and invalidateSource",
+          "ArtifactCore/src/Graphics/MeshRenderer.cpp::material-slot path keyed texture reuse"
+        ],
+        "runtimeStatus": "fixture is a design proposal only; current document compiler rejects schemaVersion 4 and generic image2d operations"
       }
     }
   },
