@@ -197,6 +197,8 @@ def _capture_inputs_from_report(path: Path) -> dict[str, object]:
         raise ValueError(f"{path}: capture report root must be an object")
     if capture_report.get("kind") != "artifact-shader-graph-ramp-vulkan-capture":
         raise ValueError(f"{path}: not a Ramp Vulkan capture report")
+    if capture_report.get("status") != "capture-source-executed-on-test-run":
+        raise ValueError(f"{path}: capture report does not record an executed capture")
     repeats = capture_report.get("legacyRepeatedRawCaptures")
     if not isinstance(repeats, list) or len(repeats) != 5:
         raise ValueError(f"{path}: expected five repeated legacy raw captures")
@@ -296,6 +298,9 @@ def main() -> int:
         parser.error("width and height must be positive")
 
     input_paths = [*baseline_paths, candidate_path]
+    baseline_resolved = {path.resolve() for path in baseline_paths}
+    if candidate_path.resolve() in baseline_resolved:
+        parser.error("candidate capture must differ from every baseline capture")
     if args.capture_report is not None:
         input_paths.append(args.capture_report)
     output_paths = [path for path in (args.diff_output, args.output) if path is not None]
