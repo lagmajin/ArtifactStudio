@@ -1782,6 +1782,12 @@ def validate(root: Path) -> list[str]:
                 "type": "add", "operationId": "artifact.rd.constant.float32",
                 "semanticVersion": 1, "nodeId": "over_limit_node",
             }))
+        ui_repair_document = copy.deepcopy(ui_limit_document)
+        ui_repair_document["nodes"].append(
+            {**base_limit_node, "nodeId": "loaded_over_limit_node",
+             "layout": {"x": float(dynamic_module.MAX_GRAPH_NODES), "y": 0.0}})
+        ui_repair_session = local_ui_module.Session(dynamic_registry, ui_repair_document, None, [])
+        ui_repair_session.apply({"type": "delete", "nodeId": "loaded_over_limit_node"})
         oversized_nodes_document = copy.deepcopy(dynamic_document)
         oversized_nodes_document["nodes"] = [{}] * (dynamic_module.MAX_GRAPH_NODES + 1)
         oversized_nodes_validation = dynamic_module.validate_document_for_editing(
@@ -2604,6 +2610,7 @@ def validate(root: Path) -> list[str]:
             "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
             "graphLinkLimitRejectsBeforeLinkIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_links_validation["status"] == "invalid" and oversized_links_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_links_validation["diagnostics"]] == [graph_limit_goldens[1]["code"]] and oversized_links_compile_diagnostic == graph_limit_goldens[1],
             "uiSessionRejectsGraphGrowthPastLimitAtomically": ui_limit_add_diagnostic == dynamic_contract.get("sourceGuardGoldens", {}).get("uiGrowthLimitDiagnostic") and len(ui_limit_session.document["nodes"]) == dynamic_module.MAX_GRAPH_NODES and ui_limit_session.current_document_hash == ui_limit_before_hash and ui_limit_session.history == [] and ui_limit_session.cursor == 0,
+            "uiSessionCanShrinkOversizedGraphForRepair": len(ui_repair_session.document["nodes"]) == dynamic_module.MAX_GRAPH_NODES and ui_repair_session.history and ui_repair_session.cursor == 1 and all(node.get("nodeId") != "loaded_over_limit_node" for node in ui_repair_session.document["nodes"]),
             "registryRejectsScalarTypeConfusion": registry_diagnostics[3:] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryScalarTypeDiagnostics"),
             "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
             "malformedOperationVersionsStaySafeAtEditBoundary": malformed_version_edit_diagnostics == [dynamic_contract.get("sourceGuardGoldens", {}).get("malformedOperationVersionEditDiagnostic")] * 3 and malformed_version_validation_codes == [["node.operation.version.unsupported"]] * 3 and malformed_version_documents[0]["nodes"][0]["semanticVersion"] is True and malformed_version_documents[1]["nodes"][0]["semanticVersion"] == [] and malformed_version_documents[2]["nodes"][0]["semanticVersion"] == {} and all(document["nodes"][0]["parameters"] == {"value": 0.25} for document in malformed_version_documents),
