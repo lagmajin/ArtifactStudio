@@ -8,6 +8,7 @@ requirements. It does not compile shaders, load images, or create GPU objects.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import heapq
 import json
 import math
@@ -109,6 +110,7 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
     node_indices: dict[str, int] = {}
     output_types: dict[tuple[str, str], str] = {}
     input_types: dict[tuple[str, str], str] = {}
+    required_inputs: set[tuple[str, str]] = set()
     for index, node in enumerate(nodes_raw):
         path = f"/nodes/{index}"
         _require(isinstance(node, dict), "node must be an object", "node.invalid", path)
@@ -148,8 +150,17 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
             _require(resource_id in resources, "node references a missing resourceId",
                      "resource.reference.missing", f"{path}/resourceReferences/image")
             input_types[(node_id, "uv")] = "Vector2"
+            required_inputs.add((node_id, "uv"))
             output_types[(node_id, "color")] = "Vector4"
             output_types[(node_id, "alpha")] = "Float"
+        elif operation == "artifact.rd.math.add.vector4.float32":
+            _require(set(node) == {"nodeId", "operationId", "semanticVersion", "parameters", "layout"} and
+                     node["parameters"] == {}, "Vector4 Add node shape is invalid",
+                     "node.shape.invalid", path)
+            input_types[(node_id, "a")] = "Vector4"
+            input_types[(node_id, "b")] = "Vector4"
+            required_inputs.update({(node_id, "a"), (node_id, "b")})
+            output_types[(node_id, "result")] = "Vector4"
         else:
             raise ContractError("operation is unsupported by the generic resource prototype",
                                 "node.operation.unsupported", f"{path}/operationId")
@@ -199,11 +210,10 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
     _require(visited_count == len(nodes), "document contains a cycle",
              "graph.cycle", "/links")
 
-    for node_id, node in nodes.items():
-        if node["operationId"] == "artifact.texture.sample.image2d":
-            _require((node_id, "uv") in writers, "Image Texture uv input is unconnected",
-                     "node.input.required_unconnected",
-                     f"/nodes/{node_indices[node_id]}/inputs/uv")
+    for node_id, socket_id in sorted(required_inputs):
+        _require((node_id, socket_id) in writers, f"required input {node_id}.{socket_id} is unconnected",
+                 "node.input.required_unconnected",
+                 f"/nodes/{node_indices[node_id]}/inputs/{socket_id}")
 
     selected_output = document.get("output")
     _require(isinstance(selected_output, dict) and set(selected_output) == {"nodeId", "socketId"},
@@ -247,12 +257,15 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
                                 "resource.binding.asset_type.incompatible",
                                 f"/resources/{resource_id}/source/assetId")
 
+    requirements_json = json.dumps(requirements, sort_keys=True, separators=(",", ":"),
+                                   ensure_ascii=False).encode("utf-8")
     projection = {
         "documentStatus": "valid",
         "selectedOutput": {"nodeId": output_key[0], "socketId": output_key[1],
                            "valueType": output_types[output_key]},
         "activeNodeIds": sorted(active),
         "resourceRequirements": requirements,
+        "resourceRequirementIdentitySha256": hashlib.sha256(requirements_json).hexdigest().upper(),
         "assetResolutions": asset_resolutions,
         "assetResolutionStatus": "unresolved" if unresolved else
                                  ("resolved" if requirements else "not-required"),

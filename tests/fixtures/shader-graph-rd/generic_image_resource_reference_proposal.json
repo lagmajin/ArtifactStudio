@@ -17,12 +17,39 @@
       "parameters": {},
       "resourceReferences": {"image": "image.albedo"},
       "layout": {"x": 280, "y": 80}
+    },
+    {
+      "nodeId": "roughness_sample",
+      "operationId": "artifact.texture.sample.image2d",
+      "semanticVersion": 1,
+      "parameters": {},
+      "resourceReferences": {"image": "image.roughness"},
+      "layout": {"x": 280, "y": 240}
+    },
+    {
+      "nodeId": "combine",
+      "operationId": "artifact.rd.math.add.vector4.float32",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 520, "y": 160}
     }
   ],
   "links": [
     {
       "from": {"nodeId": "uv", "socketId": "value"},
       "to": {"nodeId": "image_sample", "socketId": "uv"}
+    },
+    {
+      "from": {"nodeId": "uv", "socketId": "value"},
+      "to": {"nodeId": "roughness_sample", "socketId": "uv"}
+    },
+    {
+      "from": {"nodeId": "image_sample", "socketId": "color"},
+      "to": {"nodeId": "combine", "socketId": "a"}
+    },
+    {
+      "from": {"nodeId": "roughness_sample", "socketId": "color"},
+      "to": {"nodeId": "combine", "socketId": "b"}
     }
   ],
   "resources": [
@@ -33,7 +60,15 @@
         "kind": "projectAsset",
         "assetId": "11111111-1111-4111-8111-111111111111"
       }
+    },
+    {
+      "resourceId": "image.roughness",
+      "resourceKind": "sampledTexture2D",
+      "source": {
+        "kind": "projectAsset",
+        "assetId": "33333333-3333-4333-8333-333333333333"
+      }
     }
   ],
-  "output": {"nodeId": "image_sample", "socketId": "color"}
+  "output": {"nodeId": "combine", "socketId": "result"}
 }

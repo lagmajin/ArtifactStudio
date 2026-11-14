@@ -1444,6 +1444,11 @@ def validate(root: Path) -> list[str]:
         generic_image_spec.loader.exec_module(generic_image_module)
         regenerated_generic_image_candidate = generic_image_module.project_resource_requirements(
             generic_image_document, generic_image_catalog)
+        relinked_generic_image_document = copy.deepcopy(generic_image_document)
+        relinked_generic_asset_id = "22222222-2222-4222-8222-222222222222"
+        relinked_generic_image_document["resources"][0]["source"]["assetId"] = relinked_generic_asset_id
+        relinked_generic_image_candidate = generic_image_module.project_resource_requirements(
+            relinked_generic_image_document, {relinked_generic_asset_id: "Image"})
         unresolved_generic_image_candidate = generic_image_module.project_resource_requirements(
             generic_image_document, {})
         dangling_generic_resource_document = copy.deepcopy(generic_image_document)
@@ -3043,6 +3048,51 @@ def validate(root: Path) -> list[str]:
             "inputs still need links; only an unconnected default participates in active semantic and "
             "typed-IR identity"
         )
+        expected_generic_resource_requirements = [
+            {"resourceKey": "artifact.shadergraph.image.image_sample", "resourceId": "image.albedo",
+             "nodeId": "image_sample", "resourceKind": "sampledTexture2D"},
+            {"resourceKey": "artifact.shadergraph.image.roughness_sample", "resourceId": "image.roughness",
+             "nodeId": "roughness_sample", "resourceKind": "sampledTexture2D"},
+        ]
+        expected_generic_asset_resolutions = [
+            {"resourceKey": "artifact.shadergraph.image.image_sample", "resourceId": "image.albedo",
+             "assetId": "11111111-1111-4111-8111-111111111111", "assetType": "Image"},
+            {"resourceKey": "artifact.shadergraph.image.roughness_sample", "resourceId": "image.roughness",
+             "assetId": "33333333-3333-4333-8333-333333333333", "assetType": "Image"},
+        ]
+        generic_image_relink_contract_ok = (
+            generic_image_candidate == regenerated_generic_image_candidate and
+            regenerated_generic_image_candidate.get("selectedOutput") ==
+            {"nodeId": "combine", "socketId": "result", "valueType": "Vector4"} and
+            regenerated_generic_image_candidate.get("activeNodeIds") ==
+            ["combine", "image_sample", "roughness_sample", "uv"] and
+            regenerated_generic_image_candidate.get("resourceRequirements") ==
+            expected_generic_resource_requirements and
+            regenerated_generic_image_candidate.get("assetResolutions") ==
+            expected_generic_asset_resolutions and
+            len(regenerated_generic_image_candidate.get("resourceRequirementIdentitySha256", "")) == 64 and
+            regenerated_generic_image_candidate.get("resourceBindingStatus") == "not-projected" and
+            regenerated_generic_image_candidate.get("resourceBindingKeySha256") is None and
+            regenerated_generic_image_candidate.get("resourceRequirements") ==
+            relinked_generic_image_candidate.get("resourceRequirements") and
+            regenerated_generic_image_candidate.get("resourceRequirementIdentitySha256") ==
+            relinked_generic_image_candidate.get("resourceRequirementIdentitySha256") and
+            regenerated_generic_image_candidate.get("assetResolutions") !=
+            relinked_generic_image_candidate.get("assetResolutions") and
+            regenerated_generic_image_candidate.get("assetRelinkProjection", {}).get(
+                "resourceRequirementsUnchanged") is True and
+            regenerated_generic_image_candidate.get("assetRelinkProjection", {}).get(
+                "resourceRequirementIdentityUnchanged") is True and
+            regenerated_generic_image_candidate.get("assetRelinkProjection", {}).get(
+                "shaderCodeIdentity") == "not-measured-no-shader-code-is-generated" and
+            hashlib.sha256(generic_image_document_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("documentSha256") and
+            hashlib.sha256(generic_image_catalog_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("assetCatalogSha256") and
+            hashlib.sha256(generic_image_prototype_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("prototypeSha256") and
+            hashlib.sha256(generic_image_candidate_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("candidateSha256"))
 
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
@@ -3133,7 +3183,7 @@ def validate(root: Path) -> list[str]:
             "vector2UvContextLowersAsTypedHostInput": dynamic_vector2_uv_candidate == regenerated_vector2_uv_candidate and dynamic_vector2_uv_document.get("output") == {"nodeId": "uv", "socketId": "value"} and regenerated_vector2_uv_candidate.get("outputType") == "Vector2" and "float2 n_uv_value = In.UV;" in regenerated_vector2_uv_candidate.get("hlslBody", "") and regenerated_vector2_uv_candidate.get("typedIR", {}).get("operations", [])[0].get("sourceContext") == {"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2"} and regenerated_vector2_uv_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslExpression": "In.UV", "nodeIds": ["uv"]}] and hashlib.sha256(dynamic_vector2_uv_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvDocumentSha256") and hashlib.sha256(dynamic_vector2_uv_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvCandidateSha256") and typed_ir_hash_matches(dynamic_vector2_uv_candidate) and {"implementationId": "vector2.uv0", "contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslCandidate": "In.UV", "evidence": "ArtifactCore TexCoordNode lowers In.UV in the existing material graph path", "backendNeutral": False} in dynamic_contract.get("sourceContextBindings", []),
             "baseColorTextureHasTypedResourceAndExplicitUv": dynamic_base_color_texture_candidate == regenerated_base_color_texture_candidate and dynamic_base_color_texture_document.get("output") == {"nodeId": "texture", "socketId": "color"} and "float4 n_texture_color = g_BaseColorTexture.Sample(g_BaseColorSampler, n_uv_value);" in regenerated_base_color_texture_candidate.get("hlslBody", "") and regenerated_base_color_texture_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.material.texture.base_color", "resourceKind": "sampledTexture2D", "slot": "BaseColor", "shaderSymbol": "g_BaseColorTexture", "samplerSymbol": "g_BaseColorSampler", "samplerContract": "legacy-shared-sampler-uncharacterized", "uvContract": "explicit-Vector2-input-no-implicit-transform", "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"}] and regenerated_base_color_texture_candidate.get("typedIR", {}).get("operations", [])[1].get("resourceDependencies") == regenerated_base_color_texture_candidate.get("resourceRequirements") and "float n_texture_alpha = n_texture_color.a;" in regenerated_base_color_texture_candidate.get("hlslBody", "") and hashlib.sha256(dynamic_base_color_texture_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureDocumentSha256") and hashlib.sha256(dynamic_base_color_texture_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureCandidateSha256") and typed_ir_hash_matches(dynamic_base_color_texture_candidate) and [operation.get("operationId") for operation in dynamic_registry_source.get("operations", []) if operation.get("implementationId", "").startswith("texture.sample.")] == dynamic_contract.get("textureSampleResourceContract", {}).get("operationIds"),
             "textureResourceBindingIdentityIsSeparateFromShaderIdentity": regenerated_base_color_texture_candidate.get("resourceBindingStatus") == "unresolved" and regenerated_base_color_texture_candidate.get("resourceBindingKeySha256") is None and resolved_texture_candidate_a.get("resourceBindingStatus") == "resolved" and resolved_texture_candidate_a.get("unresolvedResourceKeys") == [] and all(candidate.get("resourceBindingKeySha256") != resolved_texture_candidate_a.get("resourceBindingKeySha256") and candidate.get("semanticHashSha256") == resolved_texture_candidate_a.get("semanticHashSha256") and candidate.get("typedIRSemanticHashSha256") == resolved_texture_candidate_a.get("typedIRSemanticHashSha256") and candidate.get("shaderStructureHashSha256") == resolved_texture_candidate_a.get("shaderStructureHashSha256") and candidate.get("hlslBodySha256") == resolved_texture_candidate_a.get("hlslBodySha256") for candidate in texture_binding_mutations),
-            "genericImageResourceReferenceProjectsNodeScopedRequirement": generic_image_candidate == regenerated_generic_image_candidate and regenerated_generic_image_candidate.get("selectedOutput") == {"nodeId": "image_sample", "socketId": "color", "valueType": "Vector4"} and regenerated_generic_image_candidate.get("activeNodeIds") == ["image_sample", "uv"] and regenerated_generic_image_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.shadergraph.image.image_sample", "resourceId": "image.albedo", "nodeId": "image_sample", "resourceKind": "sampledTexture2D"}] and regenerated_generic_image_candidate.get("assetResolutions") == [{"resourceKey": "artifact.shadergraph.image.image_sample", "resourceId": "image.albedo", "assetId": "11111111-1111-4111-8111-111111111111", "assetType": "Image"}] and regenerated_generic_image_candidate.get("resourceBindingStatus") == "not-projected" and regenerated_generic_image_candidate.get("resourceBindingKeySha256") is None and hashlib.sha256(generic_image_document_path.read_bytes()).hexdigest().upper() == generic_image_contract.get("documentSha256") and hashlib.sha256(generic_image_catalog_path.read_bytes()).hexdigest().upper() == generic_image_contract.get("assetCatalogSha256") and hashlib.sha256(generic_image_prototype_path.read_bytes()).hexdigest().upper() == generic_image_contract.get("prototypeSha256") and hashlib.sha256(generic_image_candidate_path.read_bytes()).hexdigest().upper() == generic_image_contract.get("candidateSha256"),
+            "genericImageResourceReferenceProjectsNodeScopedRequirement": generic_image_relink_contract_ok,
             "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved": unresolved_generic_image_candidate.get("assetResolutionStatus") == "unresolved" and unresolved_generic_image_candidate.get("resourceBindingKeySha256") is None and dangling_generic_resource_diagnostic == {"code": "resource.reference.missing", "severity": "error", "path": "/nodes/1/resourceReferences/image", "message": "node references a missing resourceId"} and unsupported_generic_schema_diagnostic == {"code": "schema.version.unsupported", "severity": "error", "path": "/schemaVersion", "message": "document schema identity is unsupported"} and incompatible_generic_image_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resources/image.albedo/source/assetId", "message": "sampledTexture2D requires an Image asset"},
             "genericImageResourceReferenceRejectsMalformedLinkEndpoints": malformed_generic_endpoint_diagnostic == {"code": "link.endpoint.invalid", "severity": "error", "path": "/links/0", "message": "link endpoint nodeId and socketId must be strings"},
             "textureBindingSourceAuditPinsStableAssetAndPathBoundary": all(fragment in dynamic_asset_database_interface for fragment in ("struct AssetInfo", "QUuid id;", "QString absolutePath;", "QUuid findAssetByPath")) and all(fragment in dynamic_project_items_interface for fragment in ("QString filePath;", "QUuid assetId;")) and all(fragment in dynamic_asset_manager_interface for fragment in ("sourceVersion(const QUuid& assetId)", "invalidateSource(const QUuid& assetId)")) and "std::uint64_t version = 1;" in dynamic_asset_manager_source and "enum class AssetType" in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "Image," in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "target.path == path && target.srv" in dynamic_mesh_renderer_source and "current != incoming.trimmed()" in dynamic_mesh_renderer_source and "materialSlotTextures" in dynamic_mesh_renderer_source and incompatible_texture_asset_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resourceBindings/artifact.material.texture.base_color/assetType", "message": "sampledTexture2D requires an Image asset"},

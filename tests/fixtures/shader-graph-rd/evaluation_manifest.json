@@ -6393,14 +6393,15 @@
         "assetCatalogFixture": "tests/fixtures/shader-graph-rd/generic_image_asset_catalog.json",
         "candidateFixture": "experiments/ShaderGraphLab/generic_image_resource_candidate.json",
         "generator": "tools/shader_graph_rd/generate_generic_image_resource_candidate.py",
-        "documentSha256": "41C170846C8C7875B1C7360C7463A835DA181B0E17E041F68F7B82E25FE896D9",
-        "assetCatalogSha256": "D425D2EE7148754CA3DB0358D96006027DD1DC461FF13E52C26CBA38C35F5890",
-        "prototypeSha256": "EFFD5175A1D789D5649229EEFEC80977ECBC445DC11C08CB22F0D532626544FD",
-        "candidateSha256": "CC05893516108FFD842E47108D34FF6F118FB53260D0CA3DCF7247AA0C1103D1",
+        "documentSha256": "2AF0049B3FA7F2E8117D7154CB25410F05591E73C10A207F4B19250A0E865D9E",
+        "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
+        "prototypeSha256": "14DA00DE50ADB2EB4331C62B34AE1C2D7CEA25ABCABF471A499080D7983F3A9D",
+        "candidateSha256": "563DE71C580908D6995026A4A78DEA8B1683D5981A8ED7FD83AFACFD4DFECF0B",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
           "artifact.texture.sample.image2d",
+          "artifact.rd.math.add.vector4.float32",
           "explicit Vector2 UV links",
           "stable document resourceId references to project Asset UUIDs",
           "output-rooted active resource requirement projection",
@@ -6418,7 +6419,7 @@
           "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
           "non-Image catalog type rejects the resource binding"
         ],
-        "identityBoundary": "typed resourceRequirements contain only symbolic resourceKey/resourceId/node identity; Asset UUID and catalog type are reported in a separate assetResolutions sidecar, so changing the selected asset does not alter shader structure identity; source revision, sampler settings, UV transform, color interpretation, GPU resource lifetime, and resource binding hash are deliberately not projected",
+        "identityBoundary": "typed resourceRequirements contain only symbolic resourceKey/resourceId/node identity and have a canonical SHA-256; Asset UUID and catalog type are reported in a separate assetResolutions sidecar, so changing the selected asset leaves this resource-requirement identity unchanged; source revision, sampler settings, UV transform, color interpretation, GPU resource lifetime, and resource binding hash are deliberately not projected",
         "runtimeStatus": "prototype candidate only; no project AssetDatabase lookup, HLSL generation, shader compilation, image load, GPU sampling, Core adapter, or runtime validation"
       }
     }
