@@ -2387,6 +2387,14 @@ def validate(root: Path) -> list[str]:
                 registry_path = registry_directory / f"registry-{index}.json"
                 dynamic_module.save_document(registry_path, candidate_registry)
                 registry_diagnostics.append(diagnostic_for(lambda path=registry_path: dynamic_module.load_registry(path)))
+        divide_golden_case = next((item for item in math_golden.get("cases", [])
+                                   if isinstance(item, dict) and item.get("operation") == "divide"), {})
+        divide_golden_a = divide_golden_case.get("inputs", {}).get("A", [])
+        divide_golden_b = divide_golden_case.get("inputs", {}).get("B", [])
+        divide_golden_result = divide_golden_case.get("expectedBinary32", [])
+        divide_document_nodes = dynamic_divide_document.get("nodes", [])
+        divide_numerator_node = divide_document_nodes[0] if len(divide_document_nodes) > 0 else {}
+        divide_divisor_node = divide_document_nodes[1] if len(divide_document_nodes) > 1 else {}
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
             "implementationSelectionChangesSemanticIdentity": alternate_implementation_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and alternate_implementation_compile["hlslBody"] != connected_graph_compile["hlslBody"],
@@ -2456,7 +2464,8 @@ def validate(root: Path) -> list[str]:
             "sealedGraphRejectsSameVersionContractDrift": sealed_contract_diagnostic == {"code": "registry.operation.contract_changed", "severity": "error", "path": "/registryContractLock/artifact.rd.math.add.float32@1"},
             **{case_id: result is not None for case_id, result in diagnostics.items()},
             "subtractCandidateReproducesDedicatedGraph": dynamic_subtract_candidate == regenerated_subtract_candidate and regenerated_subtract_candidate.get("outputType") == "Float" and "(n_minuend_value - n_subtrahend_value)" in regenerated_subtract_candidate.get("hlslBody", "") and dynamic_subtract_document.get("output") == {"nodeId": "difference", "socketId": "result"},
-            "divideCandidateReproducesPositiveFloorContract": dynamic_divide_candidate == regenerated_divide_candidate and regenerated_divide_candidate.get("outputType") == "Float" and " / max(" in regenerated_divide_candidate.get("hlslBody", "") and ", 1e-5f)" in regenerated_divide_candidate.get("hlslBody", "") and len(dynamic_divide_document.get("nodes", [])) == 3 and dynamic_divide_document["nodes"][1].get("parameters", {}).get("value") == -0.00002,
+            "divideCandidateReproducesPositiveFloorContract": dynamic_divide_candidate == regenerated_divide_candidate and regenerated_divide_candidate.get("outputType") == "Float" and "(n_numerator_value / max(n_divisor_value, 1e-5f))" in regenerated_divide_candidate.get("hlslBody", "") and len(divide_document_nodes) == 3 and divide_divisor_node.get("parameters", {}).get("value") == -0.00002,
+            "divideCandidateMatchesLegacyNegativeDenominatorGolden": len(divide_golden_a) == 4 and len(divide_golden_b) == 4 and len(divide_golden_result) == 4 and divide_golden_a[1] == divide_numerator_node.get("parameters", {}).get("value") and divide_golden_b[1] == divide_divisor_node.get("parameters", {}).get("value") and divide_golden_result[1] == 100000.0,
         }
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or
@@ -2779,6 +2788,7 @@ def validate(root: Path) -> list[str]:
         errors.append(f"cannot verify lowering identity proposal golden: {error}")
     math_golden_name = math_contract.get("formulaGolden")
     math_golden_path = fixture_root / math_golden_name if isinstance(math_golden_name, str) else None
+    math_golden = {}
     if not math_golden_path or not math_golden_path.is_file():
         errors.append("Math operation formula golden artifact is missing")
     else:

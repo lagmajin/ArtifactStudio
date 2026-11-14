@@ -5885,7 +5885,8 @@
         "inlineShaderSourceRejected",
         "socketTypeMismatchRejected",
         "subtractCandidateReproducesDedicatedGraph",
-        "divideCandidateReproducesPositiveFloorContract"
+        "divideCandidateReproducesPositiveFloorContract",
+        "divideCandidateMatchesLegacyNegativeDenominatorGolden"
       ],
       "registrySha256": "541424257F7B27013204ED8A05CBD7DB92DCDDAC3CA314E6CA1460DE2E2027ED",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",

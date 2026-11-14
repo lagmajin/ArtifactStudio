@@ -10,7 +10,7 @@
 - **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::MathNode::Op::Divide`、`experiments/ShaderGraphLab/registry.json`、`dynamic_divide.json`。
 - **確認できた事実:** legacy HLSL emits `a / max(b, float4(1e-5f,...))`. This floors each denominator to a positive epsilon; a negative input is not divided by its signed value and is not handled by `abs(b)` epsilon. The R&D registry now exposes the scalar projection under the explicitly named `float.divide.positive_floor_1e5` implementation and uses a negative divisor in its focused document.
 - **価値または懸念:** Naming the operation after its actual denominator policy prevents a conventional divide node from silently inheriting asymmetric legacy behavior. The difference is visible around negative and near-zero denominators and must remain in semantic versioning if a future operation changes it.
-- **次に確認すべきこと:** Candidate regeneration is wired into the manifest generator/verifier. Compare candidate output with the existing binary32 formula golden and an actual shader compiler/runtime before considering Core promotion; NaN/Inf and GPU `max` edge behavior are still unverified.
+- **次に確認すべきこと:** The manifest now ties the focused negative-divisor input to lane 1 of the source-bound CPU binary32 golden (expected 100000). Compare actual HLSL compiler/runtime output before considering Core promotion; NaN/Inf and GPU `max` edge behavior are still unverified.
 - **未検証:** The focused document has not been passed through the manifest validator, HLSL compiler, or GPU runtime in this turn.
 
 ## 2026-11-15: Shader graph state guard must accept successful compilation warnings
