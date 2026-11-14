@@ -39,7 +39,7 @@ MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linea
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
-    "float.uv0.x",
+    "float.uv0.x", "vector2.uv0",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
     "float.clamp.sorted_bounds",
@@ -60,9 +60,15 @@ SOURCE_CONTEXTS = {
         "component": "x",
         "valueType": "Float",
     },
+    "vector2.uv0": {
+        "contextId": "artifact.material.surface.uv0",
+        "component": "xy",
+        "valueType": "Vector2",
+    },
 }
 HLSL_SOURCE_CONTEXT_BINDINGS = {
     ("artifact.material.surface.uv0", "x"): "(In.UV).x",
+    ("artifact.material.surface.uv0", "xy"): "In.UV",
 }
 FORBIDDEN_CODE_FIELDS = {"hlsl", "source", "code", "expression", "python", "shadersource"}
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
@@ -833,7 +839,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 if socket_id in seen:
                     raise ContractError(f"duplicate socketId {socket_id} in {path_label}.{key}", code="socket.id.duplicate", path=f"{socket_pointer}/socketId")
                 seen.add(socket_id)
-                if not isinstance(value_type, str) or value_type not in {"Float", "Vector4"}:
+                if not isinstance(value_type, str) or value_type not in {"Float", "Vector2", "Vector4"}:
                     raise ContractError(f"{socket_path}.valueType is unsupported by this prototype", code="socket.type.unsupported", path=f"{socket_pointer}/valueType")
                 required = socket.get("required", False) if is_input else False
                 if not isinstance(required, bool):
@@ -846,13 +852,16 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                     if value_type == "Float":
                         default = _f32(socket["default"], f"{socket_path}.default",
                                       path=default_path, code="socket.default.invalid")
-                    else:
+                    elif value_type == "Vector4":
                         raw_default = socket["default"]
                         if not isinstance(raw_default, list) or len(raw_default) != 4:
                             raise ContractError(f"{socket_path}.default must contain four Float32 lanes", code="socket.default.invalid", path=default_path)
                         default = [_f32(value, f"{socket_path}.default[{lane}]",
                                         path=f"{default_path}/{lane}", code="socket.default.invalid")
                                    for lane, value in enumerate(raw_default)]
+                    else:
+                        raise ContractError(f"{socket_path}.default has no Vector2 canonical representation",
+                                            code="socket.default.type.unsupported", path=default_path)
                 elif is_input and "default" in socket:
                     raise ContractError(f"{socket_path} required input cannot declare an implicit default", code="socket.default.unused", path=f"{socket_pointer}/default")
                 parsed.append(Socket(socket_id, value_type, required, default))
@@ -916,6 +925,11 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].socket_id != "value" or
                 operation.outputs[0].value_type != "Float" or operation.parameters):
             raise ContractError(f"{path_label} float.uv0.x requires no inputs or parameters and one Float value output", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector2.uv0" and (
+                operation.inputs or len(operation.outputs) != 1 or
+                operation.outputs[0].socket_id != "value" or
+                operation.outputs[0].value_type != "Vector2" or operation.parameters):
+            raise ContractError(f"{path_label} vector2.uv0 requires no inputs or parameters and one Vector2 value output", code="operation.signature.invalid", path=path)
         if implementation_id == "float.constant" and (
                 operation.inputs or operation.outputs[0].value_type != "Float" or
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
@@ -1087,6 +1101,9 @@ def _canonical_socket_default_value(value: Any, definition: Socket, node_id: str
                  path=f"{path}/{index}", code="socket.default.invalid")
             for index, lane in enumerate(value)
         ]
+    if definition.value_type == "Vector2":
+        raise ContractError(f"node {node_id}.{definition.socket_id} has no Vector2 default contract",
+                            code="socket.default.type.unsupported", path=path)
     raise ContractError(f"node {node_id}.{definition.socket_id} has an unsupported default type",
                         code="socket.default.type.unsupported", path=path)
 
@@ -3634,6 +3651,10 @@ def compile_document_from_data(
                 code="node.input.default_missing", path=f"/nodes/{node_indices[node_id]}/inputs/{_pointer_segment(socket_id)}")
         if socket.value_type == "Float":
             return _hlsl_float(default_value)
+        if socket.value_type == "Vector2":
+            raise ContractError(f"input {node_id}.{socket_id} has no Vector2 default contract",
+                                code="socket.default.type.unsupported",
+                                path=f"/nodes/{node_indices[node_id]}/socketDefaults/{_pointer_segment(socket_id)}")
         return "float4(" + ", ".join(_hlsl_float(value) for value in default_value) + ")"
 
     if parameter_block is not None:
@@ -3804,7 +3825,7 @@ def compile_document_from_data(
         output_symbol = re.sub(r"[^A-Za-z0-9_]", "_", output_id)
         variable = f"{symbol}_{output_symbol}"
         output_type = operation.outputs[0].value_type
-        hlsl_type = "float4" if output_type == "Vector4" else "float"
+        hlsl_type = {"Float": "float", "Vector2": "float2", "Vector4": "float4"}[output_type]
         hlsl_lines.append(f"{hlsl_type} {variable} = {expression};")
         expressions[(node_id, output_id)] = variable
 
@@ -3930,7 +3951,7 @@ def compile_document_from_data(
         "hlslBody": hlsl,
         "warnings": warnings,
         "limitations": [
-            f"prototype supports Float/Vector4 sockets and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
+            f"prototype supports Float/Vector2/Vector4 sockets, Float/Vector4 socket defaults, and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
             "typed IR materializes active Float/Vector4 socket defaults; texture/resource operands and complete backend-neutral semantics remain incomplete",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",

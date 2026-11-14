@@ -1,0 +1,67 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "CD3C07B2296D07AA79FB77CF0DD35E19116F8193FCD3DFC71E88D7F47F1D2F31",
+  "typedIRSemanticHashSha256": "1C6B7FDCE4329232DA3298B3C87A784C3E12CB12D237136D17DBF071AE12D3E2",
+  "typedIR": {
+    "schemaId": "artifact.shadergraph.typed-ir",
+    "schemaVersion": 1,
+    "output": {
+      "nodeId": "uv",
+      "socketId": "value",
+      "valueType": "Vector2"
+    },
+    "operations": [
+      {
+        "nodeId": "uv",
+        "operationId": "artifact.input.texcoord.uv0.vector2",
+        "semanticVersion": 1,
+        "implementationId": "vector2.uv0",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Vector2"
+          }
+        ],
+        "parameters": [],
+        "sourceContext": {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "xy",
+          "valueType": "Vector2"
+        }
+      }
+    ],
+    "graphParameters": []
+  },
+  "shaderStructureHashSha256": "0E1FDEA31148E0CC062827964A9CDFF5C8C100B8F7915467C7BD73D8EC489F90",
+  "hlslBodySha256": "88D257E7F3D1486A980E8667A955406F9A23D2CB4508A135C10D54035C164529",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "contextBindings": [
+    {
+      "contextId": "artifact.material.surface.uv0",
+      "component": "xy",
+      "valueType": "Vector2",
+      "hlslExpression": "In.UV",
+      "nodeIds": [
+        "uv"
+      ]
+    }
+  ],
+  "topologicalNodeIds": [
+    "uv"
+  ],
+  "outputType": "Vector2",
+  "hlslBody": "float2 n_uv_value = In.UV;\nreturn n_uv_value;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector2/Vector4 sockets, Float/Vector4 socket defaults, and 26 closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "typed IR materializes active Float/Vector4 socket defaults; texture/resource operands and complete backend-neutral semantics remain incomplete",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}

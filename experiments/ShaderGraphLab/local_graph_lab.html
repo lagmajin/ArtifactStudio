@@ -33,7 +33,7 @@
     #workspace-wrap.panning { cursor: grabbing; user-select: none; }
     #wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
     .wire { fill: none; stroke-width: 3; opacity: .84; }
-    .wire.Float { stroke: #dda94b; } .wire.Vector4 { stroke: #bb75d2; }
+    .wire.Float { stroke: #dda94b; } .wire.Vector2 { stroke: #6bbdc2; } .wire.Vector4 { stroke: #bb75d2; }
     .node { position: absolute; width: 220px; min-height: 112px; border: 1px solid #555c68; border-radius: 7px; background: #282c33; box-shadow: 0 8px 18px #0006; }
     .node.active-output { border-color: #7aa6e8; box-shadow: 0 0 0 1px #7aa6e8, 0 8px 18px #0006; }
     .node.selected { outline: 2px solid #e7bd62; outline-offset: 2px; }
@@ -47,6 +47,7 @@
     .socket-label { display: flex; align-items: center; gap: 6px; color: #c7cbd2; }
     .socket { width: 11px; height: 11px; padding: 0; border-radius: 50%; flex: 0 0 11px; background: #545d69; }
     .socket.Float { background: #dda94b; border-color: #f1ca79; }
+    .socket.Vector2 { background: #4c9aa0; border-color: #8bd1d4; }
     .socket.Vector4 { background: #bb75d2; border-color: #dda8ed; }
     .socket.pending { outline: 2px solid #f4d06f; outline-offset: 3px; }
     .socket.compatible { box-shadow: 0 0 0 3px #62c99a; }

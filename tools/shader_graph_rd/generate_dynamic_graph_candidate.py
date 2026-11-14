@@ -28,6 +28,8 @@ def main() -> int:
                             "optionalDefaultCandidateSha256", "optionalDefaultDocumentSha256"))
     candidate_specs.append(("optionalVector4DefaultDocumentFixture", "optionalVector4DefaultCandidateFixture",
                             "optionalVector4DefaultCandidateSha256", "optionalVector4DefaultDocumentSha256"))
+    candidate_specs.append(("vector2UvDocumentFixture", "vector2UvCandidateFixture",
+                            "vector2UvCandidateSha256", "vector2UvDocumentSha256"))
     candidate_specs.extend((document_key, candidate_key, digest_key, input_digest_key)
                            for document_key, candidate_key, digest_key, input_digest_key in (
                                ("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256"),

@@ -13,6 +13,16 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.input.texcoord.uv0.vector2",
+      "semanticVersion": 1,
+      "displayName": "UV 0",
+      "category": "Input",
+      "implementationId": "vector2.uv0",
+      "inputs": [],
+      "outputs": [{"socketId": "value", "valueType": "Vector2"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.float32",
       "semanticVersion": 1,
       "displayName": "Float",
