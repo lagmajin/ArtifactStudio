@@ -1,0 +1,25 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "5669350650FD35897C7A56A25EBEFEA759F96C46D30AAE09A7EC0056249E62AB",
+  "shaderStructureHashSha256": "5669350650FD35897C7A56A25EBEFEA759F96C46D30AAE09A7EC0056249E62AB",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "topologicalNodeIds": [
+    "input_maximum",
+    "input_minimum",
+    "input_value",
+    "clamped"
+  ],
+  "outputType": "Float",
+  "hlslBody": "float n_input_maximum_value = 1.0f;\nfloat n_input_minimum_value = 0.0f;\nfloat n_input_value_value = 0.5f;\nfloat n_clamped_result = clamp(n_input_value_value, min(n_input_minimum_value, n_input_maximum_value), max(n_input_minimum_value, n_input_maximum_value));\nreturn n_clamped_result;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector4 sockets and 14 closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}

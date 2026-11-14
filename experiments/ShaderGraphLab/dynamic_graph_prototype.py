@@ -28,6 +28,7 @@ BUILTIN_IMPLEMENTATIONS = {
     "float.divide.positive_floor_1e5",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
+    "float.clamp.sorted_bounds",
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
 MAX_JSON_NESTING = 256
@@ -843,6 +844,13 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].value_type != "Vector4" or
                 operation.parameters):
             raise ContractError(f"{path_label} vector4.invert.linear_factor requires Vector4 color and Float factor inputs, a Vector4 result, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "float.clamp.sorted_bounds" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("value", "Float", True), ("minimum", "Float", True), ("maximum", "Float", True)] or
+                operation.outputs[0].socket_id != "result" or
+                operation.outputs[0].value_type != "Float" or
+                operation.parameters):
+            raise ContractError(f"{path_label} float.clamp.sorted_bounds requires Float value/minimum/maximum inputs, a Float result, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.replicate.rgb_alpha_one" and (
                 len(operation.inputs) != 1 or operation.inputs[0].socket_id != "value" or
                 operation.inputs[0].value_type != "Float" or not operation.inputs[0].required or
@@ -3332,6 +3340,14 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             color_value = expressions[color_source]
             factor_value = expressions[factor_source]
             expression = f"lerp({color_value}, (float4(1.0f, 1.0f, 1.0f, 1.0f) - {color_value}), saturate({factor_value}))"
+        elif implementation_id == "float.clamp.sorted_bounds":
+            value_source = writers[(node_id, "value")]
+            minimum_source = writers[(node_id, "minimum")]
+            maximum_source = writers[(node_id, "maximum")]
+            value = expressions[value_source]
+            minimum = expressions[minimum_source]
+            maximum = expressions[maximum_source]
+            expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
         else:
             source_a = writers[(node_id, operation.inputs[0].socket_id)]
             source_b = writers[(node_id, operation.inputs[1].socket_id)]

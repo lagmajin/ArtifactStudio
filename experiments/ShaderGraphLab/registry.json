@@ -167,6 +167,20 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.math.clamp.sorted_bounds",
+      "semanticVersion": 1,
+      "displayName": "Clamp",
+      "category": "Math",
+      "implementationId": "float.clamp.sorted_bounds",
+      "inputs": [
+        {"socketId": "value", "valueType": "Float", "required": true},
+        {"socketId": "minimum", "valueType": "Float", "required": true},
+        {"socketId": "maximum", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
       "semanticVersion": 1,
       "displayName": "Replicate to Vector4",

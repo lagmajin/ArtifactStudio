@@ -446,7 +446,7 @@ The source contract has an asymmetry worth preserving in any compatibility adapt
 
 Registry ingress has manifest-covered negative cases for unknown operation fields, duplicate operation/version registrations, and duplicate socket IDs; each is rejected before a palette or compiler can consume an ambiguous definition. The loader now also explicitly rejects boolean/non-integer schema versions and non-string implementation/socket/parameter type tags, preventing unhashable JSON values from escaping as Python `TypeError`. File ingress validates JSON value depth before iterative forbidden-code-field scanning, and parser recursion failures map to a structured depth diagnostic. Editing APIs route serialized node identity lookups through a type-safe helper, so malformed version values resolve as unavailable operations instead of leaking hash errors. Undo/redo and command grouping now re-parse canonical snapshot objects and verify payload hashes before restoring or composing history. These new scalar-type, depth, edit-boundary, and history-integrity guards are not yet covered by manifest fixtures. All evidence is Python source-only and does not verify a production registry service.
 
-This prototype separates dynamic graph data from executable implementations. Registry JSON can select only a closed implementation ID; it cannot supply code or HLSL. Adding a new algorithm still requires a reviewed native implementation and semantic version. The prototype covers only Float/Vector4 and thirteen closed operations, so it is not evidence of Blender compatibility or product readiness.
+This prototype separates dynamic graph data from executable implementations. Registry JSON can select only a closed implementation ID; it cannot supply code or HLSL. Adding a new algorithm still requires a reviewed native implementation and semantic version. The prototype covers only Float/Vector4 and fourteen closed operations, so it is not evidence of Blender compatibility or product readiness.
 
 ### R&D operation addition: scalar subtraction (2026-11-15)
 
@@ -509,6 +509,10 @@ Added `vector4.subtract` as the same closed two-required-input/one-output signat
 ## Vector4 invert graph candidate (2026-11-15)
 
 Added the existing source-audited `artifact.vector4.invert.linear_factor` identity to the dynamic registry with required Vector4 `color` and Float `factor` inputs. The closed implementation emits `lerp(color, 1-color, saturate(factor))` across RGBA, and the graph fixture binds the existing formula golden's `factor=0.5` values. The validator contract lowers all seven source-golden input cases through temporary graph documents and checks the generated expression and typed output, including factor endpoints/out-of-range values and raw components outside 0..1. This demonstrates composing a source-derived non-binary operator in the dynamic graph; it does not prove GPU arithmetic, compiler contraction, rendered parity, optional/unconnected Factor defaults, or Blender compatibility.
+
+## Clamp multi-input graph candidate (2026-11-15)
+
+Added source-derived `artifact.math.clamp.sorted_bounds` with three required Float inputs (`value`, `minimum`, `maximum`) and one Float result. Lowering emits `clamp(value, min(minimum,maximum), max(minimum,maximum))`, preserving reversed-bound sorting. The manifest validator contract rebuilds graph constants for all seven existing Clamp golden cases, including reversed/equal bounds and negative ranges, and checks the typed candidate expression. This exercises 3-input graph traversal and lowering; it does not execute HLSL or prove GPU intrinsic parity.
 
 ## Compatible operation replacement (2026-11-14)
 
