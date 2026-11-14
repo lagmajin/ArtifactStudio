@@ -6,6 +6,7 @@
   "parameterValues": [],
   "parameterBindings": [],
   "parameterBlock": null,
+  "contextBindings": [],
   "topologicalNodeIds": [
     "source_color",
     "source_factor",

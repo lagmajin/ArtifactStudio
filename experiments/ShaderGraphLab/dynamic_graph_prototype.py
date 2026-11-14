@@ -54,6 +54,16 @@ MAX_GRAPH_NODES = 4096
 MAX_GRAPH_LINKS = 16384
 MIN_RAMP_STOPS = 2
 MAX_RAMP_STOPS = 32
+SOURCE_CONTEXTS = {
+    "float.uv0.x": {
+        "contextId": "artifact.material.surface.uv0",
+        "component": "x",
+        "valueType": "Float",
+    },
+}
+HLSL_SOURCE_CONTEXT_BINDINGS = {
+    ("artifact.material.surface.uv0", "x"): "(In.UV).x",
+}
 FORBIDDEN_CODE_FIELDS = {"hlsl", "source", "code", "expression", "python", "shadersource"}
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 
@@ -3409,6 +3419,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             "fields": parameter_fields,
         }
     expressions: dict[tuple[str, str], str] = {}
+    context_bindings_by_key: dict[tuple[str, str], dict[str, Any]] = {}
     hlsl_lines = []
     if parameter_block is not None:
         hlsl_lines.append("cbuffer ArtifactGraphParameters {")
@@ -3423,8 +3434,22 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         implementation_id = operation.implementation_id
         symbol = data["symbol"]
         output_id = operation.outputs[0].socket_id
-        if implementation_id == "float.uv0.x":
-            expression = "(In.UV).x"
+        if implementation_id in SOURCE_CONTEXTS:
+            context = SOURCE_CONTEXTS[implementation_id]
+            context_key = (context["contextId"], context["component"])
+            hlsl_expression = HLSL_SOURCE_CONTEXT_BINDINGS.get(context_key)
+            if hlsl_expression is None:
+                raise ContractError(f"source context {context_key} has no HLSL adapter binding",
+                                    code="shader.context.binding.unsupported", path=f"/nodes/{node_id}")
+            binding = context_bindings_by_key.setdefault(context_key, {
+                "contextId": context["contextId"],
+                "component": context["component"],
+                "valueType": context["valueType"],
+                "hlslExpression": hlsl_expression,
+                "nodeIds": [],
+            })
+            binding["nodeIds"].append(node_id)
+            expression = hlsl_expression
         elif implementation_id == "float.constant":
             parameter_id = operation.parameters[0].parameter_id
             graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
@@ -3584,6 +3609,11 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             "resourceKind": "constantBuffer",
             "layoutContract": "hlsl-cbuffer-packoffset-16byte-v1",
         }
+    if context_bindings_by_key:
+        structure_projection["sourceContextInputs"] = [
+            {key: binding[key] for key in ("contextId", "component", "valueType", "nodeIds")}
+            for _, binding in sorted(context_bindings_by_key.items())
+        ]
     structure_canonical = json.dumps(structure_projection, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     value_projection = [{"parameterId": item["parameterId"], "valueType": item["valueType"], "value": item["value"]}
                         for item in sorted(active_graph_parameters, key=lambda item: item["parameterId"])]
@@ -3611,6 +3641,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         "parameterValues": value_projection,
         "parameterBindings": parameter_bindings,
         "parameterBlock": parameter_block,
+        "contextBindings": [context_bindings_by_key[key] for key in sorted(context_bindings_by_key)],
         "topologicalNodeIds": active_order,
         "outputType": output_def.value_type,
         "hlslBody": hlsl,

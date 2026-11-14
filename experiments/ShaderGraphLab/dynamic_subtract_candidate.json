@@ -6,6 +6,7 @@
   "parameterValues": [],
   "parameterBindings": [],
   "parameterBlock": null,
+  "contextBindings": [],
   "topologicalNodeIds": [
     "minuend",
     "subtrahend",

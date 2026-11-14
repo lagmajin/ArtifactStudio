@@ -6,6 +6,7 @@
   "parameterValues": [],
   "parameterBindings": [],
   "parameterBlock": null,
+  "contextBindings": [],
   "topologicalNodeIds": [
     "input_maximum",
     "input_minimum",
