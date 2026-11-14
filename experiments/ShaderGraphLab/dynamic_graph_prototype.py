@@ -3658,6 +3658,7 @@ def compile_document_from_data(
         "status": "candidate-lowered-no-shader-runtime",
         "semanticHashSha256": hashlib.sha256(canonical).hexdigest().upper(),
         "shaderStructureHashSha256": hashlib.sha256(structure_canonical).hexdigest().upper(),
+        "hlslBodySha256": hashlib.sha256(hlsl.encode("utf-8")).hexdigest().upper(),
         "parameterValuesHashSha256": hashlib.sha256(value_canonical).hexdigest().upper(),
         "parameterValues": value_projection,
         "parameterBindings": parameter_bindings,
