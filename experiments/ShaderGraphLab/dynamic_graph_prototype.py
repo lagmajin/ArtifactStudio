@@ -34,7 +34,15 @@ VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION = {
     "vector4.mixrgb.lighten.saturated_factor": "lighten",
     "vector4.mixrgb.difference.saturated_factor": "difference",
 }
-MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_stops"}
+TEXTURE_SAMPLE_SLOTS = {
+    "texture.sample.base_color": ("BaseColor", "g_BaseColorTexture"),
+    "texture.sample.opacity": ("Opacity", "g_OpacityTexture"),
+    "texture.sample.emission": ("Emission", "g_EmissionTexture"),
+    "texture.sample.metallic_roughness": ("MetallicRoughness", "g_MetallicRoughnessTexture"),
+    "texture.sample.normal": ("Normal", "g_NormalTexture"),
+    "texture.sample.occlusion": ("Occlusion", "g_OcclusionTexture"),
+}
+MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_stops", *TEXTURE_SAMPLE_SLOTS}
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
@@ -46,7 +54,7 @@ BUILTIN_IMPLEMENTATIONS = {
     *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
     "vector4.separate_channels",
-    "vector4.ramp.linear_stops",
+    "vector4.ramp.linear_stops", *TEXTURE_SAMPLE_SLOTS,
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
@@ -1003,6 +1011,12 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.parameters[0].value_type != "RampStops" or
                 operation.parameters[0].default is None):
             raise ContractError(f"{path_label} vector4.ramp.linear_stops requires a Float factor input, RampStops parameter, Vector4 color and Float alpha outputs", code="operation.signature.invalid", path=path)
+        if implementation_id in TEXTURE_SAMPLE_SLOTS and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("uv", "Vector2", True)] or
+                [(item.socket_id, item.value_type) for item in operation.outputs] !=
+                [("color", "Vector4"), ("alpha", "Float")] or operation.parameters):
+            raise ContractError(f"{path_label} {implementation_id} requires a Vector2 UV input, raw Vector4 color and Float alpha outputs, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.divide.positive_floor_1e5" and operation.outputs[0].value_type != "Float":
             raise ContractError(f"{path_label} float.divide.positive_floor_1e5 requires Float input and output sockets", code="operation.signature.invalid", path=path)
         registry[registry_key] = operation
@@ -3704,6 +3718,18 @@ def compile_document_from_data(
             ],
             "parameters": ir_parameters,
         }
+        if implementation_id in TEXTURE_SAMPLE_SLOTS:
+            slot_name, shader_symbol = TEXTURE_SAMPLE_SLOTS[implementation_id]
+            ir_operation["resourceDependencies"] = [{
+                "resourceKey": f"artifact.material.texture.{implementation_id.split('texture.sample.', 1)[1]}",
+                "resourceKind": "sampledTexture2D",
+                "slot": slot_name,
+                "shaderSymbol": shader_symbol,
+                "samplerSymbol": "g_BaseColorSampler",
+                "samplerContract": "legacy-shared-sampler-uncharacterized",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode",
+            }]
         if implementation_id in SOURCE_CONTEXTS:
             context = SOURCE_CONTEXTS[implementation_id]
             ir_operation["sourceContext"] = {
@@ -3755,6 +3781,18 @@ def compile_document_from_data(
                 variable = f"{symbol}_{channel_symbol}"
                 hlsl_lines.append(f"float {variable} = ({vector}).{channel.socket_id};")
                 expressions[(node_id, channel.socket_id)] = variable
+            continue
+        elif implementation_id in TEXTURE_SAMPLE_SLOTS:
+            uv = input_expression(node_id, "uv")
+            slot_name, shader_symbol = TEXTURE_SAMPLE_SLOTS[implementation_id]
+            color_symbol = f"{symbol}_color"
+            alpha_symbol = f"{symbol}_alpha"
+            hlsl_lines.extend([
+                f"float4 {color_symbol} = {shader_symbol}.Sample(g_BaseColorSampler, {uv});",
+                f"float {alpha_symbol} = {color_symbol}.a;",
+            ])
+            expressions[(node_id, "color")] = color_symbol
+            expressions[(node_id, "alpha")] = alpha_symbol
             continue
         elif implementation_id == "vector4.ramp.linear_stops":
             factor = input_expression(node_id, "factor")
@@ -3888,6 +3926,12 @@ def compile_document_from_data(
             for item in sorted(active_graph_parameters, key=lambda item: item["parameterId"])
         ],
     }
+    resource_requirements_by_key = {}
+    for operation in typed_ir_operations:
+        for dependency in operation.get("resourceDependencies", []):
+            resource_requirements_by_key[dependency["resourceKey"]] = dependency
+    resource_requirements = [resource_requirements_by_key[key]
+                             for key in sorted(resource_requirements_by_key)]
     typed_ir_canonical = json.dumps(
         typed_ir, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
@@ -3945,6 +3989,7 @@ def compile_document_from_data(
         "parameterValues": value_projection,
         "parameterBindings": parameter_bindings,
         "parameterBlock": parameter_block,
+        "resourceRequirements": resource_requirements,
         "contextBindings": [context_bindings_by_key[key] for key in sorted(context_bindings_by_key)],
         "topologicalNodeIds": active_order,
         "outputType": output_def.value_type,
@@ -3953,7 +3998,7 @@ def compile_document_from_data(
         "limitations": [
             f"prototype supports Float/Vector2/Vector4 sockets, Float/Vector4 socket defaults, and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
-            "typed IR materializes active Float/Vector4 socket defaults; texture/resource operands and complete backend-neutral semantics remain incomplete",
+            "typed IR materializes active Float/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
             "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence",

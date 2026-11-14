@@ -5797,43 +5797,43 @@
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "174F5BBD89B2C923D0C82D9FF8209189ADECAD276DAC7735FBD3E4E8E3A4001D",
+      "candidateSha256": "2AECDB810FE2D58022B46395844AA8BC4EBDD19E6AC56A721042933A19664285",
       "emittedSourceHashContract": "SHA-256 of exact UTF-8 hlslBody bytes; adapter-specific source identity, separate from semantic and structure hashes",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "90FA89223039F74252ACB1952A3626DE694ABAF14F9D4716C8CBA0922339BC03",
+      "subtractCandidateSha256": "D04C6B163DA0FB9766F1D85C8D1CDBDAB0C0531C479DD79E5A659C3DEF4808B8",
       "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
       "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
       "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
-      "divideCandidateSha256": "D4CDD2B640B4E4FBB5DF2883003638248C14446EC837BF4311D09DABF4563FA4",
+      "divideCandidateSha256": "534E4E6A7AFDF8F69DF77CF65E40FE362B205AE3F62904CAFF1960E9D84B4A7A",
       "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
       "vector4DivideDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide.json",
       "vector4DivideCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide_candidate.json",
-      "vector4DivideCandidateSha256": "626FE62CDC2DD59E62977D665AFDC907053FBA344822A3E6B3259697C6BD34DC",
+      "vector4DivideCandidateSha256": "BD4FF0846A591093C69D2D1F27265A4D3F95FB7A051F687F18BC8656AAF6EE51",
       "vector4DivideDocumentSha256": "A4221B83ABFDC49F2B149E54139A3A9CB30394B1D8FF7FD5CEB7BA25563177CE",
       "vector4SubtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract.json",
       "vector4SubtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract_candidate.json",
-      "vector4SubtractCandidateSha256": "BC734EE8F098C4AAD2B5C3887F84CB63282AE9A3DBFA6ABD4AA0756D1F20910C",
+      "vector4SubtractCandidateSha256": "D76FBEEB83369A14D960C3B64EC6E08D52548D97A5F83681AD03605C195C822D",
       "vector4SubtractDocumentSha256": "4DD469714A2BC7E7F2E442413ACE7E74CEEA6DFFEBE5CFEFF38BF89B0EC359CD",
       "vector4InvertDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert.json",
       "vector4InvertCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert_candidate.json",
-      "vector4InvertCandidateSha256": "2B401A732DA0DDA05DA52AB52CD1F0B09375976F2D4F86DE8CFB7C37D0507E15",
+      "vector4InvertCandidateSha256": "F069AEE56C856508565496219C0F93A53F4442B4AE8C5C3FCD12AC0FBE08017F",
       "vector4InvertDocumentSha256": "C69ECB8C32E08CC432C5D9A6ACDDC03A1B5B10A78CACF2D9F938DDB79E0365CB",
       "clampDocumentFixture": "experiments/ShaderGraphLab/dynamic_clamp.json",
       "clampCandidateFixture": "experiments/ShaderGraphLab/dynamic_clamp_candidate.json",
-      "clampCandidateSha256": "CF6BAAC0F2CFF27EB8BEBAA42A6B19ED2E799C58B5B1D7E6E8DD5509B7F37F31",
+      "clampCandidateSha256": "0B1A27FD41A6432D2A13E47C527C7F0B426421FFD4327AA15DC5B670C81C245F",
       "clampDocumentSha256": "824478A7FFC9E7C12D4DCD597308BBF5504B1DD109A825AF95428A2D1D830D79",
       "vector4MixDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix.json",
       "vector4MixCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix_candidate.json",
-      "vector4MixCandidateSha256": "815E1D7B02CB6B417BF7112B3014723C8912A09462DFCD46CD4AA47D79CF015D",
+      "vector4MixCandidateSha256": "7DF609E823B121C032714A64B0C6771978476BC81DAE55B1543D5D0F2CBCFC57",
       "vector4MixDocumentSha256": "A542DCBDF25A090EFB57D3AFBBEF7351D226CCE331A6950593F3624CB22CAA20",
       "vector4SeparateDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels.json",
       "vector4SeparateCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels_candidate.json",
-      "vector4SeparateCandidateSha256": "CF6E7ACA6B93EF1F293B9BF52C65DE2A23204DE1AE2CC81EA6CE9F1D7A6021D2",
+      "vector4SeparateCandidateSha256": "D88A024C3DBFA13B028318D5C67609BDF634E6C4C35C0ECF030E0F500119E914",
       "vector4SeparateDocumentSha256": "F81E339823B9B70D9510A488B68B853494517D499E3E8297038E4062BF8565B7",
       "vector4RampDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
-      "vector4RampCandidateSha256": "2D994E9346C295A63F3D26733DD3601E9926FDB7C2A09E3E8688D2020F48A8CB",
+      "vector4RampCandidateSha256": "09D75504CEF99A82BD5A738BBB2AAA00FB5FC1D792CF436E00FA865F6C61BF4C",
       "vector4RampDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
       "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
       "rampImageEvaluationPlan": {
@@ -5935,7 +5935,13 @@
         "vector4.mixrgb.lighten.saturated_factor",
         "vector4.mixrgb.difference.saturated_factor",
         "vector4.separate_channels",
-        "vector4.ramp.linear_stops"
+        "vector4.ramp.linear_stops",
+        "texture.sample.base_color",
+        "texture.sample.opacity",
+        "texture.sample.emission",
+        "texture.sample.metallic_roughness",
+        "texture.sample.normal",
+        "texture.sample.occlusion"
       ],
       "contractChecks": [
         "layoutExcludedFromSemanticIdentity",
@@ -6034,6 +6040,8 @@
         "typedIRIsBackendSourceNeutralAndContentAddressed",
         "typedIRHasWellTypedCompleteEdges",
         "vector2UvContextLowersAsTypedHostInput",
+        "baseColorTextureHasTypedResourceAndExplicitUv",
+        "allSixMaterialTextureSlotsHaveDistinctTypedRequirements",
         "vector2SocketsHaveDistinctCanvasColor",
         "optionalSocketDefaultIsEditableAndPersistedPerNode",
         "optionalVector4SocketDefaultSupportsLaneEditingAndDormantLinks",
@@ -6047,7 +6055,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
-        "candidateGeneratorIncludesAllThirteenPersistedGraphs",
+        "candidateGeneratorIncludesAllFourteenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
@@ -6112,7 +6120,7 @@
           "path": "/nodes/0/semanticVersion"
         }
       },
-      "registrySha256": "D22E7D64E4D4AAFEC1472EC6440F4B1A737175245EE8813AADEE8CD6A03B6FC9",
+      "registrySha256": "CE83B9A955F1ED7A7E641B58BF0BA43A7AC4A8D0EEFD8B64DCDE969C2681BDA5",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {
@@ -6197,16 +6205,104 @@
       "socketDefaultContract": "optional input sockets carry a typed binary32 operation default; schema version 3 stores editable per-node overrides; a connected producer overrides its stored default; required inputs still need links; only an unconnected default participates in active semantic and typed-IR identity",
       "optionalDefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_default.json",
       "optionalDefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_default_candidate.json",
-      "optionalDefaultCandidateSha256": "FF237DBDD9F1F60A5A4D69E19D02AC78D7B362215FF52954BE8D44EDDDF1EDF1",
+      "optionalDefaultCandidateSha256": "092F24A1063B5F8762CC610FEE66BAE981C06A8D05CBD6190908959EAF6E7D30",
       "optionalDefaultDocumentSha256": "B89D6151B7A3E04FE82E8B237C3441F53D581A3FA765CF5E2CC9A5D2092915EF",
       "optionalVector4DefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default.json",
       "optionalVector4DefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default_candidate.json",
-      "optionalVector4DefaultCandidateSha256": "AC2ACB5DA9798DBB9C6B94F8769C83F0333F88D4A6B3D72F7BA9A2B8DFB6C5EB",
+      "optionalVector4DefaultCandidateSha256": "239197714A097738DF35B74128F3AC0239544C4CEA7869B50714BB99AB630655",
       "optionalVector4DefaultDocumentSha256": "41C2CE731D096724EE9F1197351216B19C321785B06CF41E45C7549B0700176F",
       "vector2UvDocumentFixture": "experiments/ShaderGraphLab/dynamic_uv0_vector2.json",
       "vector2UvCandidateFixture": "experiments/ShaderGraphLab/dynamic_uv0_vector2_candidate.json",
-      "vector2UvCandidateSha256": "9430EFEA0E818307B917563DFBA02F5C26BE46FEDB6232DBA9AF7123A445B57A",
-      "vector2UvDocumentSha256": "058911A94DAA75E756AEAF1455564829990B137EE2F5342006F9845E449AC61F"
+      "vector2UvCandidateSha256": "318F9343BFEAD0054E857365FD692042C0578C9C886879DED33D740EBBD768CE",
+      "vector2UvDocumentSha256": "058911A94DAA75E756AEAF1455564829990B137EE2F5342006F9845E449AC61F",
+      "baseColorTextureDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor.json",
+      "baseColorTextureCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor_candidate.json",
+      "baseColorTextureCandidateSha256": "786F0843DAEB6F798D09F4DC29EE6E67B4A518E931B516C74A6663C08A0D0D9F",
+      "baseColorTextureDocumentSha256": "84CAA4D21EB1F90D61F99A7BD830592117088F544BB5305ACDA31868323E4F16",
+      "textureSampleResourceContract": {
+        "status": "candidate-source-only-runtime-unverified",
+        "operationIds": [
+          "artifact.texture.sample.base_color",
+          "artifact.texture.sample.opacity",
+          "artifact.texture.sample.emission",
+          "artifact.texture.sample.metallic_roughness",
+          "artifact.texture.sample.normal",
+          "artifact.texture.sample.occlusion"
+        ],
+        "outputs": {
+          "color": "raw Vector4 sample, no implicit swizzle or transfer decode",
+          "alpha": "sampled color alpha"
+        },
+        "uv": "required explicit Vector2 input; this candidate does not inject UV0 or apply slot transforms",
+        "resourceIdentity": "stable symbolic material-slot key; resolved asset identity and revision remain runtime binding state",
+        "sampler": "legacy g_BaseColorSampler for every slot, preserved only as source characterization; filter/addressing behavior is uncharacterized",
+        "fallback": "missing or failed resource behavior is not modeled by this source-only candidate",
+        "runtimeStatus": "no HLSL compiler, resource binding, image sampling, backend capture, or color-space evaluation",
+        "imageEvaluationPlan": {
+          "status": "planned-candidate-runtime-route-not-implemented",
+          "objective": "Verify that a typed explicit-UV material-slot sample candidate reproduces the current ImageTexture path for the same bound image, and expose channel, alpha, color-interpretation, and backend differences.",
+          "baseline": "Existing production MaterialGraphImageTextureSamplesChannelProbe/current ImageTexture graph path with the identical channel-probe asset and material slot; baseline captures repeated at least five times before candidate comparison.",
+          "asset": {
+            "path": "tests/fixtures/shader-graph-rd/textures/channel_probe_4x4_rgba.png",
+            "sha256": "301B95E07D30A470A7EE66BE44F640B9F74E88AE26781066FF0674A03B6A560F",
+            "pixelGolden": "tests/fixtures/shader-graph-rd/textures/channel_probe_4x4_rgba_pixels.json",
+            "source": "generated deterministic RGBA8 evaluation fixture; no external asset"
+          },
+          "conditions": {
+            "uv": "explicit UV0 sweep across [0,1] with texel centers, boundaries, and out-of-range coordinates; record orientation rather than assuming image row origin",
+            "resource": "same material-slot resource and asset revision for baseline/candidate; separately exercise absent and failed resource after a runtime adapter exists",
+            "sampler": "record effective filter, mip, and address state; if current path cannot expose them, mark unverified",
+            "color": "capture raw resource sample and graph output; characterize Base Color sRGB sampling separately from linear slots without assuming equivalence",
+            "alpha": "retain stored alpha and compare straight-alpha composites over black and white",
+            "display": "fixed named display transform only for review PNG; keep numeric capture in linear RGBA32F"
+          },
+          "routesAndResolution": {
+            "route": "production Raster MeshRenderer graph path; candidate resource adapter must be implemented before capture",
+            "resolutions": [
+              {
+                "width": 256,
+                "height": 256
+              },
+              {
+                "width": 1024,
+                "height": 1024
+              }
+            ],
+            "backends": [
+              "Vulkan",
+              "D3D12"
+            ],
+            "previewFinal": "capture both preview and final when distinct routes are available; otherwise record one route and leave the other unverified"
+          },
+          "regions": [
+            "full-frame",
+            "individual RGBA channels",
+            "texel-center patches",
+            "UV wrap/clamp boundary",
+            "alpha transition edge"
+          ],
+          "measurements": [
+            "per-channel min/max/mean/p50/p95/p99 and non-finite count",
+            "raw RGBA32F candidate-vs-baseline MAE/RMSE/p99/max and threshold-exceedance ratio by region",
+            "stored alpha and black/white encoded composite difference",
+            "UV-axis/origin and channel-probe response characterization",
+            "compile time, draw GPU time, and texture resource memory"
+          ],
+          "visualReview": "Inspect full frame and named crops at 1:1 and enlarged scale for orientation, channel mapping, filtering, seams, alpha fringes, and missing-resource behavior. Review all supported slot interpretations separately.",
+          "temporalStability": "Static still-image sample is not temporally varying; inspect at fixed UV/resource across repeated frames for flicker or nondeterministic binding.",
+          "performance": "Compare baseline and candidate on the same device/build with warm-up and repeated samples; report median and spread for compile and draw plus resource memory. No budget is selected before a measured baseline.",
+          "acceptance": "Capture at least five identical baseline runs and characterize per-region measurement noise. Fix numeric tolerances and visual defect criteria before viewing candidate captures. Require no missing/non-finite output, intended channel/alpha response, reviewed color interpretation, and supported-backend results; absent runtime routes remain unverified, not passed.",
+          "notApplicableOrOpen": {
+            "HDR": "The RGBA8 probe cannot evaluate HDR range; add a separately hashed float texture fixture before HDR claims.",
+            "motionBlur": "No motion or animated sample parameter is involved; repeated-frame stability still applies.",
+            "knownLimits": [
+              "candidate has no resource runtime",
+              "sampler compatibility is not established",
+              "Core resource failure policy is not established"
+            ]
+          }
+        }
+      }
     }
   },
   "loweringIdentityContract": {

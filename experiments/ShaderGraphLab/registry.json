@@ -23,6 +23,156 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.texture.sample.base_color",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Base Color",
+      "category": "Texture",
+      "implementationId": "texture.sample.base_color",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.opacity",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Opacity",
+      "category": "Texture",
+      "implementationId": "texture.sample.opacity",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.emission",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Emission",
+      "category": "Texture",
+      "implementationId": "texture.sample.emission",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.metallic_roughness",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Metallic Roughness",
+      "category": "Texture",
+      "implementationId": "texture.sample.metallic_roughness",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.normal",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Normal",
+      "category": "Texture",
+      "implementationId": "texture.sample.normal",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.occlusion",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Occlusion",
+      "category": "Texture",
+      "implementationId": "texture.sample.occlusion",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.float32",
       "semanticVersion": 1,
       "displayName": "Float",
