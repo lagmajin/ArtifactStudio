@@ -6028,6 +6028,8 @@
         "vector4RampAlphaCanBeSelectedAsFloatOutput",
         "vector4RampFactorComesFromSurfaceUv0X",
         "multipleSourceContextNodesDeduplicateAndRemainOrderStable",
+        "hostContextAdapterChangesOnlyBackendExpression",
+        "hostContextAdapterRejectsMalformedAndMissingBindings",
         "rampStopsPersistExactlyThroughFileRoundTrip",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",

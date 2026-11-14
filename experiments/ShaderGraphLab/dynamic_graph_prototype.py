@@ -3214,7 +3214,26 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
     }
 
 
-def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Operation]) -> dict[str, Any]:
+def compile_document_from_data(
+    document: Any,
+    registry: dict[tuple[str, int], Operation],
+    *,
+    hlsl_context_bindings: dict[tuple[str, str], str] | None = None,
+) -> dict[str, Any]:
+    if hlsl_context_bindings is None:
+        context_binding_expressions = HLSL_SOURCE_CONTEXT_BINDINGS
+    else:
+        if not isinstance(hlsl_context_bindings, dict):
+            raise ContractError("host HLSL context bindings must be an object",
+                                code="shader.context.binding.invalid", path="/contextBindings")
+        context_binding_expressions = {}
+        for key, expression in hlsl_context_bindings.items():
+            if (not isinstance(key, tuple) or len(key) != 2 or
+                    not all(isinstance(part, str) and part for part in key) or
+                    not isinstance(expression, str) or not expression.strip()):
+                raise ContractError("host HLSL context binding is invalid",
+                                    code="shader.context.binding.invalid", path="/contextBindings")
+            context_binding_expressions[key] = expression
     _reject_code_payload(document)
     if (not isinstance(document, dict) or isinstance(document.get("schemaVersion"), bool) or
             not isinstance(document.get("schemaVersion"), int) or document.get("schemaVersion") not in (1, 2)):
@@ -3437,7 +3456,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         if implementation_id in SOURCE_CONTEXTS:
             context = SOURCE_CONTEXTS[implementation_id]
             context_key = (context["contextId"], context["component"])
-            hlsl_expression = HLSL_SOURCE_CONTEXT_BINDINGS.get(context_key)
+            hlsl_expression = context_binding_expressions.get(context_key)
             if hlsl_expression is None:
                 raise ContractError(f"source context {context_key} has no HLSL adapter binding",
                                     code="shader.context.binding.unsupported", path=f"/nodes/{node_id}")

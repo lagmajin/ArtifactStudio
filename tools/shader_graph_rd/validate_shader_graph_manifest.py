@@ -1766,6 +1766,27 @@ def validate(root: Path) -> list[str]:
             multi_context_document, dynamic_registry, "uv_sum", "result", "ramp", "factor")
         multi_context_candidate = dynamic_module.compile_document_from_data(
             multi_context_document, dynamic_registry)
+        alternate_context_candidate = dynamic_module.compile_document_from_data(
+            dynamic_vector4_ramp_document, dynamic_registry,
+            hlsl_context_bindings={
+                ("artifact.material.surface.uv0", "x"): "(MaterialInput.UV).x",
+            })
+        try:
+            dynamic_module.compile_document_from_data(
+                dynamic_vector4_ramp_document, dynamic_registry,
+                hlsl_context_bindings={"artifact.material.surface.uv0.x": "In.UV.x"})
+            malformed_context_binding_diagnostic = None
+        except dynamic_module.ContractError as error:
+            malformed_context_binding_diagnostic = {
+                key: error.to_json()[key] for key in ("code", "severity", "path")}
+        try:
+            dynamic_module.compile_document_from_data(
+                dynamic_vector4_ramp_document, dynamic_registry,
+                hlsl_context_bindings={})
+            missing_context_binding_diagnostic = None
+        except dynamic_module.ContractError as error:
+            missing_context_binding_diagnostic = {
+                key: error.to_json()[key] for key in ("code", "severity", "path")}
         reordered_multi_context_document = copy.deepcopy(multi_context_document)
         reordered_multi_context_document["nodes"].reverse()
         reordered_multi_context_document["links"].reverse()
@@ -2747,6 +2768,8 @@ def validate(root: Path) -> list[str]:
             "vector4RampAlphaCanBeSelectedAsFloatOutput": regenerated_vector4_ramp_alpha_candidate.get("outputType") == "Float" and dynamic_vector4_ramp_alpha_document.get("output") == {"nodeId": "ramp", "socketId": "alpha"} and "return n_ramp_alpha;" in regenerated_vector4_ramp_alpha_candidate.get("hlslBody", ""),
             "vector4RampFactorComesFromSurfaceUv0X": dynamic_vector4_ramp_document["nodes"][0].get("operationId") == "artifact.input.texcoord.uv0.x" and {"from": {"nodeId": "uv", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "factor"}} in dynamic_vector4_ramp_document.get("links", []) and "float n_uv_value = (In.UV).x;" in regenerated_vector4_ramp_candidate.get("hlslBody", "") and regenerated_vector4_ramp_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(In.UV).x", "nodeIds": ["uv"]}] and dynamic_contract.get("sourceContextBindings") == [{"implementationId": "float.uv0.x", "contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslCandidate": "(In.UV).x", "evidence": "ArtifactCore TexCoordNode lowers In.UV in the existing material graph path", "backendNeutral": False}] and "float2 {0}_UV = In.UV;" in dynamic_mixrgb_source,
             "multipleSourceContextNodesDeduplicateAndRemainOrderStable": multi_context_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(In.UV).x", "nodeIds": ["uv", "uv_second"]}] and multi_context_candidate["contextBindings"] == reordered_multi_context_candidate["contextBindings"] and multi_context_candidate["semanticHashSha256"] == reordered_multi_context_candidate["semanticHashSha256"] and multi_context_candidate["shaderStructureHashSha256"] == reordered_multi_context_candidate["shaderStructureHashSha256"] and multi_context_candidate["hlslBody"] == reordered_multi_context_candidate["hlslBody"],
+            "hostContextAdapterChangesOnlyBackendExpression": alternate_context_candidate["semanticHashSha256"] == regenerated_vector4_ramp_candidate["semanticHashSha256"] and alternate_context_candidate["shaderStructureHashSha256"] == regenerated_vector4_ramp_candidate["shaderStructureHashSha256"] and alternate_context_candidate["hlslBody"] != regenerated_vector4_ramp_candidate["hlslBody"] and "(MaterialInput.UV).x" in alternate_context_candidate["hlslBody"] and alternate_context_candidate["contextBindings"] == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(MaterialInput.UV).x", "nodeIds": ["uv"]}],
+            "hostContextAdapterRejectsMalformedAndMissingBindings": malformed_context_binding_diagnostic == {"code": "shader.context.binding.invalid", "severity": "error", "path": "/contextBindings"} and missing_context_binding_diagnostic == {"code": "shader.context.binding.unsupported", "severity": "error", "path": "/nodes/uv"},
             "rampStopsPersistExactlyThroughFileRoundTrip": ramp_roundtrip_saved_hash == ramp_roundtrip_loaded_hash == ramp_roundtrip_resaved_hash and ramp_roundtrip_resaved_document == dynamic_vector4_ramp_document and ramp_roundtrip_resaved_document["nodes"][1]["parameters"]["stops"] == ramp_stops_before_edit,
             "rampStopsEditIsBoundedFiniteAtomicAndUndoable": ramp_edited_document["nodes"][1]["parameters"]["stops"] == ramp_stops_after_edit and dynamic_vector4_ramp_document["nodes"][1]["parameters"]["stops"] == ramp_stops_before_edit and [item.get("code") if item else None for item in ramp_invalid_edits] == ["parameter.ramp_stops.invalid"] * 4 and ramp_session_before == ramp_session_undo and ramp_session_after == ramp_session_redo and ramp_session_after["nodes"][1]["parameters"]["stops"] == ramp_stops_after_edit,
             "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan": hashlib.sha256(dynamic_vector4_ramp_golden_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector4RampFormulaGoldenSha256") and dynamic_vector4_ramp_golden.get("sourceDocumentSha256") == dynamic_contract.get("vector4RampDocumentSha256") and dynamic_vector4_ramp_golden.get("factors") == [0.0, 0.4999, 0.5, 0.5001, 1.0] and dynamic_vector4_ramp_golden.get("cases", [])[2].get("selection") == {"kind": "segment", "leftAuthoredIndex": 2, "rightAuthoredIndex": 3} and dynamic_vector4_ramp_golden.get("cases", [])[2].get("color") == [0.0, 1.0, 0.0, 0.800000011920929] and (root / dynamic_contract.get("vector4RampFormulaGoldenGenerator", "")).is_file() and dynamic_contract.get("rampImageEvaluationPlan", {}).get("captureRoute") == "vulkan-meshrenderer-rgba32f-capture-source-added-not-run-candidate-injected-via-setMaterialGraphBlock" and dynamic_contract.get("rampImageEvaluationPlan", {}).get("comparison", "").startswith("legacy Core ColorRamp GPU output at all samples as a characterization baseline") and "repeat baseline captures five times" in dynamic_contract.get("rampImageEvaluationPlan", {}).get("acceptance", "") and dynamic_contract.get("rampImageEvaluationPlan", {}).get("captureConditions", {}).get("alpha") == "record raw alpha and composite the same capture over black and white",
