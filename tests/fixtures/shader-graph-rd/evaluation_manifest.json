@@ -6042,6 +6042,8 @@
         "vector2UvContextLowersAsTypedHostInput",
         "baseColorTextureHasTypedResourceAndExplicitUv",
         "textureResourceBindingIdentityIsSeparateFromShaderIdentity",
+        "genericImageResourceReferenceProjectsNodeScopedRequirement",
+        "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved",
         "textureBindingSourceAuditPinsStableAssetAndPathBoundary",
         "allSixMaterialTextureSlotsHaveDistinctTypedRequirements",
         "textureSampleConnectsToSeparateChannelsAndSelectsPackedChannels",
@@ -6382,6 +6384,40 @@
           "ArtifactCore/src/Graphics/MeshRenderer.cpp::material-slot path keyed texture reuse"
         ],
         "runtimeStatus": "fixture is a design proposal only; current document compiler rejects schemaVersion 4 and generic image2d operations"
+      },
+      "genericImageResourceReferencePrototype": {
+        "status": "candidate-source-only-runtime-unverified",
+        "prototype": "experiments/ShaderGraphLab/generic_image_resource_prototype.py",
+        "documentFixture": "tests/fixtures/shader-graph-rd/generic_image_resource_reference_proposal.json",
+        "assetCatalogFixture": "tests/fixtures/shader-graph-rd/generic_image_asset_catalog.json",
+        "candidateFixture": "experiments/ShaderGraphLab/generic_image_resource_candidate.json",
+        "generator": "tools/shader_graph_rd/generate_generic_image_resource_candidate.py",
+        "documentSha256": "41C170846C8C7875B1C7360C7463A835DA181B0E17E041F68F7B82E25FE896D9",
+        "assetCatalogSha256": "D425D2EE7148754CA3DB0358D96006027DD1DC461FF13E52C26CBA38C35F5890",
+        "prototypeSha256": "1217FB26B98CEA816DF55D00CF4E5DF821851B16DEC045C6509F2D35CCC90FC9",
+        "candidateSha256": "CC05893516108FFD842E47108D34FF6F118FB53260D0CA3DCF7247AA0C1103D1",
+        "supportedSubset": [
+          "schemaId artifact.shadergraph.document version 4",
+          "artifact.input.texcoord.uv0.vector2",
+          "artifact.texture.sample.image2d",
+          "explicit Vector2 UV links",
+          "stable document resourceId references to project Asset UUIDs",
+          "output-rooted active resource requirement projection",
+          "external synthetic Asset UUID to AssetType lookup"
+        ],
+        "provisionalBounds": {
+          "maxNodes": 4096,
+          "maxLinks": 16384,
+          "maxResources": 4096,
+          "status": "unprofiled-candidate-only"
+        },
+        "negativeContract": [
+          "invalid schema envelope, node/resource IDs, duplicate IDs, malformed UUIDs, unknown resource references, invalid sockets, type-mismatched links, multiple input writers, unconnected UV, and cycles return stable diagnostics",
+          "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
+          "non-Image catalog type rejects the resource binding"
+        ],
+        "identityBoundary": "typed resourceRequirements contain only symbolic resourceKey/resourceId/node identity; Asset UUID and catalog type are reported in a separate assetResolutions sidecar, so changing the selected asset does not alter shader structure identity; source revision, sampler settings, UV transform, color interpretation, GPU resource lifetime, and resource binding hash are deliberately not projected",
+        "runtimeStatus": "prototype candidate only; no project AssetDatabase lookup, HLSL generation, shader compilation, image load, GPU sampling, Core adapter, or runtime validation"
       }
     }
   },
