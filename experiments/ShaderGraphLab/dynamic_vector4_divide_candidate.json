@@ -1,6 +1,104 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "6708ADCEF3B3AE4950FB26E8231226F7DD57E64E0CD67B39407F9A60FC52494C",
+  "typedIRSemanticHashSha256": "4D943A9B9D49B9451142842BEB7AC940DDEDE73A05C28F2BAA56BDACDA5CFE2D",
+  "typedIR": {
+    "schemaId": "artifact.shadergraph.typed-ir",
+    "schemaVersion": 1,
+    "output": {
+      "nodeId": "quotient",
+      "socketId": "result",
+      "valueType": "Vector4"
+    },
+    "operations": [
+      {
+        "nodeId": "denominator",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "implementationId": "vector4.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Vector4"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Vector4F32",
+            "value": [
+              0.0,
+              -1.9999999494757503e-05,
+              1.9999999494757503e-05,
+              -2.0
+            ],
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "numerator",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "implementationId": "vector4.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Vector4"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Vector4F32",
+            "value": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "quotient",
+        "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+        "semanticVersion": 1,
+        "implementationId": "vector4.divide.positive_floor_1e5",
+        "inputs": [
+          {
+            "socketId": "a",
+            "valueType": "Vector4",
+            "required": true,
+            "producer": {
+              "nodeId": "numerator",
+              "socketId": "value"
+            }
+          },
+          {
+            "socketId": "b",
+            "valueType": "Vector4",
+            "required": true,
+            "producer": {
+              "nodeId": "denominator",
+              "socketId": "value"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "socketId": "result",
+            "valueType": "Vector4"
+          }
+        ],
+        "parameters": []
+      }
+    ],
+    "graphParameters": []
+  },
   "shaderStructureHashSha256": "6708ADCEF3B3AE4950FB26E8231226F7DD57E64E0CD67B39407F9A60FC52494C",
   "hlslBodySha256": "66E86351D51DA06673E49319F6C2480AEC9002884511A5E2BFE3EB74B46110A3",
   "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
@@ -19,6 +117,7 @@
   "limitations": [
     "prototype supports Float/Vector4 sockets and 25 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
     "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"

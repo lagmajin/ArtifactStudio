@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-11-13
+**最終更新:** 2026-11-15
 
 ### Offline UI 操作・キャプチャ
 - **M-UI-OFFLINE-1** オフライン・不可視 UI 操作／キャプチャ基盤（In Progress: hidden launcher、widget / GPU frame capture入口。runtime未検証）
@@ -9,7 +9,7 @@
   - 詳細: `docs/planned/MILESTONE_OFFLINE_UI_AUTOMATION_2026-11-13.md`
 
 ### Shader Graph R&D / Core Promotion
-- **M-SHADER-GRAPH-RD-1** Blender-style 3D material shader graph の評価と段階的 Core 昇格（In Progress: 既存試作の棚卸し・評価計画策定）
+- **M-SHADER-GRAPH-RD-1** Blender-style 3D material shader graph の評価と段階的 Core 昇格（In Progress: source-only dynamic prototype、typed IR sidecar、CPU/GPU capture source。Core統合・shader compile/runtime画像評価は未検証）
   - 既存 `ArtifactCore::ShaderNode::NodeGraph`、`ArtifactShaderGraphWidget`、`Material::materialGraphJson`、3D Raster shader 接続を基準実装として扱い、独立再実装しない
   - R0: graph schema／pin type／cycle・型検証／HLSL lowering／Material Output・fallback／保存互換性を静的監査。R1: deterministic fixtureと画像評価を追加し、既定Principled parity、ノード別応答、エラーfallback、保存往復を比較。R2: D3D12／Vulkan runtime・shader compile・GPU費用を測定。R3: 安定した値型 graph IR／validator／backend-neutral lowering APIをCore候補として抽出し、UI・Qt・GPU device所有をCoreから分離する
   - **画像評価計画:** baselineは現行固定Principled Raster出力と既存graph無効時出力。素材はUV checker＋球／平面、base color・metallic・roughness・normal・opacityの境界、HDR emission、透明背景を含む決定論fixture（出所・hash・seedを記録）。linear HDR float／同一露出・表示変換／同一alpha association／固定解像度で記録する。全体と境界・ハイライト・透明縁cropを目視し、分布（RGB/alpha、非有限・clip率）、baseline差分（MAE/RMSE/p99/max、閾値超過率）、ノード応答曲線、境界漏れを測る。Principled既定値はbaselineと許容差をR1比較前に確定し、任意グラフは期待応答を明記。時間安定性は静的グラフでは対象外（アニメーション値・動的入力導入時に追加）。Preview/final、D3D12/Vulkanを評価し、GPU時間・CPU compile時間・PSO/cache churn・VRAMをbaseline比較する。環境未使用は未検証。

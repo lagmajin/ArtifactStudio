@@ -29,6 +29,17 @@ pins each document/candidate/hash field tuple so a persisted graph cannot be
 silently dropped from regeneration. JSON results record the actual HLSL strings
 and semantic hashes.
 
+Successful lowering also returns a versioned `artifact.shadergraph.typed-ir`
+record and a canonical SHA-256 identity. It stores typed producer references,
+operation/version identity, parameter values or shared-parameter references,
+shared parameter values and bindings, typed outputs, and source-context
+identities. The IR contains no HLSL adapter expressions; changing the alternate
+UV host binding changes emitted HLSL without changing this typed record. This
+is an R&D sidecar, not a complete backend-neutral Core contract: defaults,
+resource operands, diagnostics,
+provenance separation, and runtime consumers remain open. Its manifest checks
+are source-defined and have not been executed.
+
 Generate the CPU-only Ramp image oracle with:
 
 ```powershell

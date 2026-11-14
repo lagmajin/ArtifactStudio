@@ -3439,6 +3439,7 @@ def compile_document_from_data(
         }
     expressions: dict[tuple[str, str], str] = {}
     context_bindings_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    typed_ir_operations: list[dict[str, Any]] = []
     hlsl_lines = []
     if parameter_block is not None:
         hlsl_lines.append("cbuffer ArtifactGraphParameters {")
@@ -3452,6 +3453,48 @@ def compile_document_from_data(
         operation = data["operation"]
         implementation_id = operation.implementation_id
         symbol = data["symbol"]
+        ir_inputs = []
+        for socket in operation.inputs:
+            producer = writers.get((node_id, socket.socket_id))
+            ir_inputs.append({
+                "socketId": socket.socket_id,
+                "valueType": socket.value_type,
+                "required": socket.required,
+                "producer": (None if producer is None else {
+                    "nodeId": producer[0],
+                    "socketId": producer[1],
+                }),
+            })
+        ir_parameters = []
+        for parameter in operation.parameters:
+            graph_parameter_id = data["graphParameterBindings"].get(parameter.parameter_id)
+            ir_parameters.append({
+                "parameterId": parameter.parameter_id,
+                "valueType": parameter.value_type,
+                "value": (None if graph_parameter_id is not None else
+                          data["parameters"][parameter.parameter_id]),
+                "graphParameterId": graph_parameter_id,
+            })
+        ir_operation = {
+            "nodeId": node_id,
+            "operationId": operation.operation_id,
+            "semanticVersion": operation.semantic_version,
+            "implementationId": implementation_id,
+            "inputs": ir_inputs,
+            "outputs": [
+                {"socketId": socket.socket_id, "valueType": socket.value_type}
+                for socket in operation.outputs
+            ],
+            "parameters": ir_parameters,
+        }
+        if implementation_id in SOURCE_CONTEXTS:
+            context = SOURCE_CONTEXTS[implementation_id]
+            ir_operation["sourceContext"] = {
+                "contextId": context["contextId"],
+                "component": context["component"],
+                "valueType": context["valueType"],
+            }
+        typed_ir_operations.append(ir_operation)
         output_id = operation.outputs[0].socket_id
         if implementation_id in SOURCE_CONTEXTS:
             context = SOURCE_CONTEXTS[implementation_id]
@@ -3611,6 +3654,28 @@ def compile_document_from_data(
             for item in sorted(active_graph_parameters, key=lambda item: item["parameterId"])
         ]
     canonical = json.dumps(semantic_projection, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    typed_ir = {
+        "schemaId": "artifact.shadergraph.typed-ir",
+        "schemaVersion": 1,
+        "output": {
+            "nodeId": output_node,
+            "socketId": output_socket,
+            "valueType": output_def.value_type,
+        },
+        "operations": typed_ir_operations,
+        "graphParameters": [
+            {
+                "parameterId": item["parameterId"],
+                "valueType": item["valueType"],
+                "value": item["value"],
+                "bindings": item["bindings"],
+            }
+            for item in sorted(active_graph_parameters, key=lambda item: item["parameterId"])
+        ],
+    }
+    typed_ir_canonical = json.dumps(
+        typed_ir, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
     structure_projection = json.loads(json.dumps(semantic_projection))
     for node in structure_projection["nodes"]:
         source_node = nodes[node["nodeId"]]
@@ -3657,6 +3722,8 @@ def compile_document_from_data(
     return {
         "status": "candidate-lowered-no-shader-runtime",
         "semanticHashSha256": hashlib.sha256(canonical).hexdigest().upper(),
+        "typedIRSemanticHashSha256": hashlib.sha256(typed_ir_canonical).hexdigest().upper(),
+        "typedIR": typed_ir,
         "shaderStructureHashSha256": hashlib.sha256(structure_canonical).hexdigest().upper(),
         "hlslBodySha256": hashlib.sha256(hlsl.encode("utf-8")).hexdigest().upper(),
         "parameterValuesHashSha256": hashlib.sha256(value_canonical).hexdigest().upper(),
@@ -3671,6 +3738,7 @@ def compile_document_from_data(
         "limitations": [
             f"prototype supports Float/Vector4 sockets and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+            "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
             "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence",

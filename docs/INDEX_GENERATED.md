@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-15 06:59
+> Generated: 2026-11-15 07:09
 > Total documents: 1499
 
 ---
@@ -1224,7 +1224,7 @@
 | 608 | `docs/planned/MILESTONE_SERIALIZATION_FRAMEWORK.md` | MILESTONE: Unified Serialization Framework | 2026-08-04 | --- | 2026-08-16 | 24.7 KB | SERIALIZATION, FRAMEWORK |
 | 609 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-08-16 | 5.1 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 610 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-08-16 | 8.0 KB | SETTINGS, SEARCH, FILTER |
-| 611 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-15 | In Progress | 2026-11-15 | 170.2 KB | SHADER, GRAPH, RND |
+| 611 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-15 | In Progress | 2026-11-15 | 171.4 KB | SHADER, GRAPH, RND |
 | 612 | `docs/planned/MILESTONE_SHAPE_DIFFERENTIATION_CONSIDERATIONS_2026-09-10.md` | Shape Differentiation: 検討案 (AE弱点の残り) | 2026-09-10 | --- | 2026-09-10 | 2.6 KB | SHAPE, DIFFERENTIATION, CONSIDERATIONS |
 | 613 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-08-04 | In Progress（Core生成とArtifactの型・描画・JSON・作成ツール・汎用SVG経路を接続。専用パラメータの完全分離とruntime検証は未完了） | 2026-11-10 | 13.4 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 614 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | In Progress | 2026-10-02 | 5.9 KB | SHAPE, LAYERS |
@@ -1367,7 +1367,7 @@
 | 751 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 3.8 KB | WORKSPACE, MANAGER |
 | 752 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-08-04 | --- | 2026-11-10 | 5.3 KB | WORKSPACE, PRESETS |
 | 753 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-11-10 | 5.9 KB | ZOOM, FIT |
-| 754 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-13 | --- | 2026-11-14 | 291.6 KB | BACKLOG |
+| 754 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-15 | --- | 2026-11-14 | 291.7 KB | BACKLOG |
 | 755 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-11-10 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 756 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 21.9 KB | DESIGN, NOTES |
 | 757 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |

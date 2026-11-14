@@ -1,6 +1,148 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
+  "typedIRSemanticHashSha256": "682BE76F7437C1C7FA12A4811784E04A35E2212A6F53AF19FE05893C1DDBC2A7",
+  "typedIR": {
+    "schemaId": "artifact.shadergraph.typed-ir",
+    "schemaVersion": 1,
+    "output": {
+      "nodeId": "result",
+      "socketId": "result",
+      "valueType": "Float"
+    },
+    "operations": [
+      {
+        "nodeId": "constant_a",
+        "operationId": "artifact.rd.constant.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Float32",
+            "value": 0.25,
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "constant_b",
+        "operationId": "artifact.rd.constant.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Float32",
+            "value": 0.5,
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "scale",
+        "operationId": "artifact.rd.constant.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Float32",
+            "value": 2.0,
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "sum",
+        "operationId": "artifact.rd.math.add.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.add",
+        "inputs": [
+          {
+            "socketId": "a",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "constant_a",
+              "socketId": "value"
+            }
+          },
+          {
+            "socketId": "b",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "constant_b",
+              "socketId": "value"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "socketId": "result",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": []
+      },
+      {
+        "nodeId": "result",
+        "operationId": "artifact.rd.math.multiply.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.multiply",
+        "inputs": [
+          {
+            "socketId": "a",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "sum",
+              "socketId": "result"
+            }
+          },
+          {
+            "socketId": "b",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "scale",
+              "socketId": "value"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "socketId": "result",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": []
+      }
+    ],
+    "graphParameters": []
+  },
   "shaderStructureHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
   "hlslBodySha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
   "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
@@ -21,6 +163,7 @@
   "limitations": [
     "prototype supports Float/Vector4 sockets and 25 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
     "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"

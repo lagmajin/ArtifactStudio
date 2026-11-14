@@ -1,6 +1,94 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "9635EBA46294E4BBC3A2235E55C19F1E3484CF70D11DBAC377C5B2768ED6DCDF",
+  "typedIRSemanticHashSha256": "9E007E0F04A84B8FCD3358E4B8F36DF2A149393CF49628BC6DA02AD1A7975862",
+  "typedIR": {
+    "schemaId": "artifact.shadergraph.typed-ir",
+    "schemaVersion": 1,
+    "output": {
+      "nodeId": "difference",
+      "socketId": "result",
+      "valueType": "Float"
+    },
+    "operations": [
+      {
+        "nodeId": "minuend",
+        "operationId": "artifact.rd.constant.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Float32",
+            "value": 0.75,
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "subtrahend",
+        "operationId": "artifact.rd.constant.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.constant",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "value",
+            "valueType": "Float32",
+            "value": 0.25,
+            "graphParameterId": null
+          }
+        ]
+      },
+      {
+        "nodeId": "difference",
+        "operationId": "artifact.rd.math.subtract.float32",
+        "semanticVersion": 1,
+        "implementationId": "float.subtract",
+        "inputs": [
+          {
+            "socketId": "a",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "minuend",
+              "socketId": "value"
+            }
+          },
+          {
+            "socketId": "b",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "subtrahend",
+              "socketId": "value"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "socketId": "result",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": []
+      }
+    ],
+    "graphParameters": []
+  },
   "shaderStructureHashSha256": "9635EBA46294E4BBC3A2235E55C19F1E3484CF70D11DBAC377C5B2768ED6DCDF",
   "hlslBodySha256": "A71F2C92FFDBC4EB3E2BB7FCCFFBE1E8F23A916D487D720BC3C85EDE9C909901",
   "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
@@ -19,6 +107,7 @@
   "limitations": [
     "prototype supports Float/Vector4 sockets and 25 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
     "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"

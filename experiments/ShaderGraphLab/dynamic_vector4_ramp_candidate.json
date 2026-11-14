@@ -1,6 +1,110 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "E8AFCA83EFE1AAAB4D3B78A86CC22302E625C81D17273AF60F630395930B1720",
+  "typedIRSemanticHashSha256": "D1ED3B1120733261C2C02FE3A9AB88873723EFD20CD07DCB29C623C18B6D69A1",
+  "typedIR": {
+    "schemaId": "artifact.shadergraph.typed-ir",
+    "schemaVersion": 1,
+    "output": {
+      "nodeId": "ramp",
+      "socketId": "color",
+      "valueType": "Vector4"
+    },
+    "operations": [
+      {
+        "nodeId": "uv",
+        "operationId": "artifact.input.texcoord.uv0.x",
+        "semanticVersion": 1,
+        "implementationId": "float.uv0.x",
+        "inputs": [],
+        "outputs": [
+          {
+            "socketId": "value",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [],
+        "sourceContext": {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "x",
+          "valueType": "Float"
+        }
+      },
+      {
+        "nodeId": "ramp",
+        "operationId": "artifact.color.ramp.linear_stops",
+        "semanticVersion": 1,
+        "implementationId": "vector4.ramp.linear_stops",
+        "inputs": [
+          {
+            "socketId": "factor",
+            "valueType": "Float",
+            "required": true,
+            "producer": {
+              "nodeId": "uv",
+              "socketId": "value"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "socketId": "color",
+            "valueType": "Vector4"
+          },
+          {
+            "socketId": "alpha",
+            "valueType": "Float"
+          }
+        ],
+        "parameters": [
+          {
+            "parameterId": "stops",
+            "valueType": "RampStops",
+            "value": [
+              {
+                "position": 0.0,
+                "color": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ]
+              },
+              {
+                "position": 0.5,
+                "color": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  0.20000000298023224
+                ]
+              },
+              {
+                "position": 0.5,
+                "color": [
+                  0.0,
+                  1.0,
+                  0.0,
+                  0.800000011920929
+                ]
+              },
+              {
+                "position": 1.0,
+                "color": [
+                  1.0,
+                  0.5,
+                  0.25,
+                  1.0
+                ]
+              }
+            ],
+            "graphParameterId": null
+          }
+        ]
+      }
+    ],
+    "graphParameters": []
+  },
   "shaderStructureHashSha256": "5F30521F8CF3244155E5306EA1C8C06E8F22B4D2E51D0CB14D10B345D4BAD1D6",
   "hlslBodySha256": "284DBFC2C10C8D08A20BFA1D119FC1B478B6DE612DB81E98D7C52704DF2BDF91",
   "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
@@ -28,6 +132,7 @@
   "limitations": [
     "prototype supports Float/Vector4 sockets and 25 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
     "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
