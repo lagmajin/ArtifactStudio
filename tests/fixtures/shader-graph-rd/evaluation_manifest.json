@@ -6042,6 +6042,7 @@
         "vector2UvContextLowersAsTypedHostInput",
         "baseColorTextureHasTypedResourceAndExplicitUv",
         "allSixMaterialTextureSlotsHaveDistinctTypedRequirements",
+        "textureSampleConnectsToSeparateChannelsAndSelectsPackedChannels",
         "vector2SocketsHaveDistinctCanvasColor",
         "optionalSocketDefaultIsEditableAndPersistedPerNode",
         "optionalVector4SocketDefaultSupportsLaneEditingAndDormantLinks",
@@ -6055,7 +6056,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
-        "candidateGeneratorIncludesAllFourteenPersistedGraphs",
+        "candidateGeneratorIncludesAllFifteenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
@@ -6301,8 +6302,18 @@
               "Core resource failure policy is not established"
             ]
           }
+        },
+        "packedMetallicRoughnessCharacterization": {
+          "sourceObserved": "the existing fixed PBR path reads B for metallic and G for roughness from its packed MetallicRoughness resource",
+          "graphCandidate": "a persisted UV0 → Metallic-Roughness Image Texture → Separate Channels graph selects G; the validator contract also lowers an alternate root selecting B",
+          "semanticBoundary": "Separate Channels exposes raw x/y/z/w lanes. The G/B to roughness/metallic meaning belongs to the consumer contract and is not baked into Image Texture.",
+          "status": "source-characterized-proposal-not-rendered"
         }
-      }
+      },
+      "textureChannelsDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_separate_channels.json",
+      "textureChannelsCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_separate_channels_candidate.json",
+      "textureChannelsCandidateSha256": "01A8185DCD2F82BDC29A9C26E654548BFA94C4ADF50A179F374AFBC424445253",
+      "textureChannelsDocumentSha256": "2B72DC2562CC4CFE488FCB45C239EA9F674B3CF0C0C1D71B619D557331A5C656"
     }
   },
   "loweringIdentityContract": {
