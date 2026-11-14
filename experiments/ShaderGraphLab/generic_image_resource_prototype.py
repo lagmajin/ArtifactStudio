@@ -167,6 +167,10 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
         _require(isinstance(source, dict) and set(source) == {"nodeId", "socketId"} and
                  isinstance(target, dict) and set(target) == {"nodeId", "socketId"},
                  "link endpoints are invalid", "link.endpoint.invalid", path)
+        _require(all(isinstance(value, str) for value in
+                     (source["nodeId"], source["socketId"], target["nodeId"], target["socketId"])),
+                 "link endpoint nodeId and socketId must be strings",
+                 "link.endpoint.invalid", path)
         source_key = (source["nodeId"], source["socketId"])
         target_key = (target["nodeId"], target["socketId"])
         _require(source_key in output_types, "link source socket is unavailable",
@@ -204,6 +208,9 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
     selected_output = document.get("output")
     _require(isinstance(selected_output, dict) and set(selected_output) == {"nodeId", "socketId"},
              "output must identify one output socket", "output.invalid", "/output")
+    _require(isinstance(selected_output["nodeId"], str) and
+             isinstance(selected_output["socketId"], str),
+             "output nodeId and socketId must be strings", "output.invalid", "/output")
     output_key = (selected_output["nodeId"], selected_output["socketId"])
     _require(output_key in output_types, "output socket is unavailable",
              "output.socket.missing", "/output")

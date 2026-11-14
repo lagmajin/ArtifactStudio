@@ -6044,6 +6044,7 @@
         "textureResourceBindingIdentityIsSeparateFromShaderIdentity",
         "genericImageResourceReferenceProjectsNodeScopedRequirement",
         "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved",
+        "genericImageResourceReferenceRejectsMalformedLinkEndpoints",
         "textureBindingSourceAuditPinsStableAssetAndPathBoundary",
         "allSixMaterialTextureSlotsHaveDistinctTypedRequirements",
         "textureSampleConnectsToSeparateChannelsAndSelectsPackedChannels",
@@ -6394,7 +6395,7 @@
         "generator": "tools/shader_graph_rd/generate_generic_image_resource_candidate.py",
         "documentSha256": "41C170846C8C7875B1C7360C7463A835DA181B0E17E041F68F7B82E25FE896D9",
         "assetCatalogSha256": "D425D2EE7148754CA3DB0358D96006027DD1DC461FF13E52C26CBA38C35F5890",
-        "prototypeSha256": "1217FB26B98CEA816DF55D00CF4E5DF821851B16DEC045C6509F2D35CCC90FC9",
+        "prototypeSha256": "EFFD5175A1D789D5649229EEFEC80977ECBC445DC11C08CB22F0D532626544FD",
         "candidateSha256": "CC05893516108FFD842E47108D34FF6F118FB53260D0CA3DCF7247AA0C1103D1",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
@@ -6413,6 +6414,7 @@
         },
         "negativeContract": [
           "invalid schema envelope, node/resource IDs, duplicate IDs, malformed UUIDs, unknown resource references, invalid sockets, type-mismatched links, multiple input writers, unconnected UV, and cycles return stable diagnostics",
+          "non-string link endpoint node/socket IDs reject with a stable diagnostic instead of leaking a Python type error",
           "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
           "non-Image catalog type rejects the resource binding"
         ],
