@@ -263,7 +263,11 @@
     const groups = new Map();
     for (const item of matching) { if (!groups.has(item.category)) groups.set(item.category, []); groups.get(item.category).push(item); }
     $('palette-empty').hidden=matching.length>0;
-    $('palette-items').innerHTML = [...groups].map(([category, items]) => `<div class="category">${esc(category)}</div>` + items.map(item => `<button class="palette-item" data-op="${esc(item.operationId)}" data-version="${item.semanticVersion}">${esc(item.label)}</button>`).join('')).join('');
+    const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?' (required)':''}`).join(', ')||'none';
+    $('palette-items').innerHTML = [...groups].map(([category, items]) => `<div class="category">${esc(category)}</div>` + items.map(item => {
+      const signature=`Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}`;
+      return `<button class="palette-item" data-op="${esc(item.operationId)}" data-version="${item.semanticVersion}" title="${esc(signature)}" aria-label="${esc(`${item.label}. ${signature}`)}">${esc(item.label)}</button>`;
+    }).join('')).join('');
     $('palette-items').querySelectorAll('[data-op]').forEach(button => button.onclick = () => {
       const op = state.palette.find(item => item.operationId === button.dataset.op && item.semanticVersion === Number(button.dataset.version));
       let nodeId;

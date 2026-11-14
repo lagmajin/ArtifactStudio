@@ -1766,6 +1766,21 @@ def validate(root: Path) -> list[str]:
                 return {key: error.to_json()[key] for key in ("code", "severity", "path")}
             return None
 
+        graph_limits = dynamic_contract.get("graphResourceLimits", {})
+        graph_limit_goldens = dynamic_contract.get("sourceGuardGoldens", {}).get("graphLimitDiagnostics", [])
+        oversized_nodes_document = copy.deepcopy(dynamic_document)
+        oversized_nodes_document["nodes"] = [{}] * (dynamic_module.MAX_GRAPH_NODES + 1)
+        oversized_nodes_validation = dynamic_module.validate_document_for_editing(
+            oversized_nodes_document, dynamic_registry)
+        oversized_nodes_compile_diagnostic = diagnostic_for(
+            lambda: dynamic_module.compile_document_from_data(oversized_nodes_document, dynamic_registry))
+        oversized_links_document = copy.deepcopy(dynamic_document)
+        oversized_links_document["links"] = [{}] * (dynamic_module.MAX_GRAPH_LINKS + 1)
+        oversized_links_validation = dynamic_module.validate_document_for_editing(
+            oversized_links_document, dynamic_registry)
+        oversized_links_compile_diagnostic = diagnostic_for(
+            lambda: dynamic_module.compile_document_from_data(oversized_links_document, dynamic_registry))
+
         graph_parameter_source = dynamic_module.edit_node_parameters(
             connected_graph, dynamic_registry, "source_left", {"value": 0.25})
         graph_parameter_source = dynamic_module.edit_node_parameters(
@@ -2571,6 +2586,9 @@ def validate(root: Path) -> list[str]:
             "vector4InvertCandidateLowersAllGoldenInputs": len(vector4_invert_golden_candidates) == len(invert_golden.get("cases", [])) == 7 and all(case_document["nodes"][0]["parameters"]["value"] == case.get("color") and case_document["nodes"][1]["parameters"]["value"] == case.get("factor") and candidate.get("outputType") == "Vector4" and "lerp(n_source_color_value" in candidate.get("hlslBody", "") and "saturate(n_source_factor_value)" in candidate.get("hlslBody", "") for case, case_document, candidate in vector4_invert_golden_candidates),
             "clampCandidateLowersAllSortedBoundsGoldenInputs": dynamic_clamp_candidate == regenerated_clamp_candidate and regenerated_clamp_candidate.get("outputType") == "Float" and "clamp(n_input_value_value, min(n_input_minimum_value, n_input_maximum_value), max(n_input_minimum_value, n_input_maximum_value))" in regenerated_clamp_candidate.get("hlslBody", "") and len(clamp_golden_candidates) == len(clamp_golden.get("cases", [])) == 7 and all(case_document["nodes"][0]["parameters"]["value"] == case.get("value") and case_document["nodes"][1]["parameters"]["value"] == case.get("minimum") and case_document["nodes"][2]["parameters"]["value"] == case.get("maximum") and candidate.get("outputType") == "Float" and "clamp(" in candidate.get("hlslBody", "") and ", min(" in candidate.get("hlslBody", "") and ", max(" in candidate.get("hlslBody", "") for case, case_document, candidate in clamp_golden_candidates),
             "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
+            "paletteEntriesExposeTypedSignatures": 'const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?\' (required)\':\'\'}`).join(\', \')||\'none\';' in local_ui_html_source and 'Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}' in local_ui_html_source and 'title="${esc(signature)}"' in local_ui_html_source and 'aria-label="${esc(`${item.label}. ${signature}`)}"' in local_ui_html_source,
+            "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
+            "graphLinkLimitRejectsBeforeLinkIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_links_validation["status"] == "invalid" and oversized_links_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_links_validation["diagnostics"]] == [graph_limit_goldens[1]["code"]] and oversized_links_compile_diagnostic == graph_limit_goldens[1],
             "registryRejectsScalarTypeConfusion": registry_diagnostics[3:] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryScalarTypeDiagnostics"),
             "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
             "malformedOperationVersionsStaySafeAtEditBoundary": malformed_version_edit_diagnostics == [dynamic_contract.get("sourceGuardGoldens", {}).get("malformedOperationVersionEditDiagnostic")] * 3 and malformed_version_validation_codes == [["node.operation.version.unsupported"]] * 3 and malformed_version_documents[0]["nodes"][0]["semanticVersion"] is True and malformed_version_documents[1]["nodes"][0]["semanticVersion"] == [] and malformed_version_documents[2]["nodes"][0]["semanticVersion"] == {} and all(document["nodes"][0]["parameters"] == {"value": 0.25} for document in malformed_version_documents),

@@ -5779,6 +5779,7 @@
     },
     "dynamicGraphPrototype": {
       "status": "source-only-prototype-no-Core-integration",
+      "graphResourceLimits": {"maxNodes": 4096, "maxLinks": 16384, "evidenceStatus": "provisional-unprofiled"},
       "prototype": "experiments/ShaderGraphLab/dynamic_graph_prototype.py",
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
@@ -5913,11 +5914,18 @@
         "vector4InvertCandidateLowersAllGoldenInputs",
         "clampCandidateLowersAllSortedBoundsGoldenInputs",
         "paletteSearchFiltersRegisteredOperations",
+        "paletteEntriesExposeTypedSignatures",
+        "graphNodeLimitRejectsBeforeNodeIndexing",
+        "graphLinkLimitRejectsBeforeLinkIndexing",
         "registryRejectsScalarTypeConfusion",
         "registryFileRejectsNestedValuesBeyondLimit",
         "malformedOperationVersionsStaySafeAtEditBoundary"
       ],
       "sourceGuardGoldens": {
+        "graphLimitDiagnostics": [
+          {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
+          {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"}
+        ],
         "registryScalarTypeDiagnostics": [
           {"code": "operation.implementation.unsupported", "severity": "error", "path": "/operations/0/implementationId"},
           {"code": "socket.type.unsupported", "severity": "error", "path": "/operations/0/outputs/0/valueType"}

@@ -33,6 +33,8 @@ BUILTIN_IMPLEMENTATIONS = {
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
+MAX_GRAPH_NODES = 4096
+MAX_GRAPH_LINKS = 16384
 FORBIDDEN_CODE_FIELDS = {"hlsl", "source", "code", "expression", "python", "shadersource"}
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 
@@ -233,6 +235,22 @@ class ContractError(ValueError):
             "path": self.path,
             "message": str(self),
         }
+
+
+def graph_collection_limit_issues(nodes: list[Any], links: list[Any]) -> list[dict[str, str]]:
+    """Return bounded graph-shape diagnostics before indexing node/link records."""
+    issues = []
+    if len(nodes) > MAX_GRAPH_NODES:
+        issues.append({
+            "code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes",
+            "message": f"document has {len(nodes)} nodes; prototype limit is {MAX_GRAPH_NODES}",
+        })
+    if len(links) > MAX_GRAPH_LINKS:
+        issues.append({
+            "code": "graph.links.limit_exceeded", "severity": "error", "path": "/links",
+            "message": f"document has {len(links)} links; prototype limit is {MAX_GRAPH_LINKS}",
+        })
+    return issues
 
 
 def validate_parameter_block_contracts(parameter_blocks: Any) -> None:
@@ -2846,6 +2864,11 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
         diagnostics.sort(key=lambda item: (0 if item["severity"] == "error" else 1, item["path"], item["code"]))
         return {"status": "invalid", "repairable": repairable, "compilationAvailable": False,
                 "diagnostics": diagnostics, "semanticHashSha256": None}
+    diagnostics.extend(graph_collection_limit_issues(raw_nodes, raw_links))
+    if any(item["severity"] == "error" for item in diagnostics):
+        diagnostics.sort(key=lambda item: (0 if item["severity"] == "error" else 1, item["path"], item["code"]))
+        return {"status": "invalid", "repairable": repairable, "compilationAvailable": False,
+                "diagnostics": diagnostics, "semanticHashSha256": None}
 
     node_by_id: dict[str, tuple[int, Operation, dict[str, Any]]] = {}
     canonical_node_parameters: dict[str, dict[str, float | list[float]]] = {}
@@ -3121,6 +3144,10 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
     raw_nodes, raw_links = document.get("nodes"), document.get("links")
     if not isinstance(raw_nodes, list) or not isinstance(raw_links, list):
         raise ContractError("document nodes and links must be arrays", code="schema.collection.required", path="/nodes" if not isinstance(raw_nodes, list) else "/links")
+    graph_limit_issues = graph_collection_limit_issues(raw_nodes, raw_links)
+    if graph_limit_issues:
+        issue = graph_limit_issues[0]
+        raise ContractError(issue["message"], code=issue["code"], path=issue["path"])
 
     nodes: dict[str, dict[str, Any]] = {}
     node_indices: dict[str, int] = {}
