@@ -5581,7 +5581,7 @@
       "resourceRequirements": "operations declare symbolic requirements; renderer adapter resolves assets, revisions, samplers, color interpretation, and backend bindings",
       "loweringResult": "all reachable operations must lower or return one diagnostic result with no partial IR/source/hash",
       "hashBoundary": "typed IR hash includes operation IDs/versions, stable typed edges, canonical parameters/defaults, selected output, and compile-time specialization; excludes layout, UI labels, diagnostics, and nonsemantic opaque fields",
-      "dynamicRegistration": "new operation support requires a registered immutable semantic record and lowering implementation; arbitrary runtime code or HLSL strings are not executable registry payload",
+      "dynamicRegistration": "graph documents dynamically instantiate versioned operation IDs from declarative immutable definitions that drive palette/socket/parameter metadata; each definition selects a closed trusted implementation ID, never executable source or HLSL payload; a new algorithm requires a reviewed native implementation and semantic version change",
       "runtimeStatus": "design-candidate-not-implemented-or-runtime-verified"
     },
     "operationRegistryAudit": {
@@ -5776,6 +5776,168 @@
       "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
       "sha256": "2F4E04303CFE9AEC030274B3CB331B1AA77EC0D658D9B902FB4EE2EDAAE03187",
       "legacyNode": "MapRange"
+    },
+    "dynamicGraphPrototype": {
+      "status": "source-only-prototype-no-Core-integration",
+      "prototype": "experiments/ShaderGraphLab/dynamic_graph_prototype.py",
+      "registryFixture": "experiments/ShaderGraphLab/registry.json",
+      "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
+      "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
+      "candidateSha256": "DE557DDCF186D889D955421A57C2114A171AF3A1414AABF36CFF986C653BE04E",
+      "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
+      "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
+      "subtractCandidateSha256": "5A48B5D8893D2F37FD21AC24C12828B343DA63B0C7B7520E2E110A99887B8F93",
+      "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
+      "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
+      "supportedImplementationIds": [
+        "float.constant",
+        "vector4.constant",
+        "float.add",
+        "float.subtract",
+        "float.multiply",
+        "vector4.add",
+        "vector4.multiply",
+        "float.replicate.rgb_alpha_one",
+        "vector4.extract_x"
+      ],
+      "contractChecks": [
+        "layoutExcludedFromSemanticIdentity",
+        "implementationSelectionChangesSemanticIdentity",
+        "layoutEditIsValidatedAndSemanticallyNeutral",
+        "layoutBatchIsAtomicAndSemanticallyNeutral",
+        "layoutBatchCanonicalizesAndUndoRedoRestores",
+        "canonicalDocumentSerializationIsStable",
+        "strictJsonRejectsDuplicateKeysAndNonFiniteConstants",
+        "commandSnapshotsRejectCyclesAndBoundNesting",
+        "registryRejectsUnknownFieldsAndDuplicateIdentities",
+        "documentFileRoundTripIsCanonicalAndAtomic",
+        "unknownSchemaStaysEditableButCannotCompile",
+        "nodeAndLinkOrderDeterministic",
+        "unreachableNodeExcludedFromSemanticOutput",
+        "knownDocumentPreservedExactly",
+        "unknownVersionAndLinksRemainRepairable",
+        "restoredOperationDefinitionReenablesSavedGraph",
+        "unknownVersionPayloadPreserved",
+        "opaquePayloadSurvivesSaveLoadEditAndResave",
+        "unknownOutputStaysRepairableUntilExplicitReplacement",
+        "unknownVersionDiagnosedWithoutMutation",
+        "knownNodeEditableWithOpaqueNodeAndLinkPresent",
+        "undoRedoPreservesOpaqueGraphPayload",
+        "registryPresentationChangeIsCompatible",
+        "paletteHasStableDistinctIDsForDuplicateLabels",
+        "paletteNodeCanBeAddedAndCompletedThroughTypedLinks",
+        "batchLinkEditingIsAtomicAndTyped",
+        "compositeAddConnectOutputEditIsOneUndoableCommand",
+        "transactionAuthorsGraphFromEmptyDocumentAsOneUndoableCommand",
+        "localUiSessionActionsStayAtomicAndUndoable",
+        "operationReplacementPreservesCompatibleLinksAndHistory",
+        "localUiHttpRoutesHandleStateEditAndReject",
+        "instantiatedNodeUsesDeclaredParameterDefault",
+        "editingParameterChangesSemanticOutput",
+        "graphParametersExposeShareAndEditTypedNodeValues",
+        "parameterEditsRejectAtomically",
+        "vector4ConstantParametersCanonicalizeAndLower",
+        "vector4ArithmeticLowersComponentwiseWithTypedLinks",
+        "explicitScalarVectorConversionsAreTypedAndDeterministic",
+        "typedLinkEditingBuildsCompilableGraph",
+        "editingValidatorAcceptsCompilableGraph",
+        "editingValidatorReportsRequiredInputsAsWarnings",
+        "editingValidatorKeepsStructuralFailuresAsErrors",
+        "editingValidatorAggregatesIndependentIssues",
+        "outputSelectionChangesActiveRoot",
+        "nodeDeleteRemovesIncidentLinksAndUndoRestores",
+        "selectedOutputDeleteRequiresAndUsesExplicitReplacement",
+        "outputSelectionRejectsUnknownSocket",
+        "disconnectRemovesOnlyAddressedLink",
+        "batchDisconnectPreflightsAllEdgesAtomically",
+        "disconnectMissingLinkIsNonDestructive",
+        "undoRedoRoundTripsExactGraphPayload",
+        "staleUndoIsRejected",
+        "batchTransactionIsAtomicAndUndoable",
+        "commandGroupingRequiresContiguousHistory",
+        "linkEditorRejectsInvalidEndpointsAndWriters",
+        "linkEditorRejectsTypeMismatchAndCycle",
+        "sameVersionSemanticContractChangeDetected",
+        "operationLockDetectsParameterDefaultAndRequirednessDrift",
+        "removedOperationDetected",
+        "newVersionCanBeAddedAlongsidePinnedVersion",
+        "explicitIdentityMigrationChangesPinWithoutChangingShader",
+        "missingPinnedVersionDoesNotSilentlyUpgrade",
+        "semanticMigrationRequiresExplicitTransform",
+        "migrationRejectsDefaultRequirednessAndIdentityChanges",
+        "registryContractLockPersistsAndAllowsPresentationChanges",
+        "sealedGraphRejectsSameVersionContractDrift",
+        "unsupportedSchemaVersionRejected",
+        "unsupportedDocumentKindRejected",
+        "requiredLinkArrayRejected",
+        "unsupportedOperationVersionRejected",
+        "multipleInputWritersRejected",
+        "cyclesRejectedBeforeOutputPruning",
+        "requiredInputEnforced",
+        "sanitizedIdentifierCollisionRejected",
+        "nonFiniteBinary32ParameterRejected",
+        "inlineShaderSourceRejected",
+        "socketTypeMismatchRejected"
+      ],
+      "registrySha256": "9346269F0F2EE2C22A90E3C744807D1E4A3C40D62C9A2C1C5C829469087D0025",
+      "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
+      "diagnosticGoldens": {
+        "unsupportedSchemaVersionRejected": {
+          "code": "schema.version.unsupported",
+          "severity": "error",
+          "path": "/schemaVersion"
+        },
+        "unsupportedDocumentKindRejected": {
+          "code": "document.kind.unsupported",
+          "severity": "error",
+          "path": "/kind"
+        },
+        "requiredLinkArrayRejected": {
+          "code": "schema.collection.required",
+          "severity": "error",
+          "path": "/links"
+        },
+        "unsupportedOperationVersionRejected": {
+          "code": "node.operation.version.unsupported",
+          "severity": "error",
+          "path": "/nodes/0/semanticVersion"
+        },
+        "multipleInputWritersRejected": {
+          "code": "link.input.multiple_writers",
+          "severity": "error",
+          "path": "/links/4/to"
+        },
+        "cyclesRejectedBeforeOutputPruning": {
+          "code": "graph.cycle",
+          "severity": "error",
+          "path": "/links"
+        },
+        "requiredInputEnforced": {
+          "code": "node.input.required_unconnected",
+          "severity": "error",
+          "path": "/nodes/2/inputs/a"
+        },
+        "sanitizedIdentifierCollisionRejected": {
+          "code": "node.identifier.backend_collision",
+          "severity": "error",
+          "path": "/nodes/5/nodeId"
+        },
+        "nonFiniteBinary32ParameterRejected": {
+          "code": "parameter.float32.invalid",
+          "severity": "error",
+          "path": "/nodes/0/parameters/value"
+        },
+        "inlineShaderSourceRejected": {
+          "code": "registry.payload.executable_forbidden",
+          "severity": "error",
+          "path": "/operations/0/HLSL"
+        },
+        "socketTypeMismatchRejected": {
+          "code": "link.type.incompatible",
+          "severity": "error",
+          "path": "/links/0"
+        }
+      }
     }
   },
   "loweringIdentityContract": {

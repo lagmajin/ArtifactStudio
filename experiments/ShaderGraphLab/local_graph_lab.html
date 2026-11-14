@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shader Graph Lab</title>
+  <style>
+    :root { color-scheme: dark; font: 14px/1.4 "Segoe UI", sans-serif; background: #17191d; color: #e6e8ec; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: grid; grid-template-rows: 48px 1fr; overflow: hidden; }
+    button, input { color: inherit; font: inherit; }
+    button { border: 1px solid #414650; background: #292d34; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+    button:hover { background: #363c46; border-color: #738096; }
+    button:disabled { opacity: .42; cursor: default; }
+    header { display: flex; align-items: center; gap: 9px; padding: 0 12px; border-bottom: 1px solid #383c44; background: #202329; }
+    header strong { margin-right: auto; letter-spacing: .2px; }
+    #status { color: #aeb5c1; font-size: 12px; max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    main { min-height: 0; display: grid; grid-template-columns: 210px minmax(360px, 1fr) 330px; }
+    aside { min-height: 0; overflow: auto; background: #202329; padding: 12px; }
+    #palette { border-right: 1px solid #383c44; }
+    #inspector { border-left: 1px solid #383c44; }
+    h2 { margin: 2px 0 10px; color: #b9c0cb; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .category { margin: 14px 0 6px; color: #8f9baa; font-size: 11px; text-transform: uppercase; }
+    .palette-item { width: 100%; margin: 3px 0; text-align: left; }
+    #node-search { width: 100%; margin: 12px 0 5px; padding: 5px 7px; color: inherit; background: #1c1f24; border: 1px solid #454b55; border-radius: 3px; }
+    #node-index { display: grid; gap: 3px; max-height: 34vh; overflow: auto; }
+    .node-index-item { width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .node-index-item.selected { border-color: #e7bd62; color: #f0d48f; }
+    #workspace-wrap { overflow: auto; position: relative; background-color: #191b20; background-image: radial-gradient(#343841 1px, transparent 1px); background-size: 20px 20px; outline: none; }
+    #workspace-wrap:focus-visible { box-shadow: inset 0 0 0 2px #7aa6e8; }
+    #workspace { position: relative; width: 1800px; height: 1200px; transform: scale(1); transform-origin: 0 0; }
+    #workspace-wrap.pan-ready { cursor: grab; }
+    #workspace-wrap.panning { cursor: grabbing; user-select: none; }
+    #wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .wire { fill: none; stroke-width: 3; opacity: .84; }
+    .wire.Float { stroke: #dda94b; } .wire.Vector4 { stroke: #bb75d2; }
+    .node { position: absolute; width: 220px; min-height: 112px; border: 1px solid #555c68; border-radius: 7px; background: #282c33; box-shadow: 0 8px 18px #0006; }
+    .node.active-output { border-color: #7aa6e8; box-shadow: 0 0 0 1px #7aa6e8, 0 8px 18px #0006; }
+    .node.selected { outline: 2px solid #e7bd62; outline-offset: 2px; }
+    .node-title { cursor: grab; user-select: none; background: #343943; padding: 7px 9px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .node-title:active { cursor: grabbing; }
+    .node-id { color: #a9b1bd; font: 11px/1.2 Consolas, monospace; }
+    .node-body { padding: 7px 9px 9px; }
+    .socket-row { display: flex; align-items: center; justify-content: space-between; min-height: 25px; gap: 6px; }
+    .socket-row.missing-required .socket-label { color: #e3a09a; }
+    .socket-row.missing-required .socket { outline: 1px solid #e3a09a; outline-offset: 2px; }
+    .socket-label { display: flex; align-items: center; gap: 6px; color: #c7cbd2; }
+    .socket { width: 11px; height: 11px; padding: 0; border-radius: 50%; flex: 0 0 11px; background: #545d69; }
+    .socket.Float { background: #dda94b; border-color: #f1ca79; }
+    .socket.Vector4 { background: #bb75d2; border-color: #dda8ed; }
+    .socket.pending { outline: 2px solid #f4d06f; outline-offset: 3px; }
+    .socket.compatible { box-shadow: 0 0 0 3px #62c99a; }
+    .socket.blocked { opacity: .3; }
+    .param { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; color: #aeb5c1; margin: 5px 0; font-size: 12px; }
+    .param input { min-width: 0; border: 1px solid #454b55; border-radius: 3px; background: #1c1f24; padding: 4px 5px; }
+    .vector-inputs { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+    .graph-parameter { padding: 5px 0 8px; border-bottom: 1px solid #383c44; }
+    .parameter-binding { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 0 58px; color: #a3aab6; font-size: 11px; }
+    .parameter-binding button { padding: 2px 6px; font-size: 11px; }
+    dialog { width: min(420px, calc(100vw - 32px)); color: #e6e8ec; background: #202329; border: 1px solid #555c68; border-radius: 7px; box-shadow: 0 16px 48px #000a; }
+    #reload-dialog { width: min(900px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; }
+    #reload-node-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 120px; overflow: auto; }
+    #reload-node-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #reload-node-diff pre { max-height: 38vh; margin: 4px 0; overflow: auto; }
+    dialog::backdrop { background: #08090bbf; }
+    dialog h2 { margin: 2px 0 14px; }
+    dialog label { display: grid; gap: 5px; margin: 10px 0; color: #b9c0cb; }
+    dialog input, dialog select { width: 100%; color: inherit; background: #1c1f24; border: 1px solid #454b55; border-radius: 3px; padding: 6px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .small { font-size: 11px; color: #a3aab6; }
+    pre { margin: 8px 0; padding: 9px; overflow: auto; white-space: pre; border: 1px solid #3c414a; border-radius: 4px; background: #181a1f; color: #d4dbe6; font: 12px/1.5 Consolas, monospace; }
+    #diagnostics { display: grid; gap: 4px; }
+    .diagnostic-item { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; color: #e2a29a; font-size: 11px; }
+    .output-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+    #selection { color: #b4bdca; white-space: pre-line; }
+    @media (max-width: 950px) { main { grid-template-columns: 170px minmax(300px, 1fr); } #inspector { display:none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Shader Graph Lab <span class="small">R&amp;D</span></strong>
+    <span id="status" role="status" aria-live="polite">Connecting…</span>
+    <button id="zoom-out" title="Zoom out">−</button><span id="zoom-label" class="small">100%</span><button id="zoom-in" title="Zoom in">+</button><button id="zoom-reset" title="Reset zoom">100%</button><button id="focus-node" title="Focus selected node or graph output">Focus</button><button id="frame-all" title="Fit all nodes in the canvas">Frame All</button><button id="arrange-nodes" title="Arrange selected nodes by graph flow; with no selection, arrange all nodes">Arrange</button><select id="layout-mode" title="Align two nodes or distribute three or more nodes"><option value="align_x">Align left</option><option value="align_y">Align top</option><option value="distribute_x">Distribute horizontally</option><option value="distribute_y">Distribute vertically</option></select><button id="apply-layout" title="Apply layout to selected nodes">Apply</button><button id="copy-selected" title="Copy selected subgraph">Copy</button><button id="paste-subgraph" title="Paste subgraph">Paste</button><button id="duplicate-selected" title="Duplicate selected nodes and internal links">Duplicate</button><button id="delete-selected" title="Delete selected nodes">Delete Selected</button>
+    <button id="undo">Undo</button><button id="redo">Redo</button><button id="download-json" title="Download the current graph document as JSON">Download JSON</button><button id="save">Save</button><button id="reload-document" disabled title="Reload is available after an external file change">Reload File</button>
+  </header>
+  <main>
+    <aside id="palette"><h2>Node Palette</h2><div id="palette-items"></div><h2 style="margin-top:18px">Graph Nodes</h2><input id="node-search" type="search" placeholder="Find node by name or ID" aria-label="Find graph node"><div id="node-index"></div><p class="small">Add a node, then click an output socket and an input socket to connect. Shift-click node titles to select several; drag any selected title to move them together. Pan with the middle mouse button or hold Space and drag.</p><p class="small">Canvas keys: Ctrl/Cmd+C copy · Ctrl/Cmd+V paste · Ctrl/Cmd+D duplicate · Delete remove · Ctrl/Cmd+A select all · Ctrl/Cmd+Z undo · Shift+Ctrl/Cmd+Z redo · F focus.</p></aside>
+    <section id="workspace-wrap" tabindex="0" aria-label="Shader graph canvas"><div id="workspace"><svg id="wires"></svg><div id="nodes"></div></div></section>
+    <aside id="inspector"><h2>Graph Parameters</h2><div id="graph-parameters"><span class="small">Expose node values to tune this graph.</span></div><h2 style="margin-top:22px">Graph</h2><div id="selection">Select a node or graph output.</div><h2 style="margin-top:22px">HLSL Candidate</h2><pre id="hlsl">—</pre><div id="diagnostics" aria-label="Graph diagnostics"></div><p class="small">Text candidate only. No HLSL compiler or GPU is invoked.</p></aside>
+  </main>
+  <dialog id="expose-dialog" aria-labelledby="expose-title">
+    <form id="expose-form">
+      <h2 id="expose-title">Expose Parameter</h2>
+      <p id="expose-context" class="small"></p>
+      <label>Target graph parameter
+        <select id="expose-target"><option value="">Create a new graph parameter</option></select>
+      </label>
+      <div id="expose-new-fields">
+        <label>Stable parameter ID<input id="expose-id" required pattern="[A-Za-z_][A-Za-z0-9_.-]*"></label>
+        <label>Display label<input id="expose-label" required></label>
+      </div>
+      <div class="dialog-actions"><button type="button" id="expose-cancel">Cancel</button><button type="submit" id="expose-submit">Expose</button></div>
+    </form>
+  </dialog>
+  <dialog id="replace-dialog" aria-labelledby="replace-title">
+    <form id="replace-form">
+      <h2 id="replace-title">Replace Node Operation</h2>
+      <p id="replace-context" class="small"></p>
+      <label>Compatible operation
+        <select id="replace-target" required></select>
+      </label>
+      <p class="small">Socket links and compatible parameter values stay attached. The operation changes shader meaning; this replacement is one Undo step.</p>
+      <div class="dialog-actions"><button type="button" id="replace-cancel">Cancel</button><button type="submit" id="replace-submit">Replace</button></div>
+    </form>
+  </dialog>
+  <dialog id="delete-output-dialog" aria-labelledby="delete-output-title">
+    <form id="delete-output-form">
+      <h2 id="delete-output-title">Choose Replacement Output</h2>
+      <p id="delete-output-context" class="small"></p>
+      <label>Surviving node output
+        <select id="delete-output-target" required></select>
+      </label>
+      <p class="small">The selected output node will be removed along with its links and parameter bindings. The chosen output becomes active in the same Undo step.</p>
+      <div class="dialog-actions"><button type="button" id="delete-output-cancel">Cancel</button><button type="submit">Delete and switch output</button></div>
+    </form>
+  </dialog>
+  <dialog id="reload-dialog" aria-labelledby="reload-title">
+    <form id="reload-form">
+      <h2 id="reload-title">Reload changed file?</h2>
+      <p>The file on disk changed after this session started. Review the summary below. Reloading replaces the current graph and clears its Undo history. Download JSON first if you want to keep these edits.</p>
+      <pre id="reload-diff" role="status" aria-live="polite">Loading disk comparison…</pre>
+      <p class="small">Select a changed node ID to inspect its local and disk JSON.</p>
+      <div id="reload-node-list"></div>
+      <div id="reload-node-diff" hidden><section><strong>Local session</strong><pre id="reload-local-node"></pre></section><section><strong>Disk file</strong><pre id="reload-disk-node"></pre></section></div>
+      <div class="dialog-actions"><button type="button" id="reload-cancel">Cancel</button><button type="submit" id="reload-submit" disabled>Reload and discard edits</button></div>
+    </form>
+  </dialog>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const workspace = $('workspace'), nodesEl = $('nodes'), wires = $('wires');
+  const exposeDialog = $('expose-dialog');
+  let state = null, selected = null, selectedNodes = new Set(), nodeSearch = '', pendingSocket = null, pendingDeleteAction = null, serial = 1, drag = null, pan = null, spaceDown = false, zoomLevel = 1, actionQueue = Promise.resolve();
+  const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const validNodeId = value => typeof value==='string'&&/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(value);
+  const operationFor = node => node&&state.palette.find(op => op.operationId === node.operationId && op.semanticVersion === node.semanticVersion);
+  const documentNodes = () => Array.isArray(state.document.nodes)?state.document.nodes:[];
+  const documentLinks = () => Array.isArray(state.document.links)?state.document.links:[];
+  const graphOutput = () => state.document.output&&typeof state.document.output==='object'?state.document.output:{};
+  const nodePosition = node => ({x:Number(node&&node.layout&&node.layout.x)||0,y:Number(node&&node.layout&&node.layout.y)||0});
+  const isStateEnvelope = payload => {
+    const history=payload?.history, validation=payload?.validation, compilation=payload?.compilation;
+    const isDiagnosticList=value=>Array.isArray(value)&&value.every(item=>item&&typeof item==='object'&&
+      typeof item.code==='string'&&typeof item.severity==='string'&&
+      typeof item.path==='string'&&typeof item.message==='string');
+    const hasCompilationReport=!!compilation&&(
+      isDiagnosticList(compilation.diagnostics)||
+      (Array.isArray(compilation.warnings)&&compilation.warnings.every(item=>typeof item==='string')));
+    return !!payload&&!!payload.document&&typeof payload.document==='object'&&Array.isArray(payload.palette)&&
+      !!validation&&isDiagnosticList(validation.diagnostics)&&hasCompilationReport&&
+      typeof compilation.status==='string'&&!!history&&
+      typeof history.canUndo==='boolean'&&typeof history.canRedo==='boolean'&&
+      Number.isInteger(history.commandCount)&&Number.isInteger(history.payloadBytes)&&
+      typeof history.truncated==='boolean'&&typeof payload.documentHash==='string'&&
+      typeof payload.isDirty==='boolean'&&typeof payload.saveConflict==='boolean'&&
+      (payload.documentPath===null||typeof payload.documentPath==='string');
+  };
+  const isActionEnvelope = payload => isStateEnvelope(payload)&&typeof payload.ok==='boolean';
+  const diagnosticText = diagnostics => Array.isArray(diagnostics)
+    ? diagnostics.filter(item=>item&&typeof item.code==='string'&&typeof item.message==='string')
+      .map(item=>`${item.code}${typeof item.path==='string'?` ${item.path}`:''}: ${item.message}`).join(' · ')
+    : '';
+  const refreshState = async () => {
+    const response=await fetch('/api/state');
+    if(!response.ok) return false;
+    const payload=await response.json();
+    if(!isStateEnvelope(payload)) return false;
+    state=payload; render();
+    return true;
+  };
+  const postRequest = async (action,focusIdentity) => {
+    try {
+      const response = await fetch('/api/action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(action)});
+      const payload = await response.json();
+      if (!isActionEnvelope(payload)) {
+        const diagnosticMessage=diagnosticText(payload?.diagnostics);
+        try { await refreshState(); } catch (_) {}
+        $('status').textContent=diagnosticMessage||`Server returned an incomplete state (${response.status})`;
+        return null;
+      }
+      state = payload;
+      if (payload.ok) {
+        if (action.type==='add') setSelectedNode(action.nodeId);
+        else if (action.type==='connect') setSelectedNode(action.toNode);
+        else if (action.type==='output') setSelectedNode(action.nodeId);
+        else if (action.type==='duplicateBatch') {
+          selectedNodes=new Set(action.duplicates.map(item=>item.nodeId)); selected=[...selectedNodes][0]||null; syncSelection();
+        }
+        else if (action.type==='pasteSubgraph') setSelectedNodes(Object.values(action.newNodeIds));
+        else if (action.type==='reloadDocument') { selectedNodes.clear(); selected=null; pendingSocket=null; }
+        else if (action.type==='delete'||action.type==='deleteBatch') {
+          const deleted=action.type==='delete'?[action.nodeId]:action.nodeIds;
+          for (const nodeId of deleted) selectedNodes.delete(nodeId);
+          if (selected!==null&&!selectedNodes.has(selected)) selected=[...selectedNodes][0]||null;
+          syncSelection();
+        } else if (['undo','redo'].includes(action.type)) {
+          const liveIds=new Set(documentNodes().filter(node=>node&&typeof node.nodeId==='string').map(node=>node.nodeId));
+          selectedNodes=new Set([...selectedNodes].filter(id=>liveIds.has(id)));
+          if (!liveIds.has(selected)) selected=[...selectedNodes][0]||null;
+          syncSelection();
+        }
+        if (['undo','redo','replace','reloadDocument'].includes(action.type)||
+            (action.type==='delete'&&pendingSocket&&pendingSocket.nodeId===action.nodeId)||
+            (action.type==='deleteBatch'&&pendingSocket&&action.nodeIds.includes(pendingSocket.nodeId))) pendingSocket=null;
+      }
+      render();
+      if (focusIdentity) {
+        const selector=focusIdentity.kind==='node'
+          ? `[data-node="${CSS.escape(focusIdentity.node)}"][data-param="${CSS.escape(focusIdentity.parameter)}"]`
+          : `[data-graph-param="${CSS.escape(focusIdentity.parameter)}"]`;
+        const laneSelector=focusIdentity.lane===undefined?'':`[data-lane="${CSS.escape(focusIdentity.lane)}"]`;
+        document.querySelector(`${selector}${laneSelector}`)?.focus({preventScroll:true});
+      }
+      if (!payload.ok) $('status').textContent = diagnosticText(payload.diagnostics)||'Action rejected';
+      else $('status').textContent = payload.documentPath
+        ? `Editing ${payload.documentPath}${payload.isDirty?' · unsaved changes':''}`
+        : `Unsaved session${payload.isDirty?' · unsaved changes':''} · Download JSON to keep a copy`;
+      return payload;
+    } catch (error) {
+      let recovered=false;
+      try { recovered=await refreshState(); } catch (_) {}
+      if(!recovered&&state) render();
+      $('status').textContent = `Request failed: ${error.message}${recovered?' · current server state reloaded':''}`;
+      return null;
+    }
+  };
+  const post = action => {
+    const active=document.activeElement;
+    const focusIdentity=active&&active.matches('[data-param]')
+      ? {kind:'node',node:active.dataset.node,parameter:active.dataset.param,lane:active.dataset.lane}
+      : active&&active.matches('[data-graph-param]')
+        ? {kind:'graph',parameter:active.dataset.graphParam,lane:active.dataset.lane}
+        : null;
+    const pending=actionQueue.then(()=>postRequest(action,focusIdentity),
+                                   ()=>postRequest(action,focusIdentity));
+    actionQueue=pending.then(()=>undefined,()=>undefined);
+    return pending;
+  };
+  const socketPoint = (nodeId, socketId, direction, socketElements=null) => {
+    const element = socketElements
+      ? socketElements.get(JSON.stringify([nodeId,socketId,direction]))
+      : document.querySelector(`[data-node="${CSS.escape(nodeId)}"] [data-socket="${CSS.escape(socketId)}"][data-direction="${direction}"]`);
+    if (!element) return null;
+    const dot = element.getBoundingClientRect();
+    const box = workspace.getBoundingClientRect();
+    return {x:(dot.left + dot.width/2 - box.left)/zoomLevel, y:(dot.top + dot.height/2 - box.top)/zoomLevel};
+  };
+  function renderPalette() {
+    const groups = new Map();
+    for (const item of state.palette) { if (!groups.has(item.category)) groups.set(item.category, []); groups.get(item.category).push(item); }
+    $('palette-items').innerHTML = [...groups].map(([category, items]) => `<div class="category">${esc(category)}</div>` + items.map(item => `<button class="palette-item" data-op="${esc(item.operationId)}" data-version="${item.semanticVersion}">${esc(item.label)}</button>`).join('')).join('');
+    $('palette-items').querySelectorAll('[data-op]').forEach(button => button.onclick = () => {
+      const op = state.palette.find(item => item.operationId === button.dataset.op && item.semanticVersion === Number(button.dataset.version));
+      let nodeId;
+      do { nodeId = `${op.label.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_${serial++}`; }
+      while (documentNodes().some(node=>node&&node.nodeId===nodeId));
+      const position=findNodePosition();
+      post({type:'add', operationId:op.operationId, semanticVersion:op.semanticVersion, nodeId, ...position});
+    });
+  }
+  function renderNodeIndex() {
+    const search=$('node-search'), list=$('node-index');
+    search.value=nodeSearch;
+    const query=nodeSearch.trim().toLocaleLowerCase();
+    const idCounts=new Map();
+    for(const node of documentNodes()) if(node&&typeof node.nodeId==='string') idCounts.set(node.nodeId,(idCounts.get(node.nodeId)||0)+1);
+    const matches=documentNodes().filter(node=>{
+      if (!node||!validNodeId(node.nodeId)) return false;
+      const operation=operationFor(node), text=`${node.nodeId} ${operation?.label||node.operationId||''}`.toLocaleLowerCase();
+      return !query||text.includes(query);
+    });
+    list.innerHTML=matches.map(node=>{
+      const operation=operationFor(node), isOutput=graphOutput().nodeId===node.nodeId;
+      const ambiguous=idCounts.get(node.nodeId)>1||!validNodeId(node.nodeId);
+      const label=`${operation?.label||'Unknown'} · ${node.nodeId}${isOutput?' · Output':''}${ambiguous?' · Invalid or duplicate ID (read only)':''}`;
+      return `<button class="node-index-item ${selectedNodes.has(node.nodeId)?'selected':''}" ${ambiguous?'disabled':`data-focus-node="${esc(node.nodeId)}"`} title="${esc(label)}">${esc(label)}</button>`;
+    }).join('')||'<span class="small">No matching nodes</span>';
+    list.querySelectorAll('[data-focus-node]').forEach(button=>button.onclick=()=>{
+      setSelectedNode(button.dataset.focusNode); focusNode(button.dataset.focusNode);
+    });
+  }
+  function findNodePosition() {
+    const cellWidth=260, cellHeight=210, nodeWidth=240, nodeHeight=190;
+    const columns=Math.max(1,Math.floor((workspace.clientWidth-64)/cellWidth));
+    for (let index=0;index<10000;index++) {
+      const candidate={x:32+(index%columns)*cellWidth,y:32+Math.floor(index/columns)*cellHeight};
+      const occupied=documentNodes().some(node=>{
+        if(!node||typeof node!=='object') return false;
+        const position=nodePosition(node), x=position.x, y=position.y;
+        return candidate.x<x+nodeWidth&&candidate.x+nodeWidth>x&&candidate.y<y+nodeHeight&&candidate.y+nodeHeight>y;
+      });
+      if (!occupied) {
+        if (candidate.y+nodeHeight+32>workspace.clientHeight) workspace.style.height=`${candidate.y+nodeHeight+32}px`;
+        return candidate;
+      }
+    }
+    const fallbackY=documentNodes().reduce((maximum,node)=>Math.max(maximum,nodePosition(node).y),0)+nodeHeight+cellHeight;
+    workspace.style.height=`${fallbackY+32}px`;
+    return {x:32,y:fallbackY};
+  }
+  function renderNodes() {
+    const exposedParameters=Array.isArray(state.document.graphParameters)?state.document.graphParameters:[];
+    const nodes=documentNodes();
+    const idCounts=new Map(), nodesById=new Map(), incomingByInput=new Map(), duplicateOrdinals=new Map();
+    const exposuresByNodeParameter=new Map();
+    for(const parameter of exposedParameters) if(parameter&&Array.isArray(parameter.bindings))
+      for(const binding of parameter.bindings) if(binding&&binding.nodeId!==undefined&&
+        (binding.nodeId===null||['string','number','boolean'].includes(typeof binding.nodeId))&&
+        typeof binding.parameterId==='string') {
+        const key=inputKey(binding.nodeId,binding.parameterId);
+        if(!exposuresByNodeParameter.has(key)) exposuresByNodeParameter.set(key,parameter);
+      }
+    for(const node of nodes) if(node&&typeof node.nodeId==='string') {
+      idCounts.set(node.nodeId,(idCounts.get(node.nodeId)||0)+1);
+      if(!nodesById.has(node.nodeId)) nodesById.set(node.nodeId,node);
+    }
+    const links=documentLinks();
+    for(let index=0;index<links.length;index++) {
+      const link=links[index], targetNode=link?.to?.nodeId, targetSocket=link?.to?.socketId;
+      if(typeof targetNode!=='string'||typeof targetSocket!=='string') continue;
+      const key=inputKey(targetNode,targetSocket), entries=incomingByInput.get(key)||[];
+      entries.push({link,index}); incomingByInput.set(key,entries);
+    }
+    nodesEl.innerHTML = nodes.map((node,nodeIndex) => {
+      if(!node||typeof node!=='object') return '';
+      const registeredOperation = operationFor(node);
+      const op = registeredOperation || {label:'Unknown operation',inputs:[],outputs:[],parameters:[]};
+      const ambiguous=!validNodeId(node.nodeId)||idCounts.get(node.nodeId)!==1;
+      const id=node.nodeId??'(missing nodeId)';
+      const nodeParameters=node.parameters&&typeof node.parameters==='object'&&!Array.isArray(node.parameters)?node.parameters:{};
+      const duplicateOrdinal=typeof node.nodeId==='string'?(duplicateOrdinals.get(node.nodeId)||0):0;
+      if(typeof node.nodeId==='string') duplicateOrdinals.set(node.nodeId,duplicateOrdinal+1);
+      const storedPosition=nodePosition(node);
+      const position={x:storedPosition.x+duplicateOrdinal*32,y:storedPosition.y+duplicateOrdinal*32};
+      const rawLayout=node.layout, layoutEditable=rawLayout&&typeof rawLayout==='object'&&!Array.isArray(rawLayout)&&Object.keys(rawLayout).length===2&&['x','y'].every(axis=>typeof rawLayout[axis]==='number'&&Number.isFinite(rawLayout[axis])&&Math.abs(rawLayout[axis])<=3.402823466e38);
+      const inputs = op.inputs.map(pin => {
+        const incoming=typeof node.nodeId==='string'
+          ? incomingByInput.get(inputKey(node.nodeId,pin.socketId))||[]:[];
+        const missingRequired=pin.required&&!incoming.length;
+        const status=`${pin.required?' · required':' · optional'}${missingRequired?' · unconnected':''}`;
+        const disconnect=incoming.map(entry=>{
+          const from=entry.link.from;
+          const label=from&&typeof from.nodeId==='string'&&typeof from.socketId==='string'
+            ? `${from.nodeId}.${from.socketId}`:'Malformed source';
+          return `<button class="small" data-disconnect-index="${entry.index}" ${ambiguous||typeof state.documentHash!=='string'?'disabled':''} title="Remove link ${entry.index+1} (${esc(label)} → ${esc(id)}.${esc(pin.socketId)})">×</button>`;
+        }).join('');
+        return `<div class="socket-row ${missingRequired?'missing-required':''}"><span class="socket-label"><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="input" data-node="${esc(id)}"`} title="${esc(pin.valueType+' input'+status)}"></button>${esc(pin.socketId)} <span class="small">${esc(pin.valueType+status)}</span></span>${disconnect}</div>`;
+      }).join('');
+      const outputs = op.outputs.map(pin => `<div class="socket-row"><button class="small" ${ambiguous?'disabled':`data-output-node="${esc(id)}" data-output-socket="${esc(pin.socketId)}"`}>Set Output</button><span class="socket-label">${esc(pin.socketId)} <span class="small">${esc(pin.valueType)}</span><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="output" data-node="${esc(id)}"`} title="${esc(pin.valueType)} output"></button></span></div>`).join('');
+      const params = op.parameters.map(param => {
+        const exposure=node.nodeId!==undefined&&(node.nodeId===null||['string','number','boolean'].includes(typeof node.nodeId))
+          ? exposuresByNodeParameter.get(inputKey(node.nodeId,param.parameterId)):null;
+        const value = exposure ? exposure.value : nodeParameters[param.parameterId];
+        const editor = Array.isArray(value)
+          ? `<span class="vector-inputs">${value.map((component,index)=>`<input type="number" step="any" data-param="${esc(param.parameterId)}" data-lane="${index}" data-node="${esc(id)}" value="${esc(component)}" aria-label="${esc(param.parameterId)} component ${index}" ${(exposure||ambiguous)?'disabled':''}>`).join('')}</span>`
+          : `<input type="number" step="any" data-param="${esc(param.parameterId)}" data-node="${esc(id)}" value="${esc(value)}" aria-label="${esc(param.parameterId)}" ${(exposure||ambiguous)?'disabled':''}>`;
+        const exposureAction=ambiguous?'disabled':exposure
+          ? `data-unexpose-node="${esc(id)}" data-unexpose-param="${esc(param.parameterId)}" title="Disconnect this parameter from the graph input"`
+          : `data-expose-node="${esc(id)}" data-expose-param="${esc(param.parameterId)}" title="Expose as graph parameter"`;
+        return `<label class="param"><span>${esc(param.parameterId)}</span>${editor}${exposure?`<span class="small">↗ ${esc(exposure.label)}</span>`:''}<button ${exposureAction}>${exposure?'Unexpose':'Expose'}</button></label>`;
+      }).join('');
+      const active = graphOutput().nodeId === node.nodeId;
+      const warning=[
+        ambiguous?`${idCounts.get(node.nodeId)>1?`duplicate ID instance ${duplicateOrdinal+1}`:'invalid ID'}; editing disabled`:null,
+        !registeredOperation?`unavailable ${String(node.operationId??'(missing operationId)')}@${String(node.semanticVersion??'?')}`:null,
+        !layoutEditable?'invalid layout; moving disabled':null,
+      ].filter(Boolean).join(' · ');
+      const articleId=ambiguous?`data-invalid-node="${nodeIndex}"`:`data-node="${esc(id)}"`;
+      const movable=layoutEditable?'true':'false';
+      const replaceButton=ambiguous||!registeredOperation
+        ? `<button disabled title="${registeredOperation?'Node ID is ambiguous':'Unknown operations cannot be replaced without a migration contract'}">↻</button>`
+        : `<button data-replace="${esc(id)}" title="Replace node operation">↻</button>`;
+      const body=registeredOperation?`${inputs}${params}${outputs}`:
+        `<div class="small">This node is preserved in the document but its operation is unavailable in the current registry. Delete it to repair the graph.</div>`;
+      return `<article class="node ${active?'active-output':''} ${selectedNodes.has(id)?'selected':''}" ${articleId} data-movable="${movable}" style="left:${position.x}px;top:${position.y}px"><div class="node-title"><span>${esc(op.label)} <span class="node-id">${esc(id)}${warning?` · ${esc(warning)}`:''}</span></span><span>${replaceButton} <button ${ambiguous?'disabled':`data-delete="${esc(id)}"`} title="Delete node">×</button></span></div><div class="node-body">${body}<div class="output-row">${active?'<span class="small">Graph Output</span>':''}</div></div></article>`;
+    }).join('');
+    nodesEl.querySelectorAll('.node-title').forEach(title => title.addEventListener('pointerdown', event => {
+      if (event.target.closest('button')) return;
+      const node=title.closest('.node'), id=node.dataset.node;
+      if (!id) return;
+      if (event.shiftKey) {
+        if (selectedNodes.has(id)) {
+          selectedNodes.delete(id); selected=selected===id?[...selectedNodes][0]||null:selected; syncSelection(); return;
+        }
+        selectedNodes.add(id); selected=id; syncSelection();
+      } else if (!selectedNodes.has(id)) setSelectedNode(id);
+      if(node.dataset.movable!=='true') { $('status').textContent='This node has an invalid layout and cannot be moved until repaired'; return; }
+      const selectedElements=[...selectedNodes].map(nodeId=>nodesEl.querySelector(`[data-node="${CSS.escape(nodeId)}"]`));
+      if(selectedElements.some(element=>!element||element.dataset.movable!=='true')) {
+        $('status').textContent='One or more selected nodes have invalid layouts; repair them before moving the group';
+        return;
+      }
+      const moving=[...selectedNodes].map(nodeId=>{
+        const source=nodesById.get(nodeId);
+        const element=document.querySelector(`[data-node="${CSS.escape(nodeId)}"]`);
+        return {id:nodeId,x:nodePosition(source).x,y:nodePosition(source).y,element};
+      });
+      drag={nodes:moving,startX:event.clientX,startY:event.clientY};
+      title.setPointerCapture(event.pointerId);
+    }));
+    nodesEl.querySelectorAll('.node-title').forEach(title => {
+      title.addEventListener('pointermove', event => { if (!drag) return; const dx=Math.max((event.clientX-drag.startX)/zoomLevel,-Math.min(...drag.nodes.map(item=>item.x))), dy=Math.max((event.clientY-drag.startY)/zoomLevel,-Math.min(...drag.nodes.map(item=>item.y))); for (const item of drag.nodes) { item.element.style.left=`${item.x+dx}px`; item.element.style.top=`${item.y+dy}px`; } scheduleDrawWires(); });
+      title.addEventListener('pointerup', event => { if (!drag) return; const dx=Math.max((event.clientX-drag.startX)/zoomLevel,-Math.min(...drag.nodes.map(item=>item.x))), dy=Math.max((event.clientY-drag.startY)/zoomLevel,-Math.min(...drag.nodes.map(item=>item.y))); const edits=drag.nodes.map(item=>[item.id,{x:item.x+dx,y:item.y+dy}]); drag=null; post({type:'layoutBatch',edits}); });
+      title.addEventListener('pointercancel', () => { if (!drag) return; for (const item of drag.nodes) { item.element.style.left=`${item.x}px`; item.element.style.top=`${item.y}px`; } drag=null; drawWires(); });
+    });
+    nodesEl.querySelectorAll('[data-socket]').forEach(button => button.onclick = () => {
+      const pin=socketDefinition(button.dataset.node,button.dataset.socket,button.dataset.direction);
+      if (!pin) { $('status').textContent='Socket definition is unavailable'; return; }
+      if (!pendingSocket) { beginSocketConnection(pin); return; }
+      if (pendingSocket.nodeId===pin.nodeId&&pendingSocket.socketId===pin.socketId&&pendingSocket.direction===pin.direction) {
+        pendingSocket=null; updateSocketHints(); $('status').textContent='Connection cancelled'; return;
+      }
+      if (pendingSocket.direction===pin.direction) { beginSocketConnection(pin); return; }
+      const from=pin.direction==='output'?pin:pendingSocket;
+      const to=pin.direction==='input'?pin:pendingSocket;
+      if (from.valueType!==to.valueType) { $('status').textContent=`Type mismatch: ${from.valueType} cannot connect to ${to.valueType}`; return; }
+      const hintState=buildConnectionHintState();
+      const targetLinks=hintState.inputLinks.get(inputKey(to.nodeId,to.socketId))||[];
+      if (targetLinks.length>1) { $('status').textContent=`Input has multiple links; disconnect them individually before reconnecting: ${to.nodeId}.${to.socketId}`; return; }
+      const rewire=targetLinks.length===1;
+      if (wouldCreateCycle(from.nodeId,to.nodeId,hintState,rewire?targetLinks[0].index:null)) { $('status').textContent='Connection would create a cycle'; return; }
+      pendingSocket=null; updateSocketHints(); setSelectedNode(to.nodeId);
+      post({type:rewire?'rewire':'connect',fromNode:from.nodeId,fromSocket:from.socketId,toNode:to.nodeId,toSocket:to.socketId});
+    });
+    nodesEl.querySelectorAll('[data-disconnect-index]').forEach(button=>button.onclick=()=>{
+      const linkIndex=Number(button.dataset.disconnectIndex);
+      if(!Number.isInteger(linkIndex)||typeof state.documentHash!=='string') return;
+      button.disabled=true; pendingSocket=null; updateSocketHints();
+      post({type:'disconnectLink',linkIndex,expectedDocumentHash:state.documentHash});
+    });
+    nodesEl.querySelectorAll('[data-param]').forEach(input => input.addEventListener('change', () => {
+      const op=operationFor(documentNodes().find(node=>node&&node.nodeId===input.dataset.node));
+      if(!op) return;
+      const definition=op.parameters.find(item=>item.parameterId===input.dataset.param);
+      let value;
+      if (definition.valueType==='Vector4F32') {
+        value=[...nodesEl.querySelectorAll(`[data-node="${CSS.escape(input.dataset.node)}"][data-param="${CSS.escape(input.dataset.param)}"]`)].map(component=>component.valueAsNumber);
+      } else value=input.valueAsNumber;
+      post({type:'parameter',nodeId:input.dataset.node,values:{[input.dataset.param]:value}});
+    }));
+    nodesEl.querySelectorAll('[data-expose-node]').forEach(button => button.onclick = () =>
+      openExposeDialog(button.dataset.exposeNode,button.dataset.exposeParam));
+    nodesEl.querySelectorAll('[data-unexpose-node]').forEach(button => button.onclick = () =>
+      post({type:'unexpose',nodeId:button.dataset.unexposeNode,parameterId:button.dataset.unexposeParam}));
+    nodesEl.querySelectorAll('[data-delete]').forEach(button => button.onclick = () => requestDeleteNodes([button.dataset.delete]));
+    nodesEl.querySelectorAll('[data-replace]').forEach(button => button.onclick = () => openReplaceDialog(button.dataset.replace));
+    nodesEl.querySelectorAll('[data-output-node]').forEach(button => button.onclick = () => { setSelectedNode(button.dataset.outputNode); post({type:'output',nodeId:button.dataset.outputNode,socketId:button.dataset.outputSocket}); });
+    nodesEl.querySelectorAll('.node[data-node]').forEach(node => node.addEventListener('click', event => { if (!event.target.closest('button,input,.node-title')) setSelectedNode(node.dataset.node); }));
+  }
+  function setSelectedNode(nodeId) {
+    const matches=documentNodes().filter(node=>node&&node.nodeId===nodeId);
+    if(matches.length!==1||!validNodeId(nodeId)) return;
+    selected=nodeId;
+    selectedNodes=new Set(nodeId?[nodeId]:[]);
+    syncSelection();
+  }
+  function setSelectedNodes(nodeIds) {
+    const counts=new Map();
+    for(const node of documentNodes()) if(node&&typeof node.nodeId==='string') counts.set(node.nodeId,(counts.get(node.nodeId)||0)+1);
+    selectedNodes=new Set(nodeIds.filter(nodeId=>counts.get(nodeId)===1&&validNodeId(nodeId)));
+    selected=[...selectedNodes][0]||null;
+    syncSelection();
+  }
+  function requestDeleteNodes(nodeIds) {
+    const deleting=new Set(nodeIds), action=nodeIds.length===1?{type:'delete',nodeId:nodeIds[0]}:{type:'deleteBatch',nodeIds};
+    if (deleting.has(graphOutput().nodeId)) {
+      const idCounts=new Map();
+      for(const item of documentNodes()) if(item&&typeof item.nodeId==='string') idCounts.set(item.nodeId,(idCounts.get(item.nodeId)||0)+1);
+      const choices=documentNodes().filter(item=>item&&idCounts.get(item.nodeId)===1&&!deleting.has(item.nodeId)).flatMap(item=>{
+        const definition=operationFor(item); return definition?definition.outputs.map(pin=>[item.nodeId,pin.socketId]):[];
+      });
+      if (!choices.length) { $('status').textContent='Select a surviving graph output before deleting the selected nodes'; return; }
+      pendingDeleteAction=action;
+      $('delete-output-context').textContent=`Choose a surviving output before deleting ${nodeIds.join(', ')}.`;
+      $('delete-output-target').innerHTML=choices.map(pair=>`<option value="${esc(JSON.stringify(pair))}">${esc(pair.join('.'))}</option>`).join('');
+      $('delete-output-dialog').showModal();
+      return;
+    }
+    post(action);
+  }
+  function duplicateSelection() {
+    const sources=[...selectedNodes];
+    if (!sources.length) return;
+    const used=new Set(documentNodes().filter(node=>node&&typeof node.nodeId==='string').map(node=>node.nodeId));
+    const duplicates=sources.map(sourceNodeId=>{
+      let nodeId;
+      do { nodeId=`${sourceNodeId}_copy${serial++}`; } while (used.has(nodeId));
+      used.add(nodeId);
+      return {sourceNodeId,nodeId};
+    });
+    post({type:'duplicateBatch',duplicates});
+  }
+  async function copySelection() {
+    const nodeIds=[...selectedNodes];
+    if (!nodeIds.length) return;
+    const response=await post({type:'copySubgraph',nodeIds});
+    if (!response?.ok||!response.clipboard) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard API unavailable');
+      await navigator.clipboard.writeText(JSON.stringify(response.clipboard));
+      $('status').textContent=`Copied ${nodeIds.length} node${nodeIds.length===1?'':'s'} to clipboard`;
+    } catch (_) { $('status').textContent=`Copied ${nodeIds.length} node${nodeIds.length===1?'':'s'} for this session`; }
+  }
+  async function pasteSelection() {
+    let clipboard=null;
+    try {
+      if (navigator.clipboard?.readText) {
+        const text=await navigator.clipboard.readText();
+        if (text) { const parsed=JSON.parse(text); if (parsed?.kind==='artifact-shader-graph-rd-subgraph') clipboard=parsed; }
+      }
+    } catch (_) {}
+    if (!clipboard) clipboard=state.clipboard;
+    if (!clipboard||!Array.isArray(clipboard.nodes)||!clipboard.nodes.length) { $('status').textContent='No Shader Graph subgraph is available to paste'; return; }
+    const used=new Set(documentNodes().filter(node=>node&&typeof node.nodeId==='string').map(node=>node.nodeId));
+    const newNodeIds=Object.create(null);
+    for (const source of clipboard.nodes) {
+      if (!source||typeof source.nodeId!=='string') { $('status').textContent='Clipboard subgraph has invalid node IDs'; return; }
+      let nodeId;
+      do { nodeId=`${source.nodeId}_paste${serial++}`; } while (used.has(nodeId));
+      used.add(nodeId); newNodeIds[source.nodeId]=nodeId;
+    }
+    const layouts=clipboard.nodes.map(node=>node.layout).filter(layout=>layout&&Number.isFinite(layout.x)&&Number.isFinite(layout.y));
+    if (layouts.length!==clipboard.nodes.length) { $('status').textContent='Clipboard subgraph has invalid node layouts'; return; }
+    const minX=Math.min(...layouts.map(layout=>layout.x)), maxX=Math.max(...layouts.map(layout=>layout.x));
+    const minY=Math.min(...layouts.map(layout=>layout.y)), maxY=Math.max(...layouts.map(layout=>layout.y));
+    const centerX=(workspaceWrap.scrollLeft+workspaceWrap.clientWidth/2)/zoomLevel;
+    const centerY=(workspaceWrap.scrollTop+workspaceWrap.clientHeight/2)/zoomLevel;
+    const offsetX=Math.max(-minX,centerX-(minX+maxX)/2), offsetY=Math.max(-minY,centerY-(minY+maxY)/2);
+    const result=await post({type:'pasteSubgraph',clipboard,newNodeIds,offsetX,offsetY});
+    if (result?.ok) { setSelectedNodes(Object.values(newNodeIds)); focusNode(selected); }
+  }
+  function syncSelection() {
+    nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',selectedNodes.has(node.dataset.node)));
+    $('node-index').querySelectorAll('[data-focus-node]').forEach(button=>button.classList.toggle('selected',selectedNodes.has(button.dataset.focusNode)));
+    $('delete-selected').disabled=selectedNodes.size===0; $('duplicate-selected').disabled=selectedNodes.size===0;
+    updateLayoutActionState();
+    renderSelection();
+  }
+  function updateLayoutActionState() {
+    const mode=$('layout-mode').value;
+    const minimum=mode.startsWith('distribute_')?3:2;
+    $('apply-layout').disabled=selectedNodes.size<minimum;
+  }
+  function socketDefinition(nodeId,socketId,direction,hintState=null) {
+    const node=hintState?hintState.nodes.get(nodeId):documentNodes().find(item=>item&&item.nodeId===nodeId);
+    const operation=hintState?hintState.operations.get(nodeId):node&&operationFor(node);
+    const pins=direction==='output'?operation?.outputs:operation?.inputs;
+    const pin=pins?.find(item=>item.socketId===socketId);
+    return pin?{nodeId,socketId,direction,valueType:pin.valueType}:null;
+  }
+  function beginSocketConnection(pin) {
+    pendingSocket=pin; setSelectedNode(pin.nodeId); updateSocketHints();
+    const opposite=pin.direction==='output'?'input':'output';
+    $('status').textContent=`${pin.direction==='output'?'Output':'Input'} selected: ${pin.nodeId}.${pin.socketId} · choose a ${opposite}`;
+  }
+  function inputKey(nodeId,socketId) { return JSON.stringify([nodeId,socketId]); }
+  function buildConnectionHintState() {
+    const adjacency=new Map(), edgeCounts=new Map(), inputLinks=new Map();
+    const nodes=new Map(), operations=new Map();
+    for(const node of documentNodes()) if(node&&typeof node.nodeId==='string'&&!nodes.has(node.nodeId)) {
+      nodes.set(node.nodeId,node); operations.set(node.nodeId,operationFor(node)); adjacency.set(node.nodeId,new Set());
+    }
+    const links=documentLinks();
+    for(let index=0;index<links.length;index++) {
+      const link=links[index];
+      const sourceId=link?.from?.nodeId, targetId=link?.to?.nodeId;
+      const targetSocket=link?.to?.socketId;
+      if(typeof targetId==='string'&&typeof targetSocket==='string') {
+        const key=inputKey(targetId,targetSocket), entries=inputLinks.get(key)||[];
+        entries.push({index,sourceId,targetId}); inputLinks.set(key,entries);
+      }
+      if(typeof sourceId==='string'&&typeof targetId==='string'&&adjacency.has(sourceId)&&adjacency.has(targetId)) {
+        adjacency.get(sourceId).add(targetId);
+        const key=inputKey(sourceId,targetId); edgeCounts.set(key,(edgeCounts.get(key)||0)+1);
+      }
+    }
+    return {nodes,operations,adjacency,edgeCounts,inputLinks,links,cycleResults:new Map()};
+  }
+  function wouldCreateCycle(sourceId,targetId,hintState,ignoredLinkIndex=null) {
+    const key=JSON.stringify([sourceId,targetId,ignoredLinkIndex]);
+    if(hintState.cycleResults.has(key)) return hintState.cycleResults.get(key);
+    const ignoredLink=ignoredLinkIndex===null?null:hintState.links[ignoredLinkIndex];
+    const ignoredSource=ignoredLink?.from?.nodeId, ignoredTarget=ignoredLink?.to?.nodeId;
+    const removeIgnoredEdge=typeof ignoredSource==='string'&&typeof ignoredTarget==='string'&&
+      (hintState.edgeCounts.get(inputKey(ignoredSource,ignoredTarget))||0)===1;
+    const pending=[targetId], visited=new Set();
+    while(pending.length) {
+      const current=pending.pop();
+      if(current===sourceId) { hintState.cycleResults.set(key,true); return true; }
+      if(visited.has(current)) continue;
+      visited.add(current);
+      for(const next of hintState.adjacency.get(current)||[]) {
+        if(removeIgnoredEdge&&current===ignoredSource&&next===ignoredTarget) continue;
+        pending.push(next);
+      }
+    }
+    hintState.cycleResults.set(key,false);
+    return false;
+  }
+  function updateSocketHints() {
+    const hintState=buildConnectionHintState();
+    nodesEl.querySelectorAll('[data-socket]').forEach(button=>{
+      const pin=socketDefinition(button.dataset.node,button.dataset.socket,button.dataset.direction,hintState);
+      button.classList.remove('pending','compatible','blocked');
+      if(!pendingSocket||!pin) return;
+      if(pin.nodeId===pendingSocket.nodeId&&pin.socketId===pendingSocket.socketId&&pin.direction===pendingSocket.direction) {
+        button.classList.add('pending'); return;
+      }
+      if(pin.direction===pendingSocket.direction) return;
+      const from=pin.direction==='output'?pin:pendingSocket;
+      const to=pin.direction==='input'?pin:pendingSocket;
+      const targetLinks=hintState.inputLinks.get(inputKey(to.nodeId,to.socketId))||[];
+      if(from.valueType!==to.valueType||targetLinks.length>1||
+         wouldCreateCycle(from.nodeId,to.nodeId,hintState,targetLinks.length===1?targetLinks[0].index:null))
+        button.classList.add('blocked');
+      else button.classList.add('compatible');
+    });
+  }
+  function renderSelection() {
+    const node=documentNodes().find(item=>item&&item.nodeId===selected);
+    if (!node) { selected=null; $('selection').textContent='Select a node or graph output.'; return; }
+    const operation=operationFor(node);
+    const inputCount=operation?operation.inputs.length:0, outputCount=operation?operation.outputs.length:0;
+    const isOutput=graphOutput().nodeId===node.nodeId;
+    $('selection').textContent=`${operation?operation.label:'Unknown operation'} · ${node.nodeId}\n${inputCount} inputs · ${outputCount} outputs${isOutput?' · Graph Output':''}`;
+  }
+  function openExposeDialog(nodeId, parameterId) {
+    const node=documentNodes().find(item=>item&&item.nodeId===nodeId), operation=operationFor(node);
+    if(!operation) return;
+    const definition=operation.parameters.find(item=>item.parameterId===parameterId);
+    const graphParameters=Array.isArray(state.document.graphParameters)?state.document.graphParameters:[];
+    const compatible=graphParameters.filter(item=>item&&item.valueType===definition.valueType&&typeof item.parameterId==='string'&&typeof item.label==='string'&&Array.isArray(item.bindings)&&item.bindings.length>0&&(definition.valueType==='Vector4F32'?Array.isArray(item.value)&&item.value.length===4&&item.value.every(Number.isFinite):typeof item.value==='number'&&Number.isFinite(item.value)));
+    $('expose-context').textContent=`${nodeId}.${parameterId} · ${definition.valueType}`;
+    $('expose-target').innerHTML='<option value="">Create a new graph parameter</option>'+compatible.map(item=>`<option value="${esc(item.parameterId)}">${esc(item.label)} · ${esc(item.parameterId)} (${item.bindings.length} bound)</option>`).join('');
+    let base=`${nodeId}_${parameterId}`.replace(/[^A-Za-z0-9_.-]/g,'_');
+    if (!/^[A-Za-z_]/.test(base)) base=`p_${base}`;
+    const used=new Set(graphParameters.filter(item=>item&&typeof item.parameterId==='string').map(item=>item.parameterId));
+    const root=base; let suffix=2;
+    while (used.has(base)) base=`${root}_${suffix++}`;
+    $('expose-id').value=base; $('expose-label').value=parameterId;
+    $('expose-target').onchange=()=>{
+      const creating=!$('expose-target').value;
+      $('expose-new-fields').hidden=!creating;
+      $('expose-id').required=creating; $('expose-label').required=creating;
+      $('expose-submit').textContent=creating?'Expose':'Share';
+    };
+    $('expose-target').value=''; $('expose-target').onchange();
+    $('expose-form').dataset.nodeId=nodeId; $('expose-form').dataset.parameterId=parameterId;
+    exposeDialog.showModal();
+  }
+  const replaceDialog=$('replace-dialog');
+  function openReplaceDialog(nodeId) {
+    const node=documentNodes().find(item=>item&&item.nodeId===nodeId), current=operationFor(node);
+    if(!current) return;
+    const samePins=(left,right,fields)=>left.length===right.length&&left.every((pin,index)=>fields.every(field=>pin[field]===right[index][field]));
+    const values=node.parameters&&typeof node.parameters==='object'?node.parameters:{};
+    const candidates=state.palette.filter(item=>item.entryId!==current.entryId&&
+      samePins(current.inputs,item.inputs,['socketId','valueType','required'])&&
+      samePins(current.outputs,item.outputs,['socketId','valueType'])&&
+      samePins(current.parameters,item.parameters,['parameterId','valueType'])&&
+      item.parameters.every((parameter,index)=>Object.prototype.hasOwnProperty.call(values,parameter.parameterId)||
+        JSON.stringify(current.parameters[index].default)===JSON.stringify(parameter.default)));
+    if (!candidates.length) { $('status').textContent='No operation preserves this node’s pin, parameter, and unmaterialized-default contracts'; return; }
+    $('replace-context').textContent=`${current.label} · ${node.nodeId}`;
+    $('replace-target').innerHTML=candidates.map(item=>`<option value="${esc(item.entryId)}">${esc(item.label)} · ${esc(item.entryId)}</option>`).join('');
+    $('replace-form').dataset.nodeId=node.nodeId;
+    replaceDialog.showModal();
+  }
+  $('expose-cancel').onclick=()=>exposeDialog.close();
+  $('expose-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const nodeId=$('expose-form').dataset.nodeId, parameterId=$('expose-form').dataset.parameterId;
+    const targetId=$('expose-target').value;
+    const target=(Array.isArray(state.document.graphParameters)?state.document.graphParameters:[]).find(item=>item&&item.parameterId===targetId);
+    const graphParameterId=target?target.parameterId:$('expose-id').value.trim();
+    const label=target?target.label:$('expose-label').value.trim();
+    exposeDialog.close();
+    post({type:'expose',nodeId,parameterId,graphParameterId,label});
+  });
+  $('replace-cancel').onclick=()=>replaceDialog.close();
+  $('replace-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const nodeId=$('replace-form').dataset.nodeId;
+    const entryId=$('replace-target').value;
+    const candidate=state.palette.find(item=>item.entryId===entryId);
+    if(!candidate||!nodeId) return;
+    replaceDialog.close();
+    post({type:'replace',nodeId,operationId:candidate.operationId,semanticVersion:candidate.semanticVersion});
+  });
+  const deleteOutputDialog=$('delete-output-dialog');
+  $('delete-output-cancel').onclick=()=>{pendingDeleteAction=null;deleteOutputDialog.close();};
+  $('delete-output-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(!pendingDeleteAction) return;
+    let replacement;
+    try { replacement=JSON.parse($('delete-output-target').value); } catch (_) { $('status').textContent='Replacement output selection is invalid'; return; }
+    if(!Array.isArray(replacement)||replacement.length!==2||!replacement.every(value=>typeof value==='string')) { $('status').textContent='Replacement output selection is invalid'; return; }
+    const action={...pendingDeleteAction,replacementOutput:replacement};
+    pendingDeleteAction=null; deleteOutputDialog.close(); post(action);
+  });
+  function drawWires() {
+    wires.innerHTML='';
+    const links=documentLinks();
+    const operations=new Map(), socketElements=new Map();
+    for(const node of documentNodes()) if(node&&typeof node.nodeId==='string'&&!operations.has(node.nodeId))
+      operations.set(node.nodeId,operationFor(node));
+    for(const element of nodesEl.querySelectorAll('[data-socket]'))
+      socketElements.set(JSON.stringify([element.dataset.node,element.dataset.socket,element.dataset.direction]),element);
+    for (const link of links) {
+      if(!link||!link.from||!link.to||typeof link.from.nodeId!=='string'||typeof link.from.socketId!=='string'||typeof link.to.nodeId!=='string'||typeof link.to.socketId!=='string') continue;
+      const from=socketPoint(link.from.nodeId,link.from.socketId,'output',socketElements), to=socketPoint(link.to.nodeId,link.to.socketId,'input',socketElements); if (!from||!to) continue;
+      const distance=Math.max(50,Math.abs(to.x-from.x)*.5), path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      const sourceOperation=operations.get(link.from.nodeId);
+      const valueType=sourceOperation?.outputs.find(pin=>pin.socketId===link.from.socketId)?.valueType||'Float';
+      path.setAttribute('d',`M ${from.x} ${from.y} C ${from.x+distance} ${from.y}, ${to.x-distance} ${to.y}, ${to.x} ${to.y}`); path.setAttribute('class',`wire ${valueType}`); wires.append(path);
+    }
+  }
+  let wireDrawScheduled=false;
+  function scheduleDrawWires() {
+    if(wireDrawScheduled) return;
+    wireDrawScheduled=true;
+    requestAnimationFrame(()=>{wireDrawScheduled=false;drawWires();});
+  }
+  function render() {
+    renderPalette(); renderNodes(); renderNodeIndex(); updateSocketHints(); drawWires();
+    renderSelection(); updateLayoutActionState();
+    const rawGraphParameters=state.document.graphParameters;
+    const graphParameters=Array.isArray(rawGraphParameters)?rawGraphParameters:[];
+    $('graph-parameters').innerHTML=rawGraphParameters!==undefined&&!Array.isArray(rawGraphParameters)
+      ? '<span class="small">Invalid graph parameters collection</span>'
+      : graphParameters.length?graphParameters.map(parameter=>{
+      if (!parameter||typeof parameter!=='object'||typeof parameter.parameterId!=='string'||typeof parameter.label!=='string'||!Array.isArray(parameter.bindings))
+        return `<section class="graph-parameter"><span class="small">Invalid graph parameter record</span></section>`;
+      const validType=parameter.valueType==='Float32'||parameter.valueType==='Vector4F32';
+      const validValue=parameter.valueType==='Float32'?typeof parameter.value==='number'&&Number.isFinite(parameter.value)
+        :Array.isArray(parameter.value)&&parameter.value.length===4&&parameter.value.every(component=>typeof component==='number'&&Number.isFinite(component));
+      if (!validType||!validValue)
+        return `<section class="graph-parameter"><span class="small">Invalid value for ${esc(parameter.parameterId)} (${esc(parameter.valueType)})</span></section>`;
+      const targets=parameter.bindings.map(binding=>binding&&typeof binding.nodeId==='string'&&typeof binding.parameterId==='string'
+        ? `<div class="parameter-binding"><span>${esc(binding.nodeId)}.${esc(binding.parameterId)}</span><button data-unexpose-node="${esc(binding.nodeId)}" data-unexpose-param="${esc(binding.parameterId)}" title="Detach this node parameter">Detach</button></div>`
+        : `<div class="parameter-binding"><span class="small">Invalid binding</span></div>`).join('');
+      const editor=Array.isArray(parameter.value)
+        ? `<span class="vector-inputs">${parameter.value.map((component,index)=>`<input type="number" step="any" data-graph-param="${esc(parameter.parameterId)}" data-lane="${index}" value="${esc(component)}" aria-label="${esc(parameter.label)} component ${index}">`).join('')}</span>`
+        : `<input type="number" step="any" data-graph-param="${esc(parameter.parameterId)}" value="${esc(parameter.value)}" aria-label="${esc(parameter.label)}">`;
+      return `<section class="graph-parameter"><label class="param"><span>${esc(parameter.label)}</span>${editor}</label>${targets}</section>`;
+    }).join(''):'<span class="small">Expose node values to tune this graph.</span>';
+    $('graph-parameters').querySelectorAll('[data-graph-param]').forEach(input=>input.addEventListener('change',()=>{
+      const definition=graphParameters.find(item=>item&&item.parameterId===input.dataset.graphParam);
+      if (!definition) return;
+      const value=definition.valueType==='Vector4F32'
+        ? [...$('graph-parameters').querySelectorAll(`[data-graph-param="${CSS.escape(input.dataset.graphParam)}"]`)].map(component=>component.valueAsNumber)
+        : input.valueAsNumber;
+      post({type:'graphParameter',graphParameterId:definition.parameterId,value});
+    }));
+    $('graph-parameters').querySelectorAll('[data-unexpose-node]').forEach(button=>button.onclick=() =>
+      post({type:'unexpose',nodeId:button.dataset.unexposeNode,parameterId:button.dataset.unexposeParam}));
+    $('undo').disabled=!state.history.canUndo; $('redo').disabled=!state.history.canRedo;
+    $('undo').title=state.history.truncated?'Older undo commands were pruned to keep history within 100 commands / 32 MiB.':'Undo';
+    $('redo').title='Redo'; $('save').disabled=!state.documentPath; $('reload-document').disabled=!state.saveConflict;
+    $('delete-selected').disabled=selectedNodes.size===0; $('duplicate-selected').disabled=selectedNodes.size===0;
+    $('hlsl').textContent=state.compilation.hlslBody||'Compilation unavailable';
+    const actionDiagnostics=Array.isArray(state.diagnostics)?state.diagnostics:[];
+    const diagnostics=[], seenDiagnostics=new Set();
+    for(const item of [...actionDiagnostics,...(state.validation.diagnostics||[]),...(state.compilation.diagnostics||[])]) {
+      if(!item||typeof item!=='object') continue;
+      const key=JSON.stringify([item.severity||'error',item.code||'',item.path||'',item.message||'']);
+      if(seenDiagnostics.has(key)) continue;
+      seenDiagnostics.add(key); diagnostics.push(item);
+    }
+    const diagnosticNodes=documentNodes(), diagnosticLinks=documentLinks(), diagnosticNodesById=new Map();
+    for(const node of diagnosticNodes) if(node&&typeof node.nodeId==='string') {
+      const matches=diagnosticNodesById.get(node.nodeId)||[]; matches.push(node); diagnosticNodesById.set(node.nodeId,matches);
+    }
+    const uniqueDiagnosticNode=nodeId=>{
+      if(!validNodeId(nodeId)) return null;
+      const matches=diagnosticNodesById.get(nodeId)||[];
+      return matches.length===1?matches[0]:null;
+    };
+    $('diagnostics').innerHTML=diagnostics.map((item,index)=>{
+      const path=typeof item.path==='string'?item.path:'';
+      const nodeMatch=/^\/nodes\/(\d+)(?:\/|$)/.exec(path);
+      const linkMatch=/^\/links\/(\d+)(?:\/(from|to))?(?:\/|$)/.exec(path);
+      let target=nodeMatch?uniqueDiagnosticNode(diagnosticNodes[Number(nodeMatch[1])]?.nodeId):null;
+      if(!target&&linkMatch) {
+        const link=diagnosticLinks[Number(linkMatch[1])];
+        const endpoints=linkMatch[2]?[link&&link[linkMatch[2]]]:[link&&link.to,link&&link.from];
+        target=endpoints.map(endpoint=>endpoint&&uniqueDiagnosticNode(endpoint.nodeId)).find(Boolean)||null;
+      }
+      if(!target&&path.startsWith('/output')) {
+        const outputNodeId=graphOutput().nodeId;
+        target=uniqueDiagnosticNode(outputNodeId);
+      }
+      const targetId=target?.nodeId||null;
+      const label=`${item.severity||'error'}: ${item.code||'diagnostic'} ${path}\n${item.message||''}`;
+      return `<button class="diagnostic-item" ${targetId?`data-diagnostic-node="${esc(targetId)}"`: 'disabled'} title="${esc(targetId?'Focus the node described by this diagnostic':'This diagnostic has no uniquely addressable node')}" data-diagnostic-index="${index}">${esc(label)}</button>`;
+    }).join('');
+    $('diagnostics').querySelectorAll('[data-diagnostic-node]').forEach(button=>button.onclick=()=>{
+      setSelectedNode(button.dataset.diagnosticNode); focusNode(button.dataset.diagnosticNode);
+    });
+    if (state.documentPath) $('status').textContent=`Editing ${state.documentPath}${state.isDirty?' · unsaved changes':''}`;
+    else $('status').textContent=`Unsaved session${state.isDirty?' · unsaved changes':''} · Download JSON to keep a copy`;
+  }
+  $('undo').onclick=()=>post({type:'undo'}); $('redo').onclick=()=>post({type:'redo'}); $('save').onclick=()=>post({type:'save'});
+  const reloadDialog=$('reload-dialog');
+  $('reload-document').onclick=async()=>{
+    if(!state?.saveConflict) return;
+    $('reload-diff').textContent='Loading disk comparison…'; $('reload-submit').disabled=true; reloadDialog.showModal();
+    try {
+      const response=await fetch('/api/compare'), comparison=await response.json();
+      if(!comparison.ok) {
+        $('reload-diff').textContent=(comparison.diagnostics||[]).map(item=>`${item.code}: ${item.message}`).join('\n')||'Could not compare disk document.';
+        return;
+      }
+      state.saveConflict=comparison.saveConflict;
+      $('reload-document').disabled=!comparison.saveConflict;
+      const describe=(label,changes)=>`${label}: +${changes.addedCount} −${changes.removedCount} ~${changes.changedCount}${changes.invalidRecordCount?` · invalid ${changes.invalidRecordCount}`:''}${changes.sampleIds.length?`\n  ${changes.sampleIds.join(', ')}${changes.sampleTruncated?' …':''}`:''}`;
+      $('reload-diff').textContent=[
+        comparison.diskMatchesLoadedVersion?'Disk file matches the originally loaded bytes.':'Disk file differs from the originally loaded bytes.',
+        comparison.saveConflict?'Save conflict remains.':'The original disk version is back; you can retry Save.',
+        `Changed top-level sections: ${comparison.changedSections.join(', ')||'none'}`,
+        describe('Nodes',comparison.nodes), describe('Graph parameters',comparison.graphParameters),
+        `Links: +${comparison.links.addedCount} −${comparison.links.removedCount} · local ${comparison.links.localCount}, disk ${comparison.links.diskCount}`,
+        `Graph output changed: ${comparison.outputChanged?'yes':'no'}`,
+      ].join('\n');
+      const nodeList=$('reload-node-list'); nodeList.replaceChildren();
+      for(const nodeId of comparison.nodes.sampleIds) {
+        const button=document.createElement('button'); button.type='button'; button.textContent=nodeId;
+        button.onclick=async()=>{
+          $('reload-node-diff').hidden=false;
+          $('reload-local-node').textContent='Loading…'; $('reload-disk-node').textContent='Loading…';
+          try {
+            const detailResponse=await fetch(`/api/compare?nodeId=${encodeURIComponent(nodeId)}`), detail=await detailResponse.json();
+            if(!detail.ok) throw new Error((detail.diagnostics||[]).map(item=>item.message).join('; ')||'Node comparison failed');
+            $('reload-local-node').textContent=JSON.stringify(detail.localMatches,null,2);
+            $('reload-disk-node').textContent=JSON.stringify(detail.diskMatches,null,2);
+          } catch(error) { $('reload-local-node').textContent=`Comparison failed: ${error.message}`; $('reload-disk-node').textContent=''; }
+        };
+        nodeList.append(button);
+      }
+      if(comparison.nodes.sampleTruncated) { const note=document.createElement('span'); note.className='small'; note.textContent='Showing first 100 changed node IDs.'; nodeList.append(note); }
+      $('reload-node-diff').hidden=true;
+      $('reload-submit').disabled=!comparison.saveConflict;
+    } catch(error) { $('reload-diff').textContent=`Could not compare disk document: ${error.message}`; }
+  };
+  $('reload-cancel').onclick=()=>reloadDialog.close();
+  $('reload-form').addEventListener('submit',event=>{event.preventDefault();reloadDialog.close();post({type:'reloadDocument'});});
+  $('download-json').onclick=()=>{
+    if(!state?.document) return;
+    const sourceName=typeof state.documentPath==='string'?state.documentPath.split(/[\\/]/).pop().replace(/\.json$/i,''):'shader-graph';
+    const blob=new Blob([JSON.stringify(state.document,null,2)+'\n'],{type:'application/json'});
+    const url=URL.createObjectURL(blob), link=document.createElement('a');
+    link.href=url; link.download=`${sourceName||'shader-graph'}.json`; link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),0);
+    $('status').textContent='Current graph JSON downloaded';
+  };
+  const workspaceWrap=$('workspace-wrap');
+  const setZoom=next=>{
+    const centerX=(workspaceWrap.scrollLeft+workspaceWrap.clientWidth/2)/zoomLevel;
+    const centerY=(workspaceWrap.scrollTop+workspaceWrap.clientHeight/2)/zoomLevel;
+    zoomLevel=Math.max(.4,Math.min(2,next)); workspace.style.transform=`scale(${zoomLevel})`;
+    workspaceWrap.scrollLeft=centerX*zoomLevel-workspaceWrap.clientWidth/2;
+    workspaceWrap.scrollTop=centerY*zoomLevel-workspaceWrap.clientHeight/2;
+    $('zoom-label').textContent=`${Math.round(zoomLevel*100)}%`; drawWires();
+  };
+  const focusNode=nodeId=>{
+    const node=document.querySelector(`[data-node="${CSS.escape(nodeId)}"]`);
+    if (!node) { $('status').textContent='No visible node to focus'; return; }
+    workspaceWrap.scrollLeft=(node.offsetLeft+node.offsetWidth/2)*zoomLevel-workspaceWrap.clientWidth/2;
+    workspaceWrap.scrollTop=(node.offsetTop+node.offsetHeight/2)*zoomLevel-workspaceWrap.clientHeight/2;
+    workspaceWrap.focus({preventScroll:true});
+    drawWires();
+  };
+  const frameAll=()=>{
+    const nodes=[...nodesEl.querySelectorAll('.node')];
+    if (!nodes.length) { $('status').textContent='Canvas has no nodes to frame'; return; }
+    const bounds=nodes.reduce((rect,node)=>({
+      left:Math.min(rect.left,node.offsetLeft), top:Math.min(rect.top,node.offsetTop),
+      right:Math.max(rect.right,node.offsetLeft+node.offsetWidth), bottom:Math.max(rect.bottom,node.offsetTop+node.offsetHeight)
+    }),{left:Infinity,top:Infinity,right:-Infinity,bottom:-Infinity});
+    const width=Math.max(1,bounds.right-bounds.left), height=Math.max(1,bounds.bottom-bounds.top);
+    const fit=Math.min(2,(workspaceWrap.clientWidth-80)/width,(workspaceWrap.clientHeight-80)/height);
+    setZoom(fit);
+    workspaceWrap.scrollLeft=((bounds.left+bounds.right)/2)*zoomLevel-workspaceWrap.clientWidth/2;
+    workspaceWrap.scrollTop=((bounds.top+bounds.bottom)/2)*zoomLevel-workspaceWrap.clientHeight/2;
+    drawWires();
+  };
+  $('zoom-in').onclick=()=>setZoom(zoomLevel+.1); $('zoom-out').onclick=()=>setZoom(zoomLevel-.1); $('zoom-reset').onclick=()=>setZoom(1);
+  $('focus-node').onclick=()=>focusNode(selected||graphOutput().nodeId);
+  $('frame-all').onclick=frameAll;
+  $('copy-selected').onclick=copySelection;
+  $('paste-subgraph').onclick=pasteSelection;
+  $('delete-selected').onclick=()=>requestDeleteNodes([...selectedNodes]);
+  $('duplicate-selected').onclick=duplicateSelection;
+  $('arrange-nodes').onclick=()=>post(selectedNodes.size
+    ? {type:'arrange',nodeIds:[...selectedNodes]}
+    : {type:'arrange'});
+  $('layout-mode').onchange=updateLayoutActionState;
+  $('apply-layout').onclick=()=>post({type:'layoutSelection',nodeIds:[...selectedNodes],mode:$('layout-mode').value});
+  $('node-search').addEventListener('input',event=>{nodeSearch=event.target.value;renderNodeIndex();});
+  workspaceWrap.addEventListener('pointerdown',event=>{
+    if (event.button!==1&&!(event.button===0&&spaceDown)) return;
+    pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,left:workspaceWrap.scrollLeft,top:workspaceWrap.scrollTop};
+    workspaceWrap.classList.add('panning'); workspaceWrap.setPointerCapture(event.pointerId); workspaceWrap.focus({preventScroll:true}); event.preventDefault(); event.stopPropagation();
+  },true);
+  workspaceWrap.addEventListener('pointerdown',event=>{if(!event.target.closest('input,button')) workspaceWrap.focus({preventScroll:true});});
+  workspaceWrap.addEventListener('pointermove',event=>{
+    if (!pan||event.pointerId!==pan.pointerId) return;
+    workspaceWrap.scrollLeft=pan.left-(event.clientX-pan.x); workspaceWrap.scrollTop=pan.top-(event.clientY-pan.y);
+  });
+  const endPan=event=>{if(pan&&event.pointerId===pan.pointerId){pan=null;workspaceWrap.classList.remove('panning');}};
+  workspaceWrap.addEventListener('pointerup',endPan); workspaceWrap.addEventListener('pointercancel',endPan);
+  const isTextEditing=target=>target instanceof Element&&!!target.closest('input,textarea,select,[contenteditable="true"]');
+  const canvasHasFocus=()=>document.activeElement===workspaceWrap||workspaceWrap.contains(document.activeElement);
+  window.addEventListener('keydown',event=>{
+    if(event.code==='Space'&&canvasHasFocus()&&!isTextEditing(event.target)){spaceDown=true;workspaceWrap.classList.add('pan-ready');event.preventDefault();return;}
+    if(!canvasHasFocus()||isTextEditing(event.target)) return;
+    const command=event.ctrlKey||event.metaKey;
+    if(command&&event.key.toLowerCase()==='z') { event.preventDefault(); post({type:event.shiftKey?'redo':'undo'}); }
+    else if(command&&event.key.toLowerCase()==='y') { event.preventDefault(); post({type:'redo'}); }
+    else if(command&&event.key.toLowerCase()==='c'&&selectedNodes.size) { event.preventDefault(); copySelection(); }
+    else if(command&&event.key.toLowerCase()==='v') { event.preventDefault(); pasteSelection(); }
+    else if(command&&event.key.toLowerCase()==='d') { event.preventDefault(); duplicateSelection(); }
+    else if(command&&event.key.toLowerCase()==='a') { event.preventDefault(); setSelectedNodes(documentNodes().filter(node=>node&&typeof node.nodeId==='string').map(node=>node.nodeId)); }
+    else if((event.key==='Delete'||event.key==='Backspace')&&selectedNodes.size) { event.preventDefault(); requestDeleteNodes([...selectedNodes]); }
+    else if(event.key.toLowerCase()==='f') { event.preventDefault(); focusNode(selected||graphOutput().nodeId); }
+    else if(event.key==='Escape'&&pendingSocket) { pendingSocket=null; updateSocketHints(); event.preventDefault(); }
+  });
+  window.addEventListener('keyup',event=>{if(event.code==='Space'){spaceDown=false;workspaceWrap.classList.remove('pan-ready');}});
+  window.addEventListener('blur',()=>{spaceDown=false;workspaceWrap.classList.remove('pan-ready');});
+  window.addEventListener('beforeunload',event=>{
+    if(!state?.isDirty) return;
+    event.preventDefault(); event.returnValue='';
+  });
+  workspaceWrap.addEventListener('scroll',scheduleDrawWires);
+  window.addEventListener('resize',scheduleDrawWires);
+  refreshState().then(ok=>{if(!ok) $('status').textContent='Server returned an incomplete state';})
+    .catch(error=>{$('status').textContent=`Could not connect: ${error.message}`;});
+})();
+</script>
+</body>
+</html>

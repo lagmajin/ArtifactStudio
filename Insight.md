@@ -1,4 +1,130 @@
-**最終更新:** 2026-11-14
+**最終更新:** 2026-11-15
+
+## 2026-11-15: Shader graph R&D should add scalar subtraction as a closed operation
+- **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、dynamic graph capability manifest/candidate。
+- **確認できた事実:** prototypeのtrusted implementation setとtyped arithmetic loweringはregistryから任意コードを実行せず、既知IDの演算子だけを選ぶ設計である。Scalar `float.subtract` を閉じた実装IDと `artifact.rd.math.subtract.float32@1` operationとして追加し、必須Float `a/b`→Float `result` signatureを既存validatorへ含めた。式は`a - b`でclampしない。root capability listとregistry digestを更新し、既存Add/Mul fixtureに加え`0.75 - 0.25`のfocused document/candidateをgeneratorで作成した。候補HLSLは`(n_minuend_value - n_subtrahend_value)`を出力する。
+- **価値または懸念:** prototypeのpalette/loweringに基本scalar arithmeticをひとつ増やし、registry-selected operationとtrusted native implementationの境界を保つ。shader runtime/finite arithmetic結果、Subtract専用graphの実行証拠はまだない。
+- **次に確認すべきこと:** candidate digestを含む既存R&D manifest verifierへのfocused subtract case照合を追加し、許可された検証時にregistry lock/negative signature、将来HLSL compiler/runtimeとbinary32 edge behaviorを評価する。
+
+## 2026-11-15: Shader graph state guard must accept successful compilation warnings
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope`、`dynamic_graph_prototype.py::compile_document_from_data`。
+- **確認できた事実:** candidate compile成功resultは`warnings: string[]`を返し、`diagnostics`配列はcompile failure wrapperだけにある。直前のstate guardはcompilation diagnosticsを常時必須にして正常なcompile stateを拒否する形だった。成功時のwarning配列または失敗時のstructured diagnosticsのどちらかを受け入れるよう修正した。
+- **価値または懸念:** compile成功/失敗の双方でUI stateを採用できるsource contractになった。browser runtimeでの採用確認は未実施。
+- **次に確認すべきこと:** success result with empty/nonempty warningsとunavailable result with diagnosticsを使って初期ロード・action responseの両方を確認する。
+
+## 2026-11-15: Shader graph action envelopes should validate diagnostics before display
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope/isActionEnvelope/diagnosticText`。
+- **確認できた事実:** state envelopeはvalidation/compilation diagnostics配列の存在だけを確認し、各itemの型を検証していなかった。action responseは`ok` boolの必須性を別契約にせず、reject時にdiagnosticsへ直接`.map`していた。診断itemのcode/severity/path/messageを検査し、action用envelopeの`ok` boolと安全なstatus formatterを追加した。
+- **価値または懸念:** malformed diagnosticsがrender/status表示経路で例外になる可能性を下げる。JSON stateのbrowser runtime検証は未実施。
+- **次に確認すべきこと:** 正常warning/error arrays、malformed item、missing action `ok`、empty reject diagnosticsをUIへ渡してstate回復とstatus表示を確認する。
+
+## 2026-11-15: Shader graph UI should validate the full state envelope before adoption
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope/refreshState`。
+- **確認できた事実:** UI state採用前のguardは`document`と`palette`だけを確認していたが、renderはvalidation/compilation diagnostics、history capabilities、document hash、dirty/save statusも必須として参照する。必要フィールドを型付きで確認するguardへ拡張し、初期state取得も同じrefresh関数経由にした。
+- **価値または懸念:** incomplete payloadがstateへ採用されてrender中に失敗する事態を避け、初期ロードと通信回復の契約を統一する。browser runtimeでの正常state採用・不完全payload拒否は未確認。
+- **次に確認すべきこと:** 現serverの正常/compile unavailable stateと各required field欠落payloadを使い、render動作およびstate保持をbrowserで確認する。
+
+## 2026-11-15: Shader graph parameter APIs should reject malformed IDs at ingress
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::expose_node_parameter/edit_graph_parameter/unexpose_node_parameter/edit_node_parameters`。
+- **確認できた事実:** APIは不正なnode/parameter IDをlookup失敗へ進めた後、JSON Pointer用 `_pointer_segment` でstring methodを呼ぶ箇所があり、HTTP payload由来のlist/dict IDがstructured diagnosticではなくAttributeErrorになり得た。Expose/Detachのnode IDとnode parameter ID、shared editのgraph parameter ID、node parameter update keyを既存stable identifier形式で入口検証するよう変更した。
+- **価値または懸念:** malformed actionでもserverの通常ContractError経路とUIのresponse envelopeを維持しやすくなる。API runtime応答は未確認。
+- **次に確認すべきこと:** object/array/bool/不正文字列IDを各APIに渡し、ContractError code/pathとdocument不変性を確認する。
+
+## 2026-11-15: Shader graph editor should resync after an ambiguous action response
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::postRequest/refreshState`。
+- **確認できた事実:** action fetchまたはresponse JSON parseが失敗すると、serverがactionを処理済みか不明でもUIは旧stateを維持したままqueueを進める。incomplete envelopeも同様にstate更新をせず次操作へ進んでいた。失敗・不完全応答では次actionの前に`/api/state`を取得し、正しいenvelopeならstateを置き換えてrenderするよう変更した。再同期失敗時は最後のUI stateを維持し、失敗をstatusへ表示する。
+- **価値または懸念:** 通信結果が曖昧な後に旧document hashを根拠としてactionを継続する可能性を減らす。serverが応答不能の間は同期できず、後続操作はserver validationによりrejectされる可能性が残る。ブラウザ通信障害は未実験。
+- **次に確認すべきこと:** action commit後のresponse切断、invalid JSON response、state route失敗を模擬し、再同期後のundo/redoとdirty stateを確認する。
+
+## 2026-11-15: Shader graph editor actions should apply responses in request order
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::post`。
+- **確認できた事実:** 各UI actionは独立したfetchを開始し、HTTP応答が返った順に`state`を置換する構造だった。連続した操作の応答順が逆転すると古いdocument snapshotが後から画面stateへ入る可能性があるため、actionごとにfocus identityをcaptureし、promise queueで要求順に送信・応答適用するよう変更した。
+- **価値または懸念:** editor内の操作順とサーバー処理順・画面snapshot適用順を一致させる。通信遅延時は後続操作が先行応答まで待つため、複数requestの総完了時間は逐次化される。ブラウザ動作確認は未実施。
+- **次に確認すべきこと:** 素早いparameter editとstructure actionの連続操作で、focus復元、Undo順、dirty状態が正しく進むことをbrowserで確認する。
+
+## 2026-11-15: Shader graph Expose must validate existing shared bindings before joining
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::expose_node_parameter`。
+- **確認できた事実:** 既存graph parameterへnode parameterを追加する操作は対象bindingの形状のみ検査し、既存bindingのnode/operation/parameter/type/value整合や同record内重複は検証せずappendしていた。既存targetに限ってbinding一意性、node一意性、operation/parameter availability、型、canonical value一致を確認してから追加するよう変更した。node ID→record indexも事前構築して既存bindingごとの全node検索を避ける。無関係なrepairable graph parameter recordは走査時に編集拒否の理由としない。
+- **価値または懸念:** 共有parameterの既存意味が壊れている状態へ新しいbindingを連結して問題を広げることを防ぐ。実動作・原本不変性は未検証。
+- **次に確認すべきこと:** validな共有target、target内重複、missing/unknown bound node、type/value mismatch、無関係malformed recordを使い、成功/rejectと入力不変性を確認する。
+
+## 2026-11-15: Shader graph parameter edits must reject duplicate bindings before mutation
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::edit_graph_parameter`。
+- **確認できた事実:** shared value editは対象parameter内の各bindingを同期するが、同じnode parameterが同じrecord内で重複、または別recordにも登録されていても書き換えを進める経路があった。編集前にnode ID→node recordとwell-formed binding→graph parameter indexを一度索引化し、対象binding内の重複と他recordとの重複をrejectする。不正な無関係bindingは索引対象外にしてrepair可能性を保つ。
+- **価値または懸念:** 無効なmultiple-writer parameter relationを値編集でさらに更新するのを防ぎ、照合用のnodeとbinding scanをO(N+B+P)へまとめる。API runtime結果は未確認。
+- **次に確認すべきこと:** 有効shared edit、同record内重複、別record重複、無関係malformed recordを含む操作で、reject時に入力documentが不変であることを確認する。
+
+## 2026-11-15: Shader graph repair validation should include graph parameter bindings
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::validate_document_for_editing`。
+- **確認できた事実:** validatorはnode/link診断を集める一方、graphParametersの厳密検証はエラーがない場合に限って呼ぶcompiler経路へ委ねていた。そのため独立したnode/linkエラーが存在すると、duplicate graph parameter ID、binding欠落/重複、node parameter type/value mismatch等が同時に見えない。編集validatorへgraph parameter独立走査を追加し、既存エラーの有無にかかわらず診断を集め、registryにない操作へ結び付いたbindingはrepairable warningにした。node parameter canonicalization結果はnodeごとに一度計算し、複数bindingの値比較で再canonicalizeしない。
+- **価値または懸念:** 保存データ修復時に一回の検証で独立した原因を把握しやすくなり、未知nodeのopaque保持方針も維持する。追加した診断の実行確認はしていない。
+- **次に確認すべきこと:** valid exposure、重複ID/binding、欠落node/parameter、未知operation binding、value mismatchを含む編集validator結果を、許可された検証時に既存compile diagnosticsと突き合わせる。
+
+## 2026-11-15: Shader graph node drag should coalesce wire redraws by frame
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::renderNodes/drawWires`。
+- **確認できた事実:** ノード移動の各 `pointermove` が全wireの削除・socket座標読取・SVG path再生成を同期実行していた。また、canvas scrollとwindow resizeも各eventで即時再描画していた。wire再描画を `requestAnimationFrame` で同一frame内1回にまとめ、drag/scroll/resizeからscheduleするよう変更した。ノード位置更新自体は各pointer eventで行う。
+- **価値または懸念:** 描画frameより多いpointer eventが来てもwire layout readとSVG更新をframe単位に抑えられる見込み。browserでの追従品質・実測性能は未検証。
+- **次に確認すべきこと:** ブラウザ操作で単一／複数node drag、pointer cancel、scroll/zoom/resize時のwire追従を確認し、高頻度eventの描画回数を記録する。
+
+## 2026-11-15: Shader graph arrange selection lookup can use a set
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::arrange_nodes_by_flow`。
+- **確認できた事実:** arrange は重複のない文字列 node ID を検証した後、全nodeを走査する選択照合で `selected_ids` list membership を使っていた。選択数をS、node数をNとするとこの照合は最大O(N×S)回の文字列比較になり、選択ID set を事前生成する形へ変更した。
+- **価値または懸念:** 大きな部分選択グラフでレイアウト操作の選択判定を平均O(N+S)へ抑えられる見込み。実測しておらず、全体のarrange時間が改善するかは未検証。
+- **次に確認すべきこと:** 将来許可された性能計測で、全node選択と小部分選択を含む大規模fixtureのarrange時間を比較し、選択set構築コストも含めて測る。
+
+## 2026-11-15: Shader graph link batches should snapshot the document once
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::connect_nodes_batch`。
+- **確認できた事実:** batch は各 `connect_nodes` 呼び出しでdocument全体のJSON snapshotに加え、既存nodes/links、operation/socket定義、writer set、adjacencyを再構築していた。detached working copy、node/operation/socket index、writer set、adjacencyを一度だけ作り、edgeが通るたびwriter/adjacencyを更新する形に変更した。edgeごとの接続型検査とcycle searchは残る。後続edgeが失敗すればworking copyは返らずcaller documentは元のまま。`rewire_input` も削除後のdetached copyを直接indexして検証するよう変更し、再snapshotを省いた。
+- **価値または懸念:** batch全体のnode/link/registry scanを一度にし、document-wide snapshotも1回にできる。cycle searchは各edgeで残るため全処理が線形という主張はしない。性能とsingle-link behavior同値性は未計測・未実行。
+- **次に確認すべきこと:** 許可された性能計測でbatch長・graph規模を変えてwall timeを測り、single-link、batch success/failure、duplicate writer、cycle rejectionの動作同値を確認する。
+
+## 2026-11-15: Shader graph disconnect batches can index existing edges once
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::disconnect_nodes_batch`。
+- **確認できた事実:** 各要求edgeについてlinks全体をfilterし直していたため、B件を外す処理の照合はO(B×E)だった。string endpointだけを exact edge tuple→link index list に一度索引化し、要求は索引から照合して、事前検証後に一括除去するよう変更した。
+- **価値または懸念:** 照合部分は平均O(E+B)となり、リンク数の多い編集で重複走査を減らせる。JSON snapshotと最終除去のコストは残り、wall-time改善は未計測。
+- **次に確認すべきこと:** 許可された性能計測で、リンク数・削除数・重複edge数を変えたときのindex構築とbatch全体時間を測る。
+
+## 2026-11-15: Shader graph duplicate ID checks should remain linear
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::duplicate_nodes_batch`。
+- **確認できた事実:** 複製先IDの重複確認に毎回 `source_to_clone.values()` を走査しており、複製数Sに対してO(S²)比較になっていた。専用setへ追加して平均O(1)照合に変更した。graph parameter bindingの重複抑止setも各record単位からbatch全体へ移し、1つのnode parameterを複数recordから複製bindingしないようにした。
+- **価値または懸念:** 大きな複製batchのID validationを線形にでき、壊れた入力で同一node parameterのgraph-scope二重bindingを新規複製しない。改善量と既存 malformed duplicate binding の選択規則はruntime未検証。
+- **次に確認すべきこと:** 許可されたfocused確認で、重複dest ID、recordを跨ぐduplicate parameter binding、large selectionを確認し、既存bindingは保持しつつclone側だけに重複を増やさないことを照合する。
+
+## 2026-11-15: Acyclic shader graph batches can skip forward-edge reachability walks
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::_connection_validation_state`、`_topological_ranks`、`_connect_with_state`。
+- **確認できた事実:** batch edgeのcycle判定は各edgeでtargetから全reachable adjacencyをwalkしていた。複数edgeのbatchで既存graphがDAGならdeterministic topological rankを一度作り、source rank < target rankなら追加edgeはcycleを作れないためwalkを省略する実装にした。rank逆転edgeのみ既存DFSを使い、通過した後rankを再構築する。1-edge batchは初期rank構築を避け、初期graphがcyclicならrankは作られず既存DFS経路を保つ。
+- **価値または懸念:** 一般的な前方向batch edgeはcycle探索を不要にできる。逆転edgeごとのrank rebuildはO(V+E log V)、topology構築コストもあるため、batch全体の高速化は測定していない。
+- **次に確認すべきこと:** 許可後、forward edge、non-cyclic backward edge、cycle-forming edge、既存cyclic graph、single-edge APIを比較し、判定同値性とlarge batch性能を測る。
+
+## 2026-11-15: Shader graph socket hints should share one adjacency snapshot
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::updateSocketHints`、`wouldCreateCycle`。
+- **確認できた事実:** 以前は互換socket候補ごとに `wouldCreateCycle` が全link配列を各訪問nodeで走査していた。hint更新ごとに有効string endpointから adjacency mapとinput別link indexを一度作り、候補node pairごとのDFS結果を同更新中にcacheするよう変更した。socket click確定経路にも新hint stateを渡すよう揃え、旧signatureの呼び出しが残っていた例外経路を除去した。追加レビューで、UI hintはsingle-writer inputもblockedにしていたがclick確定はrewire可能だった不一致を確認し、単一既存edgeを除外したcycle判定で候補表示と確定を一致させた。multi-writerだけをblockedとする。さらにhint passのbuttonごとに node配列とpaletteを再検索していたため、node/operation indexを同一snapshotへ追加した。
+- **価値または懸念:** hint対象socket数をC、link数をE、reachability訪問量をRとすると、旧処理は候補あたり最大O(R×E) link比較に加えoccupied check O(E)、socket definitionごとにnode/palette lookupがあった。新処理はO(N+P+E)のindex構築とnode-pairごとのO(R)探索で、同一pairのsocket候補は結果を再利用し、buttonごとのlookupは平均O(1)にする。single-writer rewireでは対象input edgeだけを除外し、同じnode-pairを結ぶ他のinput edgeが残る場合はadjacencyを保持する。browser実測・描画負荷検証は未実施。
+- **次に確認すべきこと:** 大きなgraphでsocket候補の多いnodeを選び、hint更新時間と結果正確性をruntime/browserで確認する。サイクル・孤立node・壊れたendpointを含む画面ケースも見る。
+
+## 2026-11-15: Shader graph node rendering should index incoming links once
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::renderNodes`。
+- **確認できた事実:** input pinごとにrequired-state判定で全linksを走査し、さらにDisconnect button用にlinksを再scan/map/filterしていた。nodes描画ごとにtarget node/socket→`{link,index}` listを一度構築して両方で再利用するようにした。duplicate nodeの描画ordinalも各nodeで`indexOf`とprefix `slice/filter`を行わず、map callback indexと累積countで求める。multi-selection dragのsource node lookupはrender時のID indexを使う。wire描画はlinkごとのdocument node検索とsocketごとのDOM selector queryを、描画ごとのnode-operation/socket-element indexで置き換えた。
+- **価値または懸念:** node数N、input数I、link数E、重複node ID走査コストが概ねO(N²+I×E)だった部分をO(N+E+I)へ抑える。wire描画のlinkごとO(N) node検索と多数のCSS selector queryもindex構築へ集約する。UI描画時間やDOM構築全体のボトルネック解消は未計測。
+- **次に確認すべきこと:** large graphのrender時間、missing-required表示、multi-writer disconnect index、duplicate ID card offsetをbrowserで確認する。
+
+## 2026-11-15: Shader graph diagnostics should share node and link indexes
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::render` diagnostic list builder。
+- **確認できた事実:** diagnostic itemごとに `/nodes`, `/links`, output pathを解決する際、`documentNodes()` / `documentLinks()` を再取得し、link endpointごとのfindとnode IDごとのduplicate filterも再走査していた。diagnostic render passでnode array、link array、string node ID→matches mapを一度構築し、unique valid IDだけをaction対象にするよう変更した。
+- **価値または懸念:** node数N、link数E、diagnostic数Dに対し、対象解決にあったおおむねO(D×(N+E))の再走査をO(N+E+D)にまとめる。診断表示・action target同値性はsource-reviewedだがbrowser未検証。
+- **次に確認すべきこと:** `/nodes/i`、`/links/i/from|to`、`/output`、duplicate/invalid IDを含むdiagnosticのボタン有効状態と遷移先をbrowserで比較する。
+
+## 2026-11-15: Shader graph parameter rendering should index exposed bindings
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::renderNodes`。
+- **確認できた事実:** node parameterごとにgraph parameter arrayを走査し、全bindingを `.find(...some(...))` で再評価していた。render passで先にnode identity + parameter ID→最初に一致したexposureを索引化し、元のrecord順優先を保持してlookupするようにした。JSON scalar node identityの編集不能な修復表示も元のstrict equality意味を保つようstring/number/boolean/nullだけを索引対象にし、object identityをJSON文字列化で同一視しない。
+- **価値または懸念:** node parameter数Q、graph parameter record数G、binding数Bに対する概ねO(Q×(G+B))検索をO(G+B+Q)にする。表示値・最初の一致規則はsource上同値だが、UI runtime未確認。
+- **次に確認すべきこと:** 複数exposure重複、scalar malformed node ID、通常shared Float/Vector4値の表示とdisabled editorをbrowserで確認する。
+
+## 2026-11-15: Shader graph structural edits should preserve repairable parameter records
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py` の `delete_node`、`delete_nodes_batch`、`duplicate_nodes_batch`。
+- **確認できた事実:** ノード削除は不正な parameter record を残す一方、binding が空になった record を一律削除していた。複製・Expose・Detach・Copy は無関係な graph parameter record や binding が不正だと操作全体を失敗させる場合があった。さらに、list/dict型の不正IDに対する set/dict membership が型例外を起こし得た。削除では有効な binding の参照だけを除去し、構造不正 record は保持するよう変更した。複製では妥当な record/type の binding のみ複製し、不正データは保持・スキップする。Expose/Detach は無関係な不正 record を読み飛ばし、対象 ID の曖昧さ・既存 binding・対象 binding の不正形状を引き続き拒否する。Copy は選択ノードに関係する露出 record のみを検証・exportし、無関係な不正 record を無視する。Paste はclipboard内graph parameter ID/bindingの重複、登録parameterの型不一致、共有valueとnode値の不一致をrejectしてからIDを付け替える。Detach で最後の binding が外れた場合も、parameter record 自体が不正なら修復用に残す。該当する編集経路では、集合照合の前にIDが文字列かを確認するよう修正した。
+- **価値または懸念:** R&D editor の repairable document 方針と構造編集の挙動を揃え、局所編集で不正データを不可逆に消したり、独立した編集まで阻害したりする危険を減らせる。現状は prototype 内の実装であり、コアライブラリの採用根拠ではない。
+- **次に確認すべきこと:** 明示的な実行許可後、単体削除・一括削除・複製・undo/redo を valid / malformed parameter fixture で操作し、履歴復元と保存再読込まで比較する。現時点ではビルド・テストを実行していない。
 
 ## 2026-11-13: Invisible UI automation should separate widget capture from GPU viewport capture
 - **関連:** `tools/capture_ui_test.py`、`Artifact/src/AppMain.cpp` の `ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW`、`Artifact/src/Widgets/ArtifactStartupScreenshot.cpp`。

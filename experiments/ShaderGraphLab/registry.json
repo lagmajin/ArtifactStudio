@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-operation-registry",
+  "operations": [
+    {
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "displayName": "Float",
+      "category": "Input",
+      "implementationId": "float.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Float32",
+          "default": 0.0
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.constant.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4",
+      "category": "Input",
+      "implementationId": "vector4.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Vector4"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Vector4F32",
+          "default": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.math.add.float32",
+      "semanticVersion": 1,
+      "displayName": "Add",
+      "category": "Math",
+      "implementationId": "float.add",
+      "inputs": [
+        {
+          "socketId": "a",
+          "valueType": "Float",
+          "required": true
+        },
+        {
+          "socketId": "b",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "result",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.float32",
+      "semanticVersion": 1,
+      "displayName": "Multiply",
+      "category": "Math",
+      "implementationId": "float.multiply",
+      "inputs": [
+        {
+          "socketId": "a",
+          "valueType": "Float",
+          "required": true
+        },
+        {
+          "socketId": "b",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "result",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.subtract.float32",
+      "semanticVersion": 1,
+      "displayName": "Subtract",
+      "category": "Math",
+      "implementationId": "float.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.add.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Add",
+      "category": "Math",
+      "implementationId": "vector4.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Multiply",
+      "category": "Math",
+      "implementationId": "vector4.multiply",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+      "semanticVersion": 1,
+      "displayName": "Replicate to Vector4",
+      "category": "Convert",
+      "implementationId": "float.replicate.rgb_alpha_one",
+      "inputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "vector",
+          "valueType": "Vector4"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.vector4.extract_x.scalar",
+      "semanticVersion": 1,
+      "displayName": "Extract X",
+      "category": "Convert",
+      "implementationId": "vector4.extract_x",
+      "inputs": [
+        {
+          "socketId": "vector",
+          "valueType": "Vector4",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    }
+  ]
+}

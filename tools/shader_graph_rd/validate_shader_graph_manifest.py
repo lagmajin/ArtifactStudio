@@ -4,14 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
 import re
 import struct
 import sys
+import tempfile
 import zlib
 
 
@@ -144,7 +147,7 @@ def validate(root: Path) -> list[str]:
         path.relative_to(fixture_root).as_posix()
         for path in fixture_root.rglob("*.json")
         if path.name != "evaluation_manifest.json" and "planned" not in path.parts
-        and path.parent.name != "textures" and path.name not in {"ramp_duplicate_stops_formula_golden.json", "math_operation_formula_golden.json", "mixrgb_formula_golden.json", "lowering_identity_proposal_golden.json", "typed_ir_projection_readiness.json", "typed_ir_explicit_conversion_expression.json", "typed_ir_vector4_to_vector3_expression.json", "operation_registry_audit.json", "constant_value_canonicalization_golden.json", "surface_alpha_formula_golden.json", "luminance_formula_golden.json", "clamp_formula_golden.json", "vector4_invert_formula_golden.json", "map_range_formula_golden.json"}
+        and path.parent.name != "textures" and path.name not in {"ramp_duplicate_stops_formula_golden.json", "math_operation_formula_golden.json", "mixrgb_formula_golden.json", "lowering_identity_proposal_golden.json", "typed_ir_projection_readiness.json", "typed_ir_explicit_conversion_expression.json", "typed_ir_vector4_to_vector3_expression.json", "operation_registry_audit.json", "constant_value_canonicalization_golden.json", "surface_alpha_formula_golden.json", "luminance_formula_golden.json", "clamp_formula_golden.json", "vector4_invert_formula_golden.json", "map_range_formula_golden.json", "dynamic_add_lowering_candidate.json"}
     }
     for fixture in fixtures:
         if not isinstance(fixture, dict) or not isinstance(fixture.get("file"), str):
@@ -1125,7 +1128,7 @@ def validate(root: Path) -> list[str]:
             'float2 {0}_UV = In.UV;' not in texcoord_source or
             "// Phase 1 exposes UV only (Blender TexCoord has more sockets)." not in texcoord_interface):
         errors.append("TexCoord operation proposal must stay bounded to the source-audited UV-only In.UV behavior")
-    required_operation_schema_fields = {"schemaId", "schemaVersion", "status", "recordFields", "inputRecordFields", "outputRecordFields", "parameterRecordFields", "recordRules", "exampleOperationRecords", "legacyNodeCoverage", "promotionGate", "fixtureProjectionReadiness", "explicitConversionExpression", "vectorTruncationExpression", "typedLoweringCandidateContract", "operationRegistryAudit", "operationPromotionWaves", "constantValueCanonicalizationGolden", "color4SemanticPolicy", "color4PolicyEvaluationCases", "color4PolicyEvaluationStatus", "surfaceAlphaFormulaGolden", "luminanceFormulaGolden", "clampFormulaGolden", "vector4InvertFormulaGolden"}
+    required_operation_schema_fields = {"schemaId", "schemaVersion", "status", "recordFields", "inputRecordFields", "outputRecordFields", "parameterRecordFields", "recordRules", "exampleOperationRecords", "legacyNodeCoverage", "promotionGate", "fixtureProjectionReadiness", "explicitConversionExpression", "vectorTruncationExpression", "typedLoweringCandidateContract", "operationRegistryAudit", "operationPromotionWaves", "constantValueCanonicalizationGolden", "color4SemanticPolicy", "color4PolicyEvaluationCases", "color4PolicyEvaluationStatus", "surfaceAlphaFormulaGolden", "luminanceFormulaGolden", "clampFormulaGolden", "vector4InvertFormulaGolden", "mapRangeFormulaGolden", "dynamicGraphPrototype"}
     if (not required_operation_schema_fields <= set(operation_schema) or
             operation_schema.get("schemaId") != "artifact.material-graph.typed-operation-schema" or
             operation_schema.get("schemaVersion") != 1 or operation_schema.get("status") != "proposal-only-not-implemented" or
@@ -1150,7 +1153,7 @@ def validate(root: Path) -> list[str]:
         "resourceRequirements": "operations declare symbolic requirements; renderer adapter resolves assets, revisions, samplers, color interpretation, and backend bindings",
         "loweringResult": "all reachable operations must lower or return one diagnostic result with no partial IR/source/hash",
         "hashBoundary": "typed IR hash includes operation IDs/versions, stable typed edges, canonical parameters/defaults, selected output, and compile-time specialization; excludes layout, UI labels, diagnostics, and nonsemantic opaque fields",
-        "dynamicRegistration": "new operation support requires a registered immutable semantic record and lowering implementation; arbitrary runtime code or HLSL strings are not executable registry payload",
+        "dynamicRegistration": "graph documents dynamically instantiate versioned operation IDs from declarative immutable definitions that drive palette/socket/parameter metadata; each definition selects a closed trusted implementation ID, never executable source or HLSL payload; a new algorithm requires a reviewed native implementation and semantic version change",
         "runtimeStatus": "design-candidate-not-implemented-or-runtime-verified",
     }
     if lowering_candidate != lowering_candidate_expected:
@@ -1339,6 +1342,1129 @@ def validate(root: Path) -> list[str]:
             errors.append("MapRange formula golden must match source defaults, all interpolation modes, clamp policy, and degenerate/reversed range behavior")
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError, ImportError, TypeError, ValueError, OverflowError, struct.error, RuntimeError) as error:
         errors.append(f"cannot validate MapRange formula golden: {error}")
+    dynamic_contract = operation_schema.get("dynamicGraphPrototype", {})
+    dynamic_registry_path = root / dynamic_contract.get("registryFixture", "")
+    dynamic_document_path = root / dynamic_contract.get("documentFixture", "")
+    dynamic_candidate_path = root / dynamic_contract.get("candidateFixture", "")
+    dynamic_prototype_path = root / dynamic_contract.get("prototype", "")
+    try:
+        dynamic_registry_source = json.loads(dynamic_registry_path.read_text(encoding="utf-8"))
+        dynamic_document = json.loads(dynamic_document_path.read_text(encoding="utf-8"))
+        dynamic_candidate = json.loads(dynamic_candidate_path.read_text(encoding="utf-8"))
+        dynamic_spec = importlib.util.spec_from_file_location("shader_graph_dynamic_prototype", dynamic_prototype_path)
+        if dynamic_spec is None or dynamic_spec.loader is None:
+            raise RuntimeError("cannot load dynamic graph prototype")
+        dynamic_module = importlib.util.module_from_spec(dynamic_spec)
+        sys.modules[dynamic_spec.name] = dynamic_module
+        dynamic_spec.loader.exec_module(dynamic_module)
+        local_ui_module_name = "shader_graph_local_ui"
+        local_ui_spec = importlib.util.spec_from_file_location(
+            local_ui_module_name, dynamic_prototype_path.with_name("local_graph_lab.py"))
+        if local_ui_spec is None or local_ui_spec.loader is None:
+            raise RuntimeError("cannot load local graph UI session")
+        prior_dynamic_alias = sys.modules.get("dynamic_graph_prototype")
+        sys.modules["dynamic_graph_prototype"] = dynamic_module
+        local_ui_module = importlib.util.module_from_spec(local_ui_spec)
+        sys.modules[local_ui_spec.name] = local_ui_module
+        local_ui_spec.loader.exec_module(local_ui_module)
+        if prior_dynamic_alias is None:
+            del sys.modules["dynamic_graph_prototype"]
+        else:
+            sys.modules["dynamic_graph_prototype"] = prior_dynamic_alias
+        dynamic_registry = dynamic_module.load_registry(dynamic_registry_path)
+        constant_operation = dynamic_registry[("artifact.rd.constant.float32", 1)]
+        created_constant_node = dynamic_module.instantiate_node(constant_operation, "created_constant", x=12.0, y=34.0)
+        created_constant_document = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                                     "nodes": [created_constant_node], "links": [],
+                                     "output": {"nodeId": "created_constant", "socketId": "value"}}
+        created_constant_compile = dynamic_module.compile_document_from_data(created_constant_document, dynamic_registry)
+        changed_constant_document = dynamic_module.edit_node_parameters(
+            created_constant_document, dynamic_registry, "created_constant", {"value": 0.75})
+        changed_constant_compile = dynamic_module.compile_document_from_data(changed_constant_document, dynamic_registry)
+        add_operation_for_graph = dynamic_registry[("artifact.rd.math.add.float32", 1)]
+        graph_nodes = [
+            dynamic_module.instantiate_node(constant_operation, "source_left", x=0, y=0),
+            dynamic_module.instantiate_node(constant_operation, "source_right", x=0, y=100),
+            dynamic_module.instantiate_node(add_operation_for_graph, "sum_node", x=180, y=50),
+        ]
+        connected_graph = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                           "nodes": graph_nodes, "links": [],
+                           "output": {"nodeId": "sum_node", "socketId": "result"}}
+        connected_graph = dynamic_module.connect_nodes(connected_graph, dynamic_registry, "source_left", "value", "sum_node", "a")
+        connected_graph = dynamic_module.connect_nodes(connected_graph, dynamic_registry, "source_right", "value", "sum_node", "b")
+        connected_graph_compile = dynamic_module.compile_document_from_data(connected_graph, dynamic_registry)
+        ui_empty_document = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                             "nodes": [], "links": [], "output": {"nodeId": "", "socketId": ""}}
+        ui_session = local_ui_module.Session(dynamic_registry, ui_empty_document, None, [])
+        ui_session.apply({"type": "add", "operationId": "artifact.rd.constant.float32",
+                          "semanticVersion": 1, "nodeId": "ui_left", "x": 32, "y": 48})
+        ui_session.apply({"type": "parameter", "nodeId": "ui_left", "values": {"value": 0.25}})
+        ui_session.apply({"type": "add", "operationId": "artifact.rd.constant.float32",
+                          "semanticVersion": 1, "nodeId": "ui_right", "x": 32, "y": 148})
+        ui_session.apply({"type": "parameter", "nodeId": "ui_right", "values": {"value": 0.5}})
+        ui_session.apply({"type": "add", "operationId": "artifact.rd.math.add.float32",
+                          "semanticVersion": 1, "nodeId": "ui_sum", "x": 260, "y": 96})
+        ui_session.apply({"type": "connect", "fromNode": "ui_left", "fromSocket": "value",
+                          "toNode": "ui_sum", "toSocket": "a"})
+        ui_session.apply({"type": "connect", "fromNode": "ui_right", "fromSocket": "value",
+                          "toNode": "ui_sum", "toSocket": "b"})
+        ui_session.apply({"type": "output", "nodeId": "ui_sum", "socketId": "result"})
+        ui_session_document = dynamic_module.preserve_document(ui_session.document)
+        ui_session_before_reject = dynamic_module.preserve_document(ui_session.document)
+        ui_session_history_before_reject = (len(ui_session.history), ui_session.cursor)
+        try:
+            ui_session.apply({"type": "connect", "fromNode": "ui_left", "fromSocket": "value",
+                              "toNode": "ui_sum", "toSocket": "missing"})
+            ui_session_rejected_connect = None
+        except dynamic_module.ContractError as error:
+            ui_session_rejected_connect = {key: error.to_json()[key] for key in ("code", "severity", "path")}
+        ui_session_after_reject = dynamic_module.preserve_document(ui_session.document)
+        ui_session_history_after_reject = (len(ui_session.history), ui_session.cursor)
+        ui_session_undo = ui_session.apply({"type": "undo"})
+        ui_session_undo_document = dynamic_module.preserve_document(ui_session.document)
+        ui_session_redo = ui_session.apply({"type": "redo"})
+        ui_session_redo_document = dynamic_module.preserve_document(ui_session.document)
+        with tempfile.TemporaryDirectory(prefix="shader-graph-rd-ui-session-") as ui_directory:
+            ui_session.document_path = Path(ui_directory) / "ui-graph.json"
+            ui_session.apply({"type": "save"})
+            ui_session_saved = dynamic_module.load_document(ui_session.document_path)
+        import threading
+        from urllib.error import HTTPError
+        from urllib.request import Request, urlopen
+        http_session = local_ui_module.Session(dynamic_registry, connected_graph, None, [])
+        http_page = dynamic_prototype_path.with_name("local_graph_lab.html").read_bytes()
+        http_server = local_ui_module.HTTPServer(
+            ("127.0.0.1", 0), local_ui_module.make_handler(http_session, http_page))
+        http_handler = http_server.RequestHandlerClass
+        http_handler.log_message = lambda self, format, *args: None
+        http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+        http_thread.start()
+        def ui_http_request(route: str, payload: dict[str, Any] | None = None) -> tuple[int, bytes]:
+            request_data = None if payload is None else json.dumps(payload).encode("utf-8")
+            request = Request(f"http://127.0.0.1:{http_server.server_port}{route}", data=request_data,
+                              headers={"Content-Type": "application/json"} if request_data is not None else {})
+            try:
+                with urlopen(request, timeout=3) as response:
+                    return response.status, response.read()
+            except HTTPError as error:
+                return error.code, error.read()
+        try:
+            ui_http_page_status, ui_http_page_body = ui_http_request("/")
+            ui_http_state_status, ui_http_state_body = ui_http_request("/api/state")
+            ui_http_reject_status, ui_http_reject_body = ui_http_request("/api/action", {
+                "type": "connect", "fromNode": "source_left", "fromSocket": "value",
+                "toNode": "sum_node", "toSocket": "missing"})
+            ui_http_edit_status, ui_http_edit_body = ui_http_request("/api/action", {
+                "type": "layout", "nodeId": "source_left", "values": {"x": 88}})
+            ui_http_undo_status, ui_http_undo_body = ui_http_request("/api/action", {"type": "undo"})
+            ui_http_state = json.loads(ui_http_state_body)
+            ui_http_rejected = json.loads(ui_http_reject_body)
+            ui_http_edited = json.loads(ui_http_edit_body)
+            ui_http_undone = json.loads(ui_http_undo_body)
+        finally:
+            http_server.shutdown()
+            http_server.server_close()
+            http_thread.join(timeout=3)
+        empty_graph = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                       "nodes": [], "links": [], "output": {"nodeId": "", "socketId": ""}}
+        authoring_edits = [
+            lambda graph: dynamic_module.add_node(graph, dynamic_registry, "artifact.rd.constant.float32", 1,
+                                                  "author_left", x=16, y=48),
+            lambda graph: dynamic_module.edit_node_parameters(graph, dynamic_registry, "author_left", {"value": 0.25}),
+            lambda graph: dynamic_module.add_node(graph, dynamic_registry, "artifact.rd.constant.float32", 1,
+                                                  "author_right", x=16, y=128),
+            lambda graph: dynamic_module.edit_node_parameters(graph, dynamic_registry, "author_right", {"value": 0.5}),
+            lambda graph: dynamic_module.add_node(graph, dynamic_registry, "artifact.rd.math.add.float32", 1,
+                                                  "author_sum", x=192, y=88),
+            lambda graph: dynamic_module.connect_nodes_batch(
+                graph, dynamic_registry,
+                [("author_left", "value", "author_sum", "a"),
+                 ("author_right", "value", "author_sum", "b")]),
+            lambda graph: dynamic_module.set_graph_output(graph, dynamic_registry, "author_sum", "result"),
+        ]
+        authoring_transaction = dynamic_module.create_document_transaction(
+            "Build Dynamic Add Graph", empty_graph, authoring_edits)
+        authoring_graph = dynamic_module.apply_document_command(authoring_transaction, empty_graph, direction="redo")
+        authoring_compile = dynamic_module.compile_document_from_data(authoring_graph, dynamic_registry)
+        authoring_validation = dynamic_module.validate_document_for_editing(authoring_graph, dynamic_registry)
+        authoring_undo = dynamic_module.apply_document_command(authoring_transaction, authoring_graph, direction="undo")
+        authoring_redo = dynamic_module.apply_document_command(authoring_transaction, authoring_undo, direction="redo")
+        replicate_operation = dynamic_registry[("artifact.convert.scalar.replicate.vector4.rgb_alpha_one", 1)]
+        extract_x_operation = dynamic_registry[("artifact.convert.vector4.extract_x.scalar", 1)]
+        vector_graph = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": [dynamic_module.instantiate_node(constant_operation, "scalar_source"),
+                      dynamic_module.instantiate_node(replicate_operation, "replicate")],
+            "links": [{"from": {"nodeId": "scalar_source", "socketId": "value"},
+                       "to": {"nodeId": "replicate", "socketId": "value"}}],
+            "output": {"nodeId": "replicate", "socketId": "vector"},
+        }
+        vector_graph["nodes"][0]["parameters"]["value"] = 0.375
+        vector_compile = dynamic_module.compile_document_from_data(vector_graph, dynamic_registry)
+        vector_validation = dynamic_module.validate_document_for_editing(vector_graph, dynamic_registry)
+        chained_conversion_graph = dynamic_module.add_node(
+            vector_graph, dynamic_registry, "artifact.convert.vector4.extract_x.scalar", 1, "extract_x")
+        chained_conversion_graph = dynamic_module.connect_nodes_batch(
+            chained_conversion_graph, dynamic_registry,
+            [("replicate", "vector", "extract_x", "vector")])
+        chained_conversion_graph = dynamic_module.set_graph_output(
+            chained_conversion_graph, dynamic_registry, "extract_x", "value")
+        chained_conversion_compile = dynamic_module.compile_document_from_data(
+            chained_conversion_graph, dynamic_registry)
+        vector4_constant_operation = dynamic_registry[("artifact.rd.constant.vector4.float32", 1)]
+        vector4_constant_node = dynamic_module.instantiate_node(vector4_constant_operation, "color_source")
+        vector4_constant_document = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": [vector4_constant_node], "links": [],
+            "output": {"nodeId": "color_source", "socketId": "value"},
+        }
+        vector4_default_compile = dynamic_module.compile_document_from_data(
+            vector4_constant_document, dynamic_registry)
+        vector4_edited_document = dynamic_module.edit_node_parameters(
+            vector4_constant_document, dynamic_registry, "color_source",
+            {"value": [0.25, 0.5, 0.75, 0.4]})
+        vector4_edited_compile = dynamic_module.compile_document_from_data(
+            vector4_edited_document, dynamic_registry)
+        vector4_extract_graph = dynamic_module.add_node(
+            vector4_edited_document, dynamic_registry,
+            "artifact.convert.vector4.extract_x.scalar", 1, "color_x")
+        vector4_extract_graph = dynamic_module.connect_nodes_batch(
+            vector4_extract_graph, dynamic_registry,
+            [("color_source", "value", "color_x", "vector")])
+        vector4_extract_graph = dynamic_module.set_graph_output(
+            vector4_extract_graph, dynamic_registry, "color_x", "value")
+        vector4_extract_compile = dynamic_module.compile_document_from_data(
+            vector4_extract_graph, dynamic_registry)
+        vector4_add_operation = dynamic_registry[("artifact.rd.math.add.vector4.float32", 1)]
+        vector4_multiply_operation = dynamic_registry[("artifact.rd.math.multiply.vector4.float32", 1)]
+        vector4_arithmetic_graph = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": [dynamic_module.instantiate_node(vector4_constant_operation, "v4_left"),
+                      dynamic_module.instantiate_node(vector4_constant_operation, "v4_right"),
+                      dynamic_module.instantiate_node(vector4_add_operation, "v4_sum"),
+                      dynamic_module.instantiate_node(vector4_multiply_operation, "v4_product")],
+            "links": [
+                {"from": {"nodeId": "v4_left", "socketId": "value"}, "to": {"nodeId": "v4_sum", "socketId": "a"}},
+                {"from": {"nodeId": "v4_right", "socketId": "value"}, "to": {"nodeId": "v4_sum", "socketId": "b"}},
+                {"from": {"nodeId": "v4_sum", "socketId": "result"}, "to": {"nodeId": "v4_product", "socketId": "a"}},
+                {"from": {"nodeId": "v4_right", "socketId": "value"}, "to": {"nodeId": "v4_product", "socketId": "b"}},
+            ], "output": {"nodeId": "v4_product", "socketId": "result"},
+        }
+        vector4_arithmetic_graph["nodes"][0]["parameters"]["value"] = [0.2, 0.4, 0.6, 0.8]
+        vector4_arithmetic_graph["nodes"][1]["parameters"]["value"] = [0.5, 0.25, 1.5, 0.75]
+        vector4_arithmetic_compile = dynamic_module.compile_document_from_data(
+            vector4_arithmetic_graph, dynamic_registry)
+        vector4_arithmetic_edited = dynamic_module.edit_node_parameters(
+            vector4_arithmetic_graph, dynamic_registry, "v4_right",
+            {"value": [0.5, 0.5, 0.5, 0.5]})
+        vector4_arithmetic_edited_compile = dynamic_module.compile_document_from_data(
+            vector4_arithmetic_edited, dynamic_registry)
+        round_binary32 = lambda value: struct.unpack("<f", struct.pack("<f", value))[0]
+        vector4_left_values = [round_binary32(value) for value in vector4_arithmetic_graph["nodes"][0]["parameters"]["value"]]
+        vector4_right_values = [round_binary32(value) for value in vector4_arithmetic_graph["nodes"][1]["parameters"]["value"]]
+        vector4_cpu_candidate = [round_binary32(round_binary32(left + right) * right)
+                                 for left, right in zip(vector4_left_values, vector4_right_values)]
+        vector4_arithmetic_type_mismatch = copy.deepcopy(vector4_arithmetic_graph)
+        vector4_arithmetic_type_mismatch["links"][0]["from"]["nodeId"] = "source_left"
+        vector4_arithmetic_type_mismatch["nodes"].append(dynamic_module.instantiate_node(
+            constant_operation, "source_left"))
+        try:
+            dynamic_module.compile_document_from_data(vector4_arithmetic_type_mismatch, dynamic_registry)
+            vector4_arithmetic_type_diagnostic = None
+        except dynamic_module.ContractError as error:
+            vector4_arithmetic_type_diagnostic = {key: error.to_json()[key] for key in ("code", "severity", "path")}
+        conversion_type_mismatch_graph = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": [dynamic_module.instantiate_node(constant_operation, "mismatch_source"),
+                      dynamic_module.instantiate_node(extract_x_operation, "mismatch_extract")],
+            "links": [{"from": {"nodeId": "mismatch_source", "socketId": "value"},
+                       "to": {"nodeId": "mismatch_extract", "socketId": "vector"}}],
+            "output": {"nodeId": "mismatch_extract", "socketId": "value"},
+        }
+        connected_validation = dynamic_module.validate_document_for_editing(connected_graph, dynamic_registry)
+        alternate_implementation_registry = dict(dynamic_registry)
+        alternate_add_operation = alternate_implementation_registry[("artifact.rd.math.add.float32", 1)]
+        alternate_implementation_registry[("artifact.rd.math.add.float32", 1)] = replace(
+            alternate_add_operation, implementation_id="float.multiply")
+        alternate_implementation_compile = dynamic_module.compile_document_from_data(
+            connected_graph, alternate_implementation_registry)
+        palette_added_graph = dynamic_module.add_node(
+            connected_graph, dynamic_registry, "artifact.rd.math.add.float32", 1, "palette_added_add", x=320, y=80)
+        palette_added_validation = dynamic_module.validate_document_for_editing(palette_added_graph, dynamic_registry)
+        palette_wired_graph = dynamic_module.connect_nodes_batch(
+            palette_added_graph, dynamic_registry,
+            [("source_left", "value", "palette_added_add", "a"),
+             ("source_right", "value", "palette_added_add", "b")])
+        palette_wired_graph = dynamic_module.set_graph_output(
+            palette_wired_graph, dynamic_registry, "palette_added_add", "result")
+        palette_complete_validation = dynamic_module.validate_document_for_editing(palette_wired_graph, dynamic_registry)
+        composite_graph_edit = dynamic_module.add_node_with_connections(
+            connected_graph, dynamic_registry, "artifact.rd.math.add.float32", 1, "composite_add",
+            [("source_left", "value", "composite_add", "a"),
+             ("source_right", "value", "composite_add", "b")],
+            "result", x=340, y=100)
+        composite_graph_validation = dynamic_module.validate_document_for_editing(composite_graph_edit, dynamic_registry)
+        composite_graph_command = dynamic_module.create_document_command(
+            "Add and Connect Node", connected_graph, composite_graph_edit)
+        composite_graph_undo = dynamic_module.apply_document_command(
+            composite_graph_command, composite_graph_edit, direction="undo")
+        composite_graph_redo = dynamic_module.apply_document_command(
+            composite_graph_command, composite_graph_undo, direction="redo")
+        composite_parameter_edit = dynamic_module.edit_node_parameters(
+            composite_graph_edit, dynamic_registry, "source_left", {"value": 0.75})
+        composite_parameter_command = dynamic_module.create_document_command(
+            "Edit Source Value", composite_graph_edit, composite_parameter_edit)
+        composite_grouped_command = dynamic_module.compose_document_commands(
+            "Add and Configure Node", [composite_graph_command, composite_parameter_command])
+        composite_group_undo = dynamic_module.apply_document_command(
+            composite_grouped_command, composite_parameter_edit, direction="undo")
+        composite_group_redo = dynamic_module.apply_document_command(
+            composite_grouped_command, composite_group_undo, direction="redo")
+        composite_before_compile = dynamic_module.compile_document_from_data(composite_graph_edit, dynamic_registry)
+        composite_after_compile = dynamic_module.compile_document_from_data(composite_parameter_edit, dynamic_registry)
+        incomplete_graph = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                            "nodes": [dynamic_module.instantiate_node(add_operation_for_graph, "incomplete_sum")],
+                            "links": [], "output": {"nodeId": "incomplete_sum", "socketId": "result"}}
+        incomplete_validation = dynamic_module.validate_document_for_editing(incomplete_graph, dynamic_registry)
+        disconnected_graph = dynamic_module.disconnect_nodes(connected_graph, "source_left", "value", "sum_node", "a")
+        selected_source_output = dynamic_module.set_graph_output(connected_graph, dynamic_registry, "source_left", "value")
+        selected_source_compile = dynamic_module.compile_document_from_data(selected_source_output, dynamic_registry)
+        deleted_source_graph = dynamic_module.delete_node(connected_graph, dynamic_registry, "source_left")
+        delete_source_command = dynamic_module.create_document_command("Delete Float", connected_graph, deleted_source_graph)
+        restored_source_graph = dynamic_module.apply_document_command(delete_source_command, deleted_source_graph, direction="undo")
+        deleted_output_diagnostic = None
+        parameter_edited_graph = dynamic_module.edit_node_parameters(connected_graph, dynamic_registry, "source_left", {"value": 0.625})
+        command_edited_graph = dynamic_module.edit_node_layout(parameter_edited_graph, "source_left", {"x": 25})
+        edit_command = dynamic_module.create_document_command("Edit Float", connected_graph, command_edited_graph)
+        disconnect_after_edit = dynamic_module.disconnect_nodes(command_edited_graph, "source_left", "value", "sum_node", "a")
+        disconnect_command = dynamic_module.create_document_command("Disconnect Float", command_edited_graph, disconnect_after_edit)
+        parameter_command = dynamic_module.create_document_command("Change Value", connected_graph, parameter_edited_graph)
+        layout_command = dynamic_module.create_document_command("Move Node", parameter_edited_graph, command_edited_graph)
+        grouped_command = dynamic_module.compose_document_commands("Edit and Disconnect", [parameter_command, layout_command, disconnect_command])
+        transaction_edits = [
+            lambda graph: dynamic_module.edit_node_parameters(graph, dynamic_registry, "source_left", {"value": 0.625}),
+            lambda graph: dynamic_module.edit_node_layout(graph, "source_left", {"x": 25}),
+            lambda graph: dynamic_module.disconnect_nodes(graph, "source_left", "value", "sum_node", "a"),
+        ]
+        transaction_command = dynamic_module.create_document_transaction("Edit Transaction", connected_graph, transaction_edits)
+        transaction_result = dynamic_module.apply_document_command(transaction_command, connected_graph, direction="redo")
+        transaction_undo = dynamic_module.apply_document_command(transaction_command, transaction_result, direction="undo")
+        undo_disconnect_graph = dynamic_module.apply_document_command(disconnect_command, disconnect_after_edit, direction="undo")
+        undo_edit_graph = dynamic_module.apply_document_command(edit_command, undo_disconnect_graph, direction="undo")
+        redo_edit_graph = dynamic_module.apply_document_command(edit_command, undo_edit_graph, direction="redo")
+        redo_disconnect_graph = dynamic_module.apply_document_command(disconnect_command, redo_edit_graph, direction="redo")
+        palette = dynamic_module.build_palette_model(dynamic_registry)
+        duplicate_label_registry = dict(dynamic_registry)
+        add_definition = duplicate_label_registry[("artifact.rd.math.add.float32", 1)]
+        duplicate_label_registry[("vendor.math.add.float32", 1)] = replace(add_definition, operation_id="vendor.math.add.float32")
+        duplicate_label_palette = dynamic_module.build_palette_model(duplicate_label_registry)
+        duplicate_label_entries = [item for item in duplicate_label_palette if item["label"] == "Add" and item["category"] == "Math"]
+        saved_registry_lock = dynamic_module.registry_contract_lock(dynamic_registry)
+        presentation_only_registry = dict(dynamic_registry)
+        first_key = sorted(presentation_only_registry)[0]
+        presentation_only_registry[first_key] = replace(presentation_only_registry[first_key], display_name="Renamed palette entry", category="Presentation")
+        changed_contract_registry = dict(dynamic_registry)
+        add_key_for_contract = ("artifact.rd.math.add.float32", 1)
+        changed_add = changed_contract_registry[add_key_for_contract]
+        changed_contract_registry[add_key_for_contract] = replace(
+            changed_add, inputs=(replace(changed_add.inputs[0], socket_id="left"), changed_add.inputs[1]))
+        changed_default_registry = dict(dynamic_registry)
+        constant_for_default = changed_default_registry[("artifact.rd.constant.float32", 1)]
+        changed_default_registry[("artifact.rd.constant.float32", 1)] = replace(
+            constant_for_default, parameters=(replace(constant_for_default.parameters[0], default=0.25),))
+        changed_requiredness_registry = dict(dynamic_registry)
+        changed_add_requiredness = changed_requiredness_registry[add_key_for_contract]
+        changed_requiredness_registry[add_key_for_contract] = replace(
+            changed_add_requiredness, inputs=(replace(changed_add_requiredness.inputs[0], required=False), changed_add_requiredness.inputs[1]))
+        removed_contract_registry = dict(dynamic_registry)
+        removed_contract_registry.pop(first_key)
+        additive_version_registry = dict(dynamic_registry)
+        constant_v1 = additive_version_registry[("artifact.rd.constant.float32", 1)]
+        additive_version_registry[("artifact.rd.constant.float32", 2)] = replace(constant_v1, semantic_version=2)
+        presentation_compatibility = dynamic_module.compare_registry_contracts(saved_registry_lock, presentation_only_registry)
+        changed_contract_diagnostics = dynamic_module.compare_registry_contracts(saved_registry_lock, changed_contract_registry)
+        removed_contract_diagnostics = dynamic_module.compare_registry_contracts(saved_registry_lock, removed_contract_registry)
+        additive_version_diagnostics = dynamic_module.compare_registry_contracts(saved_registry_lock, additive_version_registry)
+        regenerated_candidate = dynamic_module.compile_document_from_data(dynamic_document, dynamic_registry)
+        preserved_document = dynamic_module.preserve_document(dynamic_document)
+        unknown_version_document = copy.deepcopy(dynamic_document)
+        unknown_version_document["nodes"][0]["semanticVersion"] = 99
+        unknown_version_document["nodes"].append({
+            "nodeId": "future_node", "operationId": "vendor.future.noise", "semanticVersion": 7,
+            "parameters": {"opaqueCurve": [0.1, 0.8], "vendorData": {"mode": "blue"}},
+            "layout": {"x": 17, "y": 29}, "futureField": {"keep": True}
+        })
+        unknown_link = {"from": {"nodeId": "future_node", "socketId": "future-output"},
+                        "to": {"nodeId": "sum", "socketId": "future-input"}, "vendorLinkData": [1, 2, 3]}
+        unknown_version_document["links"].append(unknown_link)
+        unknown_version_diagnostics = dynamic_module.diagnose_unavailable_operations(unknown_version_document, dynamic_registry)
+        edited_with_unknown_node = dynamic_module.edit_node_parameters(
+            unknown_version_document, dynamic_registry, "constant_b", {"value": 0.75})
+        edited_with_unknown_node = dynamic_module.edit_node_layout(edited_with_unknown_node, "constant_a", {"x": 99})
+        opaque_edit_command = dynamic_module.create_document_command(
+            "Edit Known Node Beside Opaque Data", unknown_version_document, edited_with_unknown_node)
+        opaque_undo_document = dynamic_module.apply_document_command(
+            opaque_edit_command, edited_with_unknown_node, direction="undo")
+        opaque_redo_document = dynamic_module.apply_document_command(
+            opaque_edit_command, opaque_undo_document, direction="redo")
+        unknown_output_document = copy.deepcopy(unknown_version_document)
+        unknown_output_document["output"] = {"nodeId": "future_node", "socketId": "future-output"}
+        unknown_output_validation = dynamic_module.validate_document_for_editing(unknown_output_document, dynamic_registry)
+        repaired_unknown_output = dynamic_module.delete_node(
+            unknown_output_document, dynamic_registry, "future_node", replacement_output=("sum", "result"))
+        repaired_unknown_output_validation = dynamic_module.validate_document_for_editing(repaired_unknown_output, dynamic_registry)
+        if preserved_document != dynamic_document:
+            errors.append("opaque document preservation changed known graph data")
+        if dynamic_module.preserve_document(unknown_version_document) != unknown_version_document:
+            errors.append("opaque document preservation changed an unknown operation payload")
+        if len(unknown_version_diagnostics) != 2 or any(item.get("code") != "node.operation.version.unsupported" for item in unknown_version_diagnostics):
+            errors.append("unknown operation version did not produce a stable non-destructive diagnostic")
+
+        def diagnostic_for(action) -> dict[str, str] | None:
+            try:
+                action()
+            except dynamic_module.ContractError as error:
+                return {key: error.to_json()[key] for key in ("code", "severity", "path")}
+            return None
+
+        graph_parameter_source = dynamic_module.edit_node_parameters(
+            connected_graph, dynamic_registry, "source_left", {"value": 0.25})
+        graph_parameter_source = dynamic_module.edit_node_parameters(
+            graph_parameter_source, dynamic_registry, "source_right", {"value": 0.5})
+        graph_parameter_baseline_compile = dynamic_module.compile_document_from_data(
+            graph_parameter_source, dynamic_registry)
+        exposed_graph_parameter = dynamic_module.expose_node_parameter(
+            graph_parameter_source, dynamic_registry, "source_left", "value", "shared_gain", "Shared Gain")
+        shared_graph_parameter = dynamic_module.expose_node_parameter(
+            exposed_graph_parameter, dynamic_registry, "source_right", "value", "shared_gain", "Shared Gain")
+        shared_graph_parameter_compile = dynamic_module.compile_document_from_data(
+            shared_graph_parameter, dynamic_registry)
+        edited_graph_parameter = dynamic_module.edit_graph_parameter(
+            shared_graph_parameter, dynamic_registry, "shared_gain", 0.75)
+        edited_graph_parameter_compile = dynamic_module.compile_document_from_data(
+            edited_graph_parameter, dynamic_registry)
+        graph_parameter_uniforms_stable = (
+            shared_graph_parameter_compile["shaderStructureHashSha256"] == edited_graph_parameter_compile["shaderStructureHashSha256"] and
+            shared_graph_parameter_compile["parameterValuesHashSha256"] != edited_graph_parameter_compile["parameterValuesHashSha256"] and
+            shared_graph_parameter_compile["hlslBody"] == edited_graph_parameter_compile["hlslBody"] and
+            "float P_shared_gain : packoffset(c0.x);" in shared_graph_parameter_compile["hlslBody"] and
+            "n_source_left_value = P_shared_gain;" in shared_graph_parameter_compile["hlslBody"] and
+            "n_source_right_value = P_shared_gain;" in shared_graph_parameter_compile["hlslBody"] and
+            "0.25f" not in shared_graph_parameter_compile["hlslBody"] and
+            shared_graph_parameter_compile["parameterBindings"] == [{
+                "parameterId": "shared_gain", "valueType": "Float32",
+                "hlslSymbol": "P_shared_gain", "byteOffset": 0, "byteSize": 4,
+                "blockBindingId": "artifact.shadergraph.parameters",
+                "registerIndex": 0, "registerComponentOffset": 0,
+                "hlslPackOffset": "c0.x", "bindings": [
+                    {"nodeId": "source_left", "parameterId": "value"},
+                    {"nodeId": "source_right", "parameterId": "value"}]}])
+        layout_operation = lambda implementation_id: next(
+            operation for operation in dynamic_registry.values()
+            if operation.implementation_id == implementation_id)
+        layout_nodes = [
+            dynamic_module.instantiate_node(layout_operation(implementation_id), node_id)
+            for implementation_id, node_id in [
+                ("float.constant", "a_float"), ("float.constant", "b_float"),
+                ("float.add", "sum_float"), ("float.replicate.rgb_alpha_one", "replicate"),
+                ("vector4.constant", "m_color"), ("vector4.add", "vector_sum")]]
+        parameter_layout_graph = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": layout_nodes,
+            "links": [
+                {"from": {"nodeId": "a_float", "socketId": "value"}, "to": {"nodeId": "sum_float", "socketId": "a"}},
+                {"from": {"nodeId": "b_float", "socketId": "value"}, "to": {"nodeId": "sum_float", "socketId": "b"}},
+                {"from": {"nodeId": "sum_float", "socketId": "result"}, "to": {"nodeId": "replicate", "socketId": "value"}},
+                {"from": {"nodeId": "replicate", "socketId": "vector"}, "to": {"nodeId": "vector_sum", "socketId": "a"}},
+                {"from": {"nodeId": "m_color", "socketId": "value"}, "to": {"nodeId": "vector_sum", "socketId": "b"}}],
+            "output": {"nodeId": "vector_sum", "socketId": "result"}}
+        parameter_layout_graph = dynamic_module.edit_node_parameters(
+            parameter_layout_graph, dynamic_registry, "a_float", {"value": 0.125})
+        parameter_layout_graph = dynamic_module.edit_node_parameters(
+            parameter_layout_graph, dynamic_registry, "b_float", {"value": -0.25})
+        parameter_layout_graph = dynamic_module.edit_node_parameters(
+            parameter_layout_graph, dynamic_registry, "m_color", {"value": [1.5, -2.25, 0.5, 1.0]})
+        for node_id, parameter_id, graph_id, label in [
+                ("a_float", "value", "a_gain", "A Gain"),
+                ("b_float", "value", "b_gain", "B Gain"),
+                ("m_color", "value", "m_color", "Color")]:
+            parameter_layout_graph = dynamic_module.expose_node_parameter(
+                parameter_layout_graph, dynamic_registry, node_id, parameter_id, graph_id, label)
+        parameter_block_layout_compile = dynamic_module.compile_document_from_data(
+            parameter_layout_graph, dynamic_registry)
+        resident_pipeline_path = root / "Artifact/src/Render/ArtifactRenderLayerPipeline.cpp"
+        resident_pipeline_source = resident_pipeline_path.read_text(encoding="utf-8")
+        prelude_match = re.search(
+            r"kResidentGenericPrelude\s*=\s*R\"\((.*?)\)\";",
+            resident_pipeline_source, re.DOTALL)
+        resident_prelude = prelude_match.group(1) if prelude_match else ""
+        resident_parameter_indices = [int(value) for value in re.findall(
+            r"^\s*float\s+g_P([0-9]+)\s*;", resident_prelude, re.MULTILINE)]
+        resident_standard_uniforms = re.findall(
+            r"^\s*float\s+g_(Width|Height|Time|Frame|HistoryValid)\s*;",
+            resident_prelude, re.MULTILINE)
+        resident_cpp_capacity = re.search(
+            r"struct\s+alignas\(16\)\s+ResidentGenericParams\s*\{\s*float\s+p\[([0-9]+)\]",
+            resident_pipeline_source, re.DOTALL)
+        resident_generic_source_matches_contract = (
+            "cbuffer ResidentGenericParams : register(b0)" in resident_prelude and
+            resident_parameter_indices == list(range(16)) and
+            resident_standard_uniforms == ["Width", "Height", "Time", "Frame", "HistoryValid"] and
+            resident_cpp_capacity is not None and int(resident_cpp_capacity.group(1)) == 16)
+        resident_generic_layout = dynamic_module.adapt_to_resident_generic_abi(
+            parameter_block_layout_compile)
+        packed_values = resident_generic_layout["packedParameterValues"]
+        malformed_value_hash = copy.deepcopy(parameter_block_layout_compile)
+        malformed_value_hash["parameterValuesHashSha256"] = "0" * 64
+        packed_hash_mismatch_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_value_hash))
+        malformed_value_type = copy.deepcopy(parameter_block_layout_compile)
+        malformed_value_type["parameterValues"][0]["valueType"] = "Vector4F32"
+        packed_value_type_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_value_type))
+        malformed_non_finite_value = copy.deepcopy(parameter_block_layout_compile)
+        malformed_non_finite_value["parameterValues"][0]["value"] = math.nan
+        packed_non_finite_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_non_finite_value))
+        malformed_binding_order = copy.deepcopy(parameter_block_layout_compile)
+        malformed_binding_order["parameterBindings"].reverse()
+        packed_binding_order_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_binding_order))
+        malformed_missing_value = copy.deepcopy(parameter_block_layout_compile)
+        malformed_missing_value["parameterValues"].pop()
+        packed_missing_value_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_missing_value))
+        malformed_extra_value = copy.deepcopy(parameter_block_layout_compile)
+        malformed_extra_value["parameterValues"].append({
+            "parameterId": "unused", "valueType": "Float32", "value": 1.0})
+        packed_extra_value_diagnostic = diagnostic_for(
+            lambda: dynamic_module.pack_resident_generic_parameter_values(malformed_extra_value))
+        resident_shared_base = dynamic_module.adapt_to_resident_generic_abi(
+            shared_graph_parameter_compile)
+        resident_shared_edited = dynamic_module.adapt_to_resident_generic_abi(
+            edited_graph_parameter_compile)
+        resident_synthetic_bindings = [
+            {**parameter_block_layout_compile["parameterBindings"][0],
+             "parameterId": f"lane_{index}", "hlslSymbol": f"P_lane_{index}"}
+            for index in range(17)]
+        resident_sixteen_bindings = dynamic_module.assign_resident_generic_parameter_slots(
+            resident_synthetic_bindings[:16])
+        resident_generic_slot_overflow_diagnostic = diagnostic_for(
+            lambda: dynamic_module.assign_resident_generic_parameter_slots(resident_synthetic_bindings))
+        resident_four_vector_bindings = [
+            {**parameter_block_layout_compile["parameterBindings"][0],
+             "parameterId": f"vector_{index}", "hlslSymbol": f"P_vector_{index}",
+             "valueType": "Vector4F32"}
+            for index in range(4)]
+        resident_four_vectors = dynamic_module.assign_resident_generic_parameter_slots(
+            resident_four_vector_bindings)
+        resident_five_vector_overflow = diagnostic_for(
+            lambda: dynamic_module.assign_resident_generic_parameter_slots(
+                resident_four_vector_bindings + [{**resident_four_vector_bindings[0],
+                    "parameterId": "vector_4", "hlslSymbol": "P_vector_4"}]))
+        resident_generic_duplicate_id_diagnostic = diagnostic_for(
+            lambda: dynamic_module.assign_resident_generic_parameter_slots([
+                parameter_block_layout_compile["parameterBindings"][0],
+                parameter_block_layout_compile["parameterBindings"][0]]))
+        reflected_parameter_block = dynamic_module.resolve_reflected_parameter_block(
+            parameter_block_layout_compile["parameterBlock"], [
+                {"name": "FrameParams", "resourceKind": "constantBuffer", "physicalSlot": "b0"},
+                {"name": "ArtifactGraphParameters", "resourceKind": "constantBuffer", "physicalSlot": "b4"},
+                {"name": "InputTexture", "resourceKind": "texture", "physicalSlot": "t0"}])
+        parameter_block_slot_collision_diagnostic = diagnostic_for(
+            lambda: dynamic_module.resolve_reflected_parameter_block(
+                parameter_block_layout_compile["parameterBlock"], [
+                    {"name": "ArtifactGraphParameters", "resourceKind": "constantBuffer", "physicalSlot": "b4"},
+                    {"name": "OtherParams", "resourceKind": "constantBuffer", "physicalSlot": "b4"}]))
+        parameter_block_reflection_missing_diagnostic = diagnostic_for(
+            lambda: dynamic_module.resolve_reflected_parameter_block(
+                parameter_block_layout_compile["parameterBlock"], []))
+        parameter_block_logical_id_duplicate_diagnostic = diagnostic_for(
+            lambda: dynamic_module.validate_parameter_block_contracts([
+                parameter_block_layout_compile["parameterBlock"],
+                copy.deepcopy(parameter_block_layout_compile["parameterBlock"])]))
+        unsupported_parameter_block_schema = copy.deepcopy(parameter_block_layout_compile["parameterBlock"])
+        unsupported_parameter_block_schema["schemaVersion"] = 2
+        parameter_block_schema_version_diagnostic = diagnostic_for(
+            lambda: dynamic_module.validate_parameter_block_contracts([unsupported_parameter_block_schema]))
+        unsupported_reflected_resource_diagnostic = diagnostic_for(
+            lambda: dynamic_module.resolve_reflected_parameter_block(
+                parameter_block_layout_compile["parameterBlock"], [
+                    {"name": "ArtifactGraphParameters", "resourceKind": "mysteryBuffer", "physicalSlot": "b2"}]))
+        parameter_block_layout_valid = (
+            parameter_block_layout_compile["parameterBlock"]["layoutContract"] == "hlsl-cbuffer-packoffset-16byte-v1" and
+            parameter_block_layout_compile["parameterBlock"]["schemaId"] == "artifact.shadergraph.parameter-block" and
+            parameter_block_layout_compile["parameterBlock"]["schemaVersion"] == 1 and
+            parameter_block_layout_compile["parameterBlock"]["bindingId"] == "artifact.shadergraph.parameters" and
+            parameter_block_layout_compile["parameterBlock"]["resourceKind"] == "constantBuffer" and
+            parameter_block_layout_compile["parameterBlock"]["physicalSlot"] is None and
+            parameter_block_layout_compile["parameterBlock"]["physicalSlotStatus"] == "requires-compiler-reflection" and
+            parameter_block_layout_compile["parameterBlock"]["byteSize"] == 32 and
+            [(field["parameterId"], field["byteOffset"], field["byteSize"],
+              field["registerIndex"], field["registerComponentOffset"], field["hlslPackOffset"])
+             for field in parameter_block_layout_compile["parameterBlock"]["fields"]] == [
+                 ("a_gain", 0, 4, 0, 0, "c0.x"), ("b_gain", 4, 4, 0, 1, "c0.y"),
+                 ("m_color", 16, 16, 1, 0, "c1.x")] and
+            "cbuffer ArtifactGraphParameters {" in parameter_block_layout_compile["hlslBody"] and
+            "float P_a_gain : packoffset(c0.x);" in parameter_block_layout_compile["hlslBody"] and
+            "float P_b_gain : packoffset(c0.y);" in parameter_block_layout_compile["hlslBody"] and
+            "float4 P_m_color : packoffset(c1.x);" in parameter_block_layout_compile["hlslBody"] and
+            reflected_parameter_block["bindingId"] == "artifact.shadergraph.parameters" and
+            reflected_parameter_block["physicalSlot"] == "b4" and
+            reflected_parameter_block["physicalSlotStatus"] == "compiler-reflected" and
+            resident_generic_layout["targetAbi"] == "artifact.resident-generic-params.scalar16.v1" and
+            resident_generic_source_matches_contract and
+            packed_values["lanes"] == [0.125, -0.25, 1.5, -2.25, 0.5, 1.0] + [0.0] * 10 and
+            packed_values["laneOwners"] == ["a_gain", "b_gain", "m_color", "m_color", "m_color", "m_color"] + [None] * 10 and
+            packed_values["activeLaneCount"] == 6 and
+            packed_values["parameterValuesHashSha256"] == parameter_block_layout_compile["parameterValuesHashSha256"] and
+            packed_hash_mismatch_diagnostic == {"code": "shader.binding.parameter_values.hash_mismatch", "severity": "error", "path": "/parameterValuesHashSha256"} and
+            packed_value_type_diagnostic == {"code": "shader.binding.parameter_type.mismatch", "severity": "error", "path": "/parameterValues/a_gain/valueType"} and
+            packed_non_finite_diagnostic == {"code": "graph.parameter.value.invalid", "severity": "error", "path": "/parameterValues/a_gain/value"} and
+            packed_binding_order_diagnostic == {"code": "shader.binding.parameter_order.invalid", "severity": "error", "path": "/parameterBindings/1/parameterId"} and
+            packed_missing_value_diagnostic == {"code": "shader.binding.parameter_values.invalid", "severity": "error", "path": "/parameterValues"} and
+            packed_extra_value_diagnostic == {"code": "shader.binding.parameter_values.invalid", "severity": "error", "path": "/parameterValues"} and
+            len(resident_sixteen_bindings) == 16 and
+            resident_sixteen_bindings[-1]["slotIndex"] == 15 and
+            resident_sixteen_bindings[-1]["abiNames"] == ["g_P15"] and
+            resident_sixteen_bindings[-1]["hlslExpression"] == "g_P15" and
+            len(resident_four_vectors) == 4 and
+            resident_four_vectors[-1]["slotIndices"] == [12, 13, 14, 15] and
+            resident_four_vectors[-1]["hlslExpression"] == "float4(g_P12, g_P13, g_P14, g_P15)" and
+            resident_shared_base["shaderStructureHashSha256"] == resident_shared_edited["shaderStructureHashSha256"] and
+            resident_shared_base["parameterValuesHashSha256"] != resident_shared_edited["parameterValuesHashSha256"] and
+            resident_shared_base["hlslBody"] == resident_shared_edited["hlslBody"] and
+            "g_P0" in resident_shared_base["hlslBody"] and
+            "0.25f" not in resident_shared_base["hlslBody"] and
+            [(item["parameterId"], item["slotIndex"], item["slotCount"], item["abiNames"], item["hlslExpression"])
+             for item in resident_generic_layout["parameterBindings"]] == [
+                 ("a_gain", 0, 1, ["g_P0"], "g_P0"),
+                 ("b_gain", 1, 1, ["g_P1"], "g_P1"),
+                 ("m_color", 2, 4, ["g_P2", "g_P3", "g_P4", "g_P5"],
+                  "float4(g_P2, g_P3, g_P4, g_P5)")] and
+            "cbuffer " not in resident_generic_layout["hlslBody"] and
+            "register(b0)" not in resident_generic_layout["hlslBody"] and
+            "n_a_float_value = g_P0;" in resident_generic_layout["hlslBody"] and
+            "n_b_float_value = g_P1;" in resident_generic_layout["hlslBody"] and
+            "n_m_color_value = float4(g_P2, g_P3, g_P4, g_P5);" in resident_generic_layout["hlslBody"] and
+            resident_generic_slot_overflow_diagnostic == {"code": "shader.binding.resident_slot_overflow", "severity": "error", "path": "/parameterBindings"} and
+            resident_five_vector_overflow == {"code": "shader.binding.resident_slot_overflow", "severity": "error", "path": "/parameterBindings"} and
+            resident_generic_duplicate_id_diagnostic == {"code": "shader.binding.logical_id.duplicate", "severity": "error", "path": "/parameterBindings/1"} and
+            parameter_block_slot_collision_diagnostic == {"code": "shader.binding.slot_collision", "severity": "error", "path": "/reflection/resources/1"} and
+            parameter_block_reflection_missing_diagnostic == {"code": "shader.binding.reflection.missing", "severity": "error", "path": "/reflection/resources"} and
+            parameter_block_logical_id_duplicate_diagnostic == {"code": "shader.binding.logical_id.duplicate", "severity": "error", "path": "/parameterBlocks/1/bindingId"} and
+            parameter_block_schema_version_diagnostic == {"code": "shader.binding.schema.unsupported", "severity": "error", "path": "/parameterBlocks/0"} and
+            unsupported_reflected_resource_diagnostic == {"code": "shader.binding.reflection.invalid", "severity": "error", "path": "/reflection/resources/0"})
+        renamed_graph_parameter = copy.deepcopy(shared_graph_parameter)
+        renamed_graph_parameter["graphParameters"][0]["label"] = "Drive"
+        renamed_graph_parameter_compile = dynamic_module.compile_document_from_data(
+            renamed_graph_parameter, dynamic_registry)
+        reordered_parameter_graph = copy.deepcopy(parameter_layout_graph)
+        reordered_parameter_graph["graphParameters"].reverse()
+        for parameter in reordered_parameter_graph["graphParameters"]:
+            parameter["label"] = "Renamed " + parameter["parameterId"]
+            parameter["bindings"].reverse()
+        reordered_parameter_compile = dynamic_module.compile_document_from_data(
+            reordered_parameter_graph, dynamic_registry)
+        changed_graph_parameter_binding = copy.deepcopy(shared_graph_parameter)
+        changed_graph_parameter_binding["graphParameters"][0]["bindings"].pop()
+        changed_binding_compile = dynamic_module.compile_document_from_data(
+            changed_graph_parameter_binding, dynamic_registry)
+        graph_parameter_presentation_stable = (
+            renamed_graph_parameter_compile["semanticHashSha256"] == shared_graph_parameter_compile["semanticHashSha256"] and
+            renamed_graph_parameter_compile["shaderStructureHashSha256"] == shared_graph_parameter_compile["shaderStructureHashSha256"] and
+            renamed_graph_parameter_compile["parameterValuesHashSha256"] == shared_graph_parameter_compile["parameterValuesHashSha256"] and
+            renamed_graph_parameter_compile["hlslBody"] == shared_graph_parameter_compile["hlslBody"])
+        graph_parameter_definition_order_stable = (
+            reordered_parameter_compile["semanticHashSha256"] == parameter_block_layout_compile["semanticHashSha256"] and
+            reordered_parameter_compile["shaderStructureHashSha256"] == parameter_block_layout_compile["shaderStructureHashSha256"] and
+            reordered_parameter_compile["parameterValuesHashSha256"] == parameter_block_layout_compile["parameterValuesHashSha256"] and
+            reordered_parameter_compile["hlslBody"] == parameter_block_layout_compile["hlslBody"] and
+            reordered_parameter_compile["parameterBlock"] == parameter_block_layout_compile["parameterBlock"])
+        graph_parameter_binding_change_updates_structure = (
+            changed_binding_compile["shaderStructureHashSha256"] != shared_graph_parameter_compile["shaderStructureHashSha256"] and
+            changed_binding_compile["parameterValuesHashSha256"] == shared_graph_parameter_compile["parameterValuesHashSha256"] and
+            changed_binding_compile["hlslBody"] != shared_graph_parameter_compile["hlslBody"] and
+            len(changed_binding_compile["parameterBindings"][0]["bindings"]) == 1)
+        graph_parameter_uniforms_stable = (
+            graph_parameter_uniforms_stable and parameter_block_layout_valid and
+            graph_parameter_presentation_stable and graph_parameter_definition_order_stable and
+            graph_parameter_binding_change_updates_structure)
+        graph_parameter_command = dynamic_module.create_document_command(
+            "Tune Shared Gain", shared_graph_parameter, edited_graph_parameter)
+        graph_parameter_undo = dynamic_module.apply_document_command(
+            graph_parameter_command, edited_graph_parameter, direction="undo")
+        graph_parameter_redo = dynamic_module.apply_document_command(
+            graph_parameter_command, graph_parameter_undo, direction="redo")
+        bound_node_parameter_edit_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_parameters(
+            shared_graph_parameter, dynamic_registry, "source_left", {"value": 0.9}))
+        duplicate_graph_parameter_binding_diagnostic = diagnostic_for(lambda: dynamic_module.expose_node_parameter(
+            shared_graph_parameter, dynamic_registry, "source_left", "value", "other_gain", "Other Gain"))
+        invalid_graph_parameter_value_diagnostic = diagnostic_for(lambda: dynamic_module.edit_graph_parameter(
+            shared_graph_parameter, dynamic_registry, "shared_gain", float("inf")))
+        vector4_for_shared_type = dynamic_module.add_node(
+            shared_graph_parameter, dynamic_registry, "artifact.rd.constant.vector4.float32", 1, "unbound_color")
+        incompatible_graph_parameter_type_diagnostic = diagnostic_for(lambda: dynamic_module.expose_node_parameter(
+            vector4_for_shared_type, dynamic_registry, "unbound_color", "value", "shared_gain", "Shared Gain"))
+        duplicate_graph_parameter_document = copy.deepcopy(shared_graph_parameter)
+        duplicate_graph_parameter_document["graphParameters"][0]["bindings"].append(
+            copy.deepcopy(duplicate_graph_parameter_document["graphParameters"][0]["bindings"][0]))
+        duplicate_graph_parameter_compile_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(
+            duplicate_graph_parameter_document, dynamic_registry))
+        single_graph_parameter = dynamic_module.expose_node_parameter(
+            graph_parameter_source, dynamic_registry, "source_left", "value", "left_gain", "Left Gain")
+        deleted_graph_parameter_node = dynamic_module.delete_node(
+            single_graph_parameter, dynamic_registry, "source_left")
+        round_trip_graph_parameter = dynamic_module.parse_json_text(
+            dynamic_module.serialize_document(shared_graph_parameter))
+        graph_parameter_session = local_ui_module.Session(
+            dynamic_registry, shared_graph_parameter, None, [])
+        graph_parameter_session.apply({"type": "graphParameter", "graphParameterId": "shared_gain", "value": 0.625})
+        graph_parameter_session_document = dynamic_module.preserve_document(graph_parameter_session.document)
+        graph_parameter_exposure_session = local_ui_module.Session(
+            dynamic_registry, graph_parameter_source, None, [])
+        graph_parameter_exposure_session.apply({"type": "expose", "nodeId": "source_left",
+                                                "parameterId": "value", "graphParameterId": "ui_gain",
+                                                "label": "UI Gain"})
+        graph_parameter_exposure_session_document = dynamic_module.preserve_document(
+            graph_parameter_exposure_session.document)
+        graph_parameter_exposure_session.apply({"type": "undo"})
+        graph_parameter_exposure_session_undo = dynamic_module.preserve_document(
+            graph_parameter_exposure_session.document)
+        graph_parameter_exposure_session.apply({"type": "redo"})
+        graph_parameter_exposure_session_redo = dynamic_module.preserve_document(
+            graph_parameter_exposure_session.document)
+        vector4_exposed_graph_parameter = dynamic_module.expose_node_parameter(
+            vector4_constant_document, dynamic_registry, "color_source", "value", "surface_tint", "Surface Tint")
+        vector4_edited_graph_parameter = dynamic_module.edit_graph_parameter(
+            vector4_exposed_graph_parameter, dynamic_registry, "surface_tint", [0.1, 0.2, 0.3, 0.4])
+        vector4_graph_parameter_compile = dynamic_module.compile_document_from_data(
+            vector4_edited_graph_parameter, dynamic_registry)
+        vector4_graph_parameter_base_compile = dynamic_module.compile_document_from_data(
+            vector4_exposed_graph_parameter, dynamic_registry)
+        version2_graph_base = copy.deepcopy(connected_graph)
+        version2_graph_base["schemaVersion"] = 2
+        version2_graph_base["graphParameters"] = []
+        version2_graph_without_exposed_unreachable = dynamic_module.add_node(
+            version2_graph_base, dynamic_registry,
+            "artifact.rd.constant.vector4.float32", 1, "unreachable_v4")
+        version2_graph_with_exposed_unreachable = dynamic_module.expose_node_parameter(
+            version2_graph_without_exposed_unreachable, dynamic_registry,
+            "unreachable_v4", "value", "unused_tint", "Unused Tint")
+        unreachable_parameter_hash_unchanged = (
+            dynamic_module.compile_document_from_data(version2_graph_without_exposed_unreachable, dynamic_registry)["semanticHashSha256"] ==
+            dynamic_module.compile_document_from_data(version2_graph_with_exposed_unreachable, dynamic_registry)["semanticHashSha256"])
+
+        unknown_output_delete_diagnostic = diagnostic_for(lambda: dynamic_module.delete_node(
+            unknown_output_document, dynamic_registry, "future_node"))
+        duplicate_palette_node_diagnostic = diagnostic_for(lambda: dynamic_module.add_node(
+            connected_graph, dynamic_registry, "artifact.rd.math.add.float32", 1, "sum_node"))
+        explicit_conversion_type_mismatch_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(
+            conversion_type_mismatch_graph, dynamic_registry))
+        invalid_vector4_parameter_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_parameters(
+            vector4_constant_document, dynamic_registry, "color_source", {"value": [0.1, 0.2, 0.3]}))
+        invalid_vector4_component_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_parameters(
+            vector4_constant_document, dynamic_registry, "color_source", {"value": [0.1, 0.2, float("inf"), 1.0]}))
+        vector4_boundaries_document = dynamic_module.edit_node_parameters(
+            vector4_constant_document, dynamic_registry, "color_source",
+            {"value": [-0.0, 1.0 + 2.0 ** -24, 2.0 ** -149, -2.0 ** -149]})
+        vector4_boundaries_compile = dynamic_module.compile_document_from_data(
+            vector4_boundaries_document, dynamic_registry)
+        vector4_repeated_edit_document = dynamic_module.edit_node_parameters(
+            vector4_boundaries_document, dynamic_registry, "color_source",
+            {"value": [-0.0, 1.0 + 2.0 ** -24, 2.0 ** -149, -2.0 ** -149]})
+        vector4_repeated_edit_compile = dynamic_module.compile_document_from_data(
+            vector4_repeated_edit_document, dynamic_registry)
+        vector4_constant_undo = dynamic_module.create_document_command(
+            "Edit Vector4 Constant", vector4_constant_document, vector4_boundaries_document)
+        vector4_constant_undo_document = dynamic_module.apply_document_command(
+            vector4_constant_undo, vector4_boundaries_document, direction="undo")
+        vector4_constant_redo_document = dynamic_module.apply_document_command(
+            vector4_constant_undo, vector4_constant_undo_document, direction="redo")
+        failed_link_batch_document = dynamic_module.add_node(
+            connected_graph, dynamic_registry, "artifact.rd.math.add.float32", 1, "batch_target")
+        failed_link_batch_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes_batch(
+            failed_link_batch_document, dynamic_registry,
+            [("source_left", "value", "batch_target", "a"),
+             ("source_right", "value", "batch_target", "a")]))
+        malformed_link_batch_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes_batch(
+            palette_added_graph, dynamic_registry,
+            [("source_left", "value", "palette_added_add", "a"), ("bad-entry",)]))
+        failed_composite_diagnostic = diagnostic_for(lambda: dynamic_module.add_node_with_connections(
+            connected_graph, dynamic_registry, "artifact.rd.math.add.float32", 1, "failed_composite_add",
+            [("source_left", "value", "failed_composite_add", "a"),
+             ("source_right", "value", "failed_composite_add", "a")], "result"))
+        unknown_version_editing = dynamic_module.validate_document_for_editing(unknown_version_document, dynamic_registry)
+        with tempfile.TemporaryDirectory(prefix="shader-graph-rd-opaque-io-") as opaque_directory:
+            opaque_path = Path(opaque_directory) / "repairable.json"
+            dynamic_module.save_document(opaque_path, unknown_version_document)
+            opaque_loaded_document = dynamic_module.load_document(opaque_path)
+            opaque_loaded_editing = dynamic_module.validate_document_for_editing(opaque_loaded_document, dynamic_registry)
+            opaque_edited_document = dynamic_module.edit_node_parameters(
+                opaque_loaded_document, dynamic_registry, "constant_b", {"value": 0.75})
+            opaque_edited_document = dynamic_module.edit_node_layout(
+                opaque_edited_document, "constant_a", {"x": 99})
+            dynamic_module.save_document(opaque_path, opaque_edited_document)
+            opaque_resaved_document = dynamic_module.load_document(opaque_path)
+            opaque_resaved_editing = dynamic_module.validate_document_for_editing(opaque_resaved_document, dynamic_registry)
+            opaque_resaved_compile_diagnostic = diagnostic_for(
+                lambda: dynamic_module.compile_document_from_data(opaque_resaved_document, dynamic_registry))
+            opaque_persisted_command = dynamic_module.create_document_command(
+                "Edit Known Data Beside Opaque Payload", opaque_loaded_document, opaque_edited_document)
+            opaque_persisted_undo = dynamic_module.apply_document_command(
+                opaque_persisted_command, opaque_resaved_document, direction="undo")
+            dynamic_module.save_document(opaque_path, opaque_persisted_undo)
+            opaque_undo_loaded = dynamic_module.load_document(opaque_path)
+            opaque_persisted_redo = dynamic_module.apply_document_command(
+                opaque_persisted_command, opaque_undo_loaded, direction="redo")
+            dynamic_module.save_document(opaque_path, opaque_persisted_redo)
+            opaque_redo_loaded = dynamic_module.load_document(opaque_path)
+        temporarily_missing_registry = dict(dynamic_registry)
+        temporarily_missing_document = copy.deepcopy(dynamic_document)
+        temporarily_missing_document["nodes"][0]["semanticVersion"] = 2
+        missing_registry_validation = dynamic_module.validate_document_for_editing(
+            temporarily_missing_document, temporarily_missing_registry)
+        restored_version_registry = dict(temporarily_missing_registry)
+        restored_version_registry[("artifact.rd.constant.float32", 2)] = replace(
+            constant_operation, semantic_version=2)
+        restored_registry_validation = dynamic_module.validate_document_for_editing(
+            temporarily_missing_document, restored_version_registry)
+        restored_registry_compile = dynamic_module.compile_document_from_data(
+            temporarily_missing_document, restored_version_registry)
+
+        canonical_document_text = dynamic_module.serialize_document(connected_graph)
+        canonical_round_trip = dynamic_module.parse_json_text(canonical_document_text)
+        reordered_object_document = dict(reversed(list(connected_graph.items())))
+        reordered_array_document = copy.deepcopy(connected_graph)
+        reordered_array_document["nodes"].reverse()
+        duplicate_key_diagnostic = diagnostic_for(lambda: dynamic_module.parse_json_text('{"x":1,"x":2}'))
+        nonstandard_number_diagnostic = diagnostic_for(lambda: dynamic_module.parse_json_text('{"value":NaN}'))
+        cyclic_snapshot_document = copy.deepcopy(connected_graph)
+        cyclic_extension = {"vendor": "opaque"}
+        cyclic_extension["self"] = cyclic_extension
+        cyclic_snapshot_document["vendorExtension"] = cyclic_extension
+        cyclic_snapshot_diagnostic = diagnostic_for(lambda: dynamic_module.create_document_command(
+            "Reject Cyclic Snapshot", connected_graph, cyclic_snapshot_document))
+        deeply_nested_value: Any = "leaf"
+        for _ in range(1500):
+            deeply_nested_value = [deeply_nested_value]
+        deep_json_diagnostic = diagnostic_for(lambda: dynamic_module.canonical_json_text(deeply_nested_value))
+        shared_extension = {"curve": [0.0, 1.0]}
+        shared_reference_round_trip = dynamic_module.parse_json_text(dynamic_module.canonical_json_text(
+            {"left": shared_extension, "right": shared_extension}))
+        with tempfile.TemporaryDirectory(prefix="shader-graph-rd-io-") as temporary_directory:
+            round_trip_path = Path(temporary_directory) / "graph.json"
+            io_document = copy.deepcopy(connected_graph)
+            io_document["vendorExtension"] = {"opaque": ["keep", 3, False]}
+            dynamic_module.save_document(round_trip_path, io_document)
+            saved_graph_bytes = round_trip_path.read_bytes()
+            loaded_graph = dynamic_module.load_document(round_trip_path)
+            unknown_extension_editing = dynamic_module.validate_document_for_editing(loaded_graph, dynamic_registry)
+            stable_saved_graph_bytes = round_trip_path.read_bytes()
+            unknown_extension_compile_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(loaded_graph, dynamic_registry))
+            failed_save_diagnostic = diagnostic_for(lambda: dynamic_module.save_document(
+                round_trip_path, {**io_document, "invalidNumber": float("inf")}))
+            preserved_after_failed_save = round_trip_path.read_bytes() == saved_graph_bytes
+
+        sealed_document = dynamic_module.seal_document(dynamic_document, dynamic_registry)
+        sealed_round_trip = dynamic_module.preserve_document(sealed_document)
+        sealed_presentation_compile = dynamic_module.compile_document_from_data(sealed_round_trip, presentation_only_registry)
+        sealed_additive_version_compile = dynamic_module.compile_document_from_data(sealed_document, additive_version_registry)
+        sealed_contract_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(sealed_document, changed_contract_registry))
+        invalid_layout_coordinate_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_layout(connected_graph, "source_left", {"x": float("nan")}))
+        invalid_layout_field_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_layout(connected_graph, "source_left", {"z": 3.0}))
+        layout_only_edit = dynamic_module.edit_node_layout(connected_graph, "source_left", {"x": 25})
+        layout_batch_edit = dynamic_module.edit_node_layout_batch(
+            connected_graph, [("source_left", {"x": 25}), ("source_right", {"y": 200})])
+        layout_boundary_edit = dynamic_module.edit_node_layout_batch(
+            connected_graph, [("source_left", {"x": 1.0 + 2.0 ** -24, "y": -0.0}),
+                              ("source_right", {"x": 2.0 ** -149})])
+        layout_boundary_command = dynamic_module.create_document_command(
+            "Move Nodes at Float32 Boundaries", connected_graph, layout_boundary_edit)
+        layout_boundary_undo = dynamic_module.apply_document_command(
+            layout_boundary_command, layout_boundary_edit, direction="undo")
+        layout_boundary_redo = dynamic_module.apply_document_command(
+            layout_boundary_command, layout_boundary_undo, direction="redo")
+        duplicate_layout_batch_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_layout_batch(
+            connected_graph, [("source_left", {"x": 25}), ("source_left", {"y": 25})]))
+        invalid_layout_batch_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_layout_batch(
+            connected_graph, [("source_left", {"x": 25}), ("source_right", {"y": float("nan")})]))
+
+        unknown_socket_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(connected_graph, dynamic_registry, "source_left", "missing", "sum_node", "a"))
+        multiple_writer_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(connected_graph, dynamic_registry, "source_right", "value", "sum_node", "a"))
+        wrong_type_registry = dict(dynamic_registry)
+        wrong_type_registry[("artifact.rd.math.add.float32", 1)] = replace(
+            add_operation_for_graph,
+            inputs=(replace(add_operation_for_graph.inputs[0], value_type="Vector4"), add_operation_for_graph.inputs[1]))
+        wrong_type_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(connected_graph, wrong_type_registry, "source_left", "value", "sum_node", "a"))
+        cycle_nodes = graph_nodes + [dynamic_module.instantiate_node(add_operation_for_graph, "second_sum")]
+        cycle_graph = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document", "nodes": cycle_nodes,
+                       "links": [{"from": {"nodeId": "sum_node", "socketId": "result"}, "to": {"nodeId": "second_sum", "socketId": "a"}}],
+                       "output": {"nodeId": "sum_node", "socketId": "result"}}
+        cycle_link_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(cycle_graph, dynamic_registry, "second_sum", "result", "sum_node", "a"))
+        missing_disconnect_diagnostic = diagnostic_for(lambda: dynamic_module.disconnect_nodes(connected_graph, "source_left", "value", "sum_node", "missing"))
+        batch_disconnected_graph = dynamic_module.disconnect_nodes_batch(
+            connected_graph,
+            [("source_left", "value", "sum_node", "a"),
+             ("source_right", "value", "sum_node", "b")])
+        missing_batch_disconnect_diagnostic = diagnostic_for(lambda: dynamic_module.disconnect_nodes_batch(
+            connected_graph,
+            [("source_left", "value", "sum_node", "a"),
+             ("source_right", "value", "sum_node", "missing")]))
+        duplicate_batch_disconnect_diagnostic = diagnostic_for(lambda: dynamic_module.disconnect_nodes_batch(
+            connected_graph,
+            [("source_left", "value", "sum_node", "a"),
+             ("source_left", "value", "sum_node", "a")]))
+        deleted_output_diagnostic = diagnostic_for(lambda: dynamic_module.delete_node(connected_graph, dynamic_registry, "sum_node"))
+        replacement_delete_graph = dynamic_module.delete_node(
+            connected_graph, dynamic_registry, "sum_node", replacement_output=("source_left", "value"))
+        replacement_delete_compile = dynamic_module.compile_document_from_data(replacement_delete_graph, dynamic_registry)
+        invalid_output_diagnostic = diagnostic_for(lambda: dynamic_module.set_graph_output(connected_graph, dynamic_registry, "source_left", "missing"))
+        duplicate_id_graph = copy.deepcopy(connected_graph)
+        duplicate_id_graph["nodes"].append(copy.deepcopy(duplicate_id_graph["nodes"][0]))
+        duplicate_id_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(duplicate_id_graph, dynamic_registry, "source_left", "value", "sum_node", "a"))
+        malformed_link_graph = copy.deepcopy(connected_graph)
+        malformed_link_graph["links"][0]["from"]["nodeId"] = []
+        malformed_link_diagnostic = diagnostic_for(lambda: dynamic_module.connect_nodes(malformed_link_graph, dynamic_registry, "source_left", "value", "sum_node", "a"))
+        stale_history_diagnostic = diagnostic_for(lambda: dynamic_module.apply_document_command(edit_command, disconnected_graph, direction="undo"))
+        replaced_graph = dynamic_module.replace_node_operation(
+            connected_graph, dynamic_registry, "sum_node", "artifact.rd.math.multiply.float32", 1)
+        replaced_graph_compile = dynamic_module.compile_document_from_data(replaced_graph, dynamic_registry)
+        replaced_graph_validation = dynamic_module.validate_document_for_editing(replaced_graph, dynamic_registry)
+        replacement_command = dynamic_module.create_document_command(
+            "Replace Add with Multiply", connected_graph, replaced_graph)
+        replacement_undo = dynamic_module.apply_document_command(
+            replacement_command, replaced_graph, direction="undo")
+        replacement_redo = dynamic_module.apply_document_command(
+            replacement_command, replacement_undo, direction="redo")
+        incompatible_replacement_diagnostic = diagnostic_for(lambda: dynamic_module.replace_node_operation(
+            connected_graph, dynamic_registry, "sum_node", "artifact.rd.math.add.vector4.float32", 1))
+        replacement_default_registry = dict(dynamic_registry)
+        changed_default_constant = replace(
+            constant_operation, operation_id="vendor.rd.constant.float32",
+            parameters=(replace(constant_operation.parameters[0], default=1.0),))
+        replacement_default_registry[(changed_default_constant.operation_id, 1)] = changed_default_constant
+        unmaterialized_default_document = {
+            "schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+            "nodes": [{"nodeId": "legacy_constant", "operationId": constant_operation.operation_id,
+                       "semanticVersion": 1, "parameters": {}, "layout": {"x": 0, "y": 0}}],
+            "links": [], "output": {"nodeId": "legacy_constant", "socketId": "value"},
+        }
+        changed_unmaterialized_default_diagnostic = diagnostic_for(lambda: dynamic_module.replace_node_operation(
+            unmaterialized_default_document, replacement_default_registry, "legacy_constant",
+            changed_default_constant.operation_id, 1))
+        sealed_replacement_source = dynamic_module.seal_document(connected_graph, dynamic_registry)
+        sealed_replacement = dynamic_module.replace_node_operation(
+            sealed_replacement_source, dynamic_registry, "sum_node", "artifact.rd.math.multiply.float32", 1)
+        sealed_replacement_compile = dynamic_module.compile_document_from_data(sealed_replacement, dynamic_registry)
+        replacement_session = local_ui_module.Session(dynamic_registry, connected_graph, None, [])
+        replacement_session.apply({"type": "replace", "nodeId": "sum_node",
+                                   "operationId": "artifact.rd.math.multiply.float32", "semanticVersion": 1})
+        replacement_session_after = dynamic_module.preserve_document(replacement_session.document)
+        replacement_session.apply({"type": "undo"})
+        replacement_session_undo = dynamic_module.preserve_document(replacement_session.document)
+        replacement_session.apply({"type": "redo"})
+        replacement_session_redo = dynamic_module.preserve_document(replacement_session.document)
+        batch_failure_diagnostic = diagnostic_for(lambda: dynamic_module.apply_document_batch(connected_graph, [
+            lambda graph: dynamic_module.edit_node_layout(graph, "source_left", {"x": 777}),
+            lambda graph: dynamic_module.edit_node_parameters(graph, dynamic_registry, "source_left", {"unknown": 4.0}),
+        ]))
+        discontinuous_command_diagnostic = diagnostic_for(lambda: dynamic_module.compose_document_commands(
+            "Invalid group", [parameter_command, disconnect_command]))
+        atomic_parameter_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_parameters(
+            created_constant_document, dynamic_registry, "created_constant", {"value": 0.5, "unknown": 3.0}))
+        invalid_parameter_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_parameters(
+            created_constant_document, dynamic_registry, "created_constant", {"value": 1.0e100}))
+        explicit_migration = dynamic_module.migrate_document_versions(
+            sealed_document, additive_version_registry, {"artifact.rd.constant.float32@1": "artifact.rd.constant.float32@2"})
+        explicit_migration_compile = dynamic_module.compile_document_from_data(explicit_migration, additive_version_registry)
+        v2_only_registry = {key: value for key, value in additive_version_registry.items() if key[1] == 2 or key[0] != "artifact.rd.constant.float32"}
+        silent_upgrade_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(sealed_document, v2_only_registry))
+        changed_v2_registry = dict(additive_version_registry)
+        changed_v2_registry[("artifact.rd.constant.float32", 2)] = replace(constant_v1, semantic_version=2, implementation_id="float.multiply")
+        unsafe_migration_diagnostic = diagnostic_for(lambda: dynamic_module.migrate_document_versions(
+            sealed_document, changed_v2_registry, {"artifact.rd.constant.float32@1": "artifact.rd.constant.float32@2"}))
+        changed_default_v2_registry = dict(additive_version_registry)
+        changed_default_v2_registry[("artifact.rd.constant.float32", 2)] = replace(
+            constant_v1, semantic_version=2, parameters=(replace(constant_v1.parameters[0], default=0.25),))
+        default_migration_diagnostic = diagnostic_for(lambda: dynamic_module.migrate_document_versions(
+            sealed_document, changed_default_v2_registry, {"artifact.rd.constant.float32@1": "artifact.rd.constant.float32@2"}))
+        changed_requiredness_v2_registry = dict(additive_version_registry)
+        add_v1 = changed_requiredness_v2_registry[("artifact.rd.math.add.float32", 1)]
+        changed_requiredness_v2_registry[("artifact.rd.math.add.float32", 2)] = replace(
+            add_v1, semantic_version=2, inputs=(replace(add_v1.inputs[0], required=False), add_v1.inputs[1]))
+        requiredness_migration_diagnostic = diagnostic_for(lambda: dynamic_module.migrate_document_versions(
+            sealed_document, changed_requiredness_v2_registry, {"artifact.rd.math.add.float32@1": "artifact.rd.math.add.float32@2"}))
+        cross_identity_v2_registry = dict(additive_version_registry)
+        cross_identity_v2_registry[("vendor.rd.constant.float32", 2)] = replace(
+            constant_v1, operation_id="vendor.rd.constant.float32", semantic_version=2)
+        cross_identity_migration_diagnostic = diagnostic_for(lambda: dynamic_module.migrate_document_versions(
+            sealed_document, cross_identity_v2_registry, {"artifact.rd.constant.float32@1": "vendor.rd.constant.float32@2"}))
+
+        layout_variant = copy.deepcopy(dynamic_document)
+        layout_variant["nodes"][0]["layout"]["x"] += 101
+        layout_result = dynamic_module.compile_document_from_data(layout_variant, dynamic_registry)
+        unreachable_variant = copy.deepcopy(dynamic_document)
+        unreachable_variant["nodes"].append({
+            "nodeId": "unreachable_constant", "operationId": "artifact.rd.constant.float32",
+            "semanticVersion": 1, "parameters": {"value": 17.0}, "layout": {"x": -20, "y": 500}
+        })
+        unreachable_result = dynamic_module.compile_document_from_data(unreachable_variant, dynamic_registry)
+        reordered_variant = copy.deepcopy(dynamic_document)
+        reordered_variant["nodes"].reverse()
+        reordered_variant["links"].reverse()
+        reordered_result = dynamic_module.compile_document_from_data(reordered_variant, dynamic_registry)
+        bad_version = copy.deepcopy(dynamic_document)
+        bad_version["nodes"][0]["semanticVersion"] = 2
+        wrong_kind = copy.deepcopy(dynamic_document)
+        wrong_kind["kind"] = "unsupported"
+        wrong_schema_version = copy.deepcopy(dynamic_document)
+        wrong_schema_version["schemaVersion"] = 99
+        missing_link_array = copy.deepcopy(dynamic_document)
+        missing_link_array["links"] = None
+        duplicate_writer = copy.deepcopy(dynamic_document)
+        duplicate_writer["links"].append(copy.deepcopy(duplicate_writer["links"][0]))
+        cyclic_graph = copy.deepcopy(dynamic_document)
+        cyclic_graph["links"][0]["from"] = {"nodeId": "result", "socketId": "result"}
+        cyclic_validation = dynamic_module.validate_document_for_editing(cyclic_graph, dynamic_registry)
+        multi_invalid_graph = copy.deepcopy(connected_graph)
+        multi_invalid_graph["nodes"][0]["parameters"]["value"] = 1.0e100
+        multi_invalid_graph["links"][1]["from"]["socketId"] = "missing_output"
+        multi_invalid_graph["links"].append({"from": {"nodeId": "source_right", "socketId": "value"},
+                                              "to": {"nodeId": "sum_node", "socketId": "a"}})
+        multi_invalid_validation = dynamic_module.validate_document_for_editing(multi_invalid_graph, dynamic_registry)
+        missing_input = copy.deepcopy(dynamic_document)
+        missing_input["links"].pop(0)
+        collision_graph = copy.deepcopy(dynamic_document)
+        collision_graph["nodes"].append({
+            "nodeId": "constant-a", "operationId": "artifact.rd.constant.float32",
+            "semanticVersion": 1, "parameters": {"value": 1.0}, "layout": {"x": 0, "y": 0}
+        })
+        non_finite_graph = copy.deepcopy(dynamic_document)
+        non_finite_graph["nodes"][0]["parameters"]["value"] = 1.0e100
+        injected_registry = copy.deepcopy(dynamic_registry_source)
+        injected_registry["operations"][0]["HLSL"] = "arbitrary source"
+        changed_type_registry = dict(dynamic_registry)
+        add_key = ("artifact.rd.math.add.float32", 1)
+        add_operation = changed_type_registry[add_key]
+        changed_type_registry[add_key] = replace(
+            add_operation,
+            inputs=(replace(add_operation.inputs[0], value_type="Vector4"), add_operation.inputs[1]))
+        diagnostic_probes = {
+            "unsupportedSchemaVersionRejected": lambda: dynamic_module.compile_document_from_data(wrong_schema_version, dynamic_registry),
+            "unsupportedDocumentKindRejected": lambda: dynamic_module.compile_document_from_data(wrong_kind, dynamic_registry),
+            "requiredLinkArrayRejected": lambda: dynamic_module.compile_document_from_data(missing_link_array, dynamic_registry),
+            "unsupportedOperationVersionRejected": lambda: dynamic_module.compile_document_from_data(bad_version, dynamic_registry),
+            "multipleInputWritersRejected": lambda: dynamic_module.compile_document_from_data(duplicate_writer, dynamic_registry),
+            "cyclesRejectedBeforeOutputPruning": lambda: dynamic_module.compile_document_from_data(cyclic_graph, dynamic_registry),
+            "requiredInputEnforced": lambda: dynamic_module.compile_document_from_data(missing_input, dynamic_registry),
+            "sanitizedIdentifierCollisionRejected": lambda: dynamic_module.compile_document_from_data(collision_graph, dynamic_registry),
+            "nonFiniteBinary32ParameterRejected": lambda: dynamic_module.compile_document_from_data(non_finite_graph, dynamic_registry),
+            "inlineShaderSourceRejected": lambda: dynamic_module.reject_code_payload(injected_registry),
+            "socketTypeMismatchRejected": lambda: dynamic_module.compile_document_from_data(dynamic_document, changed_type_registry),
+        }
+        diagnostics = {case_id: diagnostic_for(action) for case_id, action in diagnostic_probes.items()}
+        unknown_registry_field = copy.deepcopy(dynamic_registry_source)
+        unknown_registry_field["operations"][0]["vendorMetadata"] = {"opaque": True}
+        duplicate_operation_registry = copy.deepcopy(dynamic_registry_source)
+        duplicate_operation_registry["operations"].append(copy.deepcopy(duplicate_operation_registry["operations"][0]))
+        duplicate_socket_registry = copy.deepcopy(dynamic_registry_source)
+        duplicate_socket_registry["operations"][2]["inputs"][1]["socketId"] = "a"
+        with tempfile.TemporaryDirectory(prefix="shader-graph-rd-registry-") as registry_directory:
+            registry_directory = Path(registry_directory)
+            registry_diagnostics = []
+            for index, candidate_registry in enumerate((unknown_registry_field, duplicate_operation_registry, duplicate_socket_registry)):
+                registry_path = registry_directory / f"registry-{index}.json"
+                dynamic_module.save_document(registry_path, candidate_registry)
+                registry_diagnostics.append(diagnostic_for(lambda path=registry_path: dynamic_module.load_registry(path)))
+        checks = {
+            "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
+            "implementationSelectionChangesSemanticIdentity": alternate_implementation_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and alternate_implementation_compile["hlslBody"] != connected_graph_compile["hlslBody"],
+            "layoutEditIsValidatedAndSemanticallyNeutral": layout_only_edit["nodes"][0]["layout"]["x"] == 25 and dynamic_module.compile_document_from_data(layout_only_edit, dynamic_registry)["semanticHashSha256"] == connected_graph_compile["semanticHashSha256"] and invalid_layout_coordinate_diagnostic == {"code": "node.layout.coordinate.invalid", "severity": "error", "path": "/nodes/0/layout/x"} and invalid_layout_field_diagnostic == {"code": "node.layout.invalid", "severity": "error", "path": "/layout"},
+            "layoutBatchIsAtomicAndSemanticallyNeutral": layout_batch_edit["nodes"][0]["layout"] == {"x": 25.0, "y": 0.0} and layout_batch_edit["nodes"][1]["layout"] == {"x": 0.0, "y": 200.0} and dynamic_module.compile_document_from_data(layout_batch_edit, dynamic_registry)["semanticHashSha256"] == connected_graph_compile["semanticHashSha256"] and dynamic_module.compile_document_from_data(layout_batch_edit, dynamic_registry)["hlslBody"] == connected_graph_compile["hlslBody"] and invalid_layout_batch_diagnostic == {"code": "node.layout.coordinate.invalid", "severity": "error", "path": "/nodes/1/layout/y"} and connected_graph["nodes"][0]["layout"] == {"x": 0.0, "y": 0.0} and connected_graph["nodes"][1]["layout"] == {"x": 0.0, "y": 100.0},
+            "layoutBatchCanonicalizesAndUndoRedoRestores": layout_boundary_edit["nodes"][0]["layout"] == {"x": 1.0, "y": 0.0} and layout_boundary_edit["nodes"][1]["layout"] == {"x": 1.401298464324817e-45, "y": 100.0} and layout_boundary_undo == connected_graph and layout_boundary_redo == layout_boundary_edit and dynamic_module.compile_document_from_data(layout_boundary_edit, dynamic_registry)["semanticHashSha256"] == connected_graph_compile["semanticHashSha256"] and duplicate_layout_batch_diagnostic == {"code": "node.layout.batch.duplicate", "severity": "error", "path": "/edits/1"},
+            "canonicalDocumentSerializationIsStable": canonical_round_trip == connected_graph and dynamic_module.serialize_document(canonical_round_trip) == canonical_document_text and dynamic_module.serialize_document(reordered_object_document) == canonical_document_text and dynamic_module.serialize_document(reordered_array_document) != canonical_document_text,
+            "strictJsonRejectsDuplicateKeysAndNonFiniteConstants": duplicate_key_diagnostic == {"code": "json.key.duplicate", "severity": "error", "path": "/x"} and nonstandard_number_diagnostic == {"code": "json.parse.invalid", "severity": "error", "path": "/"},
+            "commandSnapshotsRejectCyclesAndBoundNesting": cyclic_snapshot_diagnostic == {"code": "json.value.cycle", "severity": "error", "path": "/vendorExtension/self"} and deep_json_diagnostic is not None and deep_json_diagnostic["code"] == "json.value.depth" and deep_json_diagnostic["path"].count("/0") == dynamic_module.MAX_JSON_NESTING and shared_reference_round_trip == {"left": shared_extension, "right": shared_extension},
+            "registryRejectsUnknownFieldsAndDuplicateIdentities": registry_diagnostics == [{"code": "registry.operation.shape.invalid", "severity": "error", "path": "/operations/0"}, {"code": "operation.registration.duplicate", "severity": "error", "path": "/operations/8"}, {"code": "socket.id.duplicate", "severity": "error", "path": "/operations/2/inputs/1/socketId"}],
+            "documentFileRoundTripIsCanonicalAndAtomic": loaded_graph == io_document and stable_saved_graph_bytes == saved_graph_bytes and failed_save_diagnostic == {"code": "json.number.non_finite", "severity": "error", "path": "/invalidNumber"} and preserved_after_failed_save and unknown_extension_compile_diagnostic == {"code": "schema.field.unknown", "severity": "error", "path": "/vendorExtension"},
+            "unknownSchemaStaysEditableButCannotCompile": unknown_extension_editing["status"] == "repairable" and unknown_extension_editing["repairable"] and not unknown_extension_editing["compilationAvailable"] and any(item["code"] == "schema.field.unknown" and item["severity"] == "warning" for item in unknown_extension_editing["diagnostics"]),
+            "nodeAndLinkOrderDeterministic": reordered_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and reordered_result["hlslBody"] == regenerated_candidate["hlslBody"],
+            "unreachableNodeExcludedFromSemanticOutput": unreachable_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and unreachable_result["hlslBody"] == regenerated_candidate["hlslBody"] and "node unreachable_constant is unreachable from the selected output" in unreachable_result["warnings"],
+            "knownDocumentPreservedExactly": preserved_document == dynamic_document,
+            "unknownVersionAndLinksRemainRepairable": unknown_version_editing["status"] == "repairable" and unknown_version_editing["repairable"] and not unknown_version_editing["compilationAvailable"] and any(item["code"] == "link.operation.unavailable" for item in unknown_version_editing["diagnostics"]) and unknown_version_editing["semanticHashSha256"] is None,
+            "restoredOperationDefinitionReenablesSavedGraph": missing_registry_validation["status"] == "repairable" and not missing_registry_validation["compilationAvailable"] and restored_registry_validation["status"] == "valid" and restored_registry_validation["compilationAvailable"] and restored_registry_compile["outputType"] == regenerated_candidate["outputType"] and restored_registry_compile["hlslBody"] == regenerated_candidate["hlslBody"] and temporarily_missing_document["nodes"][0]["semanticVersion"] == 2,
+            "unknownVersionPayloadPreserved": dynamic_module.preserve_document(unknown_version_document) == unknown_version_document,
+            "opaquePayloadSurvivesSaveLoadEditAndResave": opaque_loaded_document == unknown_version_document and opaque_loaded_editing["status"] == "repairable" and opaque_resaved_document["nodes"][-1] == unknown_version_document["nodes"][-1] and opaque_resaved_document["links"][-1] == unknown_link and opaque_resaved_document["nodes"][1]["parameters"]["value"] == 0.75 and opaque_resaved_document["nodes"][0]["layout"]["x"] == 99 and opaque_resaved_editing["status"] == "repairable" and not opaque_resaved_editing["compilationAvailable"] and opaque_resaved_compile_diagnostic == {"code": "node.operation.version.unsupported", "severity": "error", "path": "/nodes/0/semanticVersion"} and opaque_undo_loaded == unknown_version_document and opaque_redo_loaded == opaque_edited_document and opaque_redo_loaded["nodes"][-1] == unknown_version_document["nodes"][-1] and opaque_redo_loaded["links"][-1] == unknown_link,
+            "unknownOutputStaysRepairableUntilExplicitReplacement": unknown_output_validation["status"] == "repairable" and any(item["code"] == "output.operation.unavailable" and item["severity"] == "warning" for item in unknown_output_validation["diagnostics"]) and unknown_output_delete_diagnostic == {"code": "output.replacement.required", "severity": "error", "path": "/output"} and repaired_unknown_output["output"] == {"nodeId": "sum", "socketId": "result"} and all(node["nodeId"] != "future_node" for node in repaired_unknown_output["nodes"]) and all(not any(endpoint.get("nodeId") == "future_node" for endpoint in (link.get("from", {}), link.get("to", {}))) for link in repaired_unknown_output["links"]) and not {"/nodes/5/futureField", "/nodes/5/semanticVersion", "/links/4", "/links/4/vendorLinkData"} & {item["path"] for item in repaired_unknown_output_validation["diagnostics"]},
+            "unknownVersionDiagnosedWithoutMutation": len(unknown_version_diagnostics) == 2 and all(item.get("code") == "node.operation.version.unsupported" for item in unknown_version_diagnostics),
+            "knownNodeEditableWithOpaqueNodeAndLinkPresent": edited_with_unknown_node["nodes"][1]["parameters"]["value"] == 0.75 and edited_with_unknown_node["nodes"][0]["layout"]["x"] == 99 and edited_with_unknown_node["nodes"][-1] == unknown_version_document["nodes"][-1] and edited_with_unknown_node["links"][-1] == unknown_link,
+            "undoRedoPreservesOpaqueGraphPayload": opaque_undo_document == unknown_version_document and opaque_redo_document == edited_with_unknown_node and opaque_redo_document["nodes"][-1] == unknown_version_document["nodes"][-1] and opaque_redo_document["links"][-1] == unknown_link and dynamic_module.validate_document_for_editing(opaque_undo_document, dynamic_registry)["status"] == "repairable" and dynamic_module.validate_document_for_editing(opaque_redo_document, dynamic_registry)["status"] == "repairable",
+            "registryPresentationChangeIsCompatible": presentation_compatibility == [],
+            "paletteHasStableDistinctIDsForDuplicateLabels": len(duplicate_label_entries) == 2 and len({item["entryId"] for item in duplicate_label_entries}) == 2 and all(item["inputs"][0]["socketId"] == "a" and item["outputs"][0]["socketId"] == "result" for item in duplicate_label_entries) and palette == dynamic_module.build_palette_model(dynamic_registry),
+            "paletteNodeCanBeAddedAndCompletedThroughTypedLinks": len(palette_added_graph["nodes"]) == len(connected_graph["nodes"]) + 1 and palette_added_graph["nodes"][-1]["nodeId"] == "palette_added_add" and palette_added_graph["nodes"][-1]["parameters"] == {} and palette_added_graph["nodes"][-1]["layout"] == {"x": 320.0, "y": 80.0} and palette_added_validation["status"] == "incomplete" and any(item["code"] == "node.input.required_unconnected" and item["severity"] == "warning" for item in palette_added_validation["diagnostics"]) and palette_complete_validation["status"] == "incomplete" and palette_complete_validation["compilationAvailable"] and not any(item["code"] == "node.input.required_unconnected" for item in palette_complete_validation["diagnostics"]) and duplicate_palette_node_diagnostic == {"code": "node.id.duplicate", "severity": "error", "path": "/nodes"} and connected_graph["nodes"][-1]["nodeId"] == "sum_node",
+            "batchLinkEditingIsAtomicAndTyped": len(palette_wired_graph["links"]) == len(palette_added_graph["links"]) + 2 and palette_complete_validation["compilationAvailable"] and failed_link_batch_diagnostic == {"code": "link.input.multiple_writers", "severity": "error", "path": "/links"} and failed_link_batch_document["links"] == connected_graph["links"] and malformed_link_batch_diagnostic == {"code": "link.batch.entry.invalid", "severity": "error", "path": "/connections/1"},
+            "compositeAddConnectOutputEditIsOneUndoableCommand": composite_graph_edit["output"] == {"nodeId": "composite_add", "socketId": "result"} and len(composite_graph_edit["nodes"]) == len(connected_graph["nodes"]) + 1 and len(composite_graph_edit["links"]) == len(connected_graph["links"]) + 2 and composite_graph_validation["compilationAvailable"] and composite_graph_undo == connected_graph and composite_graph_redo == composite_graph_edit and composite_group_undo == connected_graph and composite_group_redo == composite_parameter_edit and composite_after_compile["semanticHashSha256"] != composite_before_compile["semanticHashSha256"] and failed_composite_diagnostic == {"code": "link.input.multiple_writers", "severity": "error", "path": "/links"} and len(connected_graph["nodes"]) == 3 and len(connected_graph["links"]) == 2 and connected_graph["output"] == {"nodeId": "sum_node", "socketId": "result"},
+            "transactionAuthorsGraphFromEmptyDocumentAsOneUndoableCommand": len(authoring_graph["nodes"]) == 3 and len(authoring_graph["links"]) == 2 and authoring_validation["status"] == "valid" and authoring_validation["compilationAvailable"] and authoring_compile["hlslBody"].count(" = ") == 3 and authoring_compile["outputType"] == "Float" and authoring_undo == empty_graph and authoring_redo == authoring_graph,
+            "localUiSessionActionsStayAtomicAndUndoable": ui_session_document["output"] == {"nodeId": "ui_sum", "socketId": "result"} and len(ui_session_document["nodes"]) == 3 and len(ui_session_document["links"]) == 2 and ui_session.state()["validation"]["status"] == "valid" and ui_session.state()["compilation"]["status"] == "candidate-lowered-no-shader-runtime" and ui_session_rejected_connect == {"code": "link.socket.missing_or_direction_invalid", "severity": "error", "path": "/links/to/socketId"} and ui_session_after_reject == ui_session_before_reject and ui_session_history_after_reject == ui_session_history_before_reject and ui_session_undo_document["output"] == {"nodeId": "", "socketId": ""} and len(ui_session_undo_document["links"]) == 2 and ui_session_redo_document == ui_session_document and ui_session_saved == ui_session_document and ui_session_undo is None and ui_session_redo is None,
+            "operationReplacementPreservesCompatibleLinksAndHistory": replaced_graph["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replaced_graph["links"] == connected_graph["links"] and replaced_graph_validation["status"] == "valid" and " * " in replaced_graph_compile["hlslBody"] and replaced_graph_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and replacement_undo == connected_graph and replacement_redo == replaced_graph and incompatible_replacement_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/2/operationId"} and changed_unmaterialized_default_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/0/parameters/value"} and sealed_replacement_compile["outputType"] == "Float" and "artifact.rd.math.add.float32@1" not in sealed_replacement["registryContractLock"] and "artifact.rd.math.multiply.float32@1" in sealed_replacement["registryContractLock"] and replacement_session_after["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replacement_session_undo == connected_graph and replacement_session_redo == replacement_session_after,
+            "localUiHttpRoutesHandleStateEditAndReject": ui_http_page_status == 200 and b"Shader Graph Lab" in ui_http_page_body and ui_http_state_status == 200 and ui_http_state["validation"]["status"] == "valid" and bool(ui_http_state["compilation"]["hlslBody"]) and ui_http_reject_status == 400 and not ui_http_rejected["ok"] and ui_http_rejected["diagnostics"][0]["code"] == "link.socket.missing_or_direction_invalid" and ui_http_edit_status == 200 and ui_http_edited["document"]["nodes"][0]["layout"]["x"] == 88.0 and ui_http_undo_status == 200 and ui_http_undone["document"]["nodes"][0]["layout"]["x"] == 0.0,
+            "instantiatedNodeUsesDeclaredParameterDefault": created_constant_node["parameters"] == {"value": 0.0} and "= 0.0f;" in created_constant_compile["hlslBody"],
+            "editingParameterChangesSemanticOutput": changed_constant_compile["semanticHashSha256"] != created_constant_compile["semanticHashSha256"] and changed_constant_compile["hlslBody"] != created_constant_compile["hlslBody"],
+            "graphParametersExposeShareAndEditTypedNodeValues": shared_graph_parameter["schemaVersion"] == 2 and shared_graph_parameter["graphParameters"] == [{"parameterId": "shared_gain", "label": "Shared Gain", "valueType": "Float32", "value": 0.25, "bindings": [{"nodeId": "source_left", "parameterId": "value"}, {"nodeId": "source_right", "parameterId": "value"}]}] and graph_parameter_baseline_compile["semanticHashSha256"] != shared_graph_parameter_compile["semanticHashSha256"] and graph_parameter_uniforms_stable and edited_graph_parameter_compile["semanticHashSha256"] != shared_graph_parameter_compile["semanticHashSha256"] and bound_node_parameter_edit_diagnostic == {"code": "node.parameter.exposed", "severity": "error", "path": "/graphParameters/0/bindings/value"} and duplicate_graph_parameter_binding_diagnostic == {"code": "graph.parameter.binding.duplicate", "severity": "error", "path": "/graphParameters/0/bindings"} and invalid_graph_parameter_value_diagnostic == {"code": "graph.parameter.value.invalid", "severity": "error", "path": "/graphParameters/0/value"} and incompatible_graph_parameter_type_diagnostic == {"code": "graph.parameter.type.incompatible", "severity": "error", "path": "/graphParameters/shared_gain/valueType"} and duplicate_graph_parameter_compile_diagnostic == {"code": "graph.parameter.binding.duplicate", "severity": "error", "path": "/graphParameters/0/bindings/2"} and graph_parameter_undo == shared_graph_parameter and graph_parameter_redo == edited_graph_parameter and not deleted_graph_parameter_node["graphParameters"] and round_trip_graph_parameter == shared_graph_parameter and graph_parameter_session_document["graphParameters"][0]["value"] == 0.625 and graph_parameter_exposure_session_document["schemaVersion"] == 2 and graph_parameter_exposure_session_undo == graph_parameter_source and graph_parameter_exposure_session_redo == graph_parameter_exposure_session_document and dynamic_module.validate_document_for_editing(shared_graph_parameter, dynamic_registry)["status"] == "valid" and vector4_edited_graph_parameter["graphParameters"][0]["value"] == [0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 0.4000000059604645] and vector4_graph_parameter_compile["outputType"] == "Vector4" and vector4_graph_parameter_compile["semanticHashSha256"] != vector4_graph_parameter_base_compile["semanticHashSha256"] and vector4_graph_parameter_compile["shaderStructureHashSha256"] == vector4_graph_parameter_base_compile["shaderStructureHashSha256"] and "float4 P_surface_tint : packoffset(c0.x);" in vector4_graph_parameter_compile["hlslBody"] and "n_color_source_value = P_surface_tint;" in vector4_graph_parameter_compile["hlslBody"] and "0.400000006f" not in vector4_graph_parameter_compile["hlslBody"] and unreachable_parameter_hash_unchanged,
+            "parameterEditsRejectAtomically": atomic_parameter_diagnostic == {"code": "node.parameter.unknown", "severity": "error", "path": "/nodes/0/parameters/unknown"} and invalid_parameter_diagnostic == {"code": "parameter.float32.invalid", "severity": "error", "path": "/nodes/0/parameters/value"} and created_constant_document["nodes"][0]["parameters"] == {"value": 0.0},
+            "vector4ConstantParametersCanonicalizeAndLower": vector4_constant_node["parameters"]["value"] == [0.0, 0.0, 0.0, 1.0] and vector4_default_compile["outputType"] == "Vector4" and "float4 n_color_source_value = float4(0.0f, 0.0f, 0.0f, 1.0f);" in vector4_default_compile["hlslBody"] and vector4_edited_document["nodes"][0]["parameters"]["value"] == [0.25, 0.5, 0.75, 0.4000000059604645] and vector4_edited_compile["semanticHashSha256"] != vector4_default_compile["semanticHashSha256"] and vector4_extract_compile["outputType"] == "Float" and "float n_color_x_value = (n_color_source_value).x;" in vector4_extract_compile["hlslBody"] and invalid_vector4_parameter_diagnostic == {"code": "parameter.vector4.invalid", "severity": "error", "path": "/nodes/0/parameters/value"} and invalid_vector4_component_diagnostic == {"code": "parameter.float32.invalid", "severity": "error", "path": "/nodes/0/parameters/value/2"} and vector4_boundaries_document["nodes"][0]["parameters"]["value"] == [0.0, 1.0, 1.401298464324817e-45, -1.401298464324817e-45] and vector4_boundaries_compile["semanticHashSha256"] == vector4_repeated_edit_compile["semanticHashSha256"] and vector4_constant_undo_document == vector4_constant_document and vector4_constant_redo_document == vector4_boundaries_document and vector4_constant_document["nodes"][0]["parameters"]["value"] == [0.0, 0.0, 0.0, 1.0],
+            "vector4ArithmeticLowersComponentwiseWithTypedLinks": vector4_arithmetic_compile["outputType"] == "Vector4" and "float4 n_v4_sum_result = (n_v4_left_value + n_v4_right_value);" in vector4_arithmetic_compile["hlslBody"] and "float4 n_v4_product_result = (n_v4_sum_result * n_v4_right_value);" in vector4_arithmetic_compile["hlslBody"] and vector4_arithmetic_edited_compile["semanticHashSha256"] != vector4_arithmetic_compile["semanticHashSha256"] and vector4_arithmetic_type_diagnostic == {"code": "link.type.incompatible", "severity": "error", "path": "/links/0"} and vector4_cpu_candidate == [0.3499999940395355, 0.16249999403953552, 3.1499998569488525, 1.1624999046325684] and vector4_cpu_candidate[3] > 1.0,
+            "explicitScalarVectorConversionsAreTypedAndDeterministic": vector_validation["status"] == "valid" and vector_compile["outputType"] == "Vector4" and "float4 n_replicate_vector = float4(n_scalar_source_value, n_scalar_source_value, n_scalar_source_value, 1.0f);" in vector_compile["hlslBody"] and chained_conversion_compile["outputType"] == "Float" and "float n_extract_x_value = (n_replicate_vector).x;" in chained_conversion_compile["hlslBody"] and explicit_conversion_type_mismatch_diagnostic == {"code": "link.type.incompatible", "severity": "error", "path": "/links/0"},
+            "typedLinkEditingBuildsCompilableGraph": len(connected_graph["links"]) == 2 and " + " in connected_graph_compile["hlslBody"],
+            "editingValidatorAcceptsCompilableGraph": connected_validation["status"] == "valid" and connected_validation["compilationAvailable"] and not connected_validation["diagnostics"],
+            "editingValidatorReportsRequiredInputsAsWarnings": incomplete_validation["status"] == "incomplete" and not incomplete_validation["compilationAvailable"] and [item["path"] for item in incomplete_validation["diagnostics"]] == ["/nodes/0/inputs/a", "/nodes/0/inputs/b"] and all(item["severity"] == "warning" for item in incomplete_validation["diagnostics"]),
+            "editingValidatorKeepsStructuralFailuresAsErrors": cyclic_validation["status"] == "invalid" and any(item["code"] == "graph.cycle" and item["severity"] == "error" for item in cyclic_validation["diagnostics"]),
+            "editingValidatorAggregatesIndependentIssues": multi_invalid_validation["status"] == "invalid" and {"parameter.float32.invalid", "link.socket.missing_or_direction_invalid", "link.input.multiple_writers", "node.input.required_unconnected"} <= {item["code"] for item in multi_invalid_validation["diagnostics"]} and sum(item["severity"] == "error" for item in multi_invalid_validation["diagnostics"]) >= 3,
+            "outputSelectionChangesActiveRoot": selected_source_output["output"] == {"nodeId": "source_left", "socketId": "value"} and selected_source_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"],
+            "nodeDeleteRemovesIncidentLinksAndUndoRestores": len(deleted_source_graph["nodes"]) == 2 and len(deleted_source_graph["links"]) == 1 and restored_source_graph == connected_graph,
+            "selectedOutputDeleteRequiresAndUsesExplicitReplacement": deleted_output_diagnostic == {"code": "output.replacement.required", "severity": "error", "path": "/output"} and len(replacement_delete_graph["nodes"]) == 2 and not replacement_delete_graph["links"] and replacement_delete_compile["outputType"] == "Float",
+            "outputSelectionRejectsUnknownSocket": invalid_output_diagnostic == {"code": "output.socket.missing", "severity": "error", "path": "/output/socketId"},
+            "disconnectRemovesOnlyAddressedLink": len(disconnected_graph["links"]) == 1 and disconnected_graph["links"][0] == connected_graph["links"][1] and len(connected_graph["links"]) == 2,
+            "batchDisconnectPreflightsAllEdgesAtomically": batch_disconnected_graph["links"] == [] and len(connected_graph["links"]) == 2 and missing_batch_disconnect_diagnostic == {"code": "link.not_unique_or_missing", "severity": "error", "path": "/connections/1"} and duplicate_batch_disconnect_diagnostic == {"code": "link.not_unique_or_missing", "severity": "error", "path": "/connections/1"} and len(connected_graph["links"]) == 2,
+            "disconnectMissingLinkIsNonDestructive": missing_disconnect_diagnostic == {"code": "link.not_unique_or_missing", "severity": "error", "path": "/links"} and len(connected_graph["links"]) == 2,
+            "undoRedoRoundTripsExactGraphPayload": undo_edit_graph == connected_graph and undo_disconnect_graph == command_edited_graph and redo_edit_graph == command_edited_graph and redo_disconnect_graph == disconnect_after_edit,
+            "staleUndoIsRejected": stale_history_diagnostic == {"code": "command.history.stale", "severity": "error", "path": "/"},
+            "batchTransactionIsAtomicAndUndoable": transaction_result == disconnect_after_edit and transaction_undo == connected_graph and batch_failure_diagnostic == {"code": "node.parameter.unknown", "severity": "error", "path": "/nodes/0/parameters/unknown"} and connected_graph["nodes"][0]["layout"]["x"] == 0,
+            "commandGroupingRequiresContiguousHistory": dynamic_module.apply_document_command(grouped_command, disconnect_after_edit, direction="undo") == connected_graph and discontinuous_command_diagnostic == {"code": "command.transaction.discontinuous", "severity": "error", "path": "/commands/1"},
+            "linkEditorRejectsInvalidEndpointsAndWriters": unknown_socket_diagnostic == {"code": "link.socket.missing_or_direction_invalid", "severity": "error", "path": "/links/from/socketId"} and multiple_writer_diagnostic == {"code": "link.input.multiple_writers", "severity": "error", "path": "/links"} and duplicate_id_diagnostic == {"code": "node.id.duplicate", "severity": "error", "path": "/nodes/3/nodeId"} and malformed_link_diagnostic == {"code": "link.endpoint.required", "severity": "error", "path": "/links"} and len(connected_graph["links"]) == 2,
+            "linkEditorRejectsTypeMismatchAndCycle": wrong_type_diagnostic == {"code": "link.type.incompatible", "severity": "error", "path": "/links"} and cycle_link_diagnostic == {"code": "graph.cycle", "severity": "error", "path": "/links"},
+            "sameVersionSemanticContractChangeDetected": len(changed_contract_diagnostics) == 1 and changed_contract_diagnostics[0].get("code") == "registry.operation.contract_changed",
+            "operationLockDetectsParameterDefaultAndRequirednessDrift": len(changed_default_diagnostics := dynamic_module.compare_registry_contracts(saved_registry_lock, changed_default_registry)) == 1 and changed_default_diagnostics[0]["code"] == "registry.operation.contract_changed" and len(changed_requiredness_diagnostics := dynamic_module.compare_registry_contracts(saved_registry_lock, changed_requiredness_registry)) == 1 and changed_requiredness_diagnostics[0]["code"] == "registry.operation.contract_changed",
+            "removedOperationDetected": len(removed_contract_diagnostics) == 1 and removed_contract_diagnostics[0].get("code") == "registry.operation.removed",
+            "newVersionCanBeAddedAlongsidePinnedVersion": additive_version_diagnostics == [] and sealed_additive_version_compile["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and "artifact.rd.constant.float32@2" not in sealed_round_trip["registryContractLock"],
+            "explicitIdentityMigrationChangesPinWithoutChangingShader": explicit_migration_compile["hlslBody"] == regenerated_candidate["hlslBody"] and all(node["semanticVersion"] == 2 for node in explicit_migration["nodes"] if node["operationId"] == "artifact.rd.constant.float32") and "artifact.rd.constant.float32@2" in explicit_migration["registryContractLock"],
+            "missingPinnedVersionDoesNotSilentlyUpgrade": silent_upgrade_diagnostic == {"code": "registry.operation.removed", "severity": "error", "path": "/registryContractLock/artifact.rd.constant.float32@1"},
+            "semanticMigrationRequiresExplicitTransform": unsafe_migration_diagnostic == {"code": "registry.migration.semantic_change_requires_transform", "severity": "error", "path": "/nodes/0/semanticVersion"},
+            "migrationRejectsDefaultRequirednessAndIdentityChanges": default_migration_diagnostic == {"code": "registry.migration.semantic_change_requires_transform", "severity": "error", "path": "/nodes/0/semanticVersion"} and requiredness_migration_diagnostic == {"code": "registry.migration.semantic_change_requires_transform", "severity": "error", "path": "/nodes/2/semanticVersion"} and cross_identity_migration_diagnostic == {"code": "registry.migration.semantic_change_requires_transform", "severity": "error", "path": "/nodes/0/semanticVersion"},
+            "registryContractLockPersistsAndAllowsPresentationChanges": sealed_round_trip["registryContractLock"] == sealed_document["registryContractLock"] and sealed_presentation_compile["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"],
+            "sealedGraphRejectsSameVersionContractDrift": sealed_contract_diagnostic == {"code": "registry.operation.contract_changed", "severity": "error", "path": "/registryContractLock/artifact.rd.math.add.float32@1"},
+            **{case_id: result is not None for case_id, result in diagnostics.items()},
+        }
+        if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
+                dynamic_candidate != regenerated_candidate or
+                hashlib.sha256(dynamic_registry_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("registrySha256") or
+                hashlib.sha256(dynamic_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("documentSha256") or
+                hashlib.sha256(dynamic_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("candidateSha256") or
+                regenerated_candidate.get("semanticHashSha256") != dynamic_contract.get("semanticHashSha256") or
+                hashlib.sha256(regenerated_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() != dynamic_contract.get("hlslSha256") or
+                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "vector4.add", "vector4.multiply", "float.replicate.rgb_alpha_one", "vector4.extract_x"] or
+                dynamic_contract.get("contractChecks") != list(checks) or
+                not all(checks.values()) or
+                diagnostics != dynamic_contract.get("diagnosticGoldens") or
+                dynamic_registry_source.get("operations", [{}])[0].get("displayName") != "Float" or
+                any("HLSL" in operation or "source" in operation or "code" in operation for operation in dynamic_registry_source.get("operations", [])) or
+                regenerated_candidate.get("status") != "candidate-lowered-no-shader-runtime" or
+                "no shader compiler/backend/runtime" not in " ".join(regenerated_candidate.get("limitations", []))):
+            failed_dynamic_checks = [name for name, passed in checks.items() if not passed]
+            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "vector4.add", "vector4.multiply", "float.replicate.rgb_alpha_one", "vector4.extract_x"]))
+    except (OSError, UnicodeError, json.JSONDecodeError, AttributeError, ImportError, TypeError, ValueError, OverflowError, struct.error, RuntimeError, KeyError) as error:
+        errors.append(f"cannot validate dynamic graph prototype evidence: {error}")
     promotion_waves = operation_schema.get("operationPromotionWaves", [])
     wave_ids = [item.get("wave") for item in promotion_waves if isinstance(item, dict)]
     promoted_operation_ids = [operation_id for item in promotion_waves if isinstance(item, dict) for operation_id in item.get("operationIds", [])]
