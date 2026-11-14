@@ -6034,6 +6034,7 @@
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
+        "rampCaptureAnalyzerConsumesNamedReportRegions",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
