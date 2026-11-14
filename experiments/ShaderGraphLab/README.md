@@ -47,6 +47,13 @@ RGBA32F. The candidate uses a test-only adapter into `MeshRenderer`'s graph
 splice; it is not production integration. The acceptance case has not been
 built or run, so no GPU or parity result is claimed.
 
+After an authorized capture run, analyze the five complete legacy baseline
+images and candidate raw image with `tools/shader_graph_rd/analyze_shader_graph_rgba32f.py`.
+The tool reports repeat-to-repeat noise, per-channel RGBA distributions, and
+candidate error against the baseline mean; named top-left-origin ROIs can be
+added with repeated `--roi NAME:X,Y,W,H` options. It does not choose a quality
+threshold or claim Blender parity.
+
 Run the dependency-free local graph editor against an existing document:
 
 ```powershell

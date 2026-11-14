@@ -5881,6 +5881,7 @@
             ],
             "outputSha256Fields": [
               "legacyRawCaptureSha256",
+              "legacyRepeatedRawCaptures",
               "candidateRawCaptureSha256",
               "legacyBlackCompositeSha256",
               "legacyWhiteCompositeSha256",
@@ -5893,6 +5894,7 @@
             ],
             "renderOutputModeField": "renderOutputMode"
           },
+          "analysisTool": "tools/shader_graph_rd/analyze_shader_graph_rgba32f.py",
           "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate Vector4 output to the established graph material fields; no Core implementation change",
           "limitations": [
             "capture has not been run",

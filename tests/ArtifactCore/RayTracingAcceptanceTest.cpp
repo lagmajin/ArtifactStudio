@@ -16283,11 +16283,12 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         legacyBytes.constData(), static_cast<size_t>(legacyBytes.size()))));
 
     std::array<std::array<std::array<float, 4>, factors.size()>, 5> legacyRepeats{};
-    std::vector<std::array<float, 4>> legacyPixels;
+    std::array<std::vector<std::array<float, 4>>, 5> legacyRepeatPixels;
     for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
-        legacyPixels = capture();
-        legacyRepeats[repeat] = samplesAtPanelCenters(legacyPixels);
+        legacyRepeatPixels[repeat] = capture();
+        legacyRepeats[repeat] = samplesAtPanelCenters(legacyRepeatPixels[repeat]);
     }
+    const auto& legacyPixels = legacyRepeatPixels.back();
 
     const auto candidatePath = projectRoot / "experiments" / "ShaderGraphLab" /
                                "dynamic_vector4_ramp_candidate.json";
@@ -16359,11 +16360,37 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         }
     }
 
+    const auto sha256Hex = [](const QByteArray& bytes) {
+        const QByteArray digest =
+            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
+        return QString::fromLatin1(digest.constData(), digest.size());
+    };
+    const auto rawCaptureSha256 = [&](const std::vector<std::array<float, 4>>& pixels) {
+        const auto byteCount = static_cast<qsizetype>(pixels.size() * sizeof(pixels[0]));
+        return sha256Hex(QByteArray::fromRawData(
+            reinterpret_cast<const char*>(pixels.data()), byteCount));
+    };
+    const auto fileSha256 = [&](const std::filesystem::path& path) {
+        QFile file(QString::fromStdString(path.string()));
+        if (!file.open(QIODevice::ReadOnly)) return QString{};
+        return sha256Hex(file.readAll());
+    };
     const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
     const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
         ? std::filesystem::path(configuredOutputDir)
         : std::filesystem::current_path() / "ray-tracing-frames";
     std::filesystem::create_directories(outputDir);
+    QJsonArray legacyRepeatedRawCapturesJson;
+    for (size_t repeat = 0; repeat < legacyRepeatPixels.size(); ++repeat) {
+        const auto filename = QStringLiteral("shader-graph-ramp-legacy-repeat-%1-vulkan.rgba32f")
+            .arg(static_cast<qulonglong>(repeat + 1));
+        const auto path = outputDir / filename.toStdString();
+        ASSERT_TRUE(writeRgba32f(path, legacyRepeatPixels[repeat]));
+        legacyRepeatedRawCapturesJson.append(QJsonObject{
+            {QStringLiteral("path"), filename},
+            {QStringLiteral("sha256"), fileSha256(path)},
+        });
+    }
     ASSERT_TRUE(writeRgba32f(outputDir / "shader-graph-ramp-legacy-vulkan.rgba32f",
                              legacyPixels));
     ASSERT_TRUE(writeRgba32f(outputDir / "shader-graph-ramp-candidate-vulkan.rgba32f",
@@ -16380,21 +16407,6 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     ASSERT_TRUE(writeDisplayComposite(
         outputDir / "shader-graph-ramp-candidate-vulkan-over-white.png",
         candidatePixels, 1.0f));
-    const auto sha256Hex = [](const QByteArray& bytes) {
-        const QByteArray digest =
-            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
-        return QString::fromLatin1(digest.constData(), digest.size());
-    };
-    const auto rawCaptureSha256 = [&](const std::vector<std::array<float, 4>>& pixels) {
-        const auto byteCount = static_cast<qsizetype>(pixels.size() * sizeof(pixels[0]));
-        return sha256Hex(QByteArray::fromRawData(
-            reinterpret_cast<const char*>(pixels.data()), byteCount));
-    };
-    const auto fileSha256 = [&](const std::filesystem::path& path) {
-        QFile file(QString::fromStdString(path.string()));
-        if (!file.open(QIODevice::ReadOnly)) return QString{};
-        return sha256Hex(file.readAll());
-    };
     QJsonObject reportJson;
     reportJson.insert(QStringLiteral("kind"),
                       QStringLiteral("artifact-shader-graph-ramp-vulkan-capture"));
@@ -16415,6 +16427,8 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         QStringLiteral("linear RGBA composite over black/white then sRGB; raw RGBA32F remains authoritative"));
     reportJson.insert(QStringLiteral("renderOutputMode"),
         QStringLiteral("BaseColor AOV via instance timeOffset 1; raw linear graph color and alpha"));
+    reportJson.insert(QStringLiteral("rawCaptureLayout"),
+        QStringLiteral("native-endian IEEE-754 float32, row-major interleaved RGBA"));
     reportJson.insert(QStringLiteral("legacyRawCapture"),
                       QStringLiteral("shader-graph-ramp-legacy-vulkan.rgba32f"));
     reportJson.insert(QStringLiteral("candidateRawCapture"),
@@ -16425,6 +16439,8 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
                       sha256Hex(formulaGoldenBytes));
     reportJson.insert(QStringLiteral("legacyRawCaptureSha256"),
                       rawCaptureSha256(legacyPixels));
+    reportJson.insert(QStringLiteral("legacyRepeatedRawCaptures"),
+                      legacyRepeatedRawCapturesJson);
     reportJson.insert(QStringLiteral("candidateRawCaptureSha256"),
                       rawCaptureSha256(candidatePixels));
     reportJson.insert(QStringLiteral("legacyBlackCompositeSha256"), fileSha256(
