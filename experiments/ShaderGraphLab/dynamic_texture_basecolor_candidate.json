@@ -92,6 +92,12 @@
       "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
     }
   ],
+  "resourceBindingStatus": "unresolved",
+  "resolvedResourceBindings": [],
+  "unresolvedResourceKeys": [
+    "artifact.material.texture.base_color"
+  ],
+  "resourceBindingKeySha256": null,
   "contextBindings": [
     {
       "contextId": "artifact.material.surface.uv0",

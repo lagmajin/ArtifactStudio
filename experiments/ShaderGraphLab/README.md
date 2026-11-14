@@ -447,3 +447,10 @@ The resource record deliberately does not claim asset identity/revision, sampler
 
 
 The persisted Metallic-Roughness composition fixture now connects the sample Color output to `vector4.separate_channels` and selects G as the graph root. Its contract also lowers the same graph with B selected, proving that root/output selection changes the generated scalar expression while retaining the same symbolic resource requirement. This characterizes the graph composition needed for conventional roughness-G and metallic-B wiring; it does not connect either channel to a Principled input or verify rendered material response.
+
+
+## Runtime resource binding identity candidate
+
+The host adapter may supply resolved binding metadata separately from the graph: logical resource key, project Asset UUID, source revision, sampler key, UV set and transform, and color interpretation. The prototype validates and hashes this record as `resourceBindingKeySha256`, while keeping it outside typed-IR, shader-structure, and emitted-source hashes. A missing active binding is reported as unresolved and has no binding key. The contract uses synthetic metadata only; it does not resolve a project asset or create a Diligent texture/SRB.
+
+The source audit found a useful integration boundary: `AssetDatabase` exposes logical UUIDs and paths; project `FootageItem` persists `assetId` separately from `filePath`; `AssetManager` tracks an in-memory `sourceVersion`; current `MeshRenderer` material-slot texture reuse is keyed by normalized path. Thus graph/resource identity can be modeled independently, but a production adapter still needs to resolve asset IDs, revisions, sampler/UV/color state, and current renderer path-based slots without changing shader code identity.

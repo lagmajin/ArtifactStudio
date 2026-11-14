@@ -1422,6 +1422,11 @@ def validate(root: Path) -> list[str]:
         dynamic_ramp_image_report = json.loads(dynamic_ramp_image_report_path.read_text(encoding="utf-8"))
         dynamic_mixrgb_source = (root / "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp").read_text(encoding="utf-8")
         dynamic_mixrgb_interface = (root / "ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx").read_text(encoding="utf-8")
+        dynamic_asset_database_interface = (root / "ArtifactCore/include/Asset/AssetDatabase.ixx").read_text(encoding="utf-8")
+        dynamic_asset_manager_interface = (root / "ArtifactCore/include/Utils/AssetManager.ixx").read_text(encoding="utf-8")
+        dynamic_asset_manager_source = (root / "ArtifactCore/src/Asset/AssetManager.cpp").read_text(encoding="utf-8")
+        dynamic_project_items_interface = (root / "Artifact/include/Project/ArtifactProjectItems.ixx").read_text(encoding="utf-8")
+        dynamic_mesh_renderer_source = (root / "ArtifactCore/src/Graphics/MeshRenderer.cpp").read_text(encoding="utf-8")
         dynamic_spec = importlib.util.spec_from_file_location("shader_graph_dynamic_prototype", dynamic_prototype_path)
         if dynamic_spec is None or dynamic_spec.loader is None:
             raise RuntimeError("cannot load dynamic graph prototype")
@@ -1877,6 +1882,46 @@ def validate(root: Path) -> list[str]:
             dynamic_vector2_uv_document, dynamic_registry)
         regenerated_base_color_texture_candidate = dynamic_module.compile_document_from_data(
             dynamic_base_color_texture_document, dynamic_registry)
+        texture_resource_binding_a = {
+            "assetId": "11111111-1111-4111-8111-111111111111",
+            "assetType": "Image",
+            "sourceRevision": 1,
+            "samplerKey": "legacy.base_color.v1",
+            "uvSet": 0,
+            "uvTransform": {"scaleU": 1.0, "scaleV": 1.0, "rotationDegrees": 0.0,
+                            "offsetU": 0.0, "offsetV": 0.0},
+            "colorInterpretation": "srgb",
+        }
+        texture_resource_key = "artifact.material.texture.base_color"
+        resolved_texture_candidate_a = dynamic_module.compile_document_from_data(
+            dynamic_base_color_texture_document, dynamic_registry,
+            resolved_resource_bindings={texture_resource_key: texture_resource_binding_a})
+        texture_binding_mutations = []
+        for field, value in (
+                ("assetId", "22222222-2222-4222-8222-222222222222"),
+                ("sourceRevision", 2),
+                ("samplerKey", "legacy.base_color.alternate"),
+                ("uvSet", 1),
+                ("colorInterpretation", "linear")):
+            changed_binding = copy.deepcopy(texture_resource_binding_a)
+            changed_binding[field] = value
+            texture_binding_mutations.append(dynamic_module.compile_document_from_data(
+                dynamic_base_color_texture_document, dynamic_registry,
+                resolved_resource_bindings={texture_resource_key: changed_binding}))
+        changed_uv_transform_binding = copy.deepcopy(texture_resource_binding_a)
+        changed_uv_transform_binding["uvTransform"]["offsetU"] = 0.25
+        texture_binding_mutations.append(dynamic_module.compile_document_from_data(
+            dynamic_base_color_texture_document, dynamic_registry,
+            resolved_resource_bindings={texture_resource_key: changed_uv_transform_binding}))
+        incompatible_texture_binding = copy.deepcopy(texture_resource_binding_a)
+        incompatible_texture_binding["assetType"] = "Model"
+        try:
+            dynamic_module.compile_document_from_data(
+                dynamic_base_color_texture_document, dynamic_registry,
+                resolved_resource_bindings={texture_resource_key: incompatible_texture_binding})
+            incompatible_texture_asset_diagnostic = None
+        except dynamic_module.ContractError as error:
+            incompatible_texture_asset_diagnostic = error.to_json()
         regenerated_texture_channels_candidate = dynamic_module.compile_document_from_data(
             dynamic_texture_channels_document, dynamic_registry)
         dynamic_texture_channels_blue_document = copy.deepcopy(dynamic_texture_channels_document)
@@ -3037,6 +3082,8 @@ def validate(root: Path) -> list[str]:
             "typedIRHasWellTypedCompleteEdges": all(typed_ir_edges_are_well_typed(item) for item in dynamic_candidate_results + [multi_context_candidate, regenerated_vector4_ramp_alpha_candidate, optional_b_compile, optional_b_override_compile]) and dynamic_vector4_ramp_candidate["typedIR"]["schemaId"] == "artifact.shadergraph.typed-ir" and dynamic_vector4_separate_candidate["typedIR"]["schemaVersion"] == 1,
             "vector2UvContextLowersAsTypedHostInput": dynamic_vector2_uv_candidate == regenerated_vector2_uv_candidate and dynamic_vector2_uv_document.get("output") == {"nodeId": "uv", "socketId": "value"} and regenerated_vector2_uv_candidate.get("outputType") == "Vector2" and "float2 n_uv_value = In.UV;" in regenerated_vector2_uv_candidate.get("hlslBody", "") and regenerated_vector2_uv_candidate.get("typedIR", {}).get("operations", [])[0].get("sourceContext") == {"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2"} and regenerated_vector2_uv_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslExpression": "In.UV", "nodeIds": ["uv"]}] and hashlib.sha256(dynamic_vector2_uv_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvDocumentSha256") and hashlib.sha256(dynamic_vector2_uv_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvCandidateSha256") and typed_ir_hash_matches(dynamic_vector2_uv_candidate) and {"implementationId": "vector2.uv0", "contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslCandidate": "In.UV", "evidence": "ArtifactCore TexCoordNode lowers In.UV in the existing material graph path", "backendNeutral": False} in dynamic_contract.get("sourceContextBindings", []),
             "baseColorTextureHasTypedResourceAndExplicitUv": dynamic_base_color_texture_candidate == regenerated_base_color_texture_candidate and dynamic_base_color_texture_document.get("output") == {"nodeId": "texture", "socketId": "color"} and "float4 n_texture_color = g_BaseColorTexture.Sample(g_BaseColorSampler, n_uv_value);" in regenerated_base_color_texture_candidate.get("hlslBody", "") and regenerated_base_color_texture_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.material.texture.base_color", "resourceKind": "sampledTexture2D", "slot": "BaseColor", "shaderSymbol": "g_BaseColorTexture", "samplerSymbol": "g_BaseColorSampler", "samplerContract": "legacy-shared-sampler-uncharacterized", "uvContract": "explicit-Vector2-input-no-implicit-transform", "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"}] and regenerated_base_color_texture_candidate.get("typedIR", {}).get("operations", [])[1].get("resourceDependencies") == regenerated_base_color_texture_candidate.get("resourceRequirements") and "float n_texture_alpha = n_texture_color.a;" in regenerated_base_color_texture_candidate.get("hlslBody", "") and hashlib.sha256(dynamic_base_color_texture_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureDocumentSha256") and hashlib.sha256(dynamic_base_color_texture_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureCandidateSha256") and typed_ir_hash_matches(dynamic_base_color_texture_candidate) and [operation.get("operationId") for operation in dynamic_registry_source.get("operations", []) if operation.get("implementationId", "").startswith("texture.sample.")] == dynamic_contract.get("textureSampleResourceContract", {}).get("operationIds"),
+            "textureResourceBindingIdentityIsSeparateFromShaderIdentity": regenerated_base_color_texture_candidate.get("resourceBindingStatus") == "unresolved" and regenerated_base_color_texture_candidate.get("resourceBindingKeySha256") is None and resolved_texture_candidate_a.get("resourceBindingStatus") == "resolved" and resolved_texture_candidate_a.get("unresolvedResourceKeys") == [] and all(candidate.get("resourceBindingKeySha256") != resolved_texture_candidate_a.get("resourceBindingKeySha256") and candidate.get("semanticHashSha256") == resolved_texture_candidate_a.get("semanticHashSha256") and candidate.get("typedIRSemanticHashSha256") == resolved_texture_candidate_a.get("typedIRSemanticHashSha256") and candidate.get("shaderStructureHashSha256") == resolved_texture_candidate_a.get("shaderStructureHashSha256") and candidate.get("hlslBodySha256") == resolved_texture_candidate_a.get("hlslBodySha256") for candidate in texture_binding_mutations),
+            "textureBindingSourceAuditPinsStableAssetAndPathBoundary": all(fragment in dynamic_asset_database_interface for fragment in ("struct AssetInfo", "QUuid id;", "QString absolutePath;", "QUuid findAssetByPath")) and all(fragment in dynamic_project_items_interface for fragment in ("QString filePath;", "QUuid assetId;")) and all(fragment in dynamic_asset_manager_interface for fragment in ("sourceVersion(const QUuid& assetId)", "invalidateSource(const QUuid& assetId)")) and "std::uint64_t version = 1;" in dynamic_asset_manager_source and "enum class AssetType" in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "Image," in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "target.path == path && target.srv" in dynamic_mesh_renderer_source and "current != incoming.trimmed()" in dynamic_mesh_renderer_source and "materialSlotTextures" in dynamic_mesh_renderer_source and incompatible_texture_asset_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resourceBindings/artifact.material.texture.base_color/assetType", "message": "sampledTexture2D requires an Image asset"},
             "allSixMaterialTextureSlotsHaveDistinctTypedRequirements": [key for key, _ in texture_slot_candidates] == ["base_color", "opacity", "emission", "metallic_roughness", "normal", "occlusion"] and all(candidate.get("outputType") == "Vector4" and len(candidate.get("resourceRequirements", [])) == 1 and candidate["resourceRequirements"][0].get("resourceKey") == f"artifact.material.texture.{key}" and candidate["typedIR"]["operations"][1].get("resourceDependencies") == candidate["resourceRequirements"] and f"{candidate['resourceRequirements'][0]['shaderSymbol']}.Sample(g_BaseColorSampler, n_uv_value)" in candidate.get("hlslBody", "") for key, candidate in texture_slot_candidates),
             "textureSampleConnectsToSeparateChannelsAndSelectsPackedChannels": dynamic_texture_channels_candidate == regenerated_texture_channels_candidate and dynamic_texture_channels_document.get("output") == {"nodeId": "channels", "socketId": "y"} and dynamic_texture_channels_candidate.get("resourceRequirements", [{}])[0].get("resourceKey") == "artifact.material.texture.metallic_roughness" and dynamic_texture_channels_candidate.get("resourceRequirements", [{}])[0].get("shaderSymbol") == "g_MetallicRoughnessTexture" and "float n_channels_y = (n_texture_color).y;" in regenerated_texture_channels_candidate.get("hlslBody", "") and "return n_channels_y;" in regenerated_texture_channels_candidate.get("hlslBody", "") and "return n_channels_z;" in regenerated_texture_channels_blue_candidate.get("hlslBody", "") and regenerated_texture_channels_candidate.get("resourceRequirements") == regenerated_texture_channels_blue_candidate.get("resourceRequirements") and regenerated_texture_channels_candidate.get("semanticHashSha256") != regenerated_texture_channels_blue_candidate.get("semanticHashSha256") and hashlib.sha256(dynamic_texture_channels_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("textureChannelsDocumentSha256") and hashlib.sha256(dynamic_texture_channels_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("textureChannelsCandidateSha256") and typed_ir_hash_matches(dynamic_texture_channels_candidate),
             "vector2SocketsHaveDistinctCanvasColor": '.wire.Vector2 { stroke: #6bbdc2; }' in local_ui_html_source and '.socket.Vector2 { background: #4c9aa0; border-color: #8bd1d4; }' in local_ui_html_source,

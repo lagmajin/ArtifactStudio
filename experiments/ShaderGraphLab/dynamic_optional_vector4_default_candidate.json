@@ -84,6 +84,10 @@
   "parameterBindings": [],
   "parameterBlock": null,
   "resourceRequirements": [],
+  "resourceBindingStatus": "not-required",
+  "resolvedResourceBindings": [],
+  "unresolvedResourceKeys": [],
+  "resourceBindingKeySha256": null,
   "contextBindings": [],
   "topologicalNodeIds": [
     "source",

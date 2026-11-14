@@ -3418,11 +3418,112 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
     }
 
 
+def _project_resolved_resource_bindings(
+    requirements: list[dict[str, Any]],
+    resolved_bindings: dict[str, dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Keep resolved project asset state outside shader and typed-IR identities."""
+    if not requirements:
+        if resolved_bindings not in (None, {}):
+            raise ContractError("resource bindings were supplied but the active graph has no resource requirements",
+                                code="resource.binding.unrequired", path="/resourceBindings")
+        return {"resourceBindingStatus": "not-required", "resolvedResourceBindings": [],
+                "unresolvedResourceKeys": [], "resourceBindingKeySha256": None}
+    if resolved_bindings is None:
+        resolved_bindings = {}
+    if not isinstance(resolved_bindings, dict):
+        raise ContractError("resolved resource bindings must be an object keyed by resourceKey",
+                            code="resource.binding.invalid", path="/resourceBindings")
+    required_keys = {item["resourceKey"] for item in requirements}
+    extras = sorted(set(resolved_bindings) - required_keys)
+    if extras:
+        raise ContractError(f"resource binding {extras[0]!r} is not required by the active graph",
+                            code="resource.binding.unrequired", path=f"/resourceBindings/{_pointer_segment(extras[0])}")
+    canonical_records = []
+    unresolved = []
+    uuid_pattern = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    for requirement in requirements:
+        resource_key = requirement["resourceKey"]
+        raw = resolved_bindings.get(resource_key)
+        path = f"/resourceBindings/{_pointer_segment(resource_key)}"
+        if raw is None:
+            unresolved.append(resource_key)
+            continue
+        required_fields = {"assetId", "assetType", "sourceRevision", "samplerKey", "uvSet",
+                           "uvTransform", "colorInterpretation"}
+        if not isinstance(raw, dict) or set(raw) != required_fields:
+            unknown = sorted(set(raw) - required_fields) if isinstance(raw, dict) else []
+            field_path = f"{path}/{_pointer_segment(unknown[0])}" if unknown else path
+            raise ContractError("resolved resource binding has missing or unknown fields",
+                                code="resource.binding.shape.invalid", path=field_path)
+        asset_id = raw["assetId"]
+        if not isinstance(asset_id, str) or not uuid_pattern.fullmatch(asset_id):
+            raise ContractError("assetId must be a canonical UUID string",
+                                code="resource.binding.asset_id.invalid", path=f"{path}/assetId")
+        asset_type = raw["assetType"]
+        if asset_type != "Image":
+            raise ContractError("sampledTexture2D requires an Image asset",
+                                code="resource.binding.asset_type.incompatible", path=f"{path}/assetType")
+        source_revision = raw["sourceRevision"]
+        if isinstance(source_revision, bool) or not isinstance(source_revision, int) or source_revision < 1:
+            raise ContractError("sourceRevision must be a positive integer",
+                                code="resource.binding.revision.invalid", path=f"{path}/sourceRevision")
+        sampler_key = raw["samplerKey"]
+        if not isinstance(sampler_key, str) or not IDENTIFIER.fullmatch(sampler_key):
+            raise ContractError("samplerKey must be a stable non-empty identifier",
+                                code="resource.binding.sampler.invalid", path=f"{path}/samplerKey")
+        uv_set = raw["uvSet"]
+        if isinstance(uv_set, bool) or not isinstance(uv_set, int) or uv_set not in (0, 1):
+            raise ContractError("uvSet must be 0 or 1",
+                                code="resource.binding.uv_set.invalid", path=f"{path}/uvSet")
+        raw_transform = raw["uvTransform"]
+        transform_fields = {"scaleU", "scaleV", "rotationDegrees", "offsetU", "offsetV"}
+        if not isinstance(raw_transform, dict) or set(raw_transform) != transform_fields:
+            unknown = sorted(set(raw_transform) - transform_fields) if isinstance(raw_transform, dict) else []
+            field_path = f"{path}/uvTransform/{_pointer_segment(unknown[0])}" if unknown else f"{path}/uvTransform"
+            raise ContractError("uvTransform must define finite scale, rotation, and offset values",
+                                code="resource.binding.uv_transform.invalid", path=field_path)
+        uv_transform = {
+            key: _f32(value, f"resource binding {resource_key} {key}",
+                      path=f"{path}/uvTransform/{key}",
+                      code="resource.binding.uv_transform.invalid")
+            for key, value in sorted(raw_transform.items())
+        }
+        color_interpretation = raw["colorInterpretation"]
+        if not isinstance(color_interpretation, str) or color_interpretation not in {"linear", "srgb"}:
+            raise ContractError("colorInterpretation must be linear or srgb",
+                                code="resource.binding.color_interpretation.invalid",
+                                path=f"{path}/colorInterpretation")
+        canonical_records.append({
+            "resourceKey": resource_key,
+            "resourceKind": requirement["resourceKind"],
+            "assetId": asset_id.lower(),
+            "assetType": asset_type,
+            "sourceRevision": source_revision,
+            "samplerKey": sampler_key,
+            "uvSet": uv_set,
+            "uvTransform": uv_transform,
+            "colorInterpretation": color_interpretation,
+        })
+    if unresolved:
+        return {"resourceBindingStatus": "unresolved" if not canonical_records else "incomplete",
+                "resolvedResourceBindings": canonical_records,
+                "unresolvedResourceKeys": unresolved,
+                "resourceBindingKeySha256": None}
+    encoded = json.dumps(canonical_records, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=False, allow_nan=False).encode("utf-8")
+    return {"resourceBindingStatus": "resolved",
+            "resolvedResourceBindings": canonical_records,
+            "unresolvedResourceKeys": [],
+            "resourceBindingKeySha256": hashlib.sha256(encoded).hexdigest().upper()}
+
+
 def compile_document_from_data(
     document: Any,
     registry: dict[tuple[str, int], Operation],
     *,
     hlsl_context_bindings: dict[tuple[str, str], str] | None = None,
+    resolved_resource_bindings: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if hlsl_context_bindings is None:
         context_binding_expressions = HLSL_SOURCE_CONTEXT_BINDINGS
@@ -3932,6 +4033,8 @@ def compile_document_from_data(
             resource_requirements_by_key[dependency["resourceKey"]] = dependency
     resource_requirements = [resource_requirements_by_key[key]
                              for key in sorted(resource_requirements_by_key)]
+    resource_binding_projection = _project_resolved_resource_bindings(
+        resource_requirements, resolved_resource_bindings)
     typed_ir_canonical = json.dumps(
         typed_ir, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
@@ -3990,6 +4093,7 @@ def compile_document_from_data(
         "parameterBindings": parameter_bindings,
         "parameterBlock": parameter_block,
         "resourceRequirements": resource_requirements,
+        **resource_binding_projection,
         "contextBindings": [context_bindings_by_key[key] for key in sorted(context_bindings_by_key)],
         "topologicalNodeIds": active_order,
         "outputType": output_def.value_type,
