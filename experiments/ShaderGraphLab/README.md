@@ -29,6 +29,18 @@ pins each document/candidate/hash field tuple so a persisted graph cannot be
 silently dropped from regeneration. JSON results record the actual HLSL strings
 and semantic hashes.
 
+Generate the CPU-only Ramp image oracle with:
+
+```powershell
+python -B tools/shader_graph_rd/generate_dynamic_ramp_image_oracle.py
+```
+
+It writes a 256×256 UV0.x gradient and five-factor swatch atlas as raw
+little-endian RGBA32F, black/white composite display PNGs, and a statistics
+report under `tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/`. These
+are independent CPU formula references; they do not capture candidate HLSL,
+Core ColorRamp, a renderer, a GPU backend, or Blender.
+
 Run the dependency-free local graph editor against an existing document:
 
 ```powershell

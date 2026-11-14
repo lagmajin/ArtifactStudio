@@ -5827,7 +5827,7 @@
       "vector4RampDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
       "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
       "rampImageEvaluationPlan": {
-        "status": "planned-runtime-unverified",
+        "status": "cpu-formula-image-generated-runtime-unverified",
         "fixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
         "factorSamples": [
           0.0,
@@ -5836,7 +5836,7 @@
           0.5001,
           1.0
         ],
-        "captureRoute": "not-implemented-core-hlsl-candidate-has-no-runtime-route",
+        "captureRoute": "cpu-formula-image-oracle-only-core-hlsl-runtime-unimplemented",
         "comparison": "legacy Core ColorRamp GPU output at all samples as a characterization baseline with no assumed tie-order equivalence; independent CPU binary32 formula golden defines the dynamic candidate proposal; exact tie uses the proposed last-authored policy",
         "captureConditions": {
           "target": "UV0.x gradient plane (UV0=[0,1]^2) plus a five-panel swatch atlas with constant UV0.x values 0, 0.4999, 0.5, 0.5001, and 1; fixed orthographic camera and unlit raw Ramp RGBA",
@@ -5849,7 +5849,13 @@
           "exactTieSample": "the atlas panel with every vertex UV0.x=0.5 captures the exact duplicate-position boundary; the gradient plane visualizes the discontinuity",
           "statistics": "record per-channel min/max/mean/p50/p95/p99, non-finite and out-of-range counts, raw RGBA error against CPU golden at swatch centers, and adjacent-pixel delta around the UV0.x=0.5 seam"
         },
-        "acceptance": "repeat baseline captures five times to characterize measurement noise; fix raw-float tolerance before candidate comparison, compare candidate to the independent formula golden, and report legacy differences separately; no visual or backend acceptance while route is unimplemented"
+        "acceptance": "repeat baseline captures five times to characterize measurement noise; fix raw-float tolerance before candidate comparison, compare candidate to the independent formula golden, and report legacy differences separately; no visual or backend acceptance while route is unimplemented",
+        "generatedOracle": {
+          "report": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/report.json",
+          "reportSha256": "34184B5E8A1703B0861E624B06719F77BF5481F2E706957335C667DFD6628001",
+          "generator": "tools/shader_graph_rd/generate_dynamic_ramp_image_oracle.py",
+          "sourceDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC"
+        }
       },
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
@@ -5976,6 +5982,7 @@
         "rampStopsPersistExactlyThroughFileRoundTrip",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
+        "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
