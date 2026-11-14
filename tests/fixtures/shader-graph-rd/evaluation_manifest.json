@@ -5890,6 +5890,7 @@
             ],
             "measurementFields": [
               "samplePixelCoordinates",
+              "captureRegions",
               "candidateVsFormulaGoldenAbsoluteError",
               "candidateVsFormulaGoldenRelativeError"
             ],

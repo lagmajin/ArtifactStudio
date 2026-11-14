@@ -224,13 +224,31 @@ def _capture_inputs_from_report(path: Path) -> dict[str, object]:
         "native-endian IEEE-754 float32, row-major interleaved RGBA"
     ):
         raise ValueError(f"{path}: unsupported raw capture layout")
+    width = int(capture_report["width"])
+    height = int(capture_report["height"])
+    raw_regions = capture_report.get("captureRegions")
+    if not isinstance(raw_regions, list) or not raw_regions:
+        raise ValueError(f"{path}: capture regions are missing")
+    regions = []
+    for index, item in enumerate(raw_regions, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"{path}: invalid capture region {index}")
+        try:
+            region_value = (
+                f"{item['name']}:{item['x']},{item['y']},"
+                f"{item['width']},{item['height']}"
+            )
+        except KeyError as error:
+            raise ValueError(f"{path}: incomplete capture region {index}") from error
+        regions.append(_parse_roi(region_value, width, height))
     return {
         "baseline": baseline_paths,
         "baselineDigests": baseline_digests,
         "candidate": candidate_path,
         "candidateDigest": str(candidate_digest).upper(),
-        "width": int(capture_report["width"]),
-        "height": int(capture_report["height"]),
+        "width": width,
+        "height": height,
+        "regions": regions,
         "byteOrder": "native",
         "reportSha256": hashlib.sha256(report_bytes).hexdigest().upper(),
     }
@@ -324,6 +342,8 @@ def main() -> int:
             "name": "full-frame", "x": 0, "y": 0,
             "width": width, "height": height,
         }]
+        if capture_input is not None:
+            regions.extend(capture_input["regions"])
         regions.extend(_parse_roi(value, width, height) for value in args.roi)
         names = [str(region["name"]) for region in regions]
         if len(set(names)) != len(names):

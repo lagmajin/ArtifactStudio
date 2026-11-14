@@ -16473,6 +16473,57 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         });
     }
     reportJson.insert(QStringLiteral("samplePixelCoordinates"), sampleCoordinatesJson);
+    const auto pixelCoverageStart = [](float viewportCoordinate) {
+        return static_cast<int>(std::ceil(viewportCoordinate - 0.5f));
+    };
+    const int gradientLeftPixel = pixelCoverageStart(
+        (leftEdge * 0.5f + 0.5f) * static_cast<float>(width));
+    const int gradientRightPixel = pixelCoverageStart(
+        (gradientRight * 0.5f + 0.5f) * static_cast<float>(width));
+    const int atlasRightPixel = pixelCoverageStart(
+        (rightEdge * 0.5f + 0.5f) * static_cast<float>(width));
+    const int roiTopPixel = pixelCoverageStart(
+        (1.0f - 0.85f) * 0.5f * static_cast<float>(height));
+    const int roiBottomPixel = pixelCoverageStart(
+        (1.0f + 0.85f) * 0.5f * static_cast<float>(height));
+    const int roiHeight = roiBottomPixel - roiTopPixel;
+    QJsonArray captureRegionsJson{
+        QJsonObject{
+            {QStringLiteral("name"), QStringLiteral("uv-gradient")},
+            {QStringLiteral("x"), gradientLeftPixel},
+            {QStringLiteral("y"), roiTopPixel},
+            {QStringLiteral("width"), gradientRightPixel - gradientLeftPixel},
+            {QStringLiteral("height"), roiHeight},
+        },
+        QJsonObject{
+            {QStringLiteral("name"), QStringLiteral("swatch-atlas")},
+            {QStringLiteral("x"), gradientRightPixel},
+            {QStringLiteral("y"), roiTopPixel},
+            {QStringLiteral("width"), atlasRightPixel - gradientRightPixel},
+            {QStringLiteral("height"), roiHeight},
+        },
+    };
+    const float duplicateBoundaryNdc = (leftEdge + gradientRight) * 0.5f;
+    const int duplicateBoundaryPixel = static_cast<int>(std::lround(
+        (duplicateBoundaryNdc * 0.5f + 0.5f) * static_cast<float>(width)));
+    captureRegionsJson.append(QJsonObject{
+        {QStringLiteral("name"), QStringLiteral("duplicate-boundary-seam")},
+        {QStringLiteral("x"), duplicateBoundaryPixel - 1},
+        {QStringLiteral("y"), roiTopPixel},
+        {QStringLiteral("width"), 2},
+        {QStringLiteral("height"), roiHeight},
+    });
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        captureRegionsJson.append(QJsonObject{
+            {QStringLiteral("name"), QStringLiteral("swatch-center-%1")
+                 .arg(static_cast<qulonglong>(panel))},
+            {QStringLiteral("x"), static_cast<int>(sampleXs[panel])},
+            {QStringLiteral("y"), static_cast<int>(height / 2)},
+            {QStringLiteral("width"), 1},
+            {QStringLiteral("height"), 1},
+        });
+    }
+    reportJson.insert(QStringLiteral("captureRegions"), captureRegionsJson);
     QJsonArray legacyRepeatsJson;
     for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
         QJsonArray repeatJson;
