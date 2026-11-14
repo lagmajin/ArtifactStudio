@@ -1,7 +1,7 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "5669350650FD35897C7A56A25EBEFEA759F96C46D30AAE09A7EC0056249E62AB",
-  "typedIRSemanticHashSha256": "1EE250CD7C30AD9AAE440B7885DDAF2E6E57CE05C5DE4F4A0D71459D99EB188D",
+  "typedIRSemanticHashSha256": "6C35B1E9274A1856327D2804025E8272541DCA74EE77BBBCCD85C1439C801A66",
   "typedIR": {
     "schemaId": "artifact.shadergraph.typed-ir",
     "schemaVersion": 1,
@@ -84,6 +84,7 @@
             "socketId": "value",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "input_value",
               "socketId": "value"
@@ -93,6 +94,7 @@
             "socketId": "minimum",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "input_minimum",
               "socketId": "value"
@@ -102,6 +104,7 @@
             "socketId": "maximum",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "input_maximum",
               "socketId": "value"

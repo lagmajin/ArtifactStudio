@@ -356,7 +356,8 @@
         const incoming=typeof node.nodeId==='string'
           ? incomingByInput.get(inputKey(node.nodeId,pin.socketId))||[]:[];
         const missingRequired=pin.required&&!incoming.length;
-        const status=`${pin.required?' · required':' · optional'}${missingRequired?' · unconnected':''}`;
+        const defaultText=pin.default!==undefined?` · default ${JSON.stringify(pin.default)}`:'';
+        const status=`${pin.required?' · required':' · optional'}${missingRequired?' · unconnected':''}${defaultText}`;
         const disconnect=incoming.map(entry=>{
           const from=entry.link.from;
           const label=from&&typeof from.nodeId==='string'&&typeof from.socketId==='string'
@@ -699,7 +700,7 @@
     const samePins=(left,right,fields)=>left.length===right.length&&left.every((pin,index)=>fields.every(field=>pin[field]===right[index][field]));
     const values=node.parameters&&typeof node.parameters==='object'?node.parameters:{};
     const candidates=state.palette.filter(item=>item.entryId!==current.entryId&&
-      samePins(current.inputs,item.inputs,['socketId','valueType','required'])&&
+      samePins(current.inputs,item.inputs,['socketId','valueType','required','default'])&&
       samePins(current.outputs,item.outputs,['socketId','valueType'])&&
       samePins(current.parameters,item.parameters,['parameterId','valueType'])&&
       item.parameters.every((parameter,index)=>Object.prototype.hasOwnProperty.call(values,parameter.parameterId)||

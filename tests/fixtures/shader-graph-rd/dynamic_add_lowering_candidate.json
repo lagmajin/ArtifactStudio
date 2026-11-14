@@ -1,7 +1,7 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
-  "typedIRSemanticHashSha256": "682BE76F7437C1C7FA12A4811784E04A35E2212A6F53AF19FE05893C1DDBC2A7",
+  "typedIRSemanticHashSha256": "C4FB7E82C12F9A2E81C066C8D076D4354D2B0C8DFC4E90FE52E763AD63E83373",
   "typedIR": {
     "schemaId": "artifact.shadergraph.typed-ir",
     "schemaVersion": 1,
@@ -84,6 +84,7 @@
             "socketId": "a",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "constant_a",
               "socketId": "value"
@@ -93,6 +94,7 @@
             "socketId": "b",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "constant_b",
               "socketId": "value"
@@ -117,6 +119,7 @@
             "socketId": "a",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "sum",
               "socketId": "result"
@@ -126,6 +129,7 @@
             "socketId": "b",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "scale",
               "socketId": "value"

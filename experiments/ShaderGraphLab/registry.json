@@ -86,6 +86,19 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.add.float32.default_b",
+      "semanticVersion": 1,
+      "displayName": "Add (zero default)",
+      "category": "Math",
+      "implementationId": "float.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": false, "default": 0.0}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.math.multiply.float32",
       "semanticVersion": 1,
       "displayName": "Multiply",

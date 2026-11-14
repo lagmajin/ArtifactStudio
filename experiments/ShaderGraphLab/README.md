@@ -41,6 +41,15 @@ provenance separation, and runtime consumers remain open. Its manifest checks
 cover typed producer resolution and type agreement, but are source-defined and
 have not been executed.
 
+The registry also supports optional typed input defaults. A connected producer
+overrides that immutable operation-version default; required inputs still need
+links. The declared default is included in the operation contract, palette
+metadata, and replacement compatibility. It enters the active semantic
+projection and typed IR only while unconnected; a producer overrides it. The
+sample zero-B Add operation demonstrates the path. Per-node default editing
+and persistence are not implemented, and the source contract remains
+unexecuted.
+
 Generate the CPU-only Ramp image oracle with:
 
 ```powershell

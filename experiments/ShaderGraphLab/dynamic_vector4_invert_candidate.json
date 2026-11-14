@@ -1,7 +1,7 @@
 {
   "status": "candidate-lowered-no-shader-runtime",
   "semanticHashSha256": "1B84F2CEBC98C6771D36FC00C3C96F7377E082D815DC69BB67B4A8E8CEB6FBCE",
-  "typedIRSemanticHashSha256": "B5DF62B6210AE4B26A384FD7F73AF0F48CE16499B9A7A672DA33541F2EC2D041",
+  "typedIRSemanticHashSha256": "15CF953172FD707E91EE33B9EFAF241478512C2C99AF4E9909142893D0FECE91",
   "typedIR": {
     "schemaId": "artifact.shadergraph.typed-ir",
     "schemaVersion": 1,
@@ -68,6 +68,7 @@
             "socketId": "color",
             "valueType": "Vector4",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "source_color",
               "socketId": "value"
@@ -77,6 +78,7 @@
             "socketId": "factor",
             "valueType": "Float",
             "required": true,
+            "defaultValue": null,
             "producer": {
               "nodeId": "source_factor",
               "socketId": "value"

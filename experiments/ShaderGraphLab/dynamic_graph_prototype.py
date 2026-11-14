@@ -569,6 +569,7 @@ class Socket:
     socket_id: str
     value_type: str
     required: bool = False
+    default: Any = None
 
 
 @dataclass(frozen=True)
@@ -822,7 +823,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 socket_pointer = f"{path}/{key}/{socket_index}"
                 if not isinstance(socket, dict):
                     raise ContractError(f"{socket_path} must be an object", code="registry.socket.invalid", path=socket_pointer)
-                allowed_socket_fields = {"socketId", "valueType", "required"} if is_input else {"socketId", "valueType"}
+                allowed_socket_fields = {"socketId", "valueType", "required", "default"} if is_input else {"socketId", "valueType"}
                 if set(socket) - allowed_socket_fields or not {"socketId", "valueType"} <= set(socket):
                     raise ContractError(f"{socket_path} has missing or unknown fields", code="registry.socket.shape.invalid", path=socket_pointer)
                 socket_id = socket.get("socketId")
@@ -837,7 +838,24 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 required = socket.get("required", False) if is_input else False
                 if not isinstance(required, bool):
                     raise ContractError(f"{socket_path}.required must be boolean", code="socket.required.invalid", path=f"{socket_pointer}/required")
-                parsed.append(Socket(socket_id, value_type, required))
+                default = None
+                if is_input and not required:
+                    if "default" not in socket:
+                        raise ContractError(f"{socket_path} optional input requires a typed default", code="socket.default.required", path=f"{socket_pointer}/default")
+                    default_path = f"{socket_pointer}/default"
+                    if value_type == "Float":
+                        default = _f32(socket["default"], f"{socket_path}.default",
+                                      path=default_path, code="socket.default.invalid")
+                    else:
+                        raw_default = socket["default"]
+                        if not isinstance(raw_default, list) or len(raw_default) != 4:
+                            raise ContractError(f"{socket_path}.default must contain four Float32 lanes", code="socket.default.invalid", path=default_path)
+                        default = [_f32(value, f"{socket_path}.default[{lane}]",
+                                        path=f"{default_path}/{lane}", code="socket.default.invalid")
+                                   for lane, value in enumerate(raw_default)]
+                elif is_input and "default" in socket:
+                    raise ContractError(f"{socket_path} required input cannot declare an implicit default", code="socket.default.unused", path=f"{socket_pointer}/default")
+                parsed.append(Socket(socket_id, value_type, required, default))
             return tuple(parsed)
 
         raw_parameters = raw.get("parameters")
@@ -914,7 +932,10 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 (operation.inputs[1].value_type if len(operation.inputs) > 1 else None) !=
                 ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 [item.socket_id for item in operation.inputs] != ["a", "b"] or
-                not all(item.required for item in operation.inputs) or
+                not operation.inputs[0].required or operation.inputs[0].default is not None or
+                (operation.inputs[1].required and operation.inputs[1].default is not None) or
+                (not operation.inputs[1].required and operation.inputs[1].default is None) or
+                (implementation_id != "float.add" and not operation.inputs[1].required) or
                 operation.outputs[0].socket_id != "result" or
                 operation.outputs[0].value_type != ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 operation.parameters):
@@ -989,7 +1010,9 @@ def operation_contract_hash(operation: Operation) -> str:
         "operationId": operation.operation_id,
         "semanticVersion": operation.semantic_version,
         "implementationId": operation.implementation_id,
-        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required} for item in operation.inputs],
+        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required,
+                    **({"default": item.default} if item.default is not None else {})}
+                   for item in operation.inputs],
         "outputs": [{"socketId": item.socket_id, "valueType": item.value_type} for item in operation.outputs],
         "parameters": [{"parameterId": item.parameter_id, "valueType": item.value_type, "default": item.default} for item in operation.parameters],
     }
@@ -1001,7 +1024,9 @@ def _operation_semantics_without_version(operation: Operation) -> str:
     payload = {
         "operationId": operation.operation_id,
         "implementationId": operation.implementation_id,
-        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required} for item in operation.inputs],
+        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required,
+                    **({"default": item.default} if item.default is not None else {})}
+                   for item in operation.inputs],
         "outputs": [{"socketId": item.socket_id, "valueType": item.value_type} for item in operation.outputs],
         "parameters": [{"parameterId": item.parameter_id, "valueType": item.value_type, "default": item.default} for item in operation.parameters],
     }
@@ -1022,7 +1047,9 @@ def build_palette_model(registry: dict[tuple[str, int], Operation]) -> list[dict
         "semanticVersion": operation.semantic_version,
         "label": operation.display_name,
         "category": operation.category,
-        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required} for item in operation.inputs],
+        "inputs": [{"socketId": item.socket_id, "valueType": item.value_type, "required": item.required,
+                    **({"default": item.default} if item.default is not None else {})}
+                   for item in operation.inputs],
         "outputs": [{"socketId": item.socket_id, "valueType": item.value_type} for item in operation.outputs],
         "parameters": [{"parameterId": item.parameter_id, "valueType": item.value_type, "default": item.default} for item in operation.parameters],
     } for operation in operations]
@@ -3441,6 +3468,20 @@ def compile_document_from_data(
     context_bindings_by_key: dict[tuple[str, str], dict[str, Any]] = {}
     typed_ir_operations: list[dict[str, Any]] = []
     hlsl_lines = []
+    def input_expression(node_id: str, socket_id: str) -> str:
+        producer = writers.get((node_id, socket_id))
+        if producer is not None:
+            return expressions[producer]
+        operation = nodes[node_id]["operation"]
+        socket = next(item for item in operation.inputs if item.socket_id == socket_id)
+        if socket.required or socket.default is None:
+            raise ContractError(
+                f"input {node_id}.{socket_id} has no linked producer or typed default",
+                code="node.input.default_missing", path=f"/nodes/{node_indices[node_id]}/inputs/{_pointer_segment(socket_id)}")
+        if socket.value_type == "Float":
+            return _hlsl_float(socket.default)
+        return "float4(" + ", ".join(_hlsl_float(value) for value in socket.default) + ")"
+
     if parameter_block is not None:
         hlsl_lines.append("cbuffer ArtifactGraphParameters {")
         hlsl_lines.extend(
@@ -3460,6 +3501,7 @@ def compile_document_from_data(
                 "socketId": socket.socket_id,
                 "valueType": socket.value_type,
                 "required": socket.required,
+                "defaultValue": socket.default if producer is None else None,
                 "producer": (None if producer is None else {
                     "nodeId": producer[0],
                     "socketId": producer[1],
@@ -3527,15 +3569,12 @@ def compile_document_from_data(
                 values = data["parameters"][parameter_id]
                 expression = "float4(" + ", ".join(_hlsl_float(value) for value in values) + ")"
         elif implementation_id == "float.replicate.rgb_alpha_one":
-            source = writers[(node_id, operation.inputs[0].socket_id)]
-            value = expressions[source]
+            value = input_expression(node_id, operation.inputs[0].socket_id)
             expression = f"float4({value}, {value}, {value}, 1.0f)"
         elif implementation_id == "vector4.extract_x":
-            source = writers[(node_id, operation.inputs[0].socket_id)]
-            expression = f"({expressions[source]}).x"
+            expression = f"({input_expression(node_id, operation.inputs[0].socket_id)}).x"
         elif implementation_id == "vector4.separate_channels":
-            source = writers[(node_id, operation.inputs[0].socket_id)]
-            vector = expressions[source]
+            vector = input_expression(node_id, operation.inputs[0].socket_id)
             for channel in operation.outputs:
                 channel_symbol = re.sub(r"[^A-Za-z0-9_]", "_", channel.socket_id)
                 variable = f"{symbol}_{channel_symbol}"
@@ -3543,7 +3582,7 @@ def compile_document_from_data(
                 expressions[(node_id, channel.socket_id)] = variable
             continue
         elif implementation_id == "vector4.ramp.linear_stops":
-            factor = expressions[writers[(node_id, "factor")]]
+            factor = input_expression(node_id, "factor")
             stops = data["parameters"]["stops"]
             ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
             hlsl_lines.append(f"float {symbol}_factor = saturate({factor});")
@@ -3567,26 +3606,18 @@ def compile_document_from_data(
             expressions[(node_id, "alpha")] = f"{symbol}_alpha"
             continue
         elif implementation_id == "vector4.invert.linear_factor":
-            color_source = writers[(node_id, "color")]
-            factor_source = writers[(node_id, "factor")]
-            color_value = expressions[color_source]
-            factor_value = expressions[factor_source]
+            color_value = input_expression(node_id, "color")
+            factor_value = input_expression(node_id, "factor")
             expression = f"lerp({color_value}, (float4(1.0f, 1.0f, 1.0f, 1.0f) - {color_value}), saturate({factor_value}))"
         elif implementation_id == "float.clamp.sorted_bounds":
-            value_source = writers[(node_id, "value")]
-            minimum_source = writers[(node_id, "minimum")]
-            maximum_source = writers[(node_id, "maximum")]
-            value = expressions[value_source]
-            minimum = expressions[minimum_source]
-            maximum = expressions[maximum_source]
+            value = input_expression(node_id, "value")
+            minimum = input_expression(node_id, "minimum")
+            maximum = input_expression(node_id, "maximum")
             expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
         elif implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION:
-            factor_source = writers[(node_id, "factor")]
-            color1_source = writers[(node_id, "color1")]
-            color2_source = writers[(node_id, "color2")]
-            factor = expressions[factor_source]
-            color1 = expressions[color1_source]
-            color2 = expressions[color2_source]
+            factor = input_expression(node_id, "factor")
+            color1 = input_expression(node_id, "color1")
+            color2 = input_expression(node_id, "color2")
             color1_rgb, color2_rgb = f"({color1}).rgb", f"({color2}).rgb"
             mode = VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION[implementation_id]
             blend = {
@@ -3604,10 +3635,8 @@ def compile_document_from_data(
             expression = (f"float4(lerp({color1_rgb}, {blend}, saturate({factor})), "
                           f"lerp(({color1}).a, ({color2}).a, saturate({factor})))")
         else:
-            source_a = writers[(node_id, operation.inputs[0].socket_id)]
-            source_b = writers[(node_id, operation.inputs[1].socket_id)]
-            a = expressions[source_a]
-            b = expressions[source_b]
+            a = input_expression(node_id, operation.inputs[0].socket_id)
+            b = input_expression(node_id, operation.inputs[1].socket_id)
             if implementation_id == "float.divide.positive_floor_1e5":
                 expression = f"({a} / max({b}, 1e-5f))"
             elif implementation_id == "vector4.divide.positive_floor_1e5":
@@ -3629,17 +3658,27 @@ def compile_document_from_data(
         binding["nodeIds"].sort()
     root_expression = expressions[(output_node, output_socket)]
     hlsl = "\n".join(hlsl_lines) + f"\nreturn {root_expression};\n"
+    active_node_records = []
+    for node_id in sorted(active):
+        operation = nodes[node_id]["operation"]
+        record = {
+            "nodeId": node_id,
+            "operationId": operation.operation_id,
+            "semanticVersion": operation.semantic_version,
+            "implementationId": operation.implementation_id,
+            "parameters": nodes[node_id]["parameters"],
+        }
+        input_defaults = {socket.socket_id: socket.default
+                          for socket in operation.inputs
+                          if socket.default is not None and
+                          (node_id, socket.socket_id) not in writers}
+        if input_defaults:
+            record["inputDefaults"] = input_defaults
+        active_node_records.append(record)
     semantic_projection = {
         "schemaVersion": document["schemaVersion"],
         "output": {"nodeId": output_node, "socketId": output_socket, "valueType": output_def.value_type},
-        "nodes": [
-            {"nodeId": node_id,
-             "operationId": nodes[node_id]["operation"].operation_id,
-             "semanticVersion": nodes[node_id]["operation"].semantic_version,
-             "implementationId": nodes[node_id]["operation"].implementation_id,
-             "parameters": nodes[node_id]["parameters"]}
-            for node_id in sorted(active)
-        ],
+        "nodes": active_node_records,
         "links": [
             {"from": {"nodeId": source_id, "socketId": source_socket},
              "to": {"nodeId": target_id, "socketId": target_socket}}
