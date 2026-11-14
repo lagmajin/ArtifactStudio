@@ -3,10 +3,10 @@
   "kind": "artifact-shader-graph-rd-document",
   "nodes": [
     {
-      "nodeId": "factor",
-      "operationId": "artifact.rd.constant.float32",
+      "nodeId": "uv",
+      "operationId": "artifact.input.texcoord.uv0.x",
       "semanticVersion": 1,
-      "parameters": {"value": 0.4},
+      "parameters": {},
       "layout": {"x": 0.0, "y": 0.0}
     },
     {
@@ -23,7 +23,7 @@
     }
   ],
   "links": [
-    {"from": {"nodeId": "factor", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "factor"}}
+    {"from": {"nodeId": "uv", "socketId": "value"}, "to": {"nodeId": "ramp", "socketId": "factor"}}
   ],
   "output": {"nodeId": "ramp", "socketId": "color"}
 }

@@ -39,6 +39,7 @@ MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linea
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
+    "float.uv0.x",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
     "float.clamp.sorted_bounds",
@@ -882,6 +883,11 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
         )
         if len(operation.outputs) != 1 and implementation_id not in MULTI_OUTPUT_IMPLEMENTATIONS:
             raise ContractError(f"{path_label} must declare exactly one output", code="operation.output.shape.invalid", path=f"{path}/outputs")
+        if implementation_id == "float.uv0.x" and (
+                operation.inputs or len(operation.outputs) != 1 or
+                operation.outputs[0].socket_id != "value" or
+                operation.outputs[0].value_type != "Float" or operation.parameters):
+            raise ContractError(f"{path_label} float.uv0.x requires no inputs or parameters and one Float value output", code="operation.signature.invalid", path=path)
         if implementation_id == "float.constant" and (
                 operation.inputs or operation.outputs[0].value_type != "Float" or
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
@@ -3417,7 +3423,9 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         implementation_id = operation.implementation_id
         symbol = data["symbol"]
         output_id = operation.outputs[0].socket_id
-        if implementation_id == "float.constant":
+        if implementation_id == "float.uv0.x":
+            expression = "(In.UV).x"
+        elif implementation_id == "float.constant":
             parameter_id = operation.parameters[0].parameter_id
             graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
             expression = ("P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)

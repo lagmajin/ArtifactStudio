@@ -16,7 +16,7 @@
   "hlslBody": "float4 n_color1_value = float4(0.25f, 0.75f, 0.5f, 0.25f);\nfloat4 n_color2_value = float4(0.75f, 0.25f, 0.5f, 0.75f);\nfloat n_factor_value = 0.400000006f;\nfloat4 n_mixed_result = float4(lerp((n_color1_value).rgb, (n_color2_value).rgb, saturate(n_factor_value)), lerp((n_color1_value).a, (n_color2_value).a, saturate(n_factor_value)));\nreturn n_mixed_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector4 sockets and 24 closed implementation IDs only",
+    "prototype supports Float/Vector4 sockets and 25 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",

@@ -4,7 +4,7 @@
   "algorithm": "artifact.vector4.ramp.linear_stops.1",
   "evidence": "independent-cpu-binary32-formula-only-no-hlsl-compiler-or-gpu-capture",
   "sourceDocument": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
-  "sourceDocumentSha256": "8F36900F46AF7C0DE4ADAE92741B50A7D3621393AF10B8A1F29FB7A7D6EB608C",
+  "sourceDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
   "stopCount": 4,
   "stopPositionPolicy": "clamp-to-0..1-then-stable-sort-by-position-and-authored-index",
   "exactDuplicatePositionPolicy": "last-authored-stop-is-the-left-endpoint-at-the-exact-boundary",

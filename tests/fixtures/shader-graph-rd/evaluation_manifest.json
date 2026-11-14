@@ -2246,18 +2246,18 @@
         "canonicalNegativeZero": true
       },
       {
-        "input": 3.4028234663852886e+38,
+        "input": 3.4028234663852886E+38,
         "expected": "accept",
         "binary32Hex": "7F7FFFFF"
       },
       {
-        "input": 3.4028236e+38,
+        "input": 3.4028236E+38,
         "expected": "reject",
         "diagnosticCode": "node.parameter.domain",
         "path": "/nodes/0/params/value"
       },
       {
-        "input": 1e+100,
+        "input": 1E+100,
         "expected": "reject",
         "diagnosticCode": "node.parameter.domain",
         "path": "/nodes/0/params/value"
@@ -5788,58 +5788,66 @@
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "FD44EF01715996BF74CE04EB1A7877D39D62499A6F610A05EA0391441513F3C0",
+      "candidateSha256": "1CA8315AEDE4B0FC769EFD56B7F75253B48E99B8B3FDF914936AF26FD8B58FE1",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "89FAC41AD329F68BD2E72D633ED62C3F8EBC1946F580CAFC6F96F2839836D749",
+      "subtractCandidateSha256": "2180B1A3BEB80F948651468ED394D16C2B7ADF4645B550BA22FBE019FF4AF73D",
       "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
       "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
       "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
-      "divideCandidateSha256": "810F3150B01BC2F154B657EDF0FB87A03359FF5939BC4FDD0D782EDBC5DEFA99",
+      "divideCandidateSha256": "D8F77725BFC11C38223440F7DEB273D989EDAD15FCF7EA0D7B9CEE32D3685793",
       "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
       "vector4DivideDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide.json",
       "vector4DivideCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide_candidate.json",
-      "vector4DivideCandidateSha256": "61D75EC0848709E5B755F7D64A6A67207139E9CFD3612847A7690EE729C4DC98",
+      "vector4DivideCandidateSha256": "6D6026FD4702BF4E1BBF6C7D68F3626EE989CB15923B700960DDEEE9ADC0E830",
       "vector4DivideDocumentSha256": "A4221B83ABFDC49F2B149E54139A3A9CB30394B1D8FF7FD5CEB7BA25563177CE",
       "vector4SubtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract.json",
       "vector4SubtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract_candidate.json",
-      "vector4SubtractCandidateSha256": "8B310D6C93DD50D9799F31B51E3BB612572DE7248B5CE6E008D291AFD2E0F583",
+      "vector4SubtractCandidateSha256": "05AC61D5ED5E7B15E6A85957CB85020820434563A049EB97C6C62BDB5E290713",
       "vector4SubtractDocumentSha256": "4DD469714A2BC7E7F2E442413ACE7E74CEEA6DFFEBE5CFEFF38BF89B0EC359CD",
       "vector4InvertDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert.json",
       "vector4InvertCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert_candidate.json",
-      "vector4InvertCandidateSha256": "B24858A5B276C6045B7196035C65887704D41C5699C0A7459432D5E3860B32D7",
+      "vector4InvertCandidateSha256": "5EA1E51321B7996C757EE75B77265F242B0E02BBBBFC76C72B20D68B698D1DC6",
       "vector4InvertDocumentSha256": "C69ECB8C32E08CC432C5D9A6ACDDC03A1B5B10A78CACF2D9F938DDB79E0365CB",
       "clampDocumentFixture": "experiments/ShaderGraphLab/dynamic_clamp.json",
       "clampCandidateFixture": "experiments/ShaderGraphLab/dynamic_clamp_candidate.json",
-      "clampCandidateSha256": "CE1A6496CCCAFA3C611DA0D5CD6231D912CF7AD878AAE964067D9B9977D8DE58",
+      "clampCandidateSha256": "6264892F7FCB22CE99C43E7203C06A4AB421CF7E560B9017377DD231FA2532CE",
       "clampDocumentSha256": "824478A7FFC9E7C12D4DCD597308BBF5504B1DD109A825AF95428A2D1D830D79",
       "vector4MixDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix.json",
       "vector4MixCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix_candidate.json",
-      "vector4MixCandidateSha256": "7EFA6ADCD9AF796F806B5A480A0A1A2524998A829F99456E0BA721E30AF8B3B6",
+      "vector4MixCandidateSha256": "3D122FCA098115F6FD65107442869769CE188AECE1370F4388EF21F3C8A0B82A",
       "vector4MixDocumentSha256": "A542DCBDF25A090EFB57D3AFBBEF7351D226CCE331A6950593F3624CB22CAA20",
       "vector4SeparateDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels.json",
       "vector4SeparateCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels_candidate.json",
-      "vector4SeparateCandidateSha256": "7DFA9C88ADD53017621B6AE0B8F133F66356C1BA61B631BC3E2397D2299B9DC8",
+      "vector4SeparateCandidateSha256": "438C34F1698590C0CC300145B21B94CDA826D8BF24D165266C999C964130AA1D",
       "vector4SeparateDocumentSha256": "F81E339823B9B70D9510A488B68B853494517D499E3E8297038E4062BF8565B7",
       "vector4RampDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
-      "vector4RampCandidateSha256": "271A784FFF7F50E9740B09D45866D1C288A901082123FF921B12C91C9CAEF717",
-      "vector4RampDocumentSha256": "8F36900F46AF7C0DE4ADAE92741B50A7D3621393AF10B8A1F29FB7A7D6EB608C",
+      "vector4RampCandidateSha256": "10C4F24DFB1453BB5B42D607A7D10F2290C9E993FD329E3B0E85CAB117EB5614",
+      "vector4RampDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
       "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
       "rampImageEvaluationPlan": {
         "status": "planned-runtime-unverified",
         "fixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
-        "factorSamples": [0.0, 0.4999, 0.5, 0.5001, 1.0],
+        "factorSamples": [
+          0.0,
+          0.4999,
+          0.5,
+          0.5001,
+          1.0
+        ],
         "captureRoute": "not-implemented-core-hlsl-candidate-has-no-runtime-route",
         "comparison": "legacy Core ColorRamp GPU output at all samples as a characterization baseline with no assumed tie-order equivalence; independent CPU binary32 formula golden defines the dynamic candidate proposal; exact tie uses the proposed last-authored policy",
         "captureConditions": {
-          "target": "opaque unit plane with fixed orthographic camera and unlit display of raw Ramp RGBA",
+          "target": "UV0.x gradient plane (UV0=[0,1]^2) plus a five-panel swatch atlas with constant UV0.x values 0, 0.4999, 0.5, 0.5001, and 1; fixed orthographic camera and unlit raw Ramp RGBA",
           "resolution": "256x256 RGBA32F source plus lossless display PNG",
           "colorSpace": "record raw linear RGBA32F; display conversion recorded separately",
           "alpha": "record raw alpha and composite the same capture over black and white",
-          "regions": "full plane and center 128x128 crop",
-          "runtime": "capture each constant factor sample on every supported backend; retain compiler, GPU, and build identity",
-          "visualReview": "compare full image and crop; inspect duplicate boundary response, alpha, banding, and non-finite pixels"
+          "regions": "full gradient plane, full swatch atlas, each swatch center, and a seam crop",
+          "runtime": "capture the full UV0.x sweep and report samples at 0, 0.4999, 0.5, 0.5001, and 1 on every supported backend; retain compiler, GPU, and build identity",
+          "visualReview": "compare full image and crop; inspect the UV0.x=0.5 duplicate boundary, alpha, banding, and non-finite pixels",
+          "exactTieSample": "the atlas panel with every vertex UV0.x=0.5 captures the exact duplicate-position boundary; the gradient plane visualizes the discontinuity",
+          "statistics": "record per-channel min/max/mean/p50/p95/p99, non-finite and out-of-range counts, raw RGBA error against CPU golden at swatch centers, and adjacent-pixel delta around the UV0.x=0.5 seam"
         },
         "acceptance": "repeat baseline captures five times to characterize measurement noise; fix raw-float tolerance before candidate comparison, compare candidate to the independent formula golden, and report legacy differences separately; no visual or backend acceptance while route is unimplemented"
       },
@@ -5847,6 +5855,7 @@
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
         "float.constant",
+        "float.uv0.x",
         "vector4.constant",
         "float.add",
         "float.subtract",
@@ -5962,6 +5971,7 @@
         "vector4SeparateChannelsSupportsLinksFromEachOutput",
         "vector4RampLowersEditableStableStopsAndBothOutputs",
         "vector4RampAlphaCanBeSelectedAsFloatOutput",
+        "vector4RampFactorComesFromSurfaceUv0X",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
@@ -6029,7 +6039,7 @@
           "path": "/nodes/0/semanticVersion"
         }
       },
-      "registrySha256": "317A840616E23ED7690C8C26C2B0395DB7C4CA88478AB1928E4B995501419661",
+      "registrySha256": "F7F398AFF54359A6052BD3058E95487CEB26406F993AF5AE61D0FE93BD26EA9E",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {
@@ -6089,7 +6099,17 @@
         }
       },
       "vector4RampFormulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
-      "vector4RampFormulaGoldenSha256": "2C34AE541273DC374F61098758227D97B5D97F67576A4DE9E854F2D22BB12AE3"
+      "vector4RampFormulaGoldenSha256": "0E4C7753DA60EF733E79CF402FC7386FE63BBEF29ED07F088D803CBA561C6959",
+      "sourceContextBindings": [
+        {
+          "hlslCandidate": "(In.UV).x",
+          "evidence": "ArtifactCore TexCoordNode lowers In.UV in the existing material graph path",
+          "backendNeutral": false,
+          "implementationId": "float.uv0.x",
+          "component": "x",
+          "contextId": "artifact.material.surface.uv0"
+        }
+      ]
     }
   },
   "loweringIdentityContract": {
