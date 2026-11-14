@@ -5919,6 +5919,7 @@
         "graphLinkLimitRejectsBeforeLinkIndexing",
         "uiSessionRejectsGraphGrowthPastLimitAtomically",
         "uiSessionCanShrinkOversizedGraphForRepair",
+        "oversizedDocumentSaveReloadPreservesPayloadForRepair",
         "registryRejectsScalarTypeConfusion",
         "registryFileRejectsNestedValuesBeyondLimit",
         "malformedOperationVersionsStaySafeAtEditBoundary"
