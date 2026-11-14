@@ -1814,6 +1814,10 @@ def validate(root: Path) -> list[str]:
             oversized_links_document, dynamic_registry)
         oversized_links_compile_diagnostic = diagnostic_for(
             lambda: dynamic_module.compile_document_from_data(oversized_links_document, dynamic_registry))
+        oversized_both_document = copy.deepcopy(oversized_nodes_document)
+        oversized_both_document["links"] = [{}] * (dynamic_module.MAX_GRAPH_LINKS + 1)
+        oversized_both_validation = dynamic_module.validate_document_for_editing(
+            oversized_both_document, dynamic_registry)
 
         graph_parameter_source = dynamic_module.edit_node_parameters(
             connected_graph, dynamic_registry, "source_left", {"value": 0.25})
@@ -2623,6 +2627,7 @@ def validate(root: Path) -> list[str]:
             "paletteEntriesExposeTypedSignatures": 'const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?\' (required)\':\'\'}`).join(\', \')||\'none\';' in local_ui_html_source and 'Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}' in local_ui_html_source and 'title="${esc(signature)}"' in local_ui_html_source and 'aria-label="${esc(`${item.label}. ${signature}`)}"' in local_ui_html_source,
             "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
             "graphLinkLimitRejectsBeforeLinkIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_links_validation["status"] == "invalid" and oversized_links_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_links_validation["diagnostics"]] == [graph_limit_goldens[1]["code"]] and oversized_links_compile_diagnostic == graph_limit_goldens[1],
+            "graphCollectionLimitsAggregateAndSortDiagnostics": [item["code"] for item in oversized_both_validation["diagnostics"]] == [item["code"] for item in dynamic_contract.get("sourceGuardGoldens", {}).get("bothGraphLimitDiagnostics", [])] and [item["path"] for item in oversized_both_validation["diagnostics"]] == ["/links", "/nodes"] and oversized_both_validation["semanticHashSha256"] is None,
             "uiSessionRejectsGraphGrowthPastLimitAtomically": ui_limit_add_diagnostic == dynamic_contract.get("sourceGuardGoldens", {}).get("uiGrowthLimitDiagnostic") and len(ui_limit_session.document["nodes"]) == dynamic_module.MAX_GRAPH_NODES and ui_limit_session.current_document_hash == ui_limit_before_hash and ui_limit_session.history == [] and ui_limit_session.cursor == 0,
             "uiSessionCanShrinkOversizedGraphForRepair": len(ui_repair_session.document["nodes"]) == dynamic_module.MAX_GRAPH_NODES and ui_repair_session.history and ui_repair_session.cursor == 1 and all(node.get("nodeId") != "loaded_over_limit_node" for node in ui_repair_session.document["nodes"]),
             "oversizedDocumentSaveReloadPreservesPayloadForRepair": oversized_save_reload_preserved,

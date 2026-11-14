@@ -5917,6 +5917,7 @@
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
         "graphLinkLimitRejectsBeforeLinkIndexing",
+        "graphCollectionLimitsAggregateAndSortDiagnostics",
         "uiSessionRejectsGraphGrowthPastLimitAtomically",
         "uiSessionCanShrinkOversizedGraphForRepair",
         "oversizedDocumentSaveReloadPreservesPayloadForRepair",
@@ -5928,6 +5929,10 @@
         "graphLimitDiagnostics": [
           {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
           {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"}
+        ],
+        "bothGraphLimitDiagnostics": [
+          {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"},
+          {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"}
         ],
         "uiGrowthLimitDiagnostic": {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
         "registryScalarTypeDiagnostics": [
