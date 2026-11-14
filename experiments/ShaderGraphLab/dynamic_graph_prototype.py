@@ -3486,8 +3486,8 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
             hlsl_lines.append(f"float {symbol}_factor = saturate({factor});")
             for stop_index, (_, stop) in enumerate(ordered):
-                hlsl_lines.append(f"float {symbol}_stop_{stop_index} = saturate({stop['position']:.9g}f);")
-                hlsl_lines.append(f"float4 {symbol}_stop_color_{stop_index} = float4({', '.join(f'{lane:.9g}f' for lane in stop['color'])});")
+                hlsl_lines.append(f"float {symbol}_stop_{stop_index} = saturate({_hlsl_float(stop['position'])});")
+                hlsl_lines.append(f"float4 {symbol}_stop_color_{stop_index} = float4({', '.join(_hlsl_float(lane) for lane in stop['color'])});")
             hlsl_lines.append(f"float4 {symbol}_color = {symbol}_stop_color_0;")
             for stop_index in range(1, len(ordered)):
                 previous_position = f"{symbol}_stop_{stop_index - 1}"

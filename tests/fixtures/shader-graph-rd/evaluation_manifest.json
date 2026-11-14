@@ -378,6 +378,14 @@
       "runtimeStatus": "not-run"
     },
     {
+      "file": "dynamic_ramp_legacy_uv.json",
+      "sha256": "25420650A95F9D3EE3A256656748202EC3182E9F5A98E9103FD7A173C532DB76",
+      "class": "positive-ramp-gpu-capture-baseline",
+      "purpose": "Legacy Core ColorRamp with the dynamic candidate's same four stops, UV0.x factor, and emission output for raw Vulkan comparison",
+      "expectedValidation": "compiles through the production MeshRenderer graph adapter; duplicate-stop exact-tie result is recorded rather than assumed",
+      "runtimeStatus": "capture-source-added-not-run"
+    },
+    {
       "file": "image_texture_slots.json",
       "sha256": "CBBFAF299ED3DDB94E730C2212B24940C3E5043BCA42D0A0D0B5434957FE2826",
       "class": "positive-source-coverage",
@@ -3255,14 +3263,15 @@
     "executionMatrix": [
       {
         "id": "color-ramp-duplicate-stop-numeric-contract",
-        "route": "not-implemented",
-        "baseline": "independent binary32 formula evaluator at ramp_duplicate_stops_formula_golden.json; proposed first-authored exact-tie policy still requires product review",
-        "candidate": "GPU lowering of both paired duplicate-stop fixtures at factors 0.4999, 0.5, and 0.5001",
+        "route": "Vulkan MeshRenderer RGBA32F capture source; source added, not run",
+        "baseline": "independent binary32 formula evaluator at ramp_duplicate_stops_formula_golden.json characterizes the legacy fixture; the dynamic candidate separately proposes last-authored exact-tie selection, and neither tie rule is promoted",
+        "candidate": "dynamic Vector4 Ramp candidate HLSL injected through a test-only MeshRenderer host adapter and compared with the legacy Core ColorRamp fixture at factors 0, 0.4999, 0.5, 0.5001, and 1",
         "measurement": "linear RGBA32F samples, channel-wise absolute/relative formula error, finite checks, and separately reported alpha; exact probe coordinates and output hashes",
-        "review": "review authored-order semantics and exact-coordinate choice; no Blender parity claim",
-        "status": "planned-runtime-unverified",
+        "review": "compare authored-order behavior at the exact tie, decide the product policy after capture review, and keep non-tie numeric tolerance separate; no Blender parity claim",
+        "status": "capture-source-added-runtime-unverified",
         "knownGaps": [
-          "no GPU capture source is wired for ColorRamp probe fixtures",
+          "capture source has not been built or run",
+          "candidate integration uses a test-only adapter and is not a production Core graph path",
           "exact-tie rule has a candidate golden but still requires product review",
           "no backend-paired capture or repeat-noise threshold exists"
         ]
@@ -5823,11 +5832,11 @@
       "vector4SeparateDocumentSha256": "F81E339823B9B70D9510A488B68B853494517D499E3E8297038E4062BF8565B7",
       "vector4RampDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
-      "vector4RampCandidateSha256": "798C20741A3AB1BF610117CA87587B7ED2F8BE076AC9A32CE1F47E23848A8DCA",
+      "vector4RampCandidateSha256": "C7D140F5449F9CC9C53C34C50E7C93D66EF417B1C2D45548699F8F30A1B028E5",
       "vector4RampDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
       "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
       "rampImageEvaluationPlan": {
-        "status": "cpu-formula-image-generated-runtime-unverified",
+        "status": "gpu-capture-source-added-runtime-unverified",
         "fixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
         "factorSamples": [
           0.0,
@@ -5836,7 +5845,7 @@
           0.5001,
           1.0
         ],
-        "captureRoute": "cpu-formula-image-oracle-only-core-hlsl-runtime-unimplemented",
+        "captureRoute": "vulkan-meshrenderer-rgba32f-capture-source-added-not-run-candidate-injected-via-setMaterialGraphBlock",
         "comparison": "legacy Core ColorRamp GPU output at all samples as a characterization baseline with no assumed tie-order equivalence; independent CPU binary32 formula golden defines the dynamic candidate proposal; exact tie uses the proposed last-authored policy",
         "captureConditions": {
           "target": "UV0.x gradient plane (UV0=[0,1]^2) plus a five-panel swatch atlas with constant UV0.x values 0, 0.4999, 0.5, 0.5001, and 1; fixed orthographic camera and unlit raw Ramp RGBA",
@@ -5855,6 +5864,21 @@
           "reportSha256": "34184B5E8A1703B0861E624B06719F77BF5481F2E706957335C667DFD6628001",
           "generator": "tools/shader_graph_rd/generate_dynamic_ramp_image_oracle.py",
           "sourceDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC"
+        },
+        "gpuCaptureSource": {
+          "status": "source-added-not-run",
+          "testSource": "tests/ArtifactCore/RayTracingAcceptanceTest.cpp",
+          "testName": "CapturesLegacyAndDynamicRampCandidatesOnVulkanMeshRenderer",
+          "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
+          "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
+          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy captures and one candidate capture",
+          "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate Vector4 output to the established graph material fields; no Core implementation change",
+          "limitations": [
+            "capture has not been run",
+            "the candidate uses the MeshRenderer graph splice as a test adapter, not a production graph integration",
+            "GPU adapter is recorded, but compiler version and build identity are not exposed by this harness",
+            "exact duplicate-stop semantics remain observational until captures are reviewed"
+          ]
         }
       },
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
@@ -5983,6 +6007,7 @@
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
+        "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",

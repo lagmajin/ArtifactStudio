@@ -41,6 +41,12 @@ report under `tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/`. These
 are independent CPU formula references; they do not capture candidate HLSL,
 Core ColorRamp, a renderer, a GPU backend, or Blender.
 
+`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` also contains a Vulkan capture
+case that pairs the legacy Core ColorRamp path with the generated Ramp HLSL in
+RGBA32F. The candidate uses a test-only adapter into `MeshRenderer`'s graph
+splice; it is not production integration. The acceptance case has not been
+built or run, so no GPU or parity result is claimed.
+
 Run the dependency-free local graph editor against an existing document:
 
 ```powershell

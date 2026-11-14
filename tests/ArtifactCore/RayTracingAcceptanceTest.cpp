@@ -5,6 +5,9 @@
 #include <QColor>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QImage>
 #include <QMatrix4x4>
 #include <QRect>
@@ -304,6 +307,34 @@ class RayTracingAcceptanceTest : public testing::Test {
     RefCntAutoPtr<IRenderDevice> device_;
     RefCntAutoPtr<IDeviceContext> context_;
     std::unique_ptr<ArtifactCore::IRayTracingManager> manager_;
+};
+
+class VulkanMeshRendererAcceptanceTest : public testing::Test {
+  protected:
+    void SetUp() override {
+        auto* factory = LoadAndGetEngineFactoryVk();
+        if (!factory) {
+            GTEST_SKIP() << "Diligent Vulkan backend is unavailable";
+        }
+        EngineVkCreateInfo createInfo{};
+        createInfo.Features.MultithreadedResourceCreation = DEVICE_FEATURE_STATE_DISABLED;
+        factory->CreateDeviceAndContextsVk(createInfo, &device_, &context_);
+        if (!device_ || !context_) {
+            GTEST_SKIP() << "Could not create a headless Vulkan device";
+        }
+    }
+
+    void TearDown() override {
+        if (context_) {
+            context_->Flush();
+            context_->WaitForIdle();
+        }
+        context_.Release();
+        device_.Release();
+    }
+
+    RefCntAutoPtr<IRenderDevice> device_;
+    RefCntAutoPtr<IDeviceContext> context_;
 };
 
 TEST_F(RayTracingAcceptanceTest, CapturesMaterialAovsAsFloatBuffers) {
@@ -16015,6 +16046,380 @@ TEST_F(RayTracingAcceptanceTest, TracesUnindexedTriangleAndRejectsMalformedGeome
     ASSERT_TRUE(saveOutputFrame("07-unindexed-triangle.png"));
     expectHit(16);
     EXPECT_EQ(manager_->capabilities().registeredBLASCount, 1u);
+}
+
+TEST_F(VulkanMeshRendererAcceptanceTest,
+       CapturesLegacyAndDynamicRampCandidatesOnVulkanMeshRenderer) {
+    constexpr Uint32 width = 256;
+    constexpr Uint32 height = 256;
+    constexpr std::array<float, 5> factors{0.0f, 0.4999f, 0.5f, 0.5001f, 1.0f};
+    constexpr float leftEdge = -0.95f;
+    constexpr float rightEdge = 0.95f;
+    constexpr float gradientWidthFraction = 1.0f / 3.0f;
+    constexpr float gradientRight = leftEdge +
+        (rightEdge - leftEdge) * gradientWidthFraction;
+    constexpr float atlasPanelWidth =
+        (rightEdge - gradientRight) / static_cast<float>(factors.size());
+    std::vector<float> positions;
+    std::vector<float> normals;
+    std::vector<float> uvs;
+    std::vector<std::uint32_t> indices;
+    positions.reserve((factors.size() + 1) * 12);
+    normals.reserve((factors.size() + 1) * 12);
+    uvs.reserve((factors.size() + 1) * 8);
+    indices.reserve((factors.size() + 1) * 6);
+    const auto appendQuad = [&](float left, float right, float factorLeft,
+                                float factorRight) {
+        positions.insert(positions.end(), {left, -0.85f, 0.5f, right, -0.85f, 0.5f,
+                                           left, 0.85f, 0.5f, right, 0.85f, 0.5f});
+        normals.insert(normals.end(), {0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+                                       0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f});
+        uvs.insert(uvs.end(), {factorLeft, 0.0f, factorRight, 0.0f,
+                               factorLeft, 1.0f, factorRight, 1.0f});
+        const auto firstVertex = static_cast<std::uint32_t>(positions.size() / 3 - 4);
+        indices.insert(indices.end(), {firstVertex, firstVertex + 1, firstVertex + 2,
+                                       firstVertex + 2, firstVertex + 1, firstVertex + 3});
+    };
+    appendQuad(leftEdge, gradientRight, 0.0f, 1.0f);
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const float left = gradientRight + atlasPanelWidth * static_cast<float>(panel);
+        const float right = left + atlasPanelWidth;
+        appendQuad(left, right, factors[panel], factors[panel]);
+    }
+
+    ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
+    ArtifactCore::MeshRenderer renderer(gpuContext);
+    renderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
+    renderer.initialize(1, positions.size() / 3, indices.size());
+    renderer.updateMeshGeometry(positions.data(), normals.data(), uvs.data(),
+                                indices.data());
+    const std::array<float, 16> identity{
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    renderer.setViewMatrix(identity.data());
+    renderer.setProjectionMatrix(identity.data());
+    renderer.setEnvironmentIntensity(0.0f);
+    ArtifactCore::InstanceData instance{};
+    std::copy(identity.begin(), identity.end(), instance.transform);
+    std::copy(identity.begin(), identity.end(), instance.previousTransform);
+    instance.color[0] = instance.color[1] = instance.color[2] = instance.color[3] = 1.0f;
+    instance.weight = 1.0f;
+    renderer.updateInstanceData(&instance, 1);
+
+    TextureDesc colorDesc;
+    colorDesc.Name = "DynamicRampRgba32fCapture";
+    colorDesc.Type = RESOURCE_DIM_TEX_2D;
+    colorDesc.Width = width;
+    colorDesc.Height = height;
+    colorDesc.MipLevels = 1;
+    colorDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    colorDesc.Usage = USAGE_DEFAULT;
+    colorDesc.BindFlags = BIND_RENDER_TARGET | BIND_SHADER_RESOURCE;
+    RefCntAutoPtr<ITexture> colorTexture;
+    device_->CreateTexture(colorDesc, nullptr, &colorTexture);
+    ASSERT_NE(colorTexture, nullptr);
+    auto colorView = colorTexture->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
+    ASSERT_NE(colorView, nullptr);
+
+    TextureDesc depthDesc;
+    depthDesc.Name = "DynamicRampDepthCapture";
+    depthDesc.Type = RESOURCE_DIM_TEX_2D;
+    depthDesc.Width = width;
+    depthDesc.Height = height;
+    depthDesc.MipLevels = 1;
+    depthDesc.Format = TEX_FORMAT_D32_FLOAT;
+    depthDesc.Usage = USAGE_DEFAULT;
+    depthDesc.BindFlags = BIND_DEPTH_STENCIL;
+    RefCntAutoPtr<ITexture> depthTexture;
+    device_->CreateTexture(depthDesc, nullptr, &depthTexture);
+    ASSERT_NE(depthTexture, nullptr);
+    auto depthView = depthTexture->GetDefaultView(TEXTURE_VIEW_DEPTH_STENCIL);
+    ASSERT_NE(depthView, nullptr);
+
+    TextureDesc stagingDesc;
+    stagingDesc.Name = "DynamicRampRgba32fReadback";
+    stagingDesc.Type = RESOURCE_DIM_TEX_2D;
+    stagingDesc.Width = width;
+    stagingDesc.Height = height;
+    stagingDesc.MipLevels = 1;
+    stagingDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    stagingDesc.Usage = USAGE_STAGING;
+    stagingDesc.CPUAccessFlags = CPU_ACCESS_READ;
+    RefCntAutoPtr<ITexture> stagingTexture;
+    device_->CreateTexture(stagingDesc, nullptr, &stagingTexture);
+    ASSERT_NE(stagingTexture, nullptr);
+
+    const auto capture = [&]() {
+        const float clear[4]{0.0f, 0.0f, 0.0f, 0.0f};
+        context_->SetRenderTargets(1, &colorView, depthView,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->ClearRenderTarget(colorView, clear,
+                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->ClearDepthStencil(depthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        const Viewport viewport{0.0f, 0.0f, static_cast<float>(width),
+                                static_cast<float>(height), 0.0f, 1.0f};
+        context_->SetViewports(1, &viewport, width, height);
+        renderer.prepare(context_.RawPtr());
+        renderer.draw(context_.RawPtr(), 1);
+        context_->SetRenderTargets(0, nullptr, nullptr,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        CopyTextureAttribs copy(colorTexture,
+                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                                stagingTexture,
+                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->CopyTexture(copy);
+        context_->Flush();
+        context_->WaitForIdle();
+        MappedTextureSubresource mapped{};
+        context_->MapTextureSubresource(stagingTexture, 0, 0, MAP_READ,
+                                        MAP_FLAG_NONE, nullptr, mapped);
+        EXPECT_NE(mapped.pData, nullptr);
+        std::vector<std::array<float, 4>> pixels(
+            static_cast<size_t>(width) * height);
+        if (mapped.pData) {
+            for (Uint32 y = 0; y < height; ++y) {
+                const auto* row = static_cast<const std::uint8_t*>(mapped.pData) +
+                                  y * mapped.Stride;
+                for (Uint32 x = 0; x < width; ++x) {
+                    std::memcpy(pixels[static_cast<size_t>(y) * width + x].data(),
+                                row + x * sizeof(std::array<float, 4>),
+                                sizeof(std::array<float, 4>));
+                }
+            }
+            context_->UnmapTextureSubresource(stagingTexture, 0, 0);
+        }
+        return pixels;
+    };
+    const auto samplesAtPanelCenters = [&](const std::vector<std::array<float, 4>>& pixels) {
+        std::array<std::array<float, 4>, factors.size()> samples{};
+        for (size_t panel = 0; panel < factors.size(); ++panel) {
+            const float centerNdc = gradientRight + atlasPanelWidth *
+                (static_cast<float>(panel) + 0.5f);
+            const auto sampleX = static_cast<Uint32>(std::lround(
+                (centerNdc * 0.5f + 0.5f) * static_cast<float>(width)));
+            samples[panel] = pixels[static_cast<size_t>(height / 2) * width + sampleX];
+            for (float channel : samples[panel]) {
+                EXPECT_TRUE(std::isfinite(channel))
+                    << "Non-finite Ramp readback at panel " << panel;
+            }
+        }
+        return samples;
+    };
+    const auto writeRgba32f = [&](const std::filesystem::path& path,
+                                  const std::vector<std::array<float, 4>>& pixels) {
+        std::ofstream output(path, std::ios::binary);
+        if (!output) return false;
+        for (const auto& pixel : pixels) {
+            output.write(reinterpret_cast<const char*>(pixel.data()), sizeof(pixel));
+        }
+        return output.good();
+    };
+    const auto writeDisplayComposite = [&](const std::filesystem::path& path,
+                                           const std::vector<std::array<float, 4>>& pixels,
+                                           float background) {
+        QImage image(static_cast<int>(width), static_cast<int>(height),
+                     QImage::Format_RGBA8888);
+        if (image.isNull() || pixels.size() != static_cast<size_t>(width) * height) {
+            return false;
+        }
+        const auto linearToSrgb = [](float value) {
+            value = std::clamp(value, 0.0f, 1.0f);
+            return value <= 0.0031308f
+                ? 12.92f * value
+                : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
+        };
+        for (Uint32 y = 0; y < height; ++y) {
+            auto* row = image.scanLine(static_cast<int>(y));
+            for (Uint32 x = 0; x < width; ++x) {
+                const auto& source = pixels[static_cast<size_t>(y) * width + x];
+                auto* pixel = row + x * 4;
+                for (size_t channel = 0; channel < 3; ++channel) {
+                    const float composited = source[channel] * source[3] +
+                                             background * (1.0f - source[3]);
+                    pixel[channel] = static_cast<std::uint8_t>(std::lround(
+                        std::clamp(linearToSrgb(composited), 0.0f, 1.0f) * 255.0f));
+                }
+                pixel[3] = 255;
+            }
+        }
+        return image.save(QString::fromStdString(path.string()), "PNG");
+    };
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto legacyPath = projectRoot / "tests" / "fixtures" / "shader-graph-rd" /
+                            "dynamic_ramp_legacy_uv.json";
+    QFile legacyFile(QString::fromStdString(legacyPath.string()));
+    ASSERT_TRUE(legacyFile.open(QIODevice::ReadOnly)) << legacyPath.string();
+    const QByteArray legacyBytes = legacyFile.readAll();
+    ASSERT_TRUE(renderer.setMaterialGraphJson(std::string(
+        legacyBytes.constData(), static_cast<size_t>(legacyBytes.size()))));
+
+    std::array<std::array<std::array<float, 4>, factors.size()>, 5> legacyRepeats{};
+    std::vector<std::array<float, 4>> legacyPixels;
+    for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
+        legacyPixels = capture();
+        legacyRepeats[repeat] = samplesAtPanelCenters(legacyPixels);
+    }
+
+    const auto candidatePath = projectRoot / "experiments" / "ShaderGraphLab" /
+                               "dynamic_vector4_ramp_candidate.json";
+    QFile candidateFile(QString::fromStdString(candidatePath.string()));
+    ASSERT_TRUE(candidateFile.open(QIODevice::ReadOnly)) << candidatePath.string();
+    const auto candidateJson = QJsonDocument::fromJson(candidateFile.readAll());
+    ASSERT_TRUE(candidateJson.isObject());
+    QString candidateBody = candidateJson.object().value("hlslBody").toString();
+    constexpr char returnStatement[] = "return n_ramp_color;\n";
+    ASSERT_TRUE(candidateBody.endsWith(QStringLiteral("return n_ramp_color;\n")));
+    candidateBody.chop(static_cast<qsizetype>(sizeof(returnStatement) - 1));
+    std::string candidateBlock = candidateBody.toStdString();
+    candidateBlock +=
+        "float4 graphBaseColor = n_ramp_color;\n"
+        "float graphMetallic = 0.0f;\n"
+        "float graphRoughness = 0.5f;\n"
+        "float3 graphEmission = n_ramp_color.rgb;\n"
+        "float graphAlpha = 1.0f;\n"
+        "float3 graphNormalSample = normalSample;\n"
+        "float graphOcclusion = occlusionSample;\n"
+        "float3 graphWorldNormal = float3(0.0f, 0.0f, 1.0f);\n"
+        "float graphUseWorldNormal = 0.0f;\n";
+    renderer.setMaterialGraphBlock(candidateBlock);
+    const auto candidatePixels = capture();
+    const auto candidateSamples = samplesAtPanelCenters(candidatePixels);
+    for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
+        for (size_t panel = 1; panel < factors.size(); ++panel) {
+            const auto& pixel = legacyRepeats[repeat][panel];
+            EXPECT_GT(std::max({std::fabs(pixel[0]), std::fabs(pixel[1]),
+                                std::fabs(pixel[2])}), 0.01f)
+                << "Legacy ColorRamp panel " << panel << " did not produce shader output";
+        }
+    }
+    for (size_t panel = 1; panel < factors.size(); ++panel) {
+        const auto& pixel = candidateSamples[panel];
+        EXPECT_GT(std::max({std::fabs(pixel[0]), std::fabs(pixel[1]),
+                            std::fabs(pixel[2])}), 0.01f)
+            << "Dynamic Ramp candidate panel " << panel << " did not produce shader output";
+    }
+    std::array<std::array<float, 4>, factors.size()> legacyMeanSamples{};
+    std::array<std::array<float, 4>, factors.size()> legacyRepeatRanges{};
+    std::array<std::array<float, 4>, factors.size()> candidateAbsoluteErrors{};
+    std::array<std::array<float, 4>, factors.size()> candidateRelativeErrors{};
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        for (size_t channel = 0; channel < 4; ++channel) {
+            float minimum = legacyRepeats[0][panel][channel];
+            float maximum = minimum;
+            float sum = 0.0f;
+            for (const auto& repeat : legacyRepeats) {
+                const float value = repeat[panel][channel];
+                minimum = std::min(minimum, value);
+                maximum = std::max(maximum, value);
+                sum += value;
+            }
+            legacyMeanSamples[panel][channel] =
+                sum / static_cast<float>(legacyRepeats.size());
+            legacyRepeatRanges[panel][channel] = maximum - minimum;
+            candidateAbsoluteErrors[panel][channel] = std::fabs(
+                candidateSamples[panel][channel] - legacyMeanSamples[panel][channel]);
+            candidateRelativeErrors[panel][channel] = candidateAbsoluteErrors[panel][channel] /
+                std::max(std::fabs(legacyMeanSamples[panel][channel]), 1.0e-8f);
+        }
+    }
+
+    const char* configuredOutputDir = std::getenv("ARTIFACT_RT_FRAME_OUTPUT_DIR");
+    const auto outputDir = configuredOutputDir && configuredOutputDir[0] != '\0'
+        ? std::filesystem::path(configuredOutputDir)
+        : std::filesystem::current_path() / "ray-tracing-frames";
+    std::filesystem::create_directories(outputDir);
+    ASSERT_TRUE(writeRgba32f(outputDir / "shader-graph-ramp-legacy-vulkan.rgba32f",
+                             legacyPixels));
+    ASSERT_TRUE(writeRgba32f(outputDir / "shader-graph-ramp-candidate-vulkan.rgba32f",
+                             candidatePixels));
+    ASSERT_TRUE(writeDisplayComposite(
+        outputDir / "shader-graph-ramp-legacy-vulkan-over-black.png",
+        legacyPixels, 0.0f));
+    ASSERT_TRUE(writeDisplayComposite(
+        outputDir / "shader-graph-ramp-legacy-vulkan-over-white.png",
+        legacyPixels, 1.0f));
+    ASSERT_TRUE(writeDisplayComposite(
+        outputDir / "shader-graph-ramp-candidate-vulkan-over-black.png",
+        candidatePixels, 0.0f));
+    ASSERT_TRUE(writeDisplayComposite(
+        outputDir / "shader-graph-ramp-candidate-vulkan-over-white.png",
+        candidatePixels, 1.0f));
+    QJsonObject reportJson;
+    reportJson.insert(QStringLiteral("kind"),
+                      QStringLiteral("artifact-shader-graph-ramp-vulkan-capture"));
+    reportJson.insert(QStringLiteral("status"),
+                      QStringLiteral("capture-source-executed-on-test-run"));
+    reportJson.insert(QStringLiteral("backend"), QStringLiteral("Vulkan"));
+    reportJson.insert(QStringLiteral("width"), static_cast<int>(width));
+    reportJson.insert(QStringLiteral("height"), static_cast<int>(height));
+    reportJson.insert(QStringLiteral("gpuAdapter"),
+        QString::fromLocal8Bit(device_->GetAdapterInfo().Description));
+    reportJson.insert(QStringLiteral("deviceType"),
+        static_cast<int>(device_->GetDeviceInfo().Type));
+    reportJson.insert(QStringLiteral("shaderCompilerIdentity"),
+        QStringLiteral("Diligent MeshRenderer PSO compilation; compiler version not exposed by this harness"));
+    reportJson.insert(QStringLiteral("buildIdentity"),
+        QStringLiteral("not exposed by this acceptance-test harness"));
+    reportJson.insert(QStringLiteral("displayTransform"),
+        QStringLiteral("linear RGBA composite over black/white then sRGB; raw RGBA32F remains authoritative"));
+    reportJson.insert(QStringLiteral("legacyRawCapture"),
+                      QStringLiteral("shader-graph-ramp-legacy-vulkan.rgba32f"));
+    reportJson.insert(QStringLiteral("candidateRawCapture"),
+                      QStringLiteral("shader-graph-ramp-candidate-vulkan.rgba32f"));
+    reportJson.insert(QStringLiteral("legacyDisplayPngs"),
+        QJsonArray{QStringLiteral("shader-graph-ramp-legacy-vulkan-over-black.png"),
+                   QStringLiteral("shader-graph-ramp-legacy-vulkan-over-white.png")});
+    reportJson.insert(QStringLiteral("candidateDisplayPngs"),
+        QJsonArray{QStringLiteral("shader-graph-ramp-candidate-vulkan-over-black.png"),
+                   QStringLiteral("shader-graph-ramp-candidate-vulkan-over-white.png")});
+    QJsonArray factorJson;
+    for (float factor : factors) factorJson.append(factor);
+    reportJson.insert(QStringLiteral("factors"), factorJson);
+    QJsonArray legacyRepeatsJson;
+    for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
+        QJsonArray repeatJson;
+        for (size_t panel = 0; panel < factors.size(); ++panel) {
+            const auto& pixel = legacyRepeats[repeat][panel];
+            QJsonArray pixelJson;
+            for (float channel : pixel) pixelJson.append(channel);
+            repeatJson.append(pixelJson);
+        }
+        legacyRepeatsJson.append(repeatJson);
+    }
+    reportJson.insert(QStringLiteral("legacyCoreRepeatedSamples"), legacyRepeatsJson);
+    const auto samplesToJson = [](const auto& samples) {
+        QJsonArray result;
+        for (const auto& sample : samples) {
+            QJsonArray pixelJson;
+            for (float channel : sample) pixelJson.append(channel);
+            result.append(pixelJson);
+        }
+        return result;
+    };
+    reportJson.insert(QStringLiteral("legacyCoreMeanSamples"),
+                      samplesToJson(legacyMeanSamples));
+    reportJson.insert(QStringLiteral("legacyCoreRepeatRanges"),
+                      samplesToJson(legacyRepeatRanges));
+    QJsonArray candidateSamplesJson;
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const auto& pixel = candidateSamples[panel];
+        QJsonArray pixelJson;
+        for (float channel : pixel) pixelJson.append(channel);
+        candidateSamplesJson.append(pixelJson);
+    }
+    reportJson.insert(QStringLiteral("dynamicCandidateSamples"), candidateSamplesJson);
+    reportJson.insert(QStringLiteral("candidateVsLegacyAbsoluteError"),
+                      samplesToJson(candidateAbsoluteErrors));
+    reportJson.insert(QStringLiteral("candidateVsLegacyRelativeError"),
+                      samplesToJson(candidateRelativeErrors));
+    QFile reportFile(QString::fromStdString(
+        (outputDir / "shader-graph-ramp-vulkan-capture.json").string()));
+    ASSERT_TRUE(reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const QByteArray reportBytes =
+        QJsonDocument(reportJson).toJson(QJsonDocument::Indented);
+    ASSERT_EQ(reportFile.write(reportBytes), reportBytes.size());
+    reportFile.close();
 }
 } // namespace
 // namespace
