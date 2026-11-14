@@ -2345,6 +2345,21 @@ def validate(root: Path) -> list[str]:
         reordered_result = dynamic_module.compile_document_from_data(reordered_variant, dynamic_registry)
         bad_version = copy.deepcopy(dynamic_document)
         bad_version["nodes"][0]["semanticVersion"] = 2
+        malformed_version_documents = []
+        malformed_version_edit_diagnostics = []
+        malformed_version_validation_codes = []
+        for malformed_version in (True, [], {}):
+            malformed_document = copy.deepcopy(dynamic_document)
+            malformed_document["nodes"][0]["semanticVersion"] = malformed_version
+            malformed_version_documents.append(malformed_document)
+            malformed_version_edit_diagnostics.append(diagnostic_for(
+                lambda document=malformed_document: dynamic_module.edit_node_parameters(
+                    document, dynamic_registry, "constant_a", {"value": 0.75})))
+            malformed_validation = dynamic_module.validate_document_for_editing(
+                malformed_document, dynamic_registry)
+            malformed_version_validation_codes.append(
+                [item["code"] for item in malformed_validation["diagnostics"]
+                 if item["path"] == "/nodes/0/semanticVersion"])
         wrong_kind = copy.deepcopy(dynamic_document)
         wrong_kind["kind"] = "unsupported"
         wrong_schema_version = copy.deepcopy(dynamic_document)
@@ -2399,13 +2414,26 @@ def validate(root: Path) -> list[str]:
         duplicate_operation_registry["operations"].append(copy.deepcopy(duplicate_operation_registry["operations"][0]))
         duplicate_socket_registry = copy.deepcopy(dynamic_registry_source)
         duplicate_socket_registry["operations"][2]["inputs"][1]["socketId"] = "a"
+        non_string_implementation_registry = copy.deepcopy(dynamic_registry_source)
+        non_string_implementation_registry["operations"][0]["implementationId"] = {"untrusted": "tag"}
+        non_string_socket_type_registry = copy.deepcopy(dynamic_registry_source)
+        non_string_socket_type_registry["operations"][0]["outputs"][0]["valueType"] = ["Float"]
+        deep_registry_value = "[" * (dynamic_module.MAX_JSON_NESTING + 1) + "0" + "]" * (dynamic_module.MAX_JSON_NESTING + 1)
         with tempfile.TemporaryDirectory(prefix="shader-graph-rd-registry-") as registry_directory:
             registry_directory = Path(registry_directory)
             registry_diagnostics = []
-            for index, candidate_registry in enumerate((unknown_registry_field, duplicate_operation_registry, duplicate_socket_registry)):
+            for index, candidate_registry in enumerate((unknown_registry_field, duplicate_operation_registry,
+                                                        duplicate_socket_registry, non_string_implementation_registry,
+                                                        non_string_socket_type_registry)):
                 registry_path = registry_directory / f"registry-{index}.json"
                 dynamic_module.save_document(registry_path, candidate_registry)
                 registry_diagnostics.append(diagnostic_for(lambda path=registry_path: dynamic_module.load_registry(path)))
+            deep_registry_path = registry_directory / "registry-deep-value.json"
+            deep_registry_path.write_text(
+                '{"schemaVersion":1,"kind":"artifact-shader-graph-rd-operation-registry",'
+                '"operations":[],"vendor":' + deep_registry_value + '}',
+                encoding="utf-8", newline="\n")
+            deep_registry_diagnostic = diagnostic_for(lambda: dynamic_module.load_registry(deep_registry_path))
         divide_golden_case = next((item for item in dynamic_math_golden.get("cases", [])
                                    if isinstance(item, dict) and item.get("operation") == "divide"), {})
         divide_golden_a = divide_golden_case.get("inputs", {}).get("A", [])
@@ -2435,7 +2463,7 @@ def validate(root: Path) -> list[str]:
             "canonicalDocumentSerializationIsStable": canonical_round_trip == connected_graph and dynamic_module.serialize_document(canonical_round_trip) == canonical_document_text and dynamic_module.serialize_document(reordered_object_document) == canonical_document_text and dynamic_module.serialize_document(reordered_array_document) != canonical_document_text,
             "strictJsonRejectsDuplicateKeysAndNonFiniteConstants": duplicate_key_diagnostic == {"code": "json.key.duplicate", "severity": "error", "path": "/x"} and nonstandard_number_diagnostic == {"code": "json.parse.invalid", "severity": "error", "path": "/"},
             "commandSnapshotsRejectCyclesAndBoundNesting": cyclic_snapshot_diagnostic == {"code": "json.value.cycle", "severity": "error", "path": "/vendorExtension/self"} and deep_json_diagnostic is not None and deep_json_diagnostic["code"] == "json.value.depth" and deep_json_diagnostic["path"].count("/0") == dynamic_module.MAX_JSON_NESTING and shared_reference_round_trip == {"left": shared_extension, "right": shared_extension},
-            "registryRejectsUnknownFieldsAndDuplicateIdentities": registry_diagnostics == [{"code": "registry.operation.shape.invalid", "severity": "error", "path": "/operations/0"}, {"code": "operation.registration.duplicate", "severity": "error", "path": "/operations/8"}, {"code": "socket.id.duplicate", "severity": "error", "path": "/operations/2/inputs/1/socketId"}],
+            "registryRejectsUnknownFieldsAndDuplicateIdentities": registry_diagnostics[:3] == [{"code": "registry.operation.shape.invalid", "severity": "error", "path": "/operations/0"}, {"code": "operation.registration.duplicate", "severity": "error", "path": "/operations/8"}, {"code": "socket.id.duplicate", "severity": "error", "path": "/operations/2/inputs/1/socketId"}],
             "documentFileRoundTripIsCanonicalAndAtomic": loaded_graph == io_document and stable_saved_graph_bytes == saved_graph_bytes and failed_save_diagnostic == {"code": "json.number.non_finite", "severity": "error", "path": "/invalidNumber"} and preserved_after_failed_save and unknown_extension_compile_diagnostic == {"code": "schema.field.unknown", "severity": "error", "path": "/vendorExtension"},
             "unknownSchemaStaysEditableButCannotCompile": unknown_extension_editing["status"] == "repairable" and unknown_extension_editing["repairable"] and not unknown_extension_editing["compilationAvailable"] and any(item["code"] == "schema.field.unknown" and item["severity"] == "warning" for item in unknown_extension_editing["diagnostics"]),
             "nodeAndLinkOrderDeterministic": reordered_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and reordered_result["hlslBody"] == regenerated_candidate["hlslBody"],
@@ -2500,6 +2528,9 @@ def validate(root: Path) -> list[str]:
             "vector4DivideCandidateMatchesAllLegacyBinary32Lanes": dynamic_vector4_divide_candidate == regenerated_vector4_divide_candidate and regenerated_vector4_divide_candidate.get("outputType") == "Vector4" and "(n_numerator_value / max(n_denominator_value, float4(1e-5f,1e-5f,1e-5f,1e-5f)))" in regenerated_vector4_divide_candidate.get("hlslBody", "") and len(vector4_divide_nodes) == 3 and vector4_divide_nodes[2].get("operationId") == "artifact.rd.math.divide.vector4.positive_floor.float32" and dynamic_vector4_divide_document.get("output") == {"nodeId": "quotient", "socketId": "result"} and vector4_divide_numerator_node.get("parameters", {}).get("value") == divide_golden_a and vector4_divide_denominator_node.get("parameters", {}).get("value") == divide_golden_b and divide_golden_result == [100000.0, 100000.0, 50000.0, 100000.0],
             "vector4SubtractCandidateMatchesBinary32LaneGolden": dynamic_vector4_subtract_candidate == regenerated_vector4_subtract_candidate and regenerated_vector4_subtract_candidate.get("outputType") == "Vector4" and "(n_minuend_value - n_subtrahend_value)" in regenerated_vector4_subtract_candidate.get("hlslBody", "") and len(vector4_subtract_nodes) == 3 and vector4_subtract_nodes[2].get("operationId") == "artifact.rd.math.subtract.vector4.float32" and dynamic_vector4_subtract_document.get("output") == {"nodeId": "difference", "socketId": "result"} and vector4_subtract_minuend.get("parameters", {}).get("value") == [4.0, 3.0, 2.0, 1.0] and vector4_subtract_subtrahend.get("parameters", {}).get("value") == [1.0, 2.0, 3.0, 4.0] and vector4_subtract_result == [3.0, 1.0, -1.0, -3.0] and vector4_subtract_result_bits == ["40400000", "3F800000", "BF800000", "C0400000"],
             "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
+            "registryRejectsScalarTypeConfusion": registry_diagnostics[3:] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryScalarTypeDiagnostics"),
+            "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
+            "malformedOperationVersionsStaySafeAtEditBoundary": malformed_version_edit_diagnostics == [dynamic_contract.get("sourceGuardGoldens", {}).get("malformedOperationVersionEditDiagnostic")] * 3 and malformed_version_validation_codes == [["node.operation.version.unsupported"]] * 3 and malformed_version_documents[0]["nodes"][0]["semanticVersion"] is True and malformed_version_documents[1]["nodes"][0]["semanticVersion"] == [] and malformed_version_documents[2]["nodes"][0]["semanticVersion"] == {} and all(document["nodes"][0]["parameters"] == {"value": 0.25} for document in malformed_version_documents),
         }
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or

@@ -5899,8 +5899,19 @@
         "divideCandidateMatchesLegacyNegativeDenominatorGolden",
         "vector4DivideCandidateMatchesAllLegacyBinary32Lanes",
         "vector4SubtractCandidateMatchesBinary32LaneGolden",
-        "paletteSearchFiltersRegisteredOperations"
+        "paletteSearchFiltersRegisteredOperations",
+        "registryRejectsScalarTypeConfusion",
+        "registryFileRejectsNestedValuesBeyondLimit",
+        "malformedOperationVersionsStaySafeAtEditBoundary"
       ],
+      "sourceGuardGoldens": {
+        "registryScalarTypeDiagnostics": [
+          {"code": "operation.implementation.unsupported", "severity": "error", "path": "/operations/0/implementationId"},
+          {"code": "socket.type.unsupported", "severity": "error", "path": "/operations/0/outputs/0/valueType"}
+        ],
+        "registryDepthDiagnostic": {"code": "json.value.depth", "pathPrefix": "/vendor"},
+        "malformedOperationVersionEditDiagnostic": {"code": "node.operation.version.unsupported", "severity": "error", "path": "/nodes/0/semanticVersion"}
+      },
       "registrySha256": "89AFB484A3985EA3D8AB0D06A04BB133FB85A1D5872A355350A3FCF7A23F1E69",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
