@@ -151,6 +151,19 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.add.vector4.default_b",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Add (default B)",
+      "category": "Math",
+      "implementationId": "vector4.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": false, "default": [0.0, 0.0, 0.0, 0.0]}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.math.multiply.vector4.float32",
       "semanticVersion": 1,
       "displayName": "Vector4 Multiply",

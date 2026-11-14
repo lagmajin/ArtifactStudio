@@ -935,7 +935,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 not operation.inputs[0].required or operation.inputs[0].default is not None or
                 (operation.inputs[1].required and operation.inputs[1].default is not None) or
                 (not operation.inputs[1].required and operation.inputs[1].default is None) or
-                (implementation_id != "float.add" and not operation.inputs[1].required) or
+                (implementation_id not in {"float.add", "vector4.add"} and not operation.inputs[1].required) or
                 operation.outputs[0].socket_id != "result" or
                 operation.outputs[0].value_type != ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 operation.parameters):

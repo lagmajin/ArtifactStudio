@@ -6043,7 +6043,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
-        "candidateGeneratorIncludesAllElevenPersistedGraphs",
+        "candidateGeneratorIncludesAllTwelvePersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
@@ -6108,7 +6108,7 @@
           "path": "/nodes/0/semanticVersion"
         }
       },
-      "registrySha256": "D4CF7750D4A8237BEADCC8A5B237CB67D241EAD44D47F26E77718A753EF7C45D",
+      "registrySha256": "8E06D589619BDCDC543B084CBD79C626DB905CC8932A1A71F55CF3F0DC29BFEB",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {
@@ -6185,7 +6185,11 @@
       "optionalDefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_default.json",
       "optionalDefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_default_candidate.json",
       "optionalDefaultCandidateSha256": "EDF706EF17916014EA2606CFCD561BAEF62568980A6B3313F9B4911E7ED91C41",
-      "optionalDefaultDocumentSha256": "B89D6151B7A3E04FE82E8B237C3441F53D581A3FA765CF5E2CC9A5D2092915EF"
+      "optionalDefaultDocumentSha256": "B89D6151B7A3E04FE82E8B237C3441F53D581A3FA765CF5E2CC9A5D2092915EF",
+      "optionalVector4DefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default.json",
+      "optionalVector4DefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default_candidate.json",
+      "optionalVector4DefaultCandidateSha256": "F9DBD590A13AA27C32600CF8C67150592E783433BE2B3FDFE7ECC7213F163FDD",
+      "optionalVector4DefaultDocumentSha256": "41C2CE731D096724EE9F1197351216B19C321785B06CF41E45C7549B0700176F"
     }
   },
   "loweringIdentityContract": {

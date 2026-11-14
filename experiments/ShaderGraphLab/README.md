@@ -22,9 +22,10 @@ the closed scalar Subtract operation. `dynamic_divide.json` exercises the
 legacy positive denominator floor with a negative divisor, which distinguishes
 it from ordinary signed division. `dynamic_vector4_divide.json` exercises the
 same source rule across zero, negative epsilon, positive epsilon, and a negative
-large denominator. The candidate generator writes all seven lowering outputs,
-including Vector4 Subtract, Vector4 Invert, and Clamp, and updates their input,
-registry, and candidate digests in the manifest. The manifest source contract
+large denominator. The candidate generator writes the saved lowering outputs,
+including Vector4 Subtract, Vector4 Invert, Clamp, and optional Float/Vector4
+input-default examples, and updates their input, registry, and candidate digests
+in the manifest. The manifest source contract
 pins each document/candidate/hash field tuple so a persisted graph cannot be
 silently dropped from regeneration. JSON results record the actual HLSL strings
 and semantic hashes.
