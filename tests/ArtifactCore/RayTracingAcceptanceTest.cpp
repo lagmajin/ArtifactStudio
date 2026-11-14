@@ -16104,6 +16104,9 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     std::copy(identity.begin(), identity.end(), instance.previousTransform);
     instance.color[0] = instance.color[1] = instance.color[2] = instance.color[3] = 1.0f;
     instance.weight = 1.0f;
+    // MeshRenderer maps timeOffset to its BaseColor AOV mode (1), which returns
+    // the graph's linear base color and alpha without studio/PBR lighting.
+    instance.timeOffset = 1.0f;
     renderer.updateInstanceData(&instance, 1);
 
     TextureDesc colorDesc;
@@ -16247,6 +16250,30 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     };
     const auto projectRoot = std::filesystem::path(__FILE__)
                                  .parent_path().parent_path().parent_path();
+    const auto formulaGoldenPath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "dynamic_ramp_formula_golden.json";
+    QFile formulaGoldenFile(QString::fromStdString(formulaGoldenPath.string()));
+    ASSERT_TRUE(formulaGoldenFile.open(QIODevice::ReadOnly))
+        << formulaGoldenPath.string();
+    const QByteArray formulaGoldenBytes = formulaGoldenFile.readAll();
+    const auto formulaGoldenJson = QJsonDocument::fromJson(formulaGoldenBytes);
+    ASSERT_TRUE(formulaGoldenJson.isObject());
+    const QJsonArray formulaGoldenCases =
+        formulaGoldenJson.object().value("cases").toArray();
+    ASSERT_EQ(formulaGoldenCases.size(), static_cast<qsizetype>(factors.size()));
+    std::array<std::array<float, 4>, factors.size()> formulaGoldenSamples{};
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const auto goldenCase = formulaGoldenCases.at(
+            static_cast<qsizetype>(panel)).toObject();
+        ASSERT_FLOAT_EQ(static_cast<float>(goldenCase.value("factor").toDouble()),
+                        factors[panel]);
+        const QJsonArray color = goldenCase.value("color").toArray();
+        ASSERT_EQ(color.size(), qsizetype{4});
+        for (size_t channel = 0; channel < 4; ++channel) {
+            formulaGoldenSamples[panel][channel] = static_cast<float>(
+                color.at(static_cast<qsizetype>(channel)).toDouble());
+        }
+    }
     const auto legacyPath = projectRoot / "tests" / "fixtures" / "shader-graph-rd" /
                             "dynamic_ramp_legacy_uv.json";
     QFile legacyFile(QString::fromStdString(legacyPath.string()));
@@ -16305,6 +16332,8 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     std::array<std::array<float, 4>, factors.size()> legacyRepeatRanges{};
     std::array<std::array<float, 4>, factors.size()> candidateAbsoluteErrors{};
     std::array<std::array<float, 4>, factors.size()> candidateRelativeErrors{};
+    std::array<std::array<float, 4>, factors.size()> formulaAbsoluteErrors{};
+    std::array<std::array<float, 4>, factors.size()> formulaRelativeErrors{};
     for (size_t panel = 0; panel < factors.size(); ++panel) {
         for (size_t channel = 0; channel < 4; ++channel) {
             float minimum = legacyRepeats[0][panel][channel];
@@ -16323,6 +16352,10 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
                 candidateSamples[panel][channel] - legacyMeanSamples[panel][channel]);
             candidateRelativeErrors[panel][channel] = candidateAbsoluteErrors[panel][channel] /
                 std::max(std::fabs(legacyMeanSamples[panel][channel]), 1.0e-8f);
+            formulaAbsoluteErrors[panel][channel] = std::fabs(
+                candidateSamples[panel][channel] - formulaGoldenSamples[panel][channel]);
+            formulaRelativeErrors[panel][channel] = formulaAbsoluteErrors[panel][channel] /
+                std::max(std::fabs(formulaGoldenSamples[panel][channel]), 1.0e-8f);
         }
     }
 
@@ -16380,12 +16413,16 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         QStringLiteral("not exposed by this acceptance-test harness"));
     reportJson.insert(QStringLiteral("displayTransform"),
         QStringLiteral("linear RGBA composite over black/white then sRGB; raw RGBA32F remains authoritative"));
+    reportJson.insert(QStringLiteral("renderOutputMode"),
+        QStringLiteral("BaseColor AOV via instance timeOffset 1; raw linear graph color and alpha"));
     reportJson.insert(QStringLiteral("legacyRawCapture"),
                       QStringLiteral("shader-graph-ramp-legacy-vulkan.rgba32f"));
     reportJson.insert(QStringLiteral("candidateRawCapture"),
                       QStringLiteral("shader-graph-ramp-candidate-vulkan.rgba32f"));
     reportJson.insert(QStringLiteral("legacyFixtureSha256"), sha256Hex(legacyBytes));
     reportJson.insert(QStringLiteral("candidateFixtureSha256"), sha256Hex(candidateBytes));
+    reportJson.insert(QStringLiteral("formulaGoldenFixtureSha256"),
+                      sha256Hex(formulaGoldenBytes));
     reportJson.insert(QStringLiteral("legacyRawCaptureSha256"),
                       rawCaptureSha256(legacyPixels));
     reportJson.insert(QStringLiteral("candidateRawCaptureSha256"),
@@ -16440,10 +16477,16 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         candidateSamplesJson.append(pixelJson);
     }
     reportJson.insert(QStringLiteral("dynamicCandidateSamples"), candidateSamplesJson);
+    reportJson.insert(QStringLiteral("dynamicFormulaGoldenSamples"),
+                      samplesToJson(formulaGoldenSamples));
     reportJson.insert(QStringLiteral("candidateVsLegacyAbsoluteError"),
                       samplesToJson(candidateAbsoluteErrors));
     reportJson.insert(QStringLiteral("candidateVsLegacyRelativeError"),
                       samplesToJson(candidateRelativeErrors));
+    reportJson.insert(QStringLiteral("candidateVsFormulaGoldenAbsoluteError"),
+                      samplesToJson(formulaAbsoluteErrors));
+    reportJson.insert(QStringLiteral("candidateVsFormulaGoldenRelativeError"),
+                      samplesToJson(formulaRelativeErrors));
     QFile reportFile(QString::fromStdString(
         (outputDir / "shader-graph-ramp-vulkan-capture.json").string()));
     ASSERT_TRUE(reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate));

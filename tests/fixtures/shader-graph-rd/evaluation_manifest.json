@@ -5871,11 +5871,13 @@
           "testName": "CapturesLegacyAndDynamicRampCandidatesOnVulkanMeshRenderer",
           "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
           "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
+          "formulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
           "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy captures and one candidate capture",
           "reportEvidence": {
             "inputSha256Fields": [
               "legacyFixtureSha256",
-              "candidateFixtureSha256"
+              "candidateFixtureSha256",
+              "formulaGoldenFixtureSha256"
             ],
             "outputSha256Fields": [
               "legacyRawCaptureSha256",
@@ -5884,7 +5886,12 @@
               "legacyWhiteCompositeSha256",
               "candidateBlackCompositeSha256",
               "candidateWhiteCompositeSha256"
-            ]
+            ],
+            "measurementFields": [
+              "candidateVsFormulaGoldenAbsoluteError",
+              "candidateVsFormulaGoldenRelativeError"
+            ],
+            "renderOutputModeField": "renderOutputMode"
           },
           "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate Vector4 output to the established graph material fields; no Core implementation change",
           "limitations": [
@@ -6022,6 +6029,7 @@
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
+        "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
