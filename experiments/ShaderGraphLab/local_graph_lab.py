@@ -317,6 +317,17 @@ class Session:
         if after == before:
             self.last_history_action_key = None
             return
+        before_nodes, after_nodes = before.get("nodes"), after.get("nodes")
+        before_links, after_links = before.get("links"), after.get("links")
+        for collection_name, old_items, new_items, limit, code in (
+            ("nodes", before_nodes, after_nodes, graph.MAX_GRAPH_NODES, "graph.nodes.limit_exceeded"),
+            ("links", before_links, after_links, graph.MAX_GRAPH_LINKS, "graph.links.limit_exceeded"),
+        ):
+            if (isinstance(old_items, list) and isinstance(new_items, list) and
+                    len(new_items) > limit and len(new_items) > len(old_items)):
+                raise graph.ContractError(
+                    f"edit would grow {collection_name} beyond the prototype limit of {limit}",
+                    code=code, path=f"/{collection_name}")
         command = graph.create_document_command(kind.replace("_", " ").title(), before, after)
         action_key = (kind, action.get("graphParameterId")) if kind == "graphParameter" and isinstance(action.get("graphParameterId"), str) else None
         now = time.monotonic()

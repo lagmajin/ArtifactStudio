@@ -1768,6 +1768,20 @@ def validate(root: Path) -> list[str]:
 
         graph_limits = dynamic_contract.get("graphResourceLimits", {})
         graph_limit_goldens = dynamic_contract.get("sourceGuardGoldens", {}).get("graphLimitDiagnostics", [])
+        ui_limit_document = copy.deepcopy(dynamic_document)
+        base_limit_node = copy.deepcopy(dynamic_document["nodes"][0])
+        ui_limit_document["nodes"] = [
+            {**base_limit_node, "nodeId": f"limit_node_{index}",
+             "layout": {"x": float(index), "y": 0.0}}
+            for index in range(dynamic_module.MAX_GRAPH_NODES - len(dynamic_document["nodes"]))
+        ] + ui_limit_document["nodes"]
+        ui_limit_session = local_ui_module.Session(dynamic_registry, ui_limit_document, None, [])
+        ui_limit_before_hash = ui_limit_session.current_document_hash
+        ui_limit_add_diagnostic = diagnostic_for(
+            lambda: ui_limit_session.apply({
+                "type": "add", "operationId": "artifact.rd.constant.float32",
+                "semanticVersion": 1, "nodeId": "over_limit_node",
+            }))
         oversized_nodes_document = copy.deepcopy(dynamic_document)
         oversized_nodes_document["nodes"] = [{}] * (dynamic_module.MAX_GRAPH_NODES + 1)
         oversized_nodes_validation = dynamic_module.validate_document_for_editing(
@@ -2589,6 +2603,7 @@ def validate(root: Path) -> list[str]:
             "paletteEntriesExposeTypedSignatures": 'const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?\' (required)\':\'\'}`).join(\', \')||\'none\';' in local_ui_html_source and 'Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}' in local_ui_html_source and 'title="${esc(signature)}"' in local_ui_html_source and 'aria-label="${esc(`${item.label}. ${signature}`)}"' in local_ui_html_source,
             "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
             "graphLinkLimitRejectsBeforeLinkIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_links_validation["status"] == "invalid" and oversized_links_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_links_validation["diagnostics"]] == [graph_limit_goldens[1]["code"]] and oversized_links_compile_diagnostic == graph_limit_goldens[1],
+            "uiSessionRejectsGraphGrowthPastLimitAtomically": ui_limit_add_diagnostic == dynamic_contract.get("sourceGuardGoldens", {}).get("uiGrowthLimitDiagnostic") and len(ui_limit_session.document["nodes"]) == dynamic_module.MAX_GRAPH_NODES and ui_limit_session.current_document_hash == ui_limit_before_hash and ui_limit_session.history == [] and ui_limit_session.cursor == 0,
             "registryRejectsScalarTypeConfusion": registry_diagnostics[3:] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryScalarTypeDiagnostics"),
             "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
             "malformedOperationVersionsStaySafeAtEditBoundary": malformed_version_edit_diagnostics == [dynamic_contract.get("sourceGuardGoldens", {}).get("malformedOperationVersionEditDiagnostic")] * 3 and malformed_version_validation_codes == [["node.operation.version.unsupported"]] * 3 and malformed_version_documents[0]["nodes"][0]["semanticVersion"] is True and malformed_version_documents[1]["nodes"][0]["semanticVersion"] == [] and malformed_version_documents[2]["nodes"][0]["semanticVersion"] == {} and all(document["nodes"][0]["parameters"] == {"value": 0.25} for document in malformed_version_documents),

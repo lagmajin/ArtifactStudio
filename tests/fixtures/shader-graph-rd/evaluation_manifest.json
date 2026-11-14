@@ -5917,6 +5917,7 @@
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
         "graphLinkLimitRejectsBeforeLinkIndexing",
+        "uiSessionRejectsGraphGrowthPastLimitAtomically",
         "registryRejectsScalarTypeConfusion",
         "registryFileRejectsNestedValuesBeyondLimit",
         "malformedOperationVersionsStaySafeAtEditBoundary"
@@ -5926,6 +5927,7 @@
           {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
           {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"}
         ],
+        "uiGrowthLimitDiagnostic": {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
         "registryScalarTypeDiagnostics": [
           {"code": "operation.implementation.unsupported", "severity": "error", "path": "/operations/0/implementationId"},
           {"code": "socket.type.unsupported", "severity": "error", "path": "/operations/0/outputs/0/valueType"}
