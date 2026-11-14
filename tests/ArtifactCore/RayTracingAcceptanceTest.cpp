@@ -16087,6 +16087,13 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         const float right = left + atlasPanelWidth;
         appendQuad(left, right, factors[panel], factors[panel]);
     }
+    std::array<Uint32, factors.size()> sampleXs{};
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const float centerNdc = gradientRight + atlasPanelWidth *
+            (static_cast<float>(panel) + 0.5f);
+        sampleXs[panel] = static_cast<Uint32>(std::lround(
+            (centerNdc * 0.5f + 0.5f) * static_cast<float>(width)));
+    }
 
     ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
     ArtifactCore::MeshRenderer renderer(gpuContext);
@@ -16197,11 +16204,8 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     const auto samplesAtPanelCenters = [&](const std::vector<std::array<float, 4>>& pixels) {
         std::array<std::array<float, 4>, factors.size()> samples{};
         for (size_t panel = 0; panel < factors.size(); ++panel) {
-            const float centerNdc = gradientRight + atlasPanelWidth *
-                (static_cast<float>(panel) + 0.5f);
-            const auto sampleX = static_cast<Uint32>(std::lround(
-                (centerNdc * 0.5f + 0.5f) * static_cast<float>(width)));
-            samples[panel] = pixels[static_cast<size_t>(height / 2) * width + sampleX];
+            samples[panel] = pixels[static_cast<size_t>(height / 2) * width +
+                                    sampleXs[panel]];
             for (float channel : samples[panel]) {
                 EXPECT_TRUE(std::isfinite(channel))
                     << "Non-finite Ramp readback at panel " << panel;
@@ -16458,8 +16462,17 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         QJsonArray{QStringLiteral("shader-graph-ramp-candidate-vulkan-over-black.png"),
                    QStringLiteral("shader-graph-ramp-candidate-vulkan-over-white.png")});
     QJsonArray factorJson;
+    QJsonArray sampleCoordinatesJson;
     for (float factor : factors) factorJson.append(factor);
     reportJson.insert(QStringLiteral("factors"), factorJson);
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        sampleCoordinatesJson.append(QJsonObject{
+            {QStringLiteral("factor"), factors[panel]},
+            {QStringLiteral("x"), static_cast<int>(sampleXs[panel])},
+            {QStringLiteral("y"), static_cast<int>(height / 2)},
+        });
+    }
+    reportJson.insert(QStringLiteral("samplePixelCoordinates"), sampleCoordinatesJson);
     QJsonArray legacyRepeatsJson;
     for (size_t repeat = 0; repeat < legacyRepeats.size(); ++repeat) {
         QJsonArray repeatJson;

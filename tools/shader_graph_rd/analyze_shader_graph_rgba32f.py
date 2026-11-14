@@ -243,7 +243,9 @@ def main() -> int:
         if len(set(names)) != len(names):
             raise ValueError("ROI names must be unique and cannot repeat 'full-frame'")
 
-        baseline_mean = array("f", [0.0]) * (args.width * args.height * 4)
+        # Keep the repeat mean in Python's double-precision domain; only the
+        # optional exported diff is quantized back to RGBA32F.
+        baseline_mean = array("d", [0.0]) * (args.width * args.height * 4)
         for index in range(len(baseline_mean)):
             samples = [capture[index] for capture in baselines]
             baseline_mean[index] = statistics.fmean(samples)
