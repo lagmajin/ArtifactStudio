@@ -33,6 +33,7 @@ VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION = {
     "vector4.mixrgb.lighten.saturated_factor": "lighten",
     "vector4.mixrgb.difference.saturated_factor": "difference",
 }
+MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_two_stop"}
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
@@ -43,6 +44,7 @@ BUILTIN_IMPLEMENTATIONS = {
     *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
     "vector4.separate_channels",
+    "vector4.ramp.linear_two_stop",
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
@@ -845,7 +847,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
             outputs=parse_sockets("outputs", False),
             parameters=tuple(parameters),
         )
-        if len(operation.outputs) != 1 and implementation_id != "vector4.separate_channels":
+        if len(operation.outputs) != 1 and implementation_id not in MULTI_OUTPUT_IMPLEMENTATIONS:
             raise ContractError(f"{path_label} must declare exactly one output", code="operation.output.shape.invalid", path=f"{path}/outputs")
         if implementation_id == "float.constant" and (
                 operation.inputs or operation.outputs[0].value_type != "Float" or
@@ -908,6 +910,15 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 [("x", "Float"), ("y", "Float"), ("z", "Float"), ("w", "Float")] or
                 operation.parameters):
             raise ContractError(f"{path_label} vector4.separate_channels requires one Vector4 input, Float x/y/z/w outputs, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector4.ramp.linear_two_stop" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("factor", "Float", True), ("position_a", "Float", True),
+                 ("color_a", "Vector4", True), ("position_b", "Float", True),
+                 ("color_b", "Vector4", True)] or
+                [(item.socket_id, item.value_type) for item in operation.outputs] !=
+                [("color", "Vector4"), ("alpha", "Float")] or
+                operation.parameters):
+            raise ContractError(f"{path_label} vector4.ramp.linear_two_stop requires typed two-stop inputs, Vector4 color and Float alpha outputs, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.divide.positive_floor_1e5" and operation.outputs[0].value_type != "Float":
             raise ContractError(f"{path_label} float.divide.positive_floor_1e5 requires Float input and output sockets", code="operation.signature.invalid", path=path)
         registry[registry_key] = operation
@@ -3396,6 +3407,25 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
                 variable = f"{symbol}_{channel_symbol}"
                 hlsl_lines.append(f"float {variable} = ({vector}).{channel.socket_id};")
                 expressions[(node_id, channel.socket_id)] = variable
+            continue
+        elif implementation_id == "vector4.ramp.linear_two_stop":
+            factor = expressions[writers[(node_id, "factor")]]
+            position_a = expressions[writers[(node_id, "position_a")]]
+            color_a = expressions[writers[(node_id, "color_a")]]
+            position_b = expressions[writers[(node_id, "position_b")]]
+            color_b = expressions[writers[(node_id, "color_b")]]
+            hlsl_lines.extend([
+                f"float {symbol}_position_a = saturate({position_a});",
+                f"float {symbol}_position_b = saturate({position_b});",
+                f"float {symbol}_factor = saturate({factor});",
+                f"float {symbol}_t = saturate(({symbol}_factor - min({symbol}_position_a, {symbol}_position_b)) / max(abs({symbol}_position_b - {symbol}_position_a), 1e-5f));",
+                f"float4 {symbol}_color_a = {color_a};",
+                f"float4 {symbol}_color_b = {color_b};",
+                f"float4 {symbol}_color = lerp({symbol}_position_a <= {symbol}_position_b ? {symbol}_color_a : {symbol}_color_b, {symbol}_position_a <= {symbol}_position_b ? {symbol}_color_b : {symbol}_color_a, {symbol}_t);",
+                f"float {symbol}_alpha = {symbol}_color.a;",
+            ])
+            expressions[(node_id, "color")] = f"{symbol}_color"
+            expressions[(node_id, "alpha")] = f"{symbol}_alpha"
             continue
         elif implementation_id == "vector4.invert.linear_factor":
             color_source = writers[(node_id, "color")]

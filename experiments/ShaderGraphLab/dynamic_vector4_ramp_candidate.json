@@ -1,0 +1,27 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "F56F348567A35A72938BA9114831914FDD9A1F6F05C4E7CFB544BAFF0CBD1606",
+  "shaderStructureHashSha256": "F56F348567A35A72938BA9114831914FDD9A1F6F05C4E7CFB544BAFF0CBD1606",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "topologicalNodeIds": [
+    "color_a",
+    "color_b",
+    "factor",
+    "position_a",
+    "position_b",
+    "ramp"
+  ],
+  "outputType": "Vector4",
+  "hlslBody": "float4 n_color_a_value = float4(0.0f, 0.0f, 0.0f, 0.200000003f);\nfloat4 n_color_b_value = float4(1.0f, 0.5f, 0.25f, 0.800000012f);\nfloat n_factor_value = 0.400000006f;\nfloat n_position_a_value = 0.25f;\nfloat n_position_b_value = 0.75f;\nfloat n_ramp_position_a = saturate(n_position_a_value);\nfloat n_ramp_position_b = saturate(n_position_b_value);\nfloat n_ramp_factor = saturate(n_factor_value);\nfloat n_ramp_t = saturate((n_ramp_factor - min(n_ramp_position_a, n_ramp_position_b)) / max(abs(n_ramp_position_b - n_ramp_position_a), 1e-5f));\nfloat4 n_ramp_color_a = n_color_a_value;\nfloat4 n_ramp_color_b = n_color_b_value;\nfloat4 n_ramp_color = lerp(n_ramp_position_a <= n_ramp_position_b ? n_ramp_color_a : n_ramp_color_b, n_ramp_position_a <= n_ramp_position_b ? n_ramp_color_b : n_ramp_color_a, n_ramp_t);\nfloat n_ramp_alpha = n_ramp_color.a;\nreturn n_ramp_color;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector4 sockets and 24 closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}
