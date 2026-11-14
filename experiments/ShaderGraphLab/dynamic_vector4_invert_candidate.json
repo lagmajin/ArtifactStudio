@@ -1,0 +1,24 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "1B84F2CEBC98C6771D36FC00C3C96F7377E082D815DC69BB67B4A8E8CEB6FBCE",
+  "shaderStructureHashSha256": "1B84F2CEBC98C6771D36FC00C3C96F7377E082D815DC69BB67B4A8E8CEB6FBCE",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "topologicalNodeIds": [
+    "source_color",
+    "source_factor",
+    "inverted"
+  ],
+  "outputType": "Vector4",
+  "hlslBody": "float4 n_source_color_value = float4(0.200000003f, 0.400000006f, 0.600000024f, 0.800000012f);\nfloat n_source_factor_value = 0.5f;\nfloat4 n_inverted_result = lerp(n_source_color_value, (float4(1.0f, 1.0f, 1.0f, 1.0f) - n_source_color_value), saturate(n_source_factor_value));\nreturn n_inverted_result;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector4 sockets and 13 closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}

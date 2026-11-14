@@ -154,6 +154,19 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.vector4.invert.linear_factor",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Invert",
+      "category": "Color",
+      "implementationId": "vector4.invert.linear_factor",
+      "inputs": [
+        {"socketId": "color", "valueType": "Vector4", "required": true},
+        {"socketId": "factor", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
       "semanticVersion": 1,
       "displayName": "Replicate to Vector4",

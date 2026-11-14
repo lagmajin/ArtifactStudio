@@ -27,6 +27,7 @@ BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
+    "vector4.invert.linear_factor",
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
 MAX_JSON_NESTING = 256
@@ -835,6 +836,13 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].value_type != ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 operation.parameters):
             raise ContractError(f"{path_label} {implementation_id} requires two matching typed inputs a/b, a matching result, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector4.invert.linear_factor" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("color", "Vector4", True), ("factor", "Float", True)] or
+                operation.outputs[0].socket_id != "result" or
+                operation.outputs[0].value_type != "Vector4" or
+                operation.parameters):
+            raise ContractError(f"{path_label} vector4.invert.linear_factor requires Vector4 color and Float factor inputs, a Vector4 result, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.replicate.rgb_alpha_one" and (
                 len(operation.inputs) != 1 or operation.inputs[0].socket_id != "value" or
                 operation.inputs[0].value_type != "Float" or not operation.inputs[0].required or
@@ -3318,6 +3326,12 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         elif implementation_id == "vector4.extract_x":
             source = writers[(node_id, operation.inputs[0].socket_id)]
             expression = f"({expressions[source]}).x"
+        elif implementation_id == "vector4.invert.linear_factor":
+            color_source = writers[(node_id, "color")]
+            factor_source = writers[(node_id, "factor")]
+            color_value = expressions[color_source]
+            factor_value = expressions[factor_source]
+            expression = f"lerp({color_value}, (float4(1.0f, 1.0f, 1.0f, 1.0f) - {color_value}), saturate({factor_value}))"
         else:
             source_a = writers[(node_id, operation.inputs[0].socket_id)]
             source_b = writers[(node_id, operation.inputs[1].socket_id)]
@@ -3418,7 +3432,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         "hlslBody": hlsl,
         "warnings": warnings,
         "limitations": [
-            "prototype supports Float/Vector4 sockets and twelve closed implementation IDs only",
+            f"prototype supports Float/Vector4 sockets and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",

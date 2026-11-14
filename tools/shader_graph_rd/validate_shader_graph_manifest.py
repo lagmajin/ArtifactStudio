@@ -1362,6 +1362,8 @@ def validate(root: Path) -> list[str]:
     dynamic_vector4_divide_candidate_path = root / dynamic_contract.get("vector4DivideCandidateFixture", "")
     dynamic_vector4_subtract_document_path = root / dynamic_contract.get("vector4SubtractDocumentFixture", "")
     dynamic_vector4_subtract_candidate_path = root / dynamic_contract.get("vector4SubtractCandidateFixture", "")
+    dynamic_vector4_invert_document_path = root / dynamic_contract.get("vector4InvertDocumentFixture", "")
+    dynamic_vector4_invert_candidate_path = root / dynamic_contract.get("vector4InvertCandidateFixture", "")
     dynamic_prototype_path = root / dynamic_contract.get("prototype", "")
     try:
         dynamic_registry_source = json.loads(dynamic_registry_path.read_text(encoding="utf-8"))
@@ -1375,6 +1377,8 @@ def validate(root: Path) -> list[str]:
         dynamic_vector4_divide_candidate = json.loads(dynamic_vector4_divide_candidate_path.read_text(encoding="utf-8"))
         dynamic_vector4_subtract_document = json.loads(dynamic_vector4_subtract_document_path.read_text(encoding="utf-8"))
         dynamic_vector4_subtract_candidate = json.loads(dynamic_vector4_subtract_candidate_path.read_text(encoding="utf-8"))
+        dynamic_vector4_invert_document = json.loads(dynamic_vector4_invert_document_path.read_text(encoding="utf-8"))
+        dynamic_vector4_invert_candidate = json.loads(dynamic_vector4_invert_candidate_path.read_text(encoding="utf-8"))
         dynamic_spec = importlib.util.spec_from_file_location("shader_graph_dynamic_prototype", dynamic_prototype_path)
         if dynamic_spec is None or dynamic_spec.loader is None:
             raise RuntimeError("cannot load dynamic graph prototype")
@@ -1715,6 +1719,7 @@ def validate(root: Path) -> list[str]:
         regenerated_divide_candidate = dynamic_module.compile_document_from_data(dynamic_divide_document, dynamic_registry)
         regenerated_vector4_divide_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_divide_document, dynamic_registry)
         regenerated_vector4_subtract_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_subtract_document, dynamic_registry)
+        regenerated_vector4_invert_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_invert_document, dynamic_registry)
         preserved_document = dynamic_module.preserve_document(dynamic_document)
         unknown_version_document = copy.deepcopy(dynamic_document)
         unknown_version_document["nodes"][0]["semanticVersion"] = 99
@@ -2454,6 +2459,13 @@ def validate(root: Path) -> list[str]:
                                    vector4_subtract_subtrahend.get("parameters", {}).get("value", []))
         ]
         vector4_subtract_result_bits = [struct.pack("<f", value).hex().upper() for value in vector4_subtract_result]
+        vector4_invert_case = next((case for case in invert_golden.get("cases", [])
+                                    if isinstance(case, dict) and case.get("caseId") == "factor-half"), {})
+        vector4_invert_nodes = dynamic_vector4_invert_document.get("nodes", [])
+        vector4_invert_color_node = next((node for node in vector4_invert_nodes
+                                          if isinstance(node, dict) and node.get("nodeId") == "source_color"), {})
+        vector4_invert_factor_node = next((node for node in vector4_invert_nodes
+                                           if isinstance(node, dict) and node.get("nodeId") == "source_factor"), {})
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
             "implementationSelectionChangesSemanticIdentity": alternate_implementation_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and alternate_implementation_compile["hlslBody"] != connected_graph_compile["hlslBody"],
@@ -2527,6 +2539,7 @@ def validate(root: Path) -> list[str]:
             "divideCandidateMatchesLegacyNegativeDenominatorGolden": len(divide_golden_a) == 4 and len(divide_golden_b) == 4 and len(divide_golden_result) == 4 and divide_golden_a[1] == divide_numerator_node.get("parameters", {}).get("value") and divide_golden_b[1] == divide_divisor_node.get("parameters", {}).get("value") and divide_golden_result[1] == 100000.0,
             "vector4DivideCandidateMatchesAllLegacyBinary32Lanes": dynamic_vector4_divide_candidate == regenerated_vector4_divide_candidate and regenerated_vector4_divide_candidate.get("outputType") == "Vector4" and "(n_numerator_value / max(n_denominator_value, float4(1e-5f,1e-5f,1e-5f,1e-5f)))" in regenerated_vector4_divide_candidate.get("hlslBody", "") and len(vector4_divide_nodes) == 3 and vector4_divide_nodes[2].get("operationId") == "artifact.rd.math.divide.vector4.positive_floor.float32" and dynamic_vector4_divide_document.get("output") == {"nodeId": "quotient", "socketId": "result"} and vector4_divide_numerator_node.get("parameters", {}).get("value") == divide_golden_a and vector4_divide_denominator_node.get("parameters", {}).get("value") == divide_golden_b and divide_golden_result == [100000.0, 100000.0, 50000.0, 100000.0],
             "vector4SubtractCandidateMatchesBinary32LaneGolden": dynamic_vector4_subtract_candidate == regenerated_vector4_subtract_candidate and regenerated_vector4_subtract_candidate.get("outputType") == "Vector4" and "(n_minuend_value - n_subtrahend_value)" in regenerated_vector4_subtract_candidate.get("hlslBody", "") and len(vector4_subtract_nodes) == 3 and vector4_subtract_nodes[2].get("operationId") == "artifact.rd.math.subtract.vector4.float32" and dynamic_vector4_subtract_document.get("output") == {"nodeId": "difference", "socketId": "result"} and vector4_subtract_minuend.get("parameters", {}).get("value") == [4.0, 3.0, 2.0, 1.0] and vector4_subtract_subtrahend.get("parameters", {}).get("value") == [1.0, 2.0, 3.0, 4.0] and vector4_subtract_result == [3.0, 1.0, -1.0, -3.0] and vector4_subtract_result_bits == ["40400000", "3F800000", "BF800000", "C0400000"],
+            "vector4InvertCandidateReproducesSourceFormulaCase": dynamic_vector4_invert_candidate == regenerated_vector4_invert_candidate and regenerated_vector4_invert_candidate.get("outputType") == "Vector4" and "lerp(n_source_color_value, (float4(1.0f, 1.0f, 1.0f, 1.0f) - n_source_color_value), saturate(n_source_factor_value))" in regenerated_vector4_invert_candidate.get("hlslBody", "") and vector4_invert_color_node.get("parameters", {}).get("value") == vector4_invert_case.get("color") and vector4_invert_factor_node.get("parameters", {}).get("value") == vector4_invert_case.get("factor") and vector4_invert_case.get("expectedVector4") == [0.5, 0.5, 0.5, 0.5] and dynamic_vector4_invert_document.get("output") == {"nodeId": "inverted", "socketId": "result"},
             "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
             "registryRejectsScalarTypeConfusion": registry_diagnostics[3:] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryScalarTypeDiagnostics"),
             "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
@@ -2538,20 +2551,23 @@ def validate(root: Path) -> list[str]:
                 dynamic_divide_candidate != regenerated_divide_candidate or
                 dynamic_vector4_divide_candidate != regenerated_vector4_divide_candidate or
                 dynamic_vector4_subtract_candidate != regenerated_vector4_subtract_candidate or
+                dynamic_vector4_invert_candidate != regenerated_vector4_invert_candidate or
                 hashlib.sha256(dynamic_registry_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("registrySha256") or
                 hashlib.sha256(dynamic_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("documentSha256") or
                 hashlib.sha256(dynamic_subtract_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("subtractDocumentSha256") or
                 hashlib.sha256(dynamic_divide_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("divideDocumentSha256") or
                 hashlib.sha256(dynamic_vector4_divide_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4DivideDocumentSha256") or
                 hashlib.sha256(dynamic_vector4_subtract_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4SubtractDocumentSha256") or
+                hashlib.sha256(dynamic_vector4_invert_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4InvertDocumentSha256") or
                 hashlib.sha256(dynamic_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("candidateSha256") or
                 hashlib.sha256(dynamic_subtract_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("subtractCandidateSha256") or
                 hashlib.sha256(dynamic_divide_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("divideCandidateSha256") or
                 hashlib.sha256(dynamic_vector4_divide_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4DivideCandidateSha256") or
                 hashlib.sha256(dynamic_vector4_subtract_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4SubtractCandidateSha256") or
+                hashlib.sha256(dynamic_vector4_invert_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4InvertCandidateSha256") or
                 regenerated_candidate.get("semanticHashSha256") != dynamic_contract.get("semanticHashSha256") or
                 hashlib.sha256(regenerated_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() != dynamic_contract.get("hlslSha256") or
-                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "float.replicate.rgb_alpha_one", "vector4.extract_x"] or
+                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.replicate.rgb_alpha_one", "vector4.extract_x"] or
                 dynamic_contract.get("contractChecks") != list(checks) or
                 not all(checks.values()) or
                 diagnostics != dynamic_contract.get("diagnosticGoldens") or
@@ -2560,7 +2576,7 @@ def validate(root: Path) -> list[str]:
                 regenerated_candidate.get("status") != "candidate-lowered-no-shader-runtime" or
                 "no shader compiler/backend/runtime" not in " ".join(regenerated_candidate.get("limitations", []))):
             failed_dynamic_checks = [name for name, passed in checks.items() if not passed]
-            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "float.replicate.rgb_alpha_one", "vector4.extract_x"]))
+            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.replicate.rgb_alpha_one", "vector4.extract_x"]))
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError, ImportError, TypeError, ValueError, OverflowError, struct.error, RuntimeError, KeyError) as error:
         errors.append(f"cannot validate dynamic graph prototype evidence: {error}")
     promotion_waves = operation_schema.get("operationPromotionWaves", [])

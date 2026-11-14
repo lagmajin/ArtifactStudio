@@ -15,7 +15,7 @@
   "hlslBody": "float n_divisor_value = -1.99999995e-05f;\nfloat n_numerator_value = 1.0f;\nfloat n_quotient_result = (n_numerator_value / max(n_divisor_value, 1e-5f));\nreturn n_quotient_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector4 sockets and twelve closed implementation IDs only",
+    "prototype supports Float/Vector4 sockets and 13 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
