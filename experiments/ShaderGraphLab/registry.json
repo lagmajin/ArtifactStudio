@@ -359,6 +359,23 @@
       ],
       "outputs": [{"socketId": "result", "valueType": "Vector4"}],
       "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.vector4.separate_channels",
+      "semanticVersion": 1,
+      "displayName": "Separate Vector4 Channels",
+      "category": "Convert",
+      "implementationId": "vector4.separate_channels",
+      "inputs": [
+        {"socketId": "vector", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "x", "valueType": "Float"},
+        {"socketId": "y", "valueType": "Float"},
+        {"socketId": "z", "valueType": "Float"},
+        {"socketId": "w", "valueType": "Float"}
+      ],
+      "parameters": []
     }
   ]
 }

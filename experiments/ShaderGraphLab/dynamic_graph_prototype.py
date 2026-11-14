@@ -42,6 +42,7 @@ BUILTIN_IMPLEMENTATIONS = {
     "float.clamp.sorted_bounds",
     *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
+    "vector4.separate_channels",
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
@@ -844,7 +845,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
             outputs=parse_sockets("outputs", False),
             parameters=tuple(parameters),
         )
-        if len(operation.outputs) != 1:
+        if len(operation.outputs) != 1 and implementation_id != "vector4.separate_channels":
             raise ContractError(f"{path_label} must declare exactly one output", code="operation.output.shape.invalid", path=f"{path}/outputs")
         if implementation_id == "float.constant" and (
                 operation.inputs or operation.outputs[0].value_type != "Float" or
@@ -900,6 +901,13 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].socket_id != "value" or operation.outputs[0].value_type != "Float" or
                 operation.parameters):
             raise ContractError(f"{path_label} vector4.extract_x requires Vector4 vector input, Float value output, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector4.separate_channels" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("vector", "Vector4", True)] or
+                [(item.socket_id, item.value_type) for item in operation.outputs] !=
+                [("x", "Float"), ("y", "Float"), ("z", "Float"), ("w", "Float")] or
+                operation.parameters):
+            raise ContractError(f"{path_label} vector4.separate_channels requires one Vector4 input, Float x/y/z/w outputs, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.divide.positive_floor_1e5" and operation.outputs[0].value_type != "Float":
             raise ContractError(f"{path_label} float.divide.positive_floor_1e5 requires Float input and output sockets", code="operation.signature.invalid", path=path)
         registry[registry_key] = operation
@@ -3380,6 +3388,15 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         elif implementation_id == "vector4.extract_x":
             source = writers[(node_id, operation.inputs[0].socket_id)]
             expression = f"({expressions[source]}).x"
+        elif implementation_id == "vector4.separate_channels":
+            source = writers[(node_id, operation.inputs[0].socket_id)]
+            vector = expressions[source]
+            for channel in operation.outputs:
+                channel_symbol = re.sub(r"[^A-Za-z0-9_]", "_", channel.socket_id)
+                variable = f"{symbol}_{channel_symbol}"
+                hlsl_lines.append(f"float {variable} = ({vector}).{channel.socket_id};")
+                expressions[(node_id, channel.socket_id)] = variable
+            continue
         elif implementation_id == "vector4.invert.linear_factor":
             color_source = writers[(node_id, "color")]
             factor_source = writers[(node_id, "factor")]

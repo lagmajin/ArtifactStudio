@@ -33,6 +33,7 @@ def main() -> int:
                                ("vector4InvertDocumentFixture", "vector4InvertCandidateFixture", "vector4InvertCandidateSha256", "vector4InvertDocumentSha256"),
                                ("clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256"),
                                ("vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256"),
+                               ("vector4SeparateDocumentFixture", "vector4SeparateCandidateFixture", "vector4SeparateCandidateSha256", "vector4SeparateDocumentSha256"),
                            )
                            if all(key in contract for key in (document_key, candidate_key, digest_key, input_digest_key)))
     generated = []

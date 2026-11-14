@@ -1368,6 +1368,8 @@ def validate(root: Path) -> list[str]:
     dynamic_clamp_candidate_path = root / dynamic_contract.get("clampCandidateFixture", "")
     dynamic_vector4_mix_document_path = root / dynamic_contract.get("vector4MixDocumentFixture", "")
     dynamic_vector4_mix_candidate_path = root / dynamic_contract.get("vector4MixCandidateFixture", "")
+    dynamic_vector4_separate_document_path = root / dynamic_contract.get("vector4SeparateDocumentFixture", "")
+    dynamic_vector4_separate_candidate_path = root / dynamic_contract.get("vector4SeparateCandidateFixture", "")
     dynamic_prototype_path = root / dynamic_contract.get("prototype", "")
     try:
         dynamic_registry_source = json.loads(dynamic_registry_path.read_text(encoding="utf-8"))
@@ -1387,6 +1389,8 @@ def validate(root: Path) -> list[str]:
         dynamic_clamp_candidate = json.loads(dynamic_clamp_candidate_path.read_text(encoding="utf-8"))
         dynamic_vector4_mix_document = json.loads(dynamic_vector4_mix_document_path.read_text(encoding="utf-8"))
         dynamic_vector4_mix_candidate = json.loads(dynamic_vector4_mix_candidate_path.read_text(encoding="utf-8"))
+        dynamic_vector4_separate_document = json.loads(dynamic_vector4_separate_document_path.read_text(encoding="utf-8"))
+        dynamic_vector4_separate_candidate = json.loads(dynamic_vector4_separate_candidate_path.read_text(encoding="utf-8"))
         dynamic_mixrgb_source = (root / "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp").read_text(encoding="utf-8")
         dynamic_mixrgb_interface = (root / "ArtifactCore/include/ShaderNode/ArtifactShaderNode.ixx").read_text(encoding="utf-8")
         dynamic_spec = importlib.util.spec_from_file_location("shader_graph_dynamic_prototype", dynamic_prototype_path)
@@ -1733,6 +1737,7 @@ def validate(root: Path) -> list[str]:
         regenerated_vector4_invert_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_invert_document, dynamic_registry)
         regenerated_clamp_candidate = dynamic_module.compile_document_from_data(dynamic_clamp_document, dynamic_registry)
         regenerated_vector4_mix_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_mix_document, dynamic_registry)
+        regenerated_vector4_separate_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_separate_document, dynamic_registry)
         dynamic_mixrgb_graph_candidates = {}
         for mode in expected_mix_modes:
             implementation_id = next(key for key, value in dynamic_module.VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION.items()
@@ -2669,7 +2674,8 @@ def validate(root: Path) -> list[str]:
             "clampCandidateLowersAllSortedBoundsGoldenInputs": dynamic_clamp_candidate == regenerated_clamp_candidate and regenerated_clamp_candidate.get("outputType") == "Float" and "clamp(n_input_value_value, min(n_input_minimum_value, n_input_maximum_value), max(n_input_minimum_value, n_input_maximum_value))" in regenerated_clamp_candidate.get("hlslBody", "") and len(clamp_golden_candidates) == len(clamp_golden.get("cases", [])) == 7 and all(case_document["nodes"][0]["parameters"]["value"] == case.get("value") and case_document["nodes"][1]["parameters"]["value"] == case.get("minimum") and case_document["nodes"][2]["parameters"]["value"] == case.get("maximum") and candidate.get("outputType") == "Float" and "clamp(" in candidate.get("hlslBody", "") and ", min(" in candidate.get("hlslBody", "") and ", max(" in candidate.get("hlslBody", "") for case, case_document, candidate in clamp_golden_candidates),
             "vector4MixCandidateMatchesLegacyMixRgbDefaultContract": dynamic_vector4_mix_candidate == regenerated_vector4_mix_candidate and regenerated_vector4_mix_candidate.get("outputType") == "Vector4" and dynamic_vector4_mix_document.get("output") == {"nodeId": "mixed", "socketId": "result"} and "float4(lerp((n_color1_value).rgb, (n_color2_value).rgb, saturate(n_factor_value)), lerp((n_color1_value).a, (n_color2_value).a, saturate(n_factor_value)))" in regenerated_vector4_mix_candidate.get("hlslBody", "") and [item.get("implementationId") for item in dynamic_registry_source.get("operations", [])].count("vector4.mix.saturated_factor") == 1 and "Blend blend = Blend::Mix;" in dynamic_mixrgb_interface and "bool clampFactor = true;" in dynamic_mixrgb_interface and "bool clampResult = false;" in dynamic_mixrgb_interface and "case MixRGBNode::Blend::Mix:" in dynamic_mixrgb_source and "float4 {0}_Color = float4({0}_rgb, lerp(({1}).a, ({2}).a, {0}_f));" in dynamic_mixrgb_source,
             "vector4MixAllLegacyModesLowerAsTypedGraphs": set(dynamic_mixrgb_graph_candidates) == set(expected_mix_modes) == set(dynamic_mix_rgb_fragments) and all(candidate.get("outputType") == "Vector4" and dynamic_mix_rgb_fragments[mode] in candidate.get("hlslBody", "") and "saturate(n_mix_factor_value)" in candidate.get("hlslBody", "") and "lerp((n_mix_color1_value).a, (n_mix_color2_value).a, saturate(n_mix_factor_value))" in candidate.get("hlslBody", "") for mode, candidate in dynamic_mixrgb_graph_candidates.items()),
-            "candidateGeneratorIncludesAllEightPersistedGraphs": all(fragment in candidate_generator_source for fragment in (
+            "vector4SeparateChannelsSupportsLinksFromEachOutput": dynamic_vector4_separate_candidate == regenerated_vector4_separate_candidate and regenerated_vector4_separate_candidate.get("outputType") == "Float" and dynamic_vector4_separate_document.get("output") == {"nodeId": "sum", "socketId": "result"} and all(f"float n_channels_{channel} = (n_color_value).{channel};" in regenerated_vector4_separate_candidate.get("hlslBody", "") for channel in ("x", "y", "z", "w")) and "(n_channels_z + n_offset_value)" in regenerated_vector4_separate_candidate.get("hlslBody", "") and [(item.socket_id, item.value_type) for item in dynamic_registry[("artifact.convert.vector4.separate_channels", 1)].outputs] == [("x", "Float"), ("y", "Float"), ("z", "Float"), ("w", "Float")],
+            "candidateGeneratorIncludesAllNinePersistedGraphs": all(fragment in candidate_generator_source for fragment in (
                 '("documentFixture", "candidateFixture", "candidateSha256", "documentSha256")',
                 '("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256")',
                 '("divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256")',
@@ -2677,7 +2683,8 @@ def validate(root: Path) -> list[str]:
                 '("vector4SubtractDocumentFixture", "vector4SubtractCandidateFixture", "vector4SubtractCandidateSha256", "vector4SubtractDocumentSha256")',
                 '("vector4InvertDocumentFixture", "vector4InvertCandidateFixture", "vector4InvertCandidateSha256", "vector4InvertDocumentSha256")',
                 '("clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256")',
-                '("vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256")')) and all(key in dynamic_contract for key in (
+                '("vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256")',
+                '("vector4SeparateDocumentFixture", "vector4SeparateCandidateFixture", "vector4SeparateCandidateSha256", "vector4SeparateDocumentSha256")')) and all(key in dynamic_contract for key in (
                     "documentFixture", "candidateFixture", "candidateSha256", "documentSha256",
                     "subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256",
                     "divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256",
@@ -2685,7 +2692,8 @@ def validate(root: Path) -> list[str]:
                     "vector4SubtractDocumentFixture", "vector4SubtractCandidateFixture", "vector4SubtractCandidateSha256", "vector4SubtractDocumentSha256",
                     "vector4InvertDocumentFixture", "vector4InvertCandidateFixture", "vector4InvertCandidateSha256", "vector4InvertDocumentSha256",
                     "clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256",
-                    "vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256")),
+                    "vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256",
+                    "vector4SeparateDocumentFixture", "vector4SeparateCandidateFixture", "vector4SeparateCandidateSha256", "vector4SeparateDocumentSha256")),
             "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
             "paletteEntriesExposeTypedSignatures": 'const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?\' (required)\':\'\'}`).join(\', \')||\'none\';' in local_ui_html_source and 'Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}' in local_ui_html_source and 'title="${esc(signature)}"' in local_ui_html_source and 'aria-label="${esc(`${item.label}. ${signature}`)}"' in local_ui_html_source,
             "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
@@ -2707,6 +2715,7 @@ def validate(root: Path) -> list[str]:
                 dynamic_vector4_invert_candidate != regenerated_vector4_invert_candidate or
                 dynamic_clamp_candidate != regenerated_clamp_candidate or
                 dynamic_vector4_mix_candidate != regenerated_vector4_mix_candidate or
+                dynamic_vector4_separate_candidate != regenerated_vector4_separate_candidate or
                 hashlib.sha256(dynamic_registry_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("registrySha256") or
                 hashlib.sha256(dynamic_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("documentSha256") or
                 hashlib.sha256(dynamic_subtract_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("subtractDocumentSha256") or
@@ -2716,6 +2725,7 @@ def validate(root: Path) -> list[str]:
                 hashlib.sha256(dynamic_vector4_invert_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4InvertDocumentSha256") or
                 hashlib.sha256(dynamic_clamp_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("clampDocumentSha256") or
                 hashlib.sha256(dynamic_vector4_mix_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4MixDocumentSha256") or
+                hashlib.sha256(dynamic_vector4_separate_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4SeparateDocumentSha256") or
                 hashlib.sha256(dynamic_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("candidateSha256") or
                 hashlib.sha256(dynamic_subtract_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("subtractCandidateSha256") or
                 hashlib.sha256(dynamic_divide_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("divideCandidateSha256") or
@@ -2724,9 +2734,10 @@ def validate(root: Path) -> list[str]:
                 hashlib.sha256(dynamic_vector4_invert_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4InvertCandidateSha256") or
                 hashlib.sha256(dynamic_clamp_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("clampCandidateSha256") or
                 hashlib.sha256(dynamic_vector4_mix_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4MixCandidateSha256") or
+                hashlib.sha256(dynamic_vector4_separate_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("vector4SeparateCandidateSha256") or
                 regenerated_candidate.get("semanticHashSha256") != dynamic_contract.get("semanticHashSha256") or
                 hashlib.sha256(regenerated_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() != dynamic_contract.get("hlslSha256") or
-                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor"] or
+                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels"] or
                 dynamic_contract.get("contractChecks") != list(checks) or
                 not all(checks.values()) or
                 diagnostics != dynamic_contract.get("diagnosticGoldens") or
@@ -2735,7 +2746,7 @@ def validate(root: Path) -> list[str]:
                 regenerated_candidate.get("status") != "candidate-lowered-no-shader-runtime" or
                 "no shader compiler/backend/runtime" not in " ".join(regenerated_candidate.get("limitations", []))):
             failed_dynamic_checks = [name for name, passed in checks.items() if not passed]
-            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor"]))
+            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels"]))
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError, ImportError, TypeError, ValueError, OverflowError, struct.error, RuntimeError, KeyError) as error:
         errors.append(f"cannot validate dynamic graph prototype evidence: {error}")
     promotion_waves = operation_schema.get("operationPromotionWaves", [])
