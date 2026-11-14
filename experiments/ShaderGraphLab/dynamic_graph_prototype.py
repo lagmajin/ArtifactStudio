@@ -23,13 +23,24 @@ from pathlib import Path
 from typing import Any, Callable
 
 
+VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION = {
+    "vector4.mix.saturated_factor": "mix",
+    "vector4.mixrgb.add.saturated_factor": "add",
+    "vector4.mixrgb.multiply.saturated_factor": "multiply",
+    "vector4.mixrgb.screen.saturated_factor": "screen",
+    "vector4.mixrgb.overlay.saturated_factor": "overlay",
+    "vector4.mixrgb.darken.saturated_factor": "darken",
+    "vector4.mixrgb.lighten.saturated_factor": "lighten",
+    "vector4.mixrgb.difference.saturated_factor": "difference",
+}
+
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
     "float.clamp.sorted_bounds",
-    "vector4.mix.saturated_factor",
+    *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
 MAX_JSON_NESTING = 256
@@ -870,7 +881,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].value_type != "Float" or
                 operation.parameters):
             raise ContractError(f"{path_label} float.clamp.sorted_bounds requires Float value/minimum/maximum inputs, a Float result, and no parameters", code="operation.signature.invalid", path=path)
-        if implementation_id == "vector4.mix.saturated_factor" and (
+        if implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION and (
                 [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
                 [("factor", "Float", True), ("color1", "Vector4", True), ("color2", "Vector4", True)] or
                 operation.outputs[0].socket_id != "result" or
@@ -3383,14 +3394,28 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             minimum = expressions[minimum_source]
             maximum = expressions[maximum_source]
             expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
-        elif implementation_id == "vector4.mix.saturated_factor":
+        elif implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION:
             factor_source = writers[(node_id, "factor")]
             color1_source = writers[(node_id, "color1")]
             color2_source = writers[(node_id, "color2")]
             factor = expressions[factor_source]
             color1 = expressions[color1_source]
             color2 = expressions[color2_source]
-            expression = (f"float4(lerp(({color1}).rgb, ({color2}).rgb, saturate({factor})), "
+            color1_rgb, color2_rgb = f"({color1}).rgb", f"({color2}).rgb"
+            mode = VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION[implementation_id]
+            blend = {
+                "mix": color2_rgb,
+                "add": f"({color1_rgb} + {color2_rgb})",
+                "multiply": f"({color1_rgb} * {color2_rgb})",
+                "screen": f"(1.0f - (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}))",
+                "overlay": (f"lerp(2.0f * {color1_rgb} * {color2_rgb}, "
+                            f"1.0f - 2.0f * (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}), "
+                            f"step(0.5f, {color1_rgb}))"),
+                "darken": f"min({color1_rgb}, {color2_rgb})",
+                "lighten": f"max({color1_rgb}, {color2_rgb})",
+                "difference": f"abs({color1_rgb} - {color2_rgb})",
+            }[mode]
+            expression = (f"float4(lerp({color1_rgb}, {blend}, saturate({factor})), "
                           f"lerp(({color1}).a, ({color2}).a, saturate({factor})))")
         else:
             source_a = writers[(node_id, operation.inputs[0].socket_id)]

@@ -195,6 +195,104 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.color.mixrgb.add.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Add)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.add.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.multiply.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Multiply)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.multiply.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.screen.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Screen)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.screen.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.overlay.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Overlay)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.overlay.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.darken.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Darken)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.darken.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.lighten.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Lighten)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.lighten.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.difference.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Difference)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.difference.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
       "semanticVersion": 1,
       "displayName": "Replicate to Vector4",

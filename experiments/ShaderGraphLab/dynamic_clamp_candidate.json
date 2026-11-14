@@ -16,7 +16,7 @@
   "hlslBody": "float n_input_maximum_value = 1.0f;\nfloat n_input_minimum_value = 0.0f;\nfloat n_input_value_value = 0.5f;\nfloat n_clamped_result = clamp(n_input_value_value, min(n_input_minimum_value, n_input_maximum_value), max(n_input_minimum_value, n_input_maximum_value));\nreturn n_clamped_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector4 sockets and 15 closed implementation IDs only",
+    "prototype supports Float/Vector4 sockets and 22 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
