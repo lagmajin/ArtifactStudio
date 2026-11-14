@@ -5973,6 +5973,7 @@
         "vector4RampAlphaCanBeSelectedAsFloatOutput",
         "vector4RampFactorComesFromSurfaceUv0X",
         "multipleSourceContextNodesDeduplicateAndRemainOrderStable",
+        "rampStopsPersistExactlyThroughFileRoundTrip",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
