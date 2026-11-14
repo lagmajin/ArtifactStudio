@@ -216,7 +216,7 @@
       render();
       if (focusIdentity) {
         const selector=focusIdentity.kind==='node'
-          ? `[data-node="${CSS.escape(focusIdentity.node)}"][data-param="${CSS.escape(focusIdentity.parameter)}"]`
+          ? `[data-node="${CSS.escape(focusIdentity.node)}"][data-param="${CSS.escape(focusIdentity.parameter)}"]${focusIdentity.rampIndex===undefined?'':`[data-ramp-index="${CSS.escape(focusIdentity.rampIndex)}"]`}${focusIdentity.rampField===undefined?'':`[data-ramp-field="${CSS.escape(focusIdentity.rampField)}"]`}`
           : `[data-graph-param="${CSS.escape(focusIdentity.parameter)}"]`;
         const laneSelector=focusIdentity.lane===undefined?'':`[data-lane="${CSS.escape(focusIdentity.lane)}"]`;
         document.querySelector(`${selector}${laneSelector}`)?.focus({preventScroll:true});
@@ -237,7 +237,7 @@
   const post = action => {
     const active=document.activeElement;
     const focusIdentity=active&&active.matches('[data-param]')
-      ? {kind:'node',node:active.dataset.node,parameter:active.dataset.param,lane:active.dataset.lane}
+      ? {kind:'node',node:active.dataset.node,parameter:active.dataset.param,lane:active.dataset.lane,rampIndex:active.dataset.rampIndex,rampField:active.dataset.rampField}
       : active&&active.matches('[data-graph-param]')
         ? {kind:'graph',parameter:active.dataset.graphParam,lane:active.dataset.lane}
         : null;

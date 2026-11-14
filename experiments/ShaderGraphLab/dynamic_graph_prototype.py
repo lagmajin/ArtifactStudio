@@ -3464,8 +3464,9 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
                 local_t = f"{symbol}_t_{stop_index}"
                 hlsl_lines.extend([
                     f"float {local_t} = saturate(({symbol}_factor - {previous_position}) / max({current_position} - {previous_position}, 1e-5f));",
-                    f"if ({symbol}_factor >= {previous_position}) {symbol}_color = lerp({previous_color}, {current_color}, {local_t});",
+                    f"if ({symbol}_factor >= {previous_position} && {symbol}_factor < {current_position}) {symbol}_color = lerp({previous_color}, {current_color}, {local_t});",
                 ])
+            hlsl_lines.append(f"if ({symbol}_factor >= {symbol}_stop_{len(ordered) - 1}) {symbol}_color = {symbol}_stop_color_{len(ordered) - 1};")
             hlsl_lines.append(f"float {symbol}_alpha = {symbol}_color.a;")
             expressions[(node_id, "color")] = f"{symbol}_color"
             expressions[(node_id, "alpha")] = f"{symbol}_alpha"
