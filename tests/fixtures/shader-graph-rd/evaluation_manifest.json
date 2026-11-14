@@ -5972,6 +5972,7 @@
         "vector4RampLowersEditableStableStopsAndBothOutputs",
         "vector4RampAlphaCanBeSelectedAsFloatOutput",
         "vector4RampFactorComesFromSurfaceUv0X",
+        "multipleSourceContextNodesDeduplicateAndRemainOrderStable",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
@@ -6107,7 +6108,8 @@
           "backendNeutral": false,
           "implementationId": "float.uv0.x",
           "component": "x",
-          "contextId": "artifact.material.surface.uv0"
+          "contextId": "artifact.material.surface.uv0",
+          "valueType": "Float"
         }
       ]
     }

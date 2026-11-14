@@ -3563,6 +3563,8 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         hlsl_lines.append(f"{hlsl_type} {variable} = {expression};")
         expressions[(node_id, output_id)] = variable
 
+    for binding in context_bindings_by_key.values():
+        binding["nodeIds"].sort()
     root_expression = expressions[(output_node, output_socket)]
     hlsl = "\n".join(hlsl_lines) + f"\nreturn {root_expression};\n"
     semantic_projection = {
