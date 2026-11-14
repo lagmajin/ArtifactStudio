@@ -2700,6 +2700,66 @@ def validate(root: Path) -> list[str]:
                 typed_ir, sort_keys=True, separators=(",", ":"), ensure_ascii=False
             ).encode("utf-8")
             return candidate.get("typedIRSemanticHashSha256") == hashlib.sha256(encoded_ir).hexdigest().upper()
+        def typed_ir_edges_are_well_typed(candidate: dict[str, Any]) -> bool:
+            typed_ir = candidate.get("typedIR")
+            if (not isinstance(typed_ir, dict) or
+                    typed_ir.get("schemaId") != "artifact.shadergraph.typed-ir" or
+                    typed_ir.get("schemaVersion") != 1 or
+                    not isinstance(typed_ir.get("operations"), list)):
+                return False
+            operations = typed_ir["operations"]
+            by_node = {item.get("nodeId"): item for item in operations
+                       if isinstance(item, dict) and isinstance(item.get("nodeId"), str)}
+            if len(by_node) != len(operations):
+                return False
+            operation_order = {item["nodeId"]: index
+                               for index, item in enumerate(operations)}
+            outputs_by_node = {}
+            for operation in operations:
+                if not isinstance(operation, dict):
+                    return False
+                raw_outputs = operation.get("outputs")
+                raw_inputs = operation.get("inputs")
+                if not isinstance(raw_outputs, list) or not isinstance(raw_inputs, list):
+                    return False
+                output_types = {}
+                for output_socket in raw_outputs:
+                    if (not isinstance(output_socket, dict) or
+                            not isinstance(output_socket.get("socketId"), str) or
+                            not isinstance(output_socket.get("valueType"), str) or
+                            output_socket["socketId"] in output_types):
+                        return False
+                    output_types[output_socket["socketId"]] = output_socket["valueType"]
+                outputs_by_node[operation["nodeId"]] = output_types
+                for input_socket in raw_inputs:
+                    if (not isinstance(input_socket, dict) or
+                            not isinstance(input_socket.get("socketId"), str) or
+                            not isinstance(input_socket.get("valueType"), str) or
+                            not isinstance(input_socket.get("required"), bool)):
+                        return False
+                    producer = input_socket.get("producer")
+                    if producer is None:
+                        if input_socket.get("required"):
+                            return False
+                        continue
+                    if (not isinstance(producer, dict) or
+                            not isinstance(producer.get("nodeId"), str) or
+                            not isinstance(producer.get("socketId"), str)):
+                        return False
+                    producer_operation = by_node.get(producer.get("nodeId"))
+                    if (producer_operation is None or
+                            operation_order.get(producer["nodeId"], len(operations)) >=
+                            operation_order[operation["nodeId"]]):
+                        return False
+                    producer_type = outputs_by_node.get(producer["nodeId"], {}).get(
+                        producer.get("socketId"))
+                    if producer_type is None or producer_type != input_socket.get("valueType"):
+                        return False
+            output = typed_ir.get("output")
+            if not isinstance(output, dict):
+                return False
+            return outputs_by_node.get(output.get("nodeId"), {}).get(
+                output.get("socketId")) == output.get("valueType")
         typed_ir_contract_expected = (
             "schema artifact.shadergraph.typed-ir v1; canonical SHA-256; typed socket operands, outputs, "
             "parameter values or shared graph-parameter references and values, and typed host-context "
@@ -2791,6 +2851,7 @@ def validate(root: Path) -> list[str]:
             "multipleSourceContextNodesDeduplicateAndRemainOrderStable": multi_context_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(In.UV).x", "nodeIds": ["uv", "uv_second"]}] and multi_context_candidate["contextBindings"] == reordered_multi_context_candidate["contextBindings"] and multi_context_candidate["semanticHashSha256"] == reordered_multi_context_candidate["semanticHashSha256"] and multi_context_candidate["shaderStructureHashSha256"] == reordered_multi_context_candidate["shaderStructureHashSha256"] and multi_context_candidate["hlslBody"] == reordered_multi_context_candidate["hlslBody"],
             "hostContextAdapterChangesOnlyBackendExpression": alternate_context_candidate["semanticHashSha256"] == regenerated_vector4_ramp_candidate["semanticHashSha256"] and alternate_context_candidate["shaderStructureHashSha256"] == regenerated_vector4_ramp_candidate["shaderStructureHashSha256"] and alternate_context_candidate["hlslBody"] != regenerated_vector4_ramp_candidate["hlslBody"] and alternate_context_candidate["hlslBodySha256"] != regenerated_vector4_ramp_candidate["hlslBodySha256"] and alternate_context_candidate["hlslBodySha256"] == hashlib.sha256(alternate_context_candidate["hlslBody"].encode("utf-8")).hexdigest().upper() and "(MaterialInput.UV).x" in alternate_context_candidate["hlslBody"] and alternate_context_candidate["contextBindings"] == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(MaterialInput.UV).x", "nodeIds": ["uv"]}],
             "typedIRIsBackendSourceNeutralAndContentAddressed": dynamic_contract.get("typedIRContract") == typed_ir_contract_expected and all(typed_ir_hash_matches(item) for item in dynamic_candidate_results) and alternate_context_candidate["typedIR"] == regenerated_vector4_ramp_candidate["typedIR"] and alternate_context_candidate["typedIRSemanticHashSha256"] == regenerated_vector4_ramp_candidate["typedIRSemanticHashSha256"] and reordered_multi_context_candidate["typedIRSemanticHashSha256"] == multi_context_candidate["typedIRSemanticHashSha256"] and shared_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.25 and edited_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.75 and edited_graph_parameter_compile["typedIRSemanticHashSha256"] != shared_graph_parameter_compile["typedIRSemanticHashSha256"] and "(In.UV).x" not in json.dumps(regenerated_vector4_ramp_candidate["typedIR"], sort_keys=True) and "(MaterialInput.UV).x" not in json.dumps(alternate_context_candidate["typedIR"], sort_keys=True),
+            "typedIRHasWellTypedCompleteEdges": all(typed_ir_edges_are_well_typed(item) for item in dynamic_candidate_results + [multi_context_candidate, regenerated_vector4_ramp_alpha_candidate]) and dynamic_vector4_ramp_candidate["typedIR"]["schemaId"] == "artifact.shadergraph.typed-ir" and dynamic_vector4_separate_candidate["typedIR"]["schemaVersion"] == 1,
             "emittedSourceHashMatchesPinnedRampCandidate": regenerated_vector4_ramp_candidate.get("hlslBodySha256") == dynamic_contract.get("hlslSha256") == hashlib.sha256(regenerated_vector4_ramp_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() and dynamic_contract.get("emittedSourceHashContract") == "SHA-256 of exact UTF-8 hlslBody bytes; adapter-specific source identity, separate from semantic and structure hashes",
             "hostContextAdapterRejectsMalformedAndMissingBindings": malformed_context_binding_diagnostic == {"code": "shader.context.binding.invalid", "severity": "error", "path": "/contextBindings"} and missing_context_binding_diagnostic == {"code": "shader.context.binding.unsupported", "severity": "error", "path": "/nodes/uv"},
             "rampStopsPersistExactlyThroughFileRoundTrip": ramp_roundtrip_saved_hash == ramp_roundtrip_loaded_hash == ramp_roundtrip_resaved_hash and ramp_roundtrip_resaved_document == dynamic_vector4_ramp_document and ramp_roundtrip_resaved_document["nodes"][1]["parameters"]["stops"] == ramp_stops_before_edit,

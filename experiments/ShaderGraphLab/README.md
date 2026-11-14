@@ -38,7 +38,8 @@ UV host binding changes emitted HLSL without changing this typed record. This
 is an R&D sidecar, not a complete backend-neutral Core contract: defaults,
 resource operands, diagnostics,
 provenance separation, and runtime consumers remain open. Its manifest checks
-are source-defined and have not been executed.
+cover typed producer resolution and type agreement, but are source-defined and
+have not been executed.
 
 Generate the CPU-only Ramp image oracle with:
 
