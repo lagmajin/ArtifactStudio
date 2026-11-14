@@ -17,7 +17,7 @@
   "hlslBody": "float n_constant_a_value = 0.25f;\nfloat n_constant_b_value = 0.5f;\nfloat n_scale_value = 2.0f;\nfloat n_sum_result = (n_constant_a_value + n_constant_b_value);\nfloat n_result_result = (n_sum_result * n_scale_value);\nreturn n_result_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector4 sockets and eleven closed implementation IDs only",
+    "prototype supports Float/Vector4 sockets and twelve closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",

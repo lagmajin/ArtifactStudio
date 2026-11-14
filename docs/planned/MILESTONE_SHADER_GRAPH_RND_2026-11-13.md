@@ -446,7 +446,7 @@ The source contract has an asymmetry worth preserving in any compatibility adapt
 
 Registry ingress has manifest-covered negative cases for unknown operation fields, duplicate operation/version registrations, and duplicate socket IDs; each is rejected before a palette or compiler can consume an ambiguous definition. The loader now also explicitly rejects boolean/non-integer schema versions and non-string implementation/socket/parameter type tags, preventing unhashable JSON values from escaping as Python `TypeError`. File ingress validates JSON value depth before iterative forbidden-code-field scanning, and parser recursion failures map to a structured depth diagnostic. Editing APIs route serialized node identity lookups through a type-safe helper, so malformed version values resolve as unavailable operations instead of leaking hash errors. Undo/redo and command grouping now re-parse canonical snapshot objects and verify payload hashes before restoring or composing history. These new scalar-type, depth, edit-boundary, and history-integrity guards are not yet covered by manifest fixtures. All evidence is Python source-only and does not verify a production registry service.
 
-This prototype separates dynamic graph data from executable implementations. Registry JSON can select only a closed implementation ID; it cannot supply code or HLSL. Adding a new algorithm still requires a reviewed native implementation and semantic version. The prototype covers only Float/Vector4 and eleven closed operations, so it is not evidence of Blender compatibility or product readiness.
+This prototype separates dynamic graph data from executable implementations. Registry JSON can select only a closed implementation ID; it cannot supply code or HLSL. Adding a new algorithm still requires a reviewed native implementation and semantic version. The prototype covers only Float/Vector4 and twelve closed operations, so it is not evidence of Blender compatibility or product readiness.
 
 ### R&D operation addition: scalar subtraction (2026-11-15)
 
@@ -501,6 +501,10 @@ The prototype's registry/document file reads and document saves now share a 16 M
 ## Vector4 arithmetic node wave (2026-11-14)
 
 The registry and closed lowerer now include `vector4.add` and `vector4.multiply`, each with exactly two required `Vector4` inputs and a `Vector4` result. These operate component-wise over raw lanes, including alpha; they deliberately make no Color4 transfer, premultiplication, or clamping claim. A source-only graph chains two Vector4 constants through Add and Multiply, verifies typed links and HLSL structure, and confirms a parameter edit changes semantic identity. An independent binary32 CPU candidate confirms lane-wise results, including alpha above one; it is a formula oracle, not shader runtime evidence. A Float-to-Vector4 edge remains rejected. Both operations appear automatically in the local editor palette from registry metadata. Shader compilation and rendered behavior remain unverified.
+
+## Vector4 subtraction node (2026-11-15)
+
+Added `vector4.subtract` as the same closed two-required-input/one-output signature, with component-wise raw-lane `a - b`. Its graph uses exact four-lane values and the manifest records expected binary32 result bits (`40400000`, `3F800000`, `BF800000`, `C0400000`) alongside a reproducible HLSL candidate and document/candidate digests. This fills the Vector4 arithmetic registry gap beside Add, Multiply, and the explicitly legacy-shaped Divide. It is an independent mathematical contract, not a claim of legacy source parity; no HLSL compiler, GPU execution, or rendered behavior was evaluated.
 
 ## Compatible operation replacement (2026-11-14)
 

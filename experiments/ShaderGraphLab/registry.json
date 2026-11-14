@@ -141,6 +141,19 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.subtract.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Subtract",
+      "category": "Math",
+      "implementationId": "vector4.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
       "semanticVersion": 1,
       "displayName": "Replicate to Vector4",

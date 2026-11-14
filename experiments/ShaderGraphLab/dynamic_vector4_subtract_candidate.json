@@ -1,0 +1,24 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "16F27E9244F810B5923985001F367F57E4FE70DE894DF3DBD616CFE8453A1388",
+  "shaderStructureHashSha256": "16F27E9244F810B5923985001F367F57E4FE70DE894DF3DBD616CFE8453A1388",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "topologicalNodeIds": [
+    "minuend",
+    "subtrahend",
+    "difference"
+  ],
+  "outputType": "Vector4",
+  "hlslBody": "float4 n_minuend_value = float4(4.0f, 3.0f, 2.0f, 1.0f);\nfloat4 n_subtrahend_value = float4(1.0f, 2.0f, 3.0f, 4.0f);\nfloat4 n_difference_result = (n_minuend_value - n_subtrahend_value);\nreturn n_difference_result;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector4 sockets and twelve closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}

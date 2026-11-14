@@ -26,7 +26,7 @@ from typing import Any, Callable
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
-    "vector4.add", "vector4.multiply", "vector4.divide.positive_floor_1e5",
+    "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
 MAX_JSON_NESTING = 256
@@ -824,7 +824,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
                 operation.parameters[0].value_type != "Vector4F32"):
             raise ContractError(f"{path_label} vector4.constant requires zero inputs, one Vector4 output, and one Vector4F32 value parameter", code="operation.signature.invalid", path=path)
-        if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.multiply", "vector4.divide.positive_floor_1e5"} and (
+        if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5"} and (
                 (operation.inputs[0].value_type if len(operation.inputs) > 0 else None) !=
                 ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 (operation.inputs[1].value_type if len(operation.inputs) > 1 else None) !=
@@ -3330,7 +3330,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             else:
                 operator = {
                     "float.add": "+", "float.subtract": "-", "float.multiply": "*",
-                    "vector4.add": "+", "vector4.multiply": "*",
+                    "vector4.add": "+", "vector4.subtract": "-", "vector4.multiply": "*",
                 }[implementation_id]
                 expression = f"({a} {operator} {b})"
         output_symbol = re.sub(r"[^A-Za-z0-9_]", "_", output_id)
@@ -3418,7 +3418,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         "hlslBody": hlsl,
         "warnings": warnings,
         "limitations": [
-            "prototype supports Float/Vector4 sockets and eleven closed implementation IDs only",
+            "prototype supports Float/Vector4 sockets and twelve closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
