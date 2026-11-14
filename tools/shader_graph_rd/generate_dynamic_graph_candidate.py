@@ -29,6 +29,9 @@ def main() -> int:
                                ("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256"),
                                ("divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256"),
                                ("vector4DivideDocumentFixture", "vector4DivideCandidateFixture", "vector4DivideCandidateSha256", "vector4DivideDocumentSha256"),
+                               ("vector4SubtractDocumentFixture", "vector4SubtractCandidateFixture", "vector4SubtractCandidateSha256", "vector4SubtractDocumentSha256"),
+                               ("vector4InvertDocumentFixture", "vector4InvertCandidateFixture", "vector4InvertCandidateSha256", "vector4InvertDocumentSha256"),
+                               ("clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256"),
                            )
                            if all(key in contract for key in (document_key, candidate_key, digest_key, input_digest_key)))
     generated = []

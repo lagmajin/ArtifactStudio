@@ -5913,6 +5913,7 @@
         "vector4InvertCandidateReproducesSourceFormulaCase",
         "vector4InvertCandidateLowersAllGoldenInputs",
         "clampCandidateLowersAllSortedBoundsGoldenInputs",
+        "candidateGeneratorIncludesAllSevenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",

@@ -504,7 +504,7 @@ The registry and closed lowerer now include `vector4.add` and `vector4.multiply`
 
 ## Vector4 subtraction node (2026-11-15)
 
-Added `vector4.subtract` as the same closed two-required-input/one-output signature, with component-wise raw-lane `a - b`. Its graph uses exact four-lane values and the manifest records expected binary32 result bits (`40400000`, `3F800000`, `BF800000`, `C0400000`) alongside a reproducible HLSL candidate and document/candidate digests. This fills the Vector4 arithmetic registry gap beside Add, Multiply, and the explicitly legacy-shaped Divide. It is an independent mathematical contract, not a claim of legacy source parity; no HLSL compiler, GPU execution, or rendered behavior was evaluated.
+Added `vector4.subtract` as the same closed two-required-input/one-output signature, with component-wise raw-lane `a - b`. Its graph uses exact four-lane values and the manifest records expected binary32 result bits (`40400000`, `3F800000`, `BF800000`, `C0400000`) alongside a reproducible HLSL candidate and document/candidate digests. This fills the Vector4 arithmetic registry gap beside Add, Multiply, and the explicitly legacy-shaped Divide. The candidate regeneration command now covers all seven persisted graph/candidate pairs, including Vector4 Subtract/Invert and Clamp, so these snapshots and digests are reproducible through one source generator; a source contract pins every document/candidate/hash tuple. It is an independent mathematical contract, not a claim of legacy source parity; no HLSL compiler, GPU execution, or rendered behavior was evaluated.
 
 ## Vector4 invert graph candidate (2026-11-15)
 
