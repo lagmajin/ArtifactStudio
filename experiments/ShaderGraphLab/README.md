@@ -48,9 +48,11 @@ an operation with optional inputs or editing a socket default upgrades the
 document and snapshots every known optional input value. A connected producer
 still drives the shader; its dormant default remains saved but is excluded from
 active semantic and typed-IR identity. The local graph editor exposes numeric
-controls on optional sockets. The persisted zero-B Add candidate exercises the
-path. Core integration, browser interaction, and the validator contract remain
-unverified.
+controls on optional sockets. Persisted Float and Vector4 candidates exercise
+the lowering paths. Source contracts cover Vector4 lane edits, malformed lane
+count and binary32 overflow rejection, connected-default semantic/source
+stability, and the local session action. Core integration, browser interaction,
+and validator execution remain unverified.
 
 Generate the CPU-only Ramp image oracle with:
 
