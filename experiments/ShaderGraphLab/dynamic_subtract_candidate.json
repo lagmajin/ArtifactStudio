@@ -15,7 +15,7 @@
   "hlslBody": "float n_minuend_value = 0.75f;\nfloat n_subtrahend_value = 0.25f;\nfloat n_difference_result = (n_minuend_value - n_subtrahend_value);\nreturn n_difference_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector4 sockets and ten closed implementation IDs only",
+    "prototype supports Float/Vector4 sockets and eleven closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
     "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",

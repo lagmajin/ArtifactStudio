@@ -28,6 +28,7 @@ def main() -> int:
                            for document_key, candidate_key, digest_key, input_digest_key in (
                                ("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256"),
                                ("divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256"),
+                               ("vector4DivideDocumentFixture", "vector4DivideCandidateFixture", "vector4DivideCandidateSha256", "vector4DivideDocumentSha256"),
                            )
                            if all(key in contract for key in (document_key, candidate_key, digest_key, input_digest_key)))
     generated = []

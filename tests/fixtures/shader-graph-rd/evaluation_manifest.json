@@ -5783,15 +5783,19 @@
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "3BE00D56BFC9526DEE448217D593DD963CBD79608AC4F3062B4CF0F73E6F2F17",
+      "candidateSha256": "59A99B313EA584AD77DD2513DBA84363CFC5D2D08D59F321840E0040574D1C46",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "220EE40663070F3F29BFB2495B165C23A41E3746A44BAEBA5922AC8168F51D87",
+      "subtractCandidateSha256": "C43F5C4317972772D655733D4C4B238673631A1C7BE7168E996E8563B87393F6",
       "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
       "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
       "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
-      "divideCandidateSha256": "B276482840ACE64AB5A1C086477ABD3A3ABBB5C96FA429C7CF9C076FD2B938E7",
+      "divideCandidateSha256": "8DFAC7D60643226EF3BA5BE215170EA12C5FA1DE4C8F68E0C3E9584E48D7E793",
       "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
+      "vector4DivideDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide.json",
+      "vector4DivideCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide_candidate.json",
+      "vector4DivideCandidateSha256": "8AA96729810F46CFF0A0D9863A60BB16C622F50A2B00C2C137474DA580F7EBFB",
+      "vector4DivideDocumentSha256": "A4221B83ABFDC49F2B149E54139A3A9CB30394B1D8FF7FD5CEB7BA25563177CE",
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
@@ -5803,6 +5807,7 @@
         "float.divide.positive_floor_1e5",
         "vector4.add",
         "vector4.multiply",
+        "vector4.divide.positive_floor_1e5",
         "float.replicate.rgb_alpha_one",
         "vector4.extract_x"
       ],
@@ -5886,9 +5891,10 @@
         "socketTypeMismatchRejected",
         "subtractCandidateReproducesDedicatedGraph",
         "divideCandidateReproducesPositiveFloorContract",
-        "divideCandidateMatchesLegacyNegativeDenominatorGolden"
+        "divideCandidateMatchesLegacyNegativeDenominatorGolden",
+        "vector4DivideCandidateMatchesAllLegacyBinary32Lanes"
       ],
-      "registrySha256": "541424257F7B27013204ED8A05CBD7DB92DCDDAC3CA314E6CA1460DE2E2027ED",
+      "registrySha256": "C89B862ED3AA27E057AEF75648D0D783150A345E4011449DD0C628C5D142967A",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {

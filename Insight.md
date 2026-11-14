@@ -14758,3 +14758,17 @@
 - **価値または懸念:** 個別Inspector値の編集順は別経路なので、同じ問題が残る可能性がある。controllerの選択crop操作は修正済み。
 - **未検証:** Inspectorの個別数値編集順、実GPU Previewの境界位置。
 - **次に確認すべきこと:** Inspector経路とComposition GPU Preview captureを照合する。
+
+## 2026-11-15: Vector4 divide candidate maps the entire legacy epsilon probe
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::MathNode::Op::Divide`、`tests/fixtures/shader-graph-rd/math_divide.json`、`tests/fixtures/shader-graph-rd/math_operation_formula_golden.json`、`experiments/ShaderGraphLab/dynamic_vector4_divide.json`。
+- **確認できた事実:** The existing four-lane divide probe uses B values `0`, `-2e-5`, `2e-5`, and `-2`, with source-bound finite binary32 outputs `100000`, `100000`, `50000`, and `100000`. The dynamic prototype now has a versioned Vector4 operation emitting component-wise division by `max(B, float4(1e-5f,...))`, and its validator contract maps the fixture arrays to all four golden lanes.
+- **価値または懸念:** This gives the R&D typed Vector4 path direct correspondence to the vectorized legacy node and exercises channel-wise denominator policy rather than projecting only one scalar lane. It treats alpha as an ordinary raw lane and does not prove GPU or legacy renderer equivalence.
+- **次に確認すべきこと:** Run the manifest validation and HLSL compilation/runtime probe when explicitly approved; compare all four output lanes and finite/exceptional boundaries before any Core promotion.
+- **未検証:** This source candidate has not been passed through the manifest validator, HLSL compiler, GPU capture, or C++ build/test.
+
+## 2026-11-15: Vector4 divide candidate maps the entire legacy epsilon probe
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::MathNode::Op::Divide`、`tests/fixtures/shader-graph-rd/math_divide.json`、`tests/fixtures/shader-graph-rd/math_operation_formula_golden.json`、`experiments/ShaderGraphLab/dynamic_vector4_divide.json`。
+- **確認できた事実:** The existing four-lane divide probe uses B values `0`, `-2e-5`, `2e-5`, and `-2`, with source-bound finite binary32 outputs `100000`, `100000`, `50000`, and `100000`. The dynamic prototype now has a versioned Vector4 operation emitting component-wise division by `max(B, float4(1e-5f,...))`, and its validator contract maps the fixture arrays to all four golden lanes.
+- **価値または懸念:** This gives the R&D typed Vector4 path direct correspondence to the vectorized legacy node and exercises channel-wise denominator policy rather than projecting only one scalar lane. It treats alpha as an ordinary raw lane and does not prove GPU or legacy renderer equivalence.
+- **次に確認すべきこと:** Run the manifest validation and HLSL compilation/runtime probe when explicitly approved; compare all four output lanes and finite/exceptional boundaries before any Core promotion.
+- **未検証:** This source candidate has not been passed through the manifest validator, HLSL compiler, GPU capture, or C++ build/test.

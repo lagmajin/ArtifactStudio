@@ -194,6 +194,19 @@
       ],
       "outputs": [{"socketId": "result", "valueType": "Float"}],
       "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Divide (Positive Floor)",
+      "category": "Math",
+      "implementationId": "vector4.divide.positive_floor_1e5",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
     }
   ]
 }
