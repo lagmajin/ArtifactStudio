@@ -35,20 +35,21 @@ operation/version identity, parameter values or shared-parameter references,
 shared parameter values and bindings, typed outputs, and source-context
 identities. The IR contains no HLSL adapter expressions; changing the alternate
 UV host binding changes emitted HLSL without changing this typed record. This
-is an R&D sidecar, not a complete backend-neutral Core contract: defaults,
-resource operands, diagnostics,
+is an R&D sidecar, not a complete backend-neutral Core contract: resource
+operands, diagnostics,
 provenance separation, and runtime consumers remain open. Its manifest checks
 cover typed producer resolution and type agreement, but are source-defined and
 have not been executed.
 
-The registry also supports optional typed input defaults. A connected producer
-overrides that immutable operation-version default; required inputs still need
-links. The declared default is included in the operation contract, palette
-metadata, and replacement compatibility. It enters the active semantic
-projection and typed IR only while unconnected; a producer overrides it. The
-sample zero-B Add operation demonstrates the path. Per-node default editing
-and persistence are not implemented, and the source contract remains
-unexecuted.
+Optional typed input defaults are declared by operation versions, while
+document schema v3 stores an editable Float or Vector4 default per node. Adding
+an operation with optional inputs or editing a socket default upgrades the
+document and snapshots every known optional input value. A connected producer
+still drives the shader; its dormant default remains saved but is excluded from
+active semantic and typed-IR identity. The local graph editor exposes numeric
+controls on optional sockets. The persisted zero-B Add candidate exercises the
+path. Core integration, browser interaction, and the validator contract remain
+unverified.
 
 Generate the CPU-only Ramp image oracle with:
 

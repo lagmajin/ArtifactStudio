@@ -33,6 +33,7 @@ ACTION_FIELDS = {
     "disconnect": ({"fromNode", "fromSocket", "toNode", "toSocket"}, set()),
     "disconnectLink": ({"linkIndex", "expectedDocumentHash"}, set()),
     "parameter": ({"nodeId", "values"}, set()),
+    "socketDefault": ({"nodeId", "socketId", "value"}, set()),
     "expose": ({"nodeId", "parameterId", "graphParameterId", "label"}, set()),
     "graphParameter": ({"graphParameterId", "value"}, set()),
     "unexpose": ({"nodeId", "parameterId"}, set()),
@@ -267,6 +268,9 @@ class Session:
             after = graph.disconnect_link_at(before, action.get("linkIndex"))
         elif kind == "parameter":
             after = graph.edit_node_parameters(before, self.registry, action.get("nodeId"), action.get("values"))
+        elif kind == "socketDefault":
+            after = graph.edit_node_socket_default(before, self.registry, action.get("nodeId"),
+                                                   action.get("socketId"), action.get("value"))
         elif kind == "expose":
             after = graph.expose_node_parameter(before, self.registry, action.get("nodeId"),
                                                 action.get("parameterId"), action.get("graphParameterId"),

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 3,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "source",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": 0.25},
+      "layout": {"x": 32, "y": 96},
+      "socketDefaults": {}
+    },
+    {
+      "nodeId": "sum",
+      "operationId": "artifact.rd.math.add.float32.default_b",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 240, "y": 96},
+      "socketDefaults": {"b": 0.375}
+    }
+  ],
+  "links": [
+    {"from": {"nodeId": "source", "socketId": "value"}, "to": {"nodeId": "sum", "socketId": "a"}}
+  ],
+  "output": {"nodeId": "sum", "socketId": "result"},
+  "graphParameters": []
+}

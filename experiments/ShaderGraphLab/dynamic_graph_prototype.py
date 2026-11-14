@@ -1073,13 +1073,94 @@ def instantiate_node(operation: Operation, node_id: str, *, x: float = 0.0, y: f
     }
 
 
+def _canonical_socket_default_value(value: Any, definition: Socket, node_id: str,
+                                    path: str) -> float | list[float]:
+    if definition.value_type == "Float":
+        return _f32(value, f"node {node_id}.{definition.socket_id}",
+                    path=path, code="socket.default.invalid")
+    if definition.value_type == "Vector4":
+        if not isinstance(value, (list, tuple)) or len(value) != 4:
+            raise ContractError(f"node {node_id}.{definition.socket_id} default must contain four Float32 lanes",
+                                code="socket.default.invalid", path=path)
+        return [
+            _f32(lane, f"node {node_id}.{definition.socket_id}[{index}]",
+                 path=f"{path}/{index}", code="socket.default.invalid")
+            for index, lane in enumerate(value)
+        ]
+    raise ContractError(f"node {node_id}.{definition.socket_id} has an unsupported default type",
+                        code="socket.default.type.unsupported", path=path)
+
+
+def _canonical_socket_defaults(raw: Any, operation: Operation, node_id: str,
+                               node_index: int, *, require_complete: bool = False) -> dict[str, float | list[float]]:
+    if not isinstance(raw, dict):
+        raise ContractError(f"node {node_id} socketDefaults must be an object",
+                            code="node.socket_defaults.invalid",
+                            path=f"/nodes/{node_index}/socketDefaults")
+    optional = {item.socket_id: item for item in operation.inputs if not item.required}
+    unknown = set(raw) - set(optional)
+    if unknown:
+        socket_id = sorted(unknown)[0]
+        raise ContractError(f"node {node_id} has an unknown or required socket default",
+                            code="node.socket_default.unknown",
+                            path=f"/nodes/{node_index}/socketDefaults/{_pointer_segment(str(socket_id))}")
+    if require_complete and set(raw) != set(optional):
+        missing = sorted(set(optional) - set(raw))
+        raise ContractError("schema version 3 requires a stored default for every optional input",
+                            code="node.socket_default.required",
+                            path=f"/nodes/{node_index}/socketDefaults/{_pointer_segment(missing[0])}" if missing else f"/nodes/{node_index}/socketDefaults")
+    result: dict[str, float | list[float]] = {}
+    for socket_id, definition in optional.items():
+        path = f"/nodes/{node_index}/socketDefaults/{_pointer_segment(socket_id)}"
+        value = raw.get(socket_id, definition.default)
+        if value is None:
+            raise ContractError(f"node {node_id}.{socket_id} has no registered default",
+                                code="socket.default.required", path=path)
+        result[socket_id] = _canonical_socket_default_value(value, definition, node_id, path)
+    return result
+
+
+def _upgrade_document_to_socket_defaults(document: dict[str, Any],
+                                         registry: dict[tuple[str, int], Operation]) -> None:
+    """Promote an editable document and snapshot every optional input default."""
+    if document.get("schemaVersion") == 3:
+        return
+    version = document.get("schemaVersion")
+    if (document.get("kind") != "artifact-shader-graph-rd-document" or
+            isinstance(version, bool) or not isinstance(version, int) or version not in (1, 2)):
+        raise ContractError("document kind or schemaVersion is unsupported",
+                            code="schema.version.unsupported", path="/schemaVersion")
+    if version == 1 and "graphParameters" in document:
+        raise ContractError("graphParameters require document schema version 2",
+                            code="schema.field.version_mismatch", path="/graphParameters")
+    if version == 2 and not isinstance(document.get("graphParameters"), list):
+        raise ContractError("schema version 2 requires a graphParameters array",
+                            code="schema.collection.required", path="/graphParameters")
+    nodes = document.get("nodes")
+    if not isinstance(nodes, list):
+        raise ContractError("document nodes must be an array", code="schema.collection.required", path="/nodes")
+    for index, node in enumerate(nodes):
+        if not isinstance(node, dict):
+            continue
+        operation = _lookup_operation(registry, node.get("operationId"), node.get("semanticVersion"))
+        if operation is None:
+            continue
+        node["socketDefaults"] = {
+            item.socket_id: copy.deepcopy(item.default)
+            for item in operation.inputs if not item.required
+        }
+    document["schemaVersion"] = 3
+    if version == 1:
+        document["graphParameters"] = []
+
+
 def add_node(document: Any, registry: dict[tuple[str, int], Operation],
              operation_id: str, semantic_version: int, node_id: str, *,
              x: float = 0.0, y: float = 0.0) -> dict[str, Any]:
     """Append one registry-backed node without changing links or active output."""
     edited = preserve_document(document)
     if (not isinstance(edited, dict) or isinstance(edited.get("schemaVersion"), bool) or
-            not isinstance(edited.get("schemaVersion"), int) or edited.get("schemaVersion") not in (1, 2)):
+            not isinstance(edited.get("schemaVersion"), int) or edited.get("schemaVersion") not in (1, 2, 3)):
         raise ContractError("document schemaVersion is unsupported", code="schema.version.unsupported", path="/schemaVersion")
     if edited.get("kind") != "artifact-shader-graph-rd-document":
         raise ContractError("document kind is unsupported", code="document.kind.unsupported", path="/kind")
@@ -1093,6 +1174,8 @@ def add_node(document: Any, registry: dict[tuple[str, int], Operation],
         raise ContractError(f"operation {operation_id}@{semantic_version} is unavailable",
                             code="node.operation.version.unsupported", path="/operationId")
     nodes.append(instantiate_node(operation, node_id, x=x, y=y))
+    if any(not item.required for item in operation.inputs):
+        _upgrade_document_to_socket_defaults(edited, registry)
     return edited
 
 
@@ -1645,7 +1728,7 @@ def duplicate_nodes_batch(document: Any, registry: dict[tuple[str, int], Operati
         clones.append(clone)
     edited["nodes"].extend(clones)
 
-    if edited.get("schemaVersion") == 2:
+    if edited.get("schemaVersion") in (2, 3):
         graph_parameters = edited.get("graphParameters")
         if isinstance(graph_parameters, list):
             copied_binding_keys: set[tuple[str, str]] = set()
@@ -1721,7 +1804,7 @@ def copy_nodes_subgraph(document: Any, node_ids: list[str],
         if isinstance(source_id, str) and isinstance(target_id, str) and source_id in selected and target_id in selected:
             internal_links.append(link)
     graph_parameters = []
-    if preserved.get("schemaVersion") == 2:
+    if preserved.get("schemaVersion") in (2, 3):
         raw_parameters = preserved.get("graphParameters")
         if isinstance(raw_parameters, list):
             for index, parameter in enumerate(raw_parameters):
@@ -1804,7 +1887,7 @@ def copy_nodes_subgraph(document: Any, node_ids: list[str],
         copied_nodes.append(copied)
     payload = {
         "kind": "artifact-shader-graph-rd-subgraph",
-        "schemaVersion": 2,
+        "schemaVersion": 3 if any("socketDefaults" in node for node in copied_nodes) else 2,
         "nodes": copied_nodes,
         "links": internal_links,
         "graphParameters": graph_parameters,
@@ -1823,16 +1906,16 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
     if (not isinstance(clipboard, dict) or
             clipboard.get("kind") != "artifact-shader-graph-rd-subgraph" or
             isinstance(clipboard.get("schemaVersion"), bool) or
-            clipboard.get("schemaVersion") not in (1, 2)):
+            clipboard.get("schemaVersion") not in (1, 2, 3)):
         raise ContractError("clipboard payload kind or schema is unsupported",
                             code="clipboard.schema.unsupported", path="/")
     clipboard_version = clipboard["schemaVersion"]
     expected_fields = {"kind", "schemaVersion", "nodes", "links", "graphParameters", "registryContractLock"}
-    if clipboard_version == 2:
+    if clipboard_version in (2, 3):
         expected_fields.add("layoutBounds")
     if (set(clipboard) != expected_fields or
             clipboard.get("kind") != "artifact-shader-graph-rd-subgraph" or
-            clipboard_version not in (1, 2)):
+            clipboard_version not in (1, 2, 3)):
         raise ContractError("clipboard payload kind or schema is unsupported",
                             code="clipboard.schema.unsupported", path="/")
     _reject_code_payload(clipboard)
@@ -1841,7 +1924,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
         raise ContractError("clipboard nodes and links must be arrays",
                             code="clipboard.shape.invalid", path="/")
     bounds = clipboard.get("layoutBounds")
-    if clipboard_version == 2:
+    if clipboard_version in (2, 3):
         if not isinstance(bounds, dict) or set(bounds) != {"width", "height"}:
             raise ContractError("clipboard layout bounds are invalid",
                                 code="clipboard.layout_bounds.invalid", path="/layoutBounds")
@@ -1871,7 +1954,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
     y_offset = _f32(offset_y, "paste anchor y", path="/offsetY", code="node.layout.coordinate.invalid")
     edited = preserve_document(document)
     if (isinstance(edited.get("schemaVersion"), bool) or not isinstance(edited.get("schemaVersion"), int) or
-            edited.get("schemaVersion") not in (1, 2)):
+            edited.get("schemaVersion") not in (1, 2, 3)):
         raise ContractError("target document schemaVersion is unsupported",
                             code="schema.version.unsupported", path="/schemaVersion")
     if edited.get("kind") != "artifact-shader-graph-rd-document":
@@ -1887,6 +1970,8 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
     if collision is not None:
         raise ContractError(f"node ID {collision} already exists",
                             code="node.id.duplicate", path="/newNodeIds")
+    if clipboard_version == 3 and edited.get("schemaVersion") != 3:
+        _upgrade_document_to_socket_defaults(edited, registry)
     clones = []
     layout_points = []
     for index, source in enumerate(source_nodes):
@@ -1898,7 +1983,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
         clone["nodeId"] = new_node_ids[source["nodeId"]]
         source_x = _f32(layout.get("x"), "clipboard layout x", path=f"/nodes/{index}/layout/x", code="node.layout.coordinate.invalid")
         source_y = _f32(layout.get("y"), "clipboard layout y", path=f"/nodes/{index}/layout/y", code="node.layout.coordinate.invalid")
-        if clipboard_version == 2 and (source_x < 0 or source_y < 0 or source_x > bound_width or source_y > bound_height):
+        if clipboard_version in (2, 3) and (source_x < 0 or source_y < 0 or source_x > bound_width or source_y > bound_height):
             raise ContractError("clipboard node layout exceeds its bounds",
                                 code="clipboard.layout_bounds.invalid", path=f"/nodes/{index}/layout")
         layout_points.append((source_x, source_y))
@@ -1908,8 +1993,13 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
             "y": _f32(source_y + y_offset,
                       "paste layout y", path=f"/nodes/{index}/layout/y", code="node.layout.coordinate.invalid"),
         }
+        if edited.get("schemaVersion") == 3:
+            operation = _lookup_operation(registry, clone.get("operationId"), clone.get("semanticVersion"))
+            if operation is not None:
+                clone["socketDefaults"] = _canonical_socket_defaults(
+                    clone.get("socketDefaults", {}), operation, clone["nodeId"], index)
         clones.append(clone)
-    if clipboard_version == 2 and (max(point[0] for point in layout_points) != bound_width or
+    if clipboard_version in (2, 3) and (max(point[0] for point in layout_points) != bound_width or
                                    max(point[1] for point in layout_points) != bound_height or
                                    min(point[0] for point in layout_points) != 0 or
                                    min(point[1] for point in layout_points) != 0):
@@ -2298,7 +2388,7 @@ def expose_node_parameter(document: Any, registry: dict[tuple[str, int], Operati
     if edited.get("schemaVersion") == 1:
         edited["schemaVersion"] = 2
         edited["graphParameters"] = []
-    if edited.get("schemaVersion") != 2 or not isinstance(edited.get("graphParameters"), list):
+    if edited.get("schemaVersion") not in (2, 3) or not isinstance(edited.get("graphParameters"), list):
         raise ContractError("graph parameter exposure requires document schema version 2",
                             code="schema.version.unsupported", path="/schemaVersion")
     graph_parameters = edited["graphParameters"]
@@ -2403,7 +2493,7 @@ def edit_graph_parameter(document: Any, registry: dict[tuple[str, int], Operatio
                             path="/graphParameters/parameterId")
     edited = preserve_document(document)
     parameters = edited.get("graphParameters")
-    if edited.get("schemaVersion") != 2 or not isinstance(parameters, list):
+    if edited.get("schemaVersion") not in (2, 3) or not isinstance(parameters, list):
         raise ContractError("document has no graph parameters", code="graph.parameter.missing", path="/graphParameters")
     if "registryContractLock" in edited:
         compatibility = compare_registry_contracts(edited["registryContractLock"], registry)
@@ -2491,7 +2581,7 @@ def unexpose_node_parameter(document: Any, registry: dict[tuple[str, int], Opera
                             path="/parameterId")
     edited = preserve_document(document)
     parameters = edited.get("graphParameters")
-    if edited.get("schemaVersion") != 2 or not isinstance(parameters, list):
+    if edited.get("schemaVersion") not in (2, 3) or not isinstance(parameters, list):
         raise ContractError("document has no graph parameters", code="graph.parameter.missing", path="/graphParameters")
     if "registryContractLock" in edited:
         compatibility = compare_registry_contracts(edited["registryContractLock"], registry)
@@ -2617,6 +2707,51 @@ def edit_node_parameters(document: Any, registry: dict[tuple[str, int], Operatio
     candidate.update(updates)
     canonical = _canonical_parameters(candidate, operation, node_id, index)
     node["parameters"] = canonical
+    return edited
+
+
+def edit_node_socket_default(document: Any, registry: dict[tuple[str, int], Operation],
+                             node_id: str, socket_id: str, value: Any) -> dict[str, Any]:
+    """Edit one node-owned optional input default, preserving it in schema v3."""
+    if (not isinstance(node_id, str) or not IDENTIFIER.fullmatch(node_id) or
+            not isinstance(socket_id, str) or not IDENTIFIER.fullmatch(socket_id)):
+        raise ContractError("node or socket ID is invalid", code="node.socket_default.id.invalid",
+                            path="/socketDefaults")
+    edited = preserve_document(document)
+    if (not isinstance(edited, dict) or edited.get("kind") != "artifact-shader-graph-rd-document" or
+            isinstance(edited.get("schemaVersion"), bool) or
+            edited.get("schemaVersion") not in (1, 2, 3)):
+        raise ContractError("document kind or schemaVersion is unsupported",
+                            code="schema.version.unsupported", path="/schemaVersion")
+    nodes = edited.get("nodes")
+    if not isinstance(nodes, list):
+        raise ContractError("document nodes must be an array", code="schema.collection.required", path="/nodes")
+    matches = [(index, node) for index, node in enumerate(nodes)
+               if isinstance(node, dict) and node.get("nodeId") == node_id]
+    if len(matches) != 1:
+        raise ContractError("node is missing or ambiguous", code="node.id.not_unique_or_missing", path="/nodes")
+    index, node = matches[0]
+    operation = _lookup_operation(registry, node.get("operationId"), node.get("semanticVersion"))
+    if operation is None:
+        raise ContractError("node operation is unavailable", code="node.operation.version.unsupported",
+                            path=f"/nodes/{index}/semanticVersion")
+    definition = next((item for item in operation.inputs if item.socket_id == socket_id), None)
+    if definition is None or definition.required:
+        raise ContractError("only declared optional input sockets have editable defaults",
+                            code="node.socket_default.not_optional",
+                            path=f"/nodes/{index}/socketDefaults/{_pointer_segment(socket_id)}")
+    if "registryContractLock" in edited:
+        compatibility = compare_registry_contracts(edited["registryContractLock"], registry)
+        if compatibility:
+            issue = compatibility[0]
+            raise ContractError(issue["message"], code=issue["code"], path=issue["path"])
+    _upgrade_document_to_socket_defaults(edited, registry)
+    raw_defaults = node.get("socketDefaults", {})
+    canonical = _canonical_socket_defaults(raw_defaults, operation, node_id, index)
+    canonical[socket_id] = _canonical_socket_default_value(
+        value, definition, node_id,
+        f"/nodes/{index}/socketDefaults/{_pointer_segment(socket_id)}")
+    node["socketDefaults"] = canonical
     return edited
 
 
@@ -2945,7 +3080,7 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
         report("document.invalid", "/", "document must be an object")
     else:
         schema_version = preserved.get("schemaVersion")
-        if isinstance(schema_version, bool) or not isinstance(schema_version, int) or schema_version not in (1, 2):
+        if isinstance(schema_version, bool) or not isinstance(schema_version, int) or schema_version not in (1, 2, 3):
             report("schema.version.unsupported", "/schemaVersion", "document schemaVersion is unsupported; source document remains editable for repair", severity="warning")
             repairable = True
         if preserved.get("kind") != "artifact-shader-graph-rd-document":
@@ -2953,7 +3088,7 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
             repairable = True
         allowed = {"schemaVersion", "kind", "nodes", "links", "output", "registryContractLock"}
         required = {"schemaVersion", "kind", "nodes", "links", "output"}
-        if schema_version == 2:
+        if schema_version in (2, 3):
             allowed.add("graphParameters")
             required.add("graphParameters")
         for key in sorted(set(preserved) - allowed):
@@ -2992,6 +3127,7 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
 
     node_by_id: dict[str, tuple[int, Operation, dict[str, Any]]] = {}
     canonical_node_parameters: dict[str, dict[str, float | list[float]]] = {}
+    canonical_node_socket_defaults: dict[str, dict[str, float | list[float]]] = {}
     all_node_ids: set[str] = set()
     sanitized: dict[str, str] = {}
     for index, node in enumerate(raw_nodes):
@@ -3000,6 +3136,8 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
             report("node.invalid", path, "node must be an object")
             continue
         allowed_node = {"nodeId", "operationId", "semanticVersion", "parameters", "layout"}
+        if preserved.get("schemaVersion") == 3:
+            allowed_node.add("socketDefaults")
         for key in sorted(set(node) - allowed_node):
             report("node.field.unknown", f"{path}/{_pointer_segment(str(key))}", f"unknown node field {key}; retained for repair", severity="warning")
             repairable = True
@@ -3024,6 +3162,8 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
             report("node.operation.version.unsupported", f"{path}/semanticVersion", f"operation {operation_id}@{version} is unavailable; node payload is retained for repair", severity="warning")
             repairable = True
             continue
+        if preserved.get("schemaVersion") == 3 and "socketDefaults" not in node:
+            report("node.field.required", f"{path}/socketDefaults", "schema version 3 requires socketDefaults")
         symbol = "n_" + re.sub(r"[^A-Za-z0-9_]", "_", node_id)
         if symbol in sanitized:
             report("node.identifier.backend_collision", f"{path}/nodeId", f"node ID collides with {sanitized[symbol]!r} after backend sanitization")
@@ -3045,9 +3185,15 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
                 node.get("parameters", {}), operation, node_id, index)
         except ContractError as error:
             diagnostics.append(error.to_json())
+        try:
+            canonical_node_socket_defaults[node_id] = _canonical_socket_defaults(
+                node.get("socketDefaults", {}), operation, node_id, index,
+                require_complete=preserved.get("schemaVersion") == 3)
+        except ContractError as error:
+            diagnostics.append(error.to_json())
         node_by_id[node_id] = (index, operation, node)
 
-    if preserved.get("schemaVersion") == 2:
+    if preserved.get("schemaVersion") in (2, 3):
         raw_graph_parameters = preserved.get("graphParameters")
         if "graphParameters" in preserved and not isinstance(raw_graph_parameters, list):
             report("schema.collection.required", "/graphParameters",
@@ -3263,12 +3409,12 @@ def compile_document_from_data(
             context_binding_expressions[key] = expression
     _reject_code_payload(document)
     if (not isinstance(document, dict) or isinstance(document.get("schemaVersion"), bool) or
-            not isinstance(document.get("schemaVersion"), int) or document.get("schemaVersion") not in (1, 2)):
-        raise ContractError("document schemaVersion must be 1 or 2", code="schema.version.unsupported", path="/schemaVersion")
+            not isinstance(document.get("schemaVersion"), int) or document.get("schemaVersion") not in (1, 2, 3)):
+        raise ContractError("document schemaVersion must be 1, 2, or 3", code="schema.version.unsupported", path="/schemaVersion")
     if document.get("kind") != "artifact-shader-graph-rd-document":
         raise ContractError("document kind is unsupported", code="document.kind.unsupported", path="/kind")
     allowed_document_fields = {"schemaVersion", "kind", "nodes", "links", "output", "registryContractLock"}
-    if document["schemaVersion"] == 2:
+    if document["schemaVersion"] in (2, 3):
         allowed_document_fields.add("graphParameters")
         if "graphParameters" not in document:
             raise ContractError("schema version 2 requires graphParameters", code="schema.field.required", path="/graphParameters")
@@ -3295,8 +3441,11 @@ def compile_document_from_data(
         label = f"document.nodes[{index}]"
         if not isinstance(raw, dict):
             raise ContractError(f"{label} must be an object", code="node.invalid", path=f"/nodes/{index}")
-        if set(raw) != {"nodeId", "operationId", "semanticVersion", "parameters", "layout"}:
-            unknown = sorted(set(raw) - {"nodeId", "operationId", "semanticVersion", "parameters", "layout"})
+        node_fields = {"nodeId", "operationId", "semanticVersion", "parameters", "layout"}
+        if document["schemaVersion"] == 3:
+            node_fields.add("socketDefaults")
+        if set(raw) != node_fields:
+            unknown = sorted(set(raw) - node_fields)
             path = f"/nodes/{index}/{_pointer_segment(str(unknown[0]))}" if unknown else f"/nodes/{index}"
             raise ContractError(f"{label} has missing or unknown fields", code="node.shape.invalid", path=path)
         layout = raw.get("layout")
@@ -3324,7 +3473,11 @@ def compile_document_from_data(
             raise ContractError(f"node IDs {sanitized[symbol]!r} and {node_id!r} collide after HLSL sanitization", code="node.identifier.backend_collision", path=f"/nodes/{index}/nodeId")
         sanitized[symbol] = node_id
         parameters = _canonical_parameters(raw.get("parameters", {}), operation, node_id, index)
-        nodes[node_id] = {"operation": operation, "parameters": parameters, "raw": raw, "symbol": symbol}
+        socket_defaults = _canonical_socket_defaults(
+            raw.get("socketDefaults", {}), operation, node_id, index,
+            require_complete=document.get("schemaVersion") == 3)
+        nodes[node_id] = {"operation": operation, "parameters": parameters,
+                          "socketDefaults": socket_defaults, "raw": raw, "symbol": symbol}
         node_indices[node_id] = index
 
     graph_parameters = _apply_graph_parameters(document, nodes, node_indices)
@@ -3474,13 +3627,14 @@ def compile_document_from_data(
             return expressions[producer]
         operation = nodes[node_id]["operation"]
         socket = next(item for item in operation.inputs if item.socket_id == socket_id)
-        if socket.required or socket.default is None:
+        default_value = nodes[node_id]["socketDefaults"].get(socket_id)
+        if socket.required or default_value is None:
             raise ContractError(
                 f"input {node_id}.{socket_id} has no linked producer or typed default",
                 code="node.input.default_missing", path=f"/nodes/{node_indices[node_id]}/inputs/{_pointer_segment(socket_id)}")
         if socket.value_type == "Float":
-            return _hlsl_float(socket.default)
-        return "float4(" + ", ".join(_hlsl_float(value) for value in socket.default) + ")"
+            return _hlsl_float(default_value)
+        return "float4(" + ", ".join(_hlsl_float(value) for value in default_value) + ")"
 
     if parameter_block is not None:
         hlsl_lines.append("cbuffer ArtifactGraphParameters {")
@@ -3501,7 +3655,7 @@ def compile_document_from_data(
                 "socketId": socket.socket_id,
                 "valueType": socket.value_type,
                 "required": socket.required,
-                "defaultValue": socket.default if producer is None else None,
+                "defaultValue": data["socketDefaults"].get(socket.socket_id) if producer is None else None,
                 "producer": (None if producer is None else {
                     "nodeId": producer[0],
                     "socketId": producer[1],
@@ -3660,6 +3814,7 @@ def compile_document_from_data(
     hlsl = "\n".join(hlsl_lines) + f"\nreturn {root_expression};\n"
     active_node_records = []
     for node_id in sorted(active):
+        data = nodes[node_id]
         operation = nodes[node_id]["operation"]
         record = {
             "nodeId": node_id,
@@ -3668,9 +3823,9 @@ def compile_document_from_data(
             "implementationId": operation.implementation_id,
             "parameters": nodes[node_id]["parameters"],
         }
-        input_defaults = {socket.socket_id: socket.default
+        input_defaults = {socket.socket_id: data["socketDefaults"][socket.socket_id]
                           for socket in operation.inputs
-                          if socket.default is not None and
+                          if socket.socket_id in data["socketDefaults"] and
                           (node_id, socket.socket_id) not in writers}
         if input_defaults:
             record["inputDefaults"] = input_defaults
@@ -3777,7 +3932,7 @@ def compile_document_from_data(
         "limitations": [
             f"prototype supports Float/Vector4 sockets and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
-            "typed IR is a source-neutral R&D record; defaults, resource operands, and backend-neutral semantics remain incomplete",
+            "typed IR materializes active Float/Vector4 socket defaults; texture/resource operands and complete backend-neutral semantics remain incomplete",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
             "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence",

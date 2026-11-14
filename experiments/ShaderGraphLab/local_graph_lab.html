@@ -215,7 +215,9 @@
       }
       render();
       if (focusIdentity) {
-        const selector=focusIdentity.kind==='node'
+        const selector=focusIdentity.kind==='socket'
+          ? `[data-socket-default][data-node="${CSS.escape(focusIdentity.node)}"][data-socket="${CSS.escape(focusIdentity.socket)}"]`
+          : focusIdentity.kind==='node'
           ? `[data-node="${CSS.escape(focusIdentity.node)}"][data-param="${CSS.escape(focusIdentity.parameter)}"]${focusIdentity.rampIndex===undefined?'':`[data-ramp-index="${CSS.escape(focusIdentity.rampIndex)}"]`}${focusIdentity.rampField===undefined?'':`[data-ramp-field="${CSS.escape(focusIdentity.rampField)}"]`}`
           : `[data-graph-param="${CSS.escape(focusIdentity.parameter)}"]`;
         const laneSelector=focusIdentity.lane===undefined?'':`[data-lane="${CSS.escape(focusIdentity.lane)}"]`;
@@ -236,7 +238,9 @@
   };
   const post = action => {
     const active=document.activeElement;
-    const focusIdentity=active&&active.matches('[data-param]')
+    const focusIdentity=active&&active.matches('[data-socket-default]')
+      ? {kind:'socket',node:active.dataset.node,socket:active.dataset.socket,lane:active.dataset.lane}
+      : active&&active.matches('[data-param]')
       ? {kind:'node',node:active.dataset.node,parameter:active.dataset.param,lane:active.dataset.lane,rampIndex:active.dataset.rampIndex,rampField:active.dataset.rampField}
       : active&&active.matches('[data-graph-param]')
         ? {kind:'graph',parameter:active.dataset.graphParam,lane:active.dataset.lane}
@@ -356,7 +360,14 @@
         const incoming=typeof node.nodeId==='string'
           ? incomingByInput.get(inputKey(node.nodeId,pin.socketId))||[]:[];
         const missingRequired=pin.required&&!incoming.length;
-        const defaultText=pin.default!==undefined?` · default ${JSON.stringify(pin.default)}`:'';
+        const nodeDefaults=node.socketDefaults&&typeof node.socketDefaults==='object'&&!Array.isArray(node.socketDefaults)?node.socketDefaults:{};
+        const socketDefault=Object.prototype.hasOwnProperty.call(nodeDefaults,pin.socketId)?nodeDefaults[pin.socketId]:pin.default;
+        const defaultText=socketDefault!==undefined?` · default ${JSON.stringify(socketDefault)}`:'';
+        const defaultEditor=!pin.required&&socketDefault!==undefined
+          ? Array.isArray(socketDefault)
+            ? `<span class="vector-inputs">${socketDefault.map((lane,index)=>`<input type="number" step="any" data-socket-default data-node="${esc(id)}" data-socket="${esc(pin.socketId)}" data-lane="${index}" value="${esc(lane)}" aria-label="${esc(pin.socketId)} default component ${index}" ${ambiguous?'disabled':''}>`).join('')}</span>`
+            : `<input type="number" step="any" data-socket-default data-node="${esc(id)}" data-socket="${esc(pin.socketId)}" value="${esc(socketDefault)}" aria-label="${esc(pin.socketId)} default" ${ambiguous?'disabled':''}>`
+          : '';
         const status=`${pin.required?' · required':' · optional'}${missingRequired?' · unconnected':''}${defaultText}`;
         const disconnect=incoming.map(entry=>{
           const from=entry.link.from;
@@ -364,7 +375,7 @@
             ? `${from.nodeId}.${from.socketId}`:'Malformed source';
           return `<button class="small" data-disconnect-index="${entry.index}" ${ambiguous||typeof state.documentHash!=='string'?'disabled':''} title="Remove link ${entry.index+1} (${esc(label)} → ${esc(id)}.${esc(pin.socketId)})">×</button>`;
         }).join('');
-        return `<div class="socket-row ${missingRequired?'missing-required':''}"><span class="socket-label"><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="input" data-node="${esc(id)}"`} title="${esc(pin.valueType+' input'+status)}"></button>${esc(pin.socketId)} <span class="small">${esc(pin.valueType+status)}</span></span>${disconnect}</div>`;
+        return `<div class="socket-row ${missingRequired?'missing-required':''}"><span class="socket-label"><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="input" data-node="${esc(id)}"`} title="${esc(pin.valueType+' input'+status)}"></button>${esc(pin.socketId)} <span class="small">${esc(pin.valueType+status)}</span>${defaultEditor}</span>${disconnect}</div>`;
       }).join('');
       const outputs = op.outputs.map(pin => `<div class="socket-row"><button class="small" ${ambiguous?'disabled':`data-output-node="${esc(id)}" data-output-socket="${esc(pin.socketId)}"`}>Set Output</button><span class="socket-label">${esc(pin.socketId)} <span class="small">${esc(pin.valueType)}</span><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="output" data-node="${esc(id)}"`} title="${esc(pin.valueType)} output"></button></span></div>`).join('');
       const params = op.parameters.map(param => {
@@ -468,6 +479,11 @@
         value=[...nodesEl.querySelectorAll(`[data-node="${CSS.escape(input.dataset.node)}"][data-param="${CSS.escape(input.dataset.param)}"]`)].map(component=>component.valueAsNumber);
       } else value=input.valueAsNumber;
       post({type:'parameter',nodeId:input.dataset.node,values:{[input.dataset.param]:value}});
+    }));
+    nodesEl.querySelectorAll('[data-socket-default]').forEach(input => input.addEventListener('change', () => {
+      const fields=[...nodesEl.querySelectorAll(`[data-socket-default][data-node="${CSS.escape(input.dataset.node)}"][data-socket="${CSS.escape(input.dataset.socket)}"]`)];
+      const value=input.dataset.lane===undefined?input.valueAsNumber:fields.map(field=>field.valueAsNumber);
+      post({type:'socketDefault',nodeId:input.dataset.node,socketId:input.dataset.socket,value});
     }));
     nodesEl.querySelectorAll('[data-ramp-add]').forEach(button => button.onclick=()=>{
       const node=documentNodes().find(item=>item&&item.nodeId===button.dataset.node);

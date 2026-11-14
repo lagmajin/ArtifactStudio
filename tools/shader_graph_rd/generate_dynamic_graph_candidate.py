@@ -24,6 +24,8 @@ def main() -> int:
     spec.loader.exec_module(module)
     registry = module.load_registry(root / contract["registryFixture"])
     candidate_specs = [("documentFixture", "candidateFixture", "candidateSha256", "documentSha256")]
+    candidate_specs.append(("optionalDefaultDocumentFixture", "optionalDefaultCandidateFixture",
+                            "optionalDefaultCandidateSha256", "optionalDefaultDocumentSha256"))
     candidate_specs.extend((document_key, candidate_key, digest_key, input_digest_key)
                            for document_key, candidate_key, digest_key, input_digest_key in (
                                ("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256"),

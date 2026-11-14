@@ -1372,6 +1372,8 @@ def validate(root: Path) -> list[str]:
     dynamic_vector4_separate_candidate_path = root / dynamic_contract.get("vector4SeparateCandidateFixture", "")
     dynamic_vector4_ramp_document_path = root / dynamic_contract.get("vector4RampDocumentFixture", "")
     dynamic_vector4_ramp_candidate_path = root / dynamic_contract.get("vector4RampCandidateFixture", "")
+    dynamic_optional_default_document_path = root / dynamic_contract.get("optionalDefaultDocumentFixture", "")
+    dynamic_optional_default_candidate_path = root / dynamic_contract.get("optionalDefaultCandidateFixture", "")
     dynamic_vector4_ramp_golden_path = root / dynamic_contract.get("vector4RampFormulaGoldenFixture", "")
     dynamic_ramp_image_plan = dynamic_contract.get("rampImageEvaluationPlan", {})
     dynamic_ramp_image_report_path = root / dynamic_ramp_image_plan.get("generatedOracle", {}).get("report", "")
@@ -1398,6 +1400,8 @@ def validate(root: Path) -> list[str]:
         dynamic_vector4_separate_candidate = json.loads(dynamic_vector4_separate_candidate_path.read_text(encoding="utf-8"))
         dynamic_vector4_ramp_document = json.loads(dynamic_vector4_ramp_document_path.read_text(encoding="utf-8"))
         dynamic_vector4_ramp_candidate = json.loads(dynamic_vector4_ramp_candidate_path.read_text(encoding="utf-8"))
+        dynamic_optional_default_document = json.loads(dynamic_optional_default_document_path.read_text(encoding="utf-8"))
+        dynamic_optional_default_candidate = json.loads(dynamic_optional_default_candidate_path.read_text(encoding="utf-8"))
         dynamic_vector4_ramp_golden = json.loads(dynamic_vector4_ramp_golden_path.read_text(encoding="utf-8"))
         dynamic_ramp_image_report = json.loads(dynamic_ramp_image_report_path.read_text(encoding="utf-8"))
         dynamic_mixrgb_source = (root / "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp").read_text(encoding="utf-8")
@@ -1465,6 +1469,40 @@ def validate(root: Path) -> list[str]:
             "source_right", "value", "sum_node", "b")
         optional_b_override_compile = dynamic_module.compile_document_from_data(
             optional_b_override_document, dynamic_registry)
+        socket_default_edit_document = dynamic_module.edit_node_socket_default(
+            optional_b_document, dynamic_registry, "sum_node", "b", 0.25)
+        socket_default_roundtrip = dynamic_module.parse_json_text(
+            dynamic_module.serialize_document(socket_default_edit_document))
+        socket_default_edit_compile = dynamic_module.compile_document_from_data(
+            socket_default_roundtrip, dynamic_registry)
+        socket_default_command = dynamic_module.create_document_command(
+            "Edit socket default", optional_b_document, socket_default_edit_document)
+        socket_default_undo = dynamic_module.apply_document_command(
+            socket_default_command, socket_default_edit_document, direction="undo")
+        socket_default_redo = dynamic_module.apply_document_command(
+            socket_default_command, socket_default_undo, direction="redo")
+        socket_default_clipboard = dynamic_module.copy_nodes_subgraph(
+            socket_default_edit_document, ["sum_node"], dynamic_registry)
+        socket_default_paste = dynamic_module.paste_nodes_subgraph(
+            optional_b_document, dynamic_registry, socket_default_clipboard,
+            {"sum_node": "sum_copy"})
+        linked_socket_default_baseline_document = dynamic_module.edit_node_socket_default(
+            optional_b_override_document, dynamic_registry, "sum_node", "b", 0.0)
+        linked_socket_default_baseline_compile = dynamic_module.compile_document_from_data(
+            linked_socket_default_baseline_document, dynamic_registry)
+        linked_socket_default_edit_document = dynamic_module.edit_node_socket_default(
+            linked_socket_default_baseline_document, dynamic_registry, "sum_node", "b", 0.75)
+        linked_socket_default_edit_compile = dynamic_module.compile_document_from_data(
+            linked_socket_default_edit_document, dynamic_registry)
+        required_socket_default_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_socket_default(
+            optional_b_document, dynamic_registry, "sum_node", "a", 0.25))
+        overflow_socket_default_diagnostic = diagnostic_for(lambda: dynamic_module.edit_node_socket_default(
+            optional_b_document, dynamic_registry, "sum_node", "b", 1e100))
+        schema2_socket_default_document = copy.deepcopy(optional_b_document)
+        schema2_socket_default_document["schemaVersion"] = 2
+        schema2_socket_default_document["graphParameters"] = []
+        schema2_socket_default_edit = dynamic_module.edit_node_socket_default(
+            schema2_socket_default_document, dynamic_registry, "sum_node", "b", 0.5)
         changed_optional_default_registry = dict(dynamic_registry)
         default_b_operation = changed_optional_default_registry[
             ("artifact.rd.math.add.float32.default_b", 1)]
@@ -1481,6 +1519,15 @@ def validate(root: Path) -> list[str]:
         required_input_missing_document["links"] = []
         required_input_missing_diagnostic = diagnostic_for(lambda: dynamic_module.compile_document_from_data(
             required_input_missing_document, dynamic_registry))
+        socket_default_ui_document = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
+                                      "nodes": [dynamic_module.instantiate_node(
+                                          dynamic_registry[("artifact.rd.math.add.float32.default_b", 1)],
+                                          "ui_optional")],
+                                      "links": [], "output": {"nodeId": "ui_optional", "socketId": "result"}}
+        socket_default_ui_session = local_ui_module.Session(
+            dynamic_registry, socket_default_ui_document, None, [])
+        socket_default_ui_session.apply({"type": "socketDefault", "nodeId": "ui_optional",
+                                         "socketId": "b", "value": 0.625})
         ui_empty_document = {"schemaVersion": 1, "kind": "artifact-shader-graph-rd-document",
                              "nodes": [], "links": [], "output": {"nodeId": "", "socketId": ""}}
         ui_session = local_ui_module.Session(dynamic_registry, ui_empty_document, None, [])
@@ -1783,6 +1830,8 @@ def validate(root: Path) -> list[str]:
         regenerated_vector4_mix_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_mix_document, dynamic_registry)
         regenerated_vector4_separate_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_separate_document, dynamic_registry)
         regenerated_vector4_ramp_candidate = dynamic_module.compile_document_from_data(dynamic_vector4_ramp_document, dynamic_registry)
+        regenerated_optional_default_candidate = dynamic_module.compile_document_from_data(
+            dynamic_optional_default_document, dynamic_registry)
         dynamic_vector4_ramp_alpha_document = copy.deepcopy(dynamic_vector4_ramp_document)
         dynamic_vector4_ramp_alpha_document["output"] = {"nodeId": "ramp", "socketId": "alpha"}
         regenerated_vector4_ramp_alpha_candidate = dynamic_module.compile_document_from_data(
@@ -2726,6 +2775,7 @@ def validate(root: Path) -> list[str]:
             regenerated_vector4_subtract_candidate, regenerated_vector4_invert_candidate,
             regenerated_clamp_candidate, regenerated_vector4_mix_candidate,
             regenerated_vector4_separate_candidate, regenerated_vector4_ramp_candidate,
+            regenerated_optional_default_candidate,
         ]
         def typed_ir_hash_matches(candidate: dict[str, Any]) -> bool:
             typed_ir = candidate.get("typedIR")
@@ -2811,10 +2861,10 @@ def validate(root: Path) -> list[str]:
             "identities; excludes HLSL expressions, editor layout, and source code"
         )
         socket_default_contract_expected = (
-            "optional input sockets carry an immutable typed binary32 registry default; a connected "
-            "producer overrides it; required inputs still need links; the declared default participates "
-            "in operation identity, while only an unconnected default participates in active semantic "
-            "and typed-IR identity"
+            "optional input sockets carry a typed binary32 operation default; schema version 3 stores "
+            "editable per-node overrides; a connected producer overrides its stored default; required "
+            "inputs still need links; only an unconnected default participates in active semantic and "
+            "typed-IR identity"
         )
 
         checks = {
@@ -2903,7 +2953,8 @@ def validate(root: Path) -> list[str]:
             "hostContextAdapterChangesOnlyBackendExpression": alternate_context_candidate["semanticHashSha256"] == regenerated_vector4_ramp_candidate["semanticHashSha256"] and alternate_context_candidate["shaderStructureHashSha256"] == regenerated_vector4_ramp_candidate["shaderStructureHashSha256"] and alternate_context_candidate["hlslBody"] != regenerated_vector4_ramp_candidate["hlslBody"] and alternate_context_candidate["hlslBodySha256"] != regenerated_vector4_ramp_candidate["hlslBodySha256"] and alternate_context_candidate["hlslBodySha256"] == hashlib.sha256(alternate_context_candidate["hlslBody"].encode("utf-8")).hexdigest().upper() and "(MaterialInput.UV).x" in alternate_context_candidate["hlslBody"] and alternate_context_candidate["contextBindings"] == [{"contextId": "artifact.material.surface.uv0", "component": "x", "valueType": "Float", "hlslExpression": "(MaterialInput.UV).x", "nodeIds": ["uv"]}],
             "typedIRIsBackendSourceNeutralAndContentAddressed": dynamic_contract.get("typedIRContract") == typed_ir_contract_expected and all(typed_ir_hash_matches(item) for item in dynamic_candidate_results) and alternate_context_candidate["typedIR"] == regenerated_vector4_ramp_candidate["typedIR"] and alternate_context_candidate["typedIRSemanticHashSha256"] == regenerated_vector4_ramp_candidate["typedIRSemanticHashSha256"] and reordered_multi_context_candidate["typedIRSemanticHashSha256"] == multi_context_candidate["typedIRSemanticHashSha256"] and shared_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.25 and edited_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.75 and edited_graph_parameter_compile["typedIRSemanticHashSha256"] != shared_graph_parameter_compile["typedIRSemanticHashSha256"] and "(In.UV).x" not in json.dumps(regenerated_vector4_ramp_candidate["typedIR"], sort_keys=True) and "(MaterialInput.UV).x" not in json.dumps(alternate_context_candidate["typedIR"], sort_keys=True),
             "typedIRHasWellTypedCompleteEdges": all(typed_ir_edges_are_well_typed(item) for item in dynamic_candidate_results + [multi_context_candidate, regenerated_vector4_ramp_alpha_candidate, optional_b_compile, optional_b_override_compile]) and dynamic_vector4_ramp_candidate["typedIR"]["schemaId"] == "artifact.shadergraph.typed-ir" and dynamic_vector4_separate_candidate["typedIR"]["schemaVersion"] == 1,
-            "optionalSocketDefaultIsTypedHashedAndOverridable": dynamic_contract.get("socketDefaultContract") == socket_default_contract_expected and optional_b_input == {"socketId": "b", "valueType": "Float", "required": False, "defaultValue": 0.0, "producer": None} and "(n_source_left_value + 0.0f)" in optional_b_compile["hlslBody"] and optional_b_override_compile["typedIRSemanticHashSha256"] != optional_b_compile["typedIRSemanticHashSha256"] and "(n_source_left_value + n_source_right_value)" in optional_b_override_compile["hlslBody"] and optional_b_override_compile["typedIR"] == changed_optional_default_connected_compile["typedIR"] and optional_b_override_compile["semanticHashSha256"] == changed_optional_default_connected_compile["semanticHashSha256"] and optional_b_override_compile["hlslBody"] == changed_optional_default_connected_compile["hlslBody"] and changed_optional_default_compile["semanticHashSha256"] != optional_b_compile["semanticHashSha256"] and "(n_source_left_value + 0.5f)" in changed_optional_default_compile["hlslBody"] and required_input_missing_diagnostic == {"code": "node.input.required_unconnected", "severity": "error", "path": "/nodes/2/inputs/a"} and any(item["operationId"] == "artifact.rd.math.add.float32.default_b" and item["inputs"][1].get("default") == 0.0 for item in dynamic_module.build_palette_model(dynamic_registry)) and "defaultText=pin.default!==undefined" in local_ui_html_source and "'default'" in local_ui_html_source,
+            "optionalSocketDefaultIsEditableAndPersistedPerNode": dynamic_contract.get("socketDefaultContract") == socket_default_contract_expected and dynamic_optional_default_document.get("schemaVersion") == 3 and dynamic_optional_default_candidate == regenerated_optional_default_candidate and hashlib.sha256(dynamic_optional_default_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("optionalDefaultDocumentSha256") and hashlib.sha256(dynamic_optional_default_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("optionalDefaultCandidateSha256") and typed_ir_hash_matches(dynamic_optional_default_candidate) and dynamic_optional_default_document["nodes"][1]["socketDefaults"] == {"b": 0.375} and dynamic_optional_default_candidate["typedIR"]["operations"][1]["inputs"][1]["defaultValue"] == 0.375 and "(n_source_value + 0.375f)" in dynamic_optional_default_candidate["hlslBody"] and socket_default_roundtrip == socket_default_edit_document and socket_default_roundtrip["schemaVersion"] == 3 and socket_default_roundtrip["nodes"][2]["socketDefaults"] == {"b": 0.25} and socket_default_edit_compile["typedIR"]["operations"][2]["inputs"][1]["defaultValue"] == 0.25 and "(n_source_left_value + 0.25f)" in socket_default_edit_compile["hlslBody"] and socket_default_undo == optional_b_document and socket_default_redo == socket_default_edit_document and socket_default_clipboard["schemaVersion"] == 3 and socket_default_paste["schemaVersion"] == 3 and next(node for node in socket_default_paste["nodes"] if node["nodeId"] == "sum_copy")["socketDefaults"] == {"b": 0.25} and schema2_socket_default_edit["schemaVersion"] == 3 and schema2_socket_default_edit["graphParameters"] == [] and schema2_socket_default_edit["nodes"][2]["socketDefaults"] == {"b": 0.5} and linked_socket_default_edit_document["nodes"][2]["socketDefaults"] == {"b": 0.75} and linked_socket_default_edit_compile["typedIR"] == linked_socket_default_baseline_compile["typedIR"] and linked_socket_default_edit_compile["semanticHashSha256"] == linked_socket_default_baseline_compile["semanticHashSha256"] and linked_socket_default_edit_compile["hlslBody"] == linked_socket_default_baseline_compile["hlslBody"] and required_socket_default_diagnostic == {"code": "node.socket_default.not_optional", "severity": "error", "path": "/nodes/2/socketDefaults/a"} and overflow_socket_default_diagnostic == {"code": "socket.default.invalid", "severity": "error", "path": "/nodes/2/socketDefaults/b"} and socket_default_ui_session.document["schemaVersion"] == 3 and socket_default_ui_session.document["nodes"][0]["socketDefaults"] == {"b": 0.625} and socket_default_ui_session.history,
+            "optionalSocketDefaultIsTypedHashedAndOverridable": dynamic_contract.get("socketDefaultContract") == socket_default_contract_expected and optional_b_input == {"socketId": "b", "valueType": "Float", "required": False, "defaultValue": 0.0, "producer": None} and "(n_source_left_value + 0.0f)" in optional_b_compile["hlslBody"] and optional_b_override_compile["typedIRSemanticHashSha256"] != optional_b_compile["typedIRSemanticHashSha256"] and "(n_source_left_value + n_source_right_value)" in optional_b_override_compile["hlslBody"] and optional_b_override_compile["typedIR"] == changed_optional_default_connected_compile["typedIR"] and optional_b_override_compile["semanticHashSha256"] == changed_optional_default_connected_compile["semanticHashSha256"] and optional_b_override_compile["hlslBody"] == changed_optional_default_connected_compile["hlslBody"] and changed_optional_default_compile["semanticHashSha256"] != optional_b_compile["semanticHashSha256"] and "(n_source_left_value + 0.5f)" in changed_optional_default_compile["hlslBody"] and required_input_missing_diagnostic == {"code": "node.input.required_unconnected", "severity": "error", "path": "/nodes/2/inputs/a"} and any(item["operationId"] == "artifact.rd.math.add.float32.default_b" and item["inputs"][1].get("default") == 0.0 for item in dynamic_module.build_palette_model(dynamic_registry)) and "defaultText=socketDefault!==undefined" in local_ui_html_source and "'default'" in local_ui_html_source,
             "emittedSourceHashMatchesPinnedRampCandidate": regenerated_vector4_ramp_candidate.get("hlslBodySha256") == dynamic_contract.get("hlslSha256") == hashlib.sha256(regenerated_vector4_ramp_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() and dynamic_contract.get("emittedSourceHashContract") == "SHA-256 of exact UTF-8 hlslBody bytes; adapter-specific source identity, separate from semantic and structure hashes",
             "hostContextAdapterRejectsMalformedAndMissingBindings": malformed_context_binding_diagnostic == {"code": "shader.context.binding.invalid", "severity": "error", "path": "/contextBindings"} and missing_context_binding_diagnostic == {"code": "shader.context.binding.unsupported", "severity": "error", "path": "/nodes/uv"},
             "rampStopsPersistExactlyThroughFileRoundTrip": ramp_roundtrip_saved_hash == ramp_roundtrip_loaded_hash == ramp_roundtrip_resaved_hash and ramp_roundtrip_resaved_document == dynamic_vector4_ramp_document and ramp_roundtrip_resaved_document["nodes"][1]["parameters"]["stops"] == ramp_stops_before_edit,
@@ -2913,7 +2964,7 @@ def validate(root: Path) -> list[str]:
             "rampGpuCaptureSourcePinsHostAdapterAndFixtures": dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("status") == "source-added-not-run" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testName") in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and "setMaterialGraphBlock(candidateBlock)" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and "writeRgba32f" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and "writeDisplayComposite" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and all(field in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") for field in dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("inputSha256Fields", []) + dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("outputSha256Fields", []) + dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("measurementFields", [])) and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("legacyFixture", "")).is_file() and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("candidateFixture", "")).is_file() and "test-only host binding" in dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("adapterScope", "") and "capture has not been run" in dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("limitations", []) and "compiler version and build identity are not exposed" in dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("limitations", []),
             "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden": "instance.timeOffset = 1.0f" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("renderOutputModeField") in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("formulaGoldenFixture", "").split("/")[-1] in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and "candidateVsFormulaGoldenAbsoluteError" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("formulaGoldenFixture", "")).is_file() and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).is_file() and "--capture-report" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "capture-source-executed-on-test-run" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "rawCaptureLayout" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "captureReportSha256" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "baselineRepeatNoiseRange" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "candidateVsBaselineMeanError" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "outsideUnitRangeCount" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8"),
             "rampCaptureAnalyzerConsumesNamedReportRegions": all(field in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") for field in dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("measurementFields", [])) and all(field in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") for field in ("captureRegions", "\"name\"", "\"x\"", "\"y\"", "\"width\"", "\"height\"")) and all(fragment in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") for fragment in ("capture_report.get(\"captureRegions\")", "_parse_roi(region_value, width, height)", "regions.extend(capture_input[\"regions\"])", "ROI names must be unique")),
-            "candidateGeneratorIncludesAllTenPersistedGraphs": all(fragment in candidate_generator_source for fragment in (
+            "candidateGeneratorIncludesAllElevenPersistedGraphs": all(fragment in candidate_generator_source for fragment in (
                 '("documentFixture", "candidateFixture", "candidateSha256", "documentSha256")',
                 '("subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256")',
                 '("divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256")',
@@ -2923,7 +2974,9 @@ def validate(root: Path) -> list[str]:
                 '("clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256")',
                 '("vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256")',
                 '("vector4SeparateDocumentFixture", "vector4SeparateCandidateFixture", "vector4SeparateCandidateSha256", "vector4SeparateDocumentSha256")',
-                '("vector4RampDocumentFixture", "vector4RampCandidateFixture", "vector4RampCandidateSha256", "vector4RampDocumentSha256")')) and all(key in dynamic_contract for key in (
+                '("vector4RampDocumentFixture", "vector4RampCandidateFixture", "vector4RampCandidateSha256", "vector4RampDocumentSha256")')) and all(fragment in candidate_generator_source for fragment in (
+                '"optionalDefaultDocumentFixture", "optionalDefaultCandidateFixture"',
+                '"optionalDefaultCandidateSha256", "optionalDefaultDocumentSha256"')) and all(key in dynamic_contract for key in (
                     "documentFixture", "candidateFixture", "candidateSha256", "documentSha256",
                     "subtractDocumentFixture", "subtractCandidateFixture", "subtractCandidateSha256", "subtractDocumentSha256",
                     "divideDocumentFixture", "divideCandidateFixture", "divideCandidateSha256", "divideDocumentSha256",
@@ -2933,7 +2986,8 @@ def validate(root: Path) -> list[str]:
                     "clampDocumentFixture", "clampCandidateFixture", "clampCandidateSha256", "clampDocumentSha256",
                     "vector4MixDocumentFixture", "vector4MixCandidateFixture", "vector4MixCandidateSha256", "vector4MixDocumentSha256",
                     "vector4SeparateDocumentFixture", "vector4SeparateCandidateFixture", "vector4SeparateCandidateSha256", "vector4SeparateDocumentSha256",
-                    "vector4RampDocumentFixture", "vector4RampCandidateFixture", "vector4RampCandidateSha256", "vector4RampDocumentSha256")),
+                    "vector4RampDocumentFixture", "vector4RampCandidateFixture", "vector4RampCandidateSha256", "vector4RampDocumentSha256",
+                    "optionalDefaultDocumentFixture", "optionalDefaultCandidateFixture", "optionalDefaultCandidateSha256", "optionalDefaultDocumentSha256")),
             "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
             "paletteEntriesExposeTypedSignatures": 'const pinSummary=pins=>pins.map(pin=>`${pin.socketId}:${pin.valueType}${pin.required?\' (required)\':\'\'}`).join(\', \')||\'none\';' in local_ui_html_source and 'Inputs: ${pinSummary(item.inputs)} · Outputs: ${pinSummary(item.outputs)}' in local_ui_html_source and 'title="${esc(signature)}"' in local_ui_html_source and 'aria-label="${esc(`${item.label}. ${signature}`)}"' in local_ui_html_source,
             "graphNodeLimitRejectsBeforeNodeIndexing": graph_limits == {"maxNodes": dynamic_module.MAX_GRAPH_NODES, "maxLinks": dynamic_module.MAX_GRAPH_LINKS, "evidenceStatus": "provisional-unprofiled"} and oversized_nodes_validation["status"] == "invalid" and oversized_nodes_validation["semanticHashSha256"] is None and [item["code"] for item in oversized_nodes_validation["diagnostics"]] == [graph_limit_goldens[0]["code"]] and oversized_nodes_compile_diagnostic == graph_limit_goldens[0],
