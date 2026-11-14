@@ -52,7 +52,14 @@ images and candidate raw image with `tools/shader_graph_rd/analyze_shader_graph_
 The tool reports repeat-to-repeat noise, per-channel RGBA distributions, and
 candidate error against the baseline mean; named top-left-origin ROIs can be
 added with repeated `--roi NAME:X,Y,W,H` options. It does not choose a quality
-threshold or claim Blender parity.
+threshold or claim Blender parity. The generated capture report supplies and
+hash-verifies all inputs:
+
+```powershell
+python -B tools/shader_graph_rd/analyze_shader_graph_rgba32f.py `
+  --capture-report path/to/shader-graph-ramp-vulkan-capture.json `
+  --output path/to/shader-graph-ramp-analysis.json
+```
 
 Run the dependency-free local graph editor against an existing document:
 

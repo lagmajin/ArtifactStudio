@@ -190,16 +190,65 @@ def _write_difference(path: Path, baseline_mean: Sequence[float],
     return _sha256(path)
 
 
+def _capture_inputs_from_report(path: Path) -> dict[str, object]:
+    report_bytes = path.read_bytes()
+    capture_report = json.loads(report_bytes.decode("utf-8"))
+    if not isinstance(capture_report, dict):
+        raise ValueError(f"{path}: capture report root must be an object")
+    if capture_report.get("kind") != "artifact-shader-graph-ramp-vulkan-capture":
+        raise ValueError(f"{path}: not a Ramp Vulkan capture report")
+    repeats = capture_report.get("legacyRepeatedRawCaptures")
+    if not isinstance(repeats, list) or len(repeats) != 5:
+        raise ValueError(f"{path}: expected five repeated legacy raw captures")
+    baseline_paths: list[Path] = []
+    baseline_digests: list[str] = []
+    for index, item in enumerate(repeats, start=1):
+        if not isinstance(item, dict) or not item.get("path") or not item.get("sha256"):
+            raise ValueError(f"{path}: invalid legacy capture record {index}")
+        capture_path = Path(str(item["path"]))
+        if not capture_path.is_absolute():
+            capture_path = path.resolve().parent / capture_path
+        baseline_paths.append(capture_path)
+        baseline_digests.append(str(item["sha256"]).upper())
+
+    candidate_name = capture_report.get("candidateRawCapture")
+    candidate_digest = capture_report.get("candidateRawCaptureSha256")
+    if not isinstance(candidate_name, str) or not candidate_name or not candidate_digest:
+        raise ValueError(f"{path}: candidate raw capture path or digest is missing")
+    candidate_path = Path(candidate_name)
+    if not candidate_path.is_absolute():
+        candidate_path = path.resolve().parent / candidate_path
+    if capture_report.get("rawCaptureLayout") != (
+        "native-endian IEEE-754 float32, row-major interleaved RGBA"
+    ):
+        raise ValueError(f"{path}: unsupported raw capture layout")
+    return {
+        "baseline": baseline_paths,
+        "baselineDigests": baseline_digests,
+        "candidate": candidate_path,
+        "candidateDigest": str(candidate_digest).upper(),
+        "width": int(capture_report["width"]),
+        "height": int(capture_report["height"]),
+        "byteOrder": "native",
+        "reportSha256": hashlib.sha256(report_bytes).hexdigest().upper(),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--baseline", type=Path, action="append", required=True,
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--capture-report", type=Path,
+                        help="load paths, dimensions, and hashes from the Vulkan capture JSON")
+    source.add_argument("--baseline", type=Path, action="append",
                         help="legacy RGBA32F capture; repeat for noise characterization")
-    parser.add_argument("--candidate", type=Path, required=True,
+    parser.add_argument("--candidate", type=Path,
                         help="candidate RGBA32F capture")
-    parser.add_argument("--width", type=int, default=256)
-    parser.add_argument("--height", type=int, default=256)
+    parser.add_argument("--width", type=int,
+                        help="manual input width (default: 256; report mode uses recorded width)")
+    parser.add_argument("--height", type=int,
+                        help="manual input height (default: 256; report mode uses recorded height)")
     parser.add_argument("--byte-order", choices=("native", "little", "big"),
-                        default="native")
+                        help="manual input byte order (default: native)")
     parser.add_argument("--roi", action="append", default=[], metavar="NAME:X,Y,W,H",
                         help="top-left-origin ROI; may be repeated")
     parser.add_argument("--relative-epsilon", type=float, default=1.0e-8)
@@ -211,8 +260,6 @@ def main() -> int:
                         help="write JSON report here instead of stdout")
     args = parser.parse_args()
 
-    if args.width <= 0 or args.height <= 0:
-        parser.error("width and height must be positive")
     if not math.isfinite(args.relative_epsilon) or args.relative_epsilon <= 0.0:
         parser.error("--relative-epsilon must be finite and positive")
     if args.threshold is not None and (
@@ -220,7 +267,37 @@ def main() -> int:
     ):
         parser.error("--threshold must be finite and nonnegative")
 
-    input_paths = [*args.baseline, args.candidate]
+    capture_input: dict[str, object] | None = None
+    if args.capture_report is not None:
+        if args.candidate is not None or args.width is not None or args.height is not None or args.byte_order is not None:
+            parser.error("--capture-report supplies --candidate, dimensions, and byte order")
+        try:
+            capture_input = _capture_inputs_from_report(args.capture_report)
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+            parser.error(str(error))
+        baseline_paths = capture_input["baseline"]
+        candidate_path = capture_input["candidate"]
+        baseline_digests = capture_input["baselineDigests"]
+        candidate_digest = capture_input["candidateDigest"]
+        width = int(capture_input["width"])
+        height = int(capture_input["height"])
+        byte_order = str(capture_input["byteOrder"])
+    else:
+        if not args.baseline or args.candidate is None:
+            parser.error("manual mode requires --candidate and at least one --baseline")
+        baseline_paths = args.baseline
+        candidate_path = args.candidate
+        baseline_digests = [None] * len(baseline_paths)
+        candidate_digest = None
+        width = args.width if args.width is not None else 256
+        height = args.height if args.height is not None else 256
+        byte_order = args.byte_order or "native"
+    if width <= 0 or height <= 0:
+        parser.error("width and height must be positive")
+
+    input_paths = [*baseline_paths, candidate_path]
+    if args.capture_report is not None:
+        input_paths.append(args.capture_report)
     output_paths = [path for path in (args.diff_output, args.output) if path is not None]
     if len({path.resolve() for path in output_paths}) != len(output_paths):
         parser.error("--output and --diff-output must use different paths")
@@ -228,24 +305,28 @@ def main() -> int:
         parser.error("analysis outputs must not overwrite capture inputs")
 
     try:
-        if len({path.resolve() for path in args.baseline}) != len(args.baseline):
+        if len({path.resolve() for path in baseline_paths}) != len(baseline_paths):
             raise ValueError("baseline capture paths must be unique")
-        baselines = [_read_rgba32f(path, args.width, args.height, args.byte_order)
-                     for path in args.baseline]
-        candidate = _read_rgba32f(args.candidate, args.width, args.height,
-                                  args.byte_order)
+        for path, expected in zip(baseline_paths, baseline_digests):
+            if expected is not None and _sha256(path) != expected:
+                raise ValueError(f"{path}: SHA-256 differs from capture report")
+        if candidate_digest is not None and _sha256(candidate_path) != candidate_digest:
+            raise ValueError(f"{candidate_path}: SHA-256 differs from capture report")
+        baselines = [_read_rgba32f(path, width, height, byte_order)
+                     for path in baseline_paths]
+        candidate = _read_rgba32f(candidate_path, width, height, byte_order)
         regions: list[dict[str, int | str]] = [{
             "name": "full-frame", "x": 0, "y": 0,
-            "width": args.width, "height": args.height,
+            "width": width, "height": height,
         }]
-        regions.extend(_parse_roi(value, args.width, args.height) for value in args.roi)
+        regions.extend(_parse_roi(value, width, height) for value in args.roi)
         names = [str(region["name"]) for region in regions]
         if len(set(names)) != len(names):
             raise ValueError("ROI names must be unique and cannot repeat 'full-frame'")
 
         # Keep the repeat mean in Python's double-precision domain; only the
         # optional exported diff is quantized back to RGBA32F.
-        baseline_mean = array("d", [0.0]) * (args.width * args.height * 4)
+        baseline_mean = array("d", [0.0]) * (width * height * 4)
         for index in range(len(baseline_mean)):
             samples = [capture[index] for capture in baselines]
             baseline_mean[index] = statistics.fmean(samples)
@@ -253,21 +334,24 @@ def main() -> int:
         report: dict[str, object] = {
             "kind": "artifact-shader-graph-rgba32f-analysis",
             "status": "analysis-generated-no-quality-decision",
-            "width": args.width,
-            "height": args.height,
+            "width": width,
+            "height": height,
             "channelOrder": "RGBA",
-            "byteOrder": args.byte_order,
+            "byteOrder": byte_order,
             "alpha": "straight sample preserved from capture; no premultiply or composite",
             "inputs": {
                 "baseline": [
                     {"path": path.as_posix(), "sha256": _sha256(path)}
-                    for path in args.baseline
+                    for path in baseline_paths
                 ],
                 "candidate": {
-                    "path": args.candidate.as_posix(),
-                    "sha256": _sha256(args.candidate),
+                    "path": candidate_path.as_posix(),
+                    "sha256": _sha256(candidate_path),
                 },
             },
+            "captureReportSha256": (
+                capture_input["reportSha256"] if capture_input is not None else None
+            ),
             "relativeErrorEpsilon": args.relative_epsilon,
             "absoluteErrorThreshold": args.threshold,
             "regions": [],
@@ -276,13 +360,13 @@ def main() -> int:
             report["regions"].append({
                 "boundsTopLeftOrigin": region,
                 "baselineRepeatNoiseRange": _repeat_noise(
-                    baselines, args.width, region),
+                    baselines, width, region),
                 "baselineMeanDistribution": _image_distributions(
-                    baseline_mean, args.width, region),
+                    baseline_mean, width, region),
                 "candidateDistribution": _image_distributions(
-                    candidate, args.width, region),
+                    candidate, width, region),
                 "candidateVsBaselineMeanError": _candidate_error(
-                    baseline_mean, candidate, args.width, region,
+                    baseline_mean, candidate, width, region,
                     args.relative_epsilon, args.threshold),
             })
 
@@ -290,7 +374,7 @@ def main() -> int:
             report["differenceCapture"] = {
                 "path": args.diff_output.as_posix(),
                 "sha256": _write_difference(
-                    args.diff_output, baseline_mean, candidate, args.byte_order),
+                    args.diff_output, baseline_mean, candidate, byte_order),
                 "formula": "per-channel abs(candidate - mean(baseline repeats)); RGBA32F",
             }
         encoded = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
