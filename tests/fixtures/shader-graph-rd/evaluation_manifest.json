@@ -5872,6 +5872,20 @@
           "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
           "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
           "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy captures and one candidate capture",
+          "reportEvidence": {
+            "inputSha256Fields": [
+              "legacyFixtureSha256",
+              "candidateFixtureSha256"
+            ],
+            "outputSha256Fields": [
+              "legacyRawCaptureSha256",
+              "candidateRawCaptureSha256",
+              "legacyBlackCompositeSha256",
+              "legacyWhiteCompositeSha256",
+              "candidateBlackCompositeSha256",
+              "candidateWhiteCompositeSha256"
+            ]
+          },
           "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate Vector4 output to the established graph material fields; no Core implementation change",
           "limitations": [
             "capture has not been run",
