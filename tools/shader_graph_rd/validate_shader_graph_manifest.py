@@ -1387,6 +1387,7 @@ def validate(root: Path) -> list[str]:
         local_ui_module = importlib.util.module_from_spec(local_ui_spec)
         sys.modules[local_ui_spec.name] = local_ui_module
         local_ui_spec.loader.exec_module(local_ui_module)
+        local_ui_html_source = dynamic_prototype_path.with_name("local_graph_lab.html").read_text(encoding="utf-8")
         if prior_dynamic_alias is None:
             del sys.modules["dynamic_graph_prototype"]
         else:
@@ -2483,6 +2484,7 @@ def validate(root: Path) -> list[str]:
             "divideCandidateReproducesPositiveFloorContract": dynamic_divide_candidate == regenerated_divide_candidate and regenerated_divide_candidate.get("outputType") == "Float" and "(n_numerator_value / max(n_divisor_value, 1e-5f))" in regenerated_divide_candidate.get("hlslBody", "") and len(divide_document_nodes) == 3 and divide_divisor_node.get("parameters", {}).get("value") == -0.00002,
             "divideCandidateMatchesLegacyNegativeDenominatorGolden": len(divide_golden_a) == 4 and len(divide_golden_b) == 4 and len(divide_golden_result) == 4 and divide_golden_a[1] == divide_numerator_node.get("parameters", {}).get("value") and divide_golden_b[1] == divide_divisor_node.get("parameters", {}).get("value") and divide_golden_result[1] == 100000.0,
             "vector4DivideCandidateMatchesAllLegacyBinary32Lanes": dynamic_vector4_divide_candidate == regenerated_vector4_divide_candidate and regenerated_vector4_divide_candidate.get("outputType") == "Vector4" and "(n_numerator_value / max(n_denominator_value, float4(1e-5f,1e-5f,1e-5f,1e-5f)))" in regenerated_vector4_divide_candidate.get("hlslBody", "") and len(vector4_divide_nodes) == 3 and vector4_divide_nodes[2].get("operationId") == "artifact.rd.math.divide.vector4.positive_floor.float32" and dynamic_vector4_divide_document.get("output") == {"nodeId": "quotient", "socketId": "result"} and vector4_divide_numerator_node.get("parameters", {}).get("value") == divide_golden_a and vector4_divide_denominator_node.get("parameters", {}).get("value") == divide_golden_b and divide_golden_result == [100000.0, 100000.0, 50000.0, 100000.0],
+            "paletteSearchFiltersRegisteredOperations": '<input id="palette-search" type="search"' in local_ui_html_source and 'aria-label="Filter node palette"' in local_ui_html_source and 'function renderPalette()' in local_ui_html_source and 'state.palette.filter(item=>[item.label,item.category,item.operationId]' in local_ui_html_source and "$('palette-empty').hidden=matching.length>0;" in local_ui_html_source and "$('palette-search').addEventListener('input'" in local_ui_html_source,
         }
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or

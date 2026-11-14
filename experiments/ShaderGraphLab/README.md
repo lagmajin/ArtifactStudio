@@ -33,9 +33,10 @@ python -B experiments/ShaderGraphLab/local_graph_lab.py --document path/to/graph
 ```
 
 Then open `http://127.0.0.1:8765/` in a browser. The server binds to loopback
-only. The editor exposes the registry palette, typed socket connections,
-parameter edits, node movement, graph-output selection, deletion, undo/redo,
-and explicit save through the prototype's document APIs. Vector4 parameters
+only. The editor exposes a registry palette searchable by label, category, or
+operation ID, typed socket connections, parameter edits, node movement,
+graph-output selection, deletion, undo/redo, and explicit save through the
+prototype's document APIs. Vector4 parameters
 use four separate numeric controls for component-level editing, including when
 the value is exposed at graph scope. Parameter editors retain focus after a
 commit so Vector4 lanes can be tabbed through without losing the editing

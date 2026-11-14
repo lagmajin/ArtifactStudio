@@ -22,7 +22,7 @@
     h2 { margin: 2px 0 10px; color: #b9c0cb; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
     .category { margin: 14px 0 6px; color: #8f9baa; font-size: 11px; text-transform: uppercase; }
     .palette-item { width: 100%; margin: 3px 0; text-align: left; }
-    #node-search { width: 100%; margin: 12px 0 5px; padding: 5px 7px; color: inherit; background: #1c1f24; border: 1px solid #454b55; border-radius: 3px; }
+    #palette-search, #node-search { width: 100%; margin: 8px 0 5px; padding: 5px 7px; color: inherit; background: #1c1f24; border: 1px solid #454b55; border-radius: 3px; }
     #node-index { display: grid; gap: 3px; max-height: 34vh; overflow: auto; }
     .node-index-item { width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .node-index-item.selected { border-color: #e7bd62; color: #f0d48f; }
@@ -84,7 +84,7 @@
     <button id="undo">Undo</button><button id="redo">Redo</button><button id="download-json" title="Download the current graph document as JSON">Download JSON</button><button id="save">Save</button><button id="reload-document" disabled title="Reload is available after an external file change">Reload File</button>
   </header>
   <main>
-    <aside id="palette"><h2>Node Palette</h2><div id="palette-items"></div><h2 style="margin-top:18px">Graph Nodes</h2><input id="node-search" type="search" placeholder="Find node by name or ID" aria-label="Find graph node"><div id="node-index"></div><p class="small">Add a node, then click an output socket and an input socket to connect. Shift-click node titles to select several; drag any selected title to move them together. Pan with the middle mouse button or hold Space and drag.</p><p class="small">Canvas keys: Ctrl/Cmd+C copy · Ctrl/Cmd+V paste · Ctrl/Cmd+D duplicate · Delete remove · Ctrl/Cmd+A select all · Ctrl/Cmd+Z undo · Shift+Ctrl/Cmd+Z redo · F focus.</p></aside>
+    <aside id="palette"><h2>Node Palette</h2><input id="palette-search" type="search" placeholder="Filter node types" aria-label="Filter node palette"><div id="palette-empty" class="small" role="status" aria-live="polite" hidden>No matching node operations.</div><div id="palette-items"></div><h2 style="margin-top:18px">Graph Nodes</h2><input id="node-search" type="search" placeholder="Find node by name or ID" aria-label="Find graph node"><div id="node-index"></div><p class="small">Add a node, then click an output socket and an input socket to connect. Shift-click node titles to select several; drag any selected title to move them together. Pan with the middle mouse button or hold Space and drag.</p><p class="small">Canvas keys: Ctrl/Cmd+C copy · Ctrl/Cmd+V paste · Ctrl/Cmd+D duplicate · Delete remove · Ctrl/Cmd+A select all · Ctrl/Cmd+Z undo · Shift+Ctrl/Cmd+Z redo · F focus.</p></aside>
     <section id="workspace-wrap" tabindex="0" aria-label="Shader graph canvas"><div id="workspace"><svg id="wires"></svg><div id="nodes"></div></div></section>
     <aside id="inspector"><h2>Graph Parameters</h2><div id="graph-parameters"><span class="small">Expose node values to tune this graph.</span></div><h2 style="margin-top:22px">Graph</h2><div id="selection">Select a node or graph output.</div><h2 style="margin-top:22px">HLSL Candidate</h2><pre id="hlsl">—</pre><div id="diagnostics" aria-label="Graph diagnostics"></div><p class="small">Text candidate only. No HLSL compiler or GPU is invoked.</p></aside>
   </main>
@@ -140,7 +140,7 @@
   const $ = id => document.getElementById(id);
   const workspace = $('workspace'), nodesEl = $('nodes'), wires = $('wires');
   const exposeDialog = $('expose-dialog');
-  let state = null, selected = null, selectedNodes = new Set(), nodeSearch = '', pendingSocket = null, pendingDeleteAction = null, serial = 1, drag = null, pan = null, spaceDown = false, zoomLevel = 1, actionQueue = Promise.resolve();
+  let state = null, selected = null, selectedNodes = new Set(), nodeSearch = '', paletteSearch = '', pendingSocket = null, pendingDeleteAction = null, serial = 1, drag = null, pan = null, spaceDown = false, zoomLevel = 1, actionQueue = Promise.resolve();
   const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const validNodeId = value => typeof value==='string'&&/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(value);
   const operationFor = node => node&&state.palette.find(op => op.operationId === node.operationId && op.semanticVersion === node.semanticVersion);
@@ -256,8 +256,13 @@
     return {x:(dot.left + dot.width/2 - box.left)/zoomLevel, y:(dot.top + dot.height/2 - box.top)/zoomLevel};
   };
   function renderPalette() {
+    const search=$('palette-search');
+    search.value=paletteSearch;
+    const query=paletteSearch.trim().toLocaleLowerCase();
+    const matching=state.palette.filter(item=>[item.label,item.category,item.operationId].some(value=>typeof value==='string'&&value.toLocaleLowerCase().includes(query)));
     const groups = new Map();
-    for (const item of state.palette) { if (!groups.has(item.category)) groups.set(item.category, []); groups.get(item.category).push(item); }
+    for (const item of matching) { if (!groups.has(item.category)) groups.set(item.category, []); groups.get(item.category).push(item); }
+    $('palette-empty').hidden=matching.length>0;
     $('palette-items').innerHTML = [...groups].map(([category, items]) => `<div class="category">${esc(category)}</div>` + items.map(item => `<button class="palette-item" data-op="${esc(item.operationId)}" data-version="${item.semanticVersion}">${esc(item.label)}</button>`).join('')).join('');
     $('palette-items').querySelectorAll('[data-op]').forEach(button => button.onclick = () => {
       const op = state.palette.find(item => item.operationId === button.dataset.op && item.semanticVersion === Number(button.dataset.version));
@@ -906,6 +911,7 @@
     : {type:'arrange'});
   $('layout-mode').onchange=updateLayoutActionState;
   $('apply-layout').onclick=()=>post({type:'layoutSelection',nodeIds:[...selectedNodes],mode:$('layout-mode').value});
+  $('palette-search').addEventListener('input',event=>{paletteSearch=event.target.value;renderPalette();});
   $('node-search').addEventListener('input',event=>{nodeSearch=event.target.value;renderNodeIndex();});
   workspaceWrap.addEventListener('pointerdown',event=>{
     if (event.button!==1&&!(event.button===0&&spaceDown)) return;

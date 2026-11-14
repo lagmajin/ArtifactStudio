@@ -5892,7 +5892,8 @@
         "subtractCandidateReproducesDedicatedGraph",
         "divideCandidateReproducesPositiveFloorContract",
         "divideCandidateMatchesLegacyNegativeDenominatorGolden",
-        "vector4DivideCandidateMatchesAllLegacyBinary32Lanes"
+        "vector4DivideCandidateMatchesAllLegacyBinary32Lanes",
+        "paletteSearchFiltersRegisteredOperations"
       ],
       "registrySha256": "C89B862ED3AA27E057AEF75648D0D783150A345E4011449DD0C628C5D142967A",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
