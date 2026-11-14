@@ -5783,10 +5783,15 @@
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "DE557DDCF186D889D955421A57C2114A171AF3A1414AABF36CFF986C653BE04E",
+      "candidateSha256": "3BE00D56BFC9526DEE448217D593DD963CBD79608AC4F3062B4CF0F73E6F2F17",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "5A48B5D8893D2F37FD21AC24C12828B343DA63B0C7B7520E2E110A99887B8F93",
+      "subtractCandidateSha256": "220EE40663070F3F29BFB2495B165C23A41E3746A44BAEBA5922AC8168F51D87",
+      "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
+      "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
+      "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
+      "divideCandidateSha256": "B276482840ACE64AB5A1C086477ABD3A3ABBB5C96FA429C7CF9C076FD2B938E7",
+      "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
@@ -5795,6 +5800,7 @@
         "float.add",
         "float.subtract",
         "float.multiply",
+        "float.divide.positive_floor_1e5",
         "vector4.add",
         "vector4.multiply",
         "float.replicate.rgb_alpha_one",
@@ -5878,9 +5884,10 @@
         "nonFiniteBinary32ParameterRejected",
         "inlineShaderSourceRejected",
         "socketTypeMismatchRejected",
-        "subtractCandidateReproducesDedicatedGraph"
+        "subtractCandidateReproducesDedicatedGraph",
+        "divideCandidateReproducesPositiveFloorContract"
       ],
-      "registrySha256": "9346269F0F2EE2C22A90E3C744807D1E4A3C40D62C9A2C1C5C829469087D0025",
+      "registrySha256": "541424257F7B27013204ED8A05CBD7DB92DCDDAC3CA314E6CA1460DE2E2027ED",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {

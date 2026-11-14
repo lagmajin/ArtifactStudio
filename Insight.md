@@ -6,6 +6,13 @@
 - **価値または懸念:** prototypeのpalette/loweringに基本scalar arithmeticをひとつ増やし、registry-selected operationとtrusted native implementationの境界を保つ。shader runtime/finite arithmetic結果、Subtract専用graphの実行証拠はまだない。
 - **次に確認すべきこと:** manifest verifierにfocused subtract candidateの再生成・payload・digest照合を追加した。許可された検証時にregistry lock/negative signature、将来HLSL compiler/runtimeとbinary32 edge behaviorを評価する。
 
+## 2026-11-15: Legacy Shader Graph divide floors negative denominators to a positive epsilon
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::MathNode::Op::Divide`、`experiments/ShaderGraphLab/registry.json`、`dynamic_divide.json`。
+- **確認できた事実:** legacy HLSL emits `a / max(b, float4(1e-5f,...))`. This floors each denominator to a positive epsilon; a negative input is not divided by its signed value and is not handled by `abs(b)` epsilon. The R&D registry now exposes the scalar projection under the explicitly named `float.divide.positive_floor_1e5` implementation and uses a negative divisor in its focused document.
+- **価値または懸念:** Naming the operation after its actual denominator policy prevents a conventional divide node from silently inheriting asymmetric legacy behavior. The difference is visible around negative and near-zero denominators and must remain in semantic versioning if a future operation changes it.
+- **次に確認すべきこと:** Candidate regeneration is wired into the manifest generator/verifier. Compare candidate output with the existing binary32 formula golden and an actual shader compiler/runtime before considering Core promotion; NaN/Inf and GPU `max` edge behavior are still unverified.
+- **未検証:** The focused document has not been passed through the manifest validator, HLSL compiler, or GPU runtime in this turn.
+
 ## 2026-11-15: Shader graph state guard must accept successful compilation warnings
 - **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope`、`dynamic_graph_prototype.py::compile_document_from_data`。
 - **確認できた事実:** candidate compile成功resultは`warnings: string[]`を返し、`diagnostics`配列はcompile failure wrapperだけにある。直前のstate guardはcompilation diagnosticsを常時必須にして正常なcompile stateを拒否する形だった。成功時のwarning配列または失敗時のstructured diagnosticsのどちらかを受け入れるよう修正した。

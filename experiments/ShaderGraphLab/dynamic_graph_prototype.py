@@ -25,6 +25,7 @@ from typing import Any, Callable
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
+    "float.divide.positive_floor_1e5",
     "vector4.add", "vector4.multiply",
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
@@ -823,7 +824,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
                 operation.parameters[0].value_type != "Vector4F32"):
             raise ContractError(f"{path_label} vector4.constant requires zero inputs, one Vector4 output, and one Vector4F32 value parameter", code="operation.signature.invalid", path=path)
-        if implementation_id in {"float.add", "float.subtract", "float.multiply", "vector4.add", "vector4.multiply"} and (
+        if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.multiply"} and (
                 (operation.inputs[0].value_type if len(operation.inputs) > 0 else None) !=
                 ("Float" if implementation_id.startswith("float.") else "Vector4") or
                 (operation.inputs[1].value_type if len(operation.inputs) > 1 else None) !=
@@ -846,6 +847,8 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].socket_id != "value" or operation.outputs[0].value_type != "Float" or
                 operation.parameters):
             raise ContractError(f"{path_label} vector4.extract_x requires Vector4 vector input, Float value output, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "float.divide.positive_floor_1e5" and operation.outputs[0].value_type != "Float":
+            raise ContractError(f"{path_label} float.divide.positive_floor_1e5 requires Float input and output sockets", code="operation.signature.invalid", path=path)
         registry[registry_key] = operation
     return registry
 
@@ -3320,11 +3323,14 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             source_b = writers[(node_id, operation.inputs[1].socket_id)]
             a = expressions[source_a]
             b = expressions[source_b]
-            operator = {
-                "float.add": "+", "float.subtract": "-", "float.multiply": "*",
-                "vector4.add": "+", "vector4.multiply": "*",
-            }[implementation_id]
-            expression = f"({a} {operator} {b})"
+            if implementation_id == "float.divide.positive_floor_1e5":
+                expression = f"({a} / max({b}, 1e-5f))"
+            else:
+                operator = {
+                    "float.add": "+", "float.subtract": "-", "float.multiply": "*",
+                    "vector4.add": "+", "vector4.multiply": "*",
+                }[implementation_id]
+                expression = f"({a} {operator} {b})"
         output_symbol = re.sub(r"[^A-Za-z0-9_]", "_", output_id)
         variable = f"{symbol}_{output_symbol}"
         output_type = operation.outputs[0].value_type
@@ -3410,7 +3416,7 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
         "hlslBody": hlsl,
         "warnings": warnings,
         "limitations": [
-            "prototype supports Float/Vector4 sockets and nine closed implementation IDs only",
+            "prototype supports Float/Vector4 sockets and ten closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",

@@ -181,6 +181,19 @@
         }
       ],
       "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.divide.positive_floor.float32",
+      "semanticVersion": 1,
+      "displayName": "Divide (Positive Floor)",
+      "category": "Math",
+      "implementationId": "float.divide.positive_floor_1e5",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
     }
   ]
 }

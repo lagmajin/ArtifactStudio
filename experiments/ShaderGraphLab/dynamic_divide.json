@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "numerator",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": 1.0},
+      "layout": {"x": 0.0, "y": 0.0}
+    },
+    {
+      "nodeId": "divisor",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": -0.00002},
+      "layout": {"x": 0.0, "y": 120.0}
+    },
+    {
+      "nodeId": "quotient",
+      "operationId": "artifact.rd.math.divide.positive_floor.float32",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 220.0, "y": 60.0}
+    }
+  ],
+  "links": [
+    {"from": {"nodeId": "numerator", "socketId": "value"}, "to": {"nodeId": "quotient", "socketId": "a"}},
+    {"from": {"nodeId": "divisor", "socketId": "value"}, "to": {"nodeId": "quotient", "socketId": "b"}}
+  ],
+  "output": {"nodeId": "quotient", "socketId": "result"}
+}
