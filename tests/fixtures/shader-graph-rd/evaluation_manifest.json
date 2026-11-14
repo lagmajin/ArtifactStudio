@@ -5779,36 +5779,44 @@
     },
     "dynamicGraphPrototype": {
       "status": "source-only-prototype-no-Core-integration",
-      "graphResourceLimits": {"maxNodes": 4096, "maxLinks": 16384, "evidenceStatus": "provisional-unprofiled"},
+      "graphResourceLimits": {
+        "maxNodes": 4096,
+        "maxLinks": 16384,
+        "evidenceStatus": "provisional-unprofiled"
+      },
       "prototype": "experiments/ShaderGraphLab/dynamic_graph_prototype.py",
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "140EE3E568E1B839627BA6CE515DF07880C73EAE6CE7CB946A78CE2C3C91BE94",
+      "candidateSha256": "A580A5CFD6A86C8BA027A78CA7089A2A0B33A1158BB841EDB115D19C5851DEB5",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "C4D4E177B0D0D3A5C5627533A91FF7282AD96A9D4E376C2EBF8A8F9A13522D13",
+      "subtractCandidateSha256": "E10D31EEEB763FD6DC11EF925FB31837E733FA819EAC507C7446122DD128BAC1",
       "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
       "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
       "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
-      "divideCandidateSha256": "092AEA355AF1279EA94359F6E871D14CDBDA0DAFDDB666787D925319420CCC90",
+      "divideCandidateSha256": "400A9CF82409AFEFAD2210D9C6442E3E98D3B3C30C2AF45F4AA29FABE3910645",
       "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
       "vector4DivideDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide.json",
       "vector4DivideCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide_candidate.json",
-      "vector4DivideCandidateSha256": "8548EE48C0AD04B3206D37270A7E30BFC1568270CB2501803782CA68388A2614",
+      "vector4DivideCandidateSha256": "3DBD961F5B643A0BF6F9611BDBC71F6A04DE6EAA0B94B9B89ACC3D5F39578007",
       "vector4DivideDocumentSha256": "A4221B83ABFDC49F2B149E54139A3A9CB30394B1D8FF7FD5CEB7BA25563177CE",
       "vector4SubtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract.json",
       "vector4SubtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract_candidate.json",
-      "vector4SubtractCandidateSha256": "4070B0A2025037DA92096609EA56EF5913FB7356A34860D83D7CA271EBB54097",
+      "vector4SubtractCandidateSha256": "135A09EDD28ED8BE69A8323689B5314AE124732EDEF47D3E3D85F8B128865129",
       "vector4SubtractDocumentSha256": "4DD469714A2BC7E7F2E442413ACE7E74CEEA6DFFEBE5CFEFF38BF89B0EC359CD",
       "vector4InvertDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert.json",
       "vector4InvertCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert_candidate.json",
-      "vector4InvertCandidateSha256": "AB1B2284ACB42C67C8A983ADF4A61799BAE65A7829D9871E263813E20E5AF4E0",
+      "vector4InvertCandidateSha256": "2125F1A7D32EBBFE912541F57A584C57783AD38DEE7400A2BD2317B6081459D7",
       "vector4InvertDocumentSha256": "C69ECB8C32E08CC432C5D9A6ACDDC03A1B5B10A78CACF2D9F938DDB79E0365CB",
       "clampDocumentFixture": "experiments/ShaderGraphLab/dynamic_clamp.json",
       "clampCandidateFixture": "experiments/ShaderGraphLab/dynamic_clamp_candidate.json",
-      "clampCandidateSha256": "7396BBADF734CD17F18759A4D065C5A6D91521B81618034F93D90C6800F7B923",
+      "clampCandidateSha256": "71925E6CD451CEC32F81A73FDEE0A595B7B536E1943CB0C68A8C0B2C612E050C",
       "clampDocumentSha256": "824478A7FFC9E7C12D4DCD597308BBF5504B1DD109A825AF95428A2D1D830D79",
+      "vector4MixDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix.json",
+      "vector4MixCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix_candidate.json",
+      "vector4MixCandidateSha256": "08EF09DA953DB1392CDDCA767E1389D2CD06999D7AEEC8B4500E0E01C1E326FE",
+      "vector4MixDocumentSha256": "A542DCBDF25A090EFB57D3AFBBEF7351D226CCE331A6950593F3624CB22CAA20",
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
@@ -5825,7 +5833,8 @@
         "vector4.invert.linear_factor",
         "float.clamp.sorted_bounds",
         "float.replicate.rgb_alpha_one",
-        "vector4.extract_x"
+        "vector4.extract_x",
+        "vector4.mix.saturated_factor"
       ],
       "contractChecks": [
         "layoutExcludedFromSemanticIdentity",
@@ -5913,7 +5922,8 @@
         "vector4InvertCandidateReproducesSourceFormulaCase",
         "vector4InvertCandidateLowersAllGoldenInputs",
         "clampCandidateLowersAllSortedBoundsGoldenInputs",
-        "candidateGeneratorIncludesAllSevenPersistedGraphs",
+        "vector4MixCandidateMatchesLegacyMixRgbDefaultContract",
+        "candidateGeneratorIncludesAllEightPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
@@ -5928,22 +5938,57 @@
       ],
       "sourceGuardGoldens": {
         "graphLimitDiagnostics": [
-          {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
-          {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"}
+          {
+            "code": "graph.nodes.limit_exceeded",
+            "severity": "error",
+            "path": "/nodes"
+          },
+          {
+            "code": "graph.links.limit_exceeded",
+            "severity": "error",
+            "path": "/links"
+          }
         ],
         "bothGraphLimitDiagnostics": [
-          {"code": "graph.links.limit_exceeded", "severity": "error", "path": "/links"},
-          {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"}
+          {
+            "code": "graph.links.limit_exceeded",
+            "severity": "error",
+            "path": "/links"
+          },
+          {
+            "code": "graph.nodes.limit_exceeded",
+            "severity": "error",
+            "path": "/nodes"
+          }
         ],
-        "uiGrowthLimitDiagnostic": {"code": "graph.nodes.limit_exceeded", "severity": "error", "path": "/nodes"},
+        "uiGrowthLimitDiagnostic": {
+          "code": "graph.nodes.limit_exceeded",
+          "severity": "error",
+          "path": "/nodes"
+        },
         "registryScalarTypeDiagnostics": [
-          {"code": "operation.implementation.unsupported", "severity": "error", "path": "/operations/0/implementationId"},
-          {"code": "socket.type.unsupported", "severity": "error", "path": "/operations/0/outputs/0/valueType"}
+          {
+            "code": "operation.implementation.unsupported",
+            "severity": "error",
+            "path": "/operations/0/implementationId"
+          },
+          {
+            "code": "socket.type.unsupported",
+            "severity": "error",
+            "path": "/operations/0/outputs/0/valueType"
+          }
         ],
-        "registryDepthDiagnostic": {"code": "json.value.depth", "pathPrefix": "/vendor"},
-        "malformedOperationVersionEditDiagnostic": {"code": "node.operation.version.unsupported", "severity": "error", "path": "/nodes/0/semanticVersion"}
+        "registryDepthDiagnostic": {
+          "code": "json.value.depth",
+          "pathPrefix": "/vendor"
+        },
+        "malformedOperationVersionEditDiagnostic": {
+          "code": "node.operation.version.unsupported",
+          "severity": "error",
+          "path": "/nodes/0/semanticVersion"
+        }
       },
-      "registrySha256": "682848CAB7CC142E331B2D1022A75A71FF42E4E2C3767ADB7AFEC0F934F1E0DC",
+      "registrySha256": "27BCCE8BDEFCA7D1ECE851F76A613AF302F2B751209D8C6F027D855D2C938373",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {

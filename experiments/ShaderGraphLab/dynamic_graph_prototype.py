@@ -29,6 +29,7 @@ BUILTIN_IMPLEMENTATIONS = {
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
     "float.clamp.sorted_bounds",
+    "vector4.mix.saturated_factor",
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
 }
 MAX_JSON_NESTING = 256
@@ -869,6 +870,13 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].value_type != "Float" or
                 operation.parameters):
             raise ContractError(f"{path_label} float.clamp.sorted_bounds requires Float value/minimum/maximum inputs, a Float result, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector4.mix.saturated_factor" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("factor", "Float", True), ("color1", "Vector4", True), ("color2", "Vector4", True)] or
+                operation.outputs[0].socket_id != "result" or
+                operation.outputs[0].value_type != "Vector4" or
+                operation.parameters):
+            raise ContractError(f"{path_label} vector4.mix.saturated_factor requires Float factor, Vector4 color1/color2, a Vector4 result, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.replicate.rgb_alpha_one" and (
                 len(operation.inputs) != 1 or operation.inputs[0].socket_id != "value" or
                 operation.inputs[0].value_type != "Float" or not operation.inputs[0].required or
@@ -3375,6 +3383,15 @@ def compile_document_from_data(document: Any, registry: dict[tuple[str, int], Op
             minimum = expressions[minimum_source]
             maximum = expressions[maximum_source]
             expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
+        elif implementation_id == "vector4.mix.saturated_factor":
+            factor_source = writers[(node_id, "factor")]
+            color1_source = writers[(node_id, "color1")]
+            color2_source = writers[(node_id, "color2")]
+            factor = expressions[factor_source]
+            color1 = expressions[color1_source]
+            color2 = expressions[color2_source]
+            expression = (f"float4(lerp(({color1}).rgb, ({color2}).rgb, saturate({factor})), "
+                          f"lerp(({color1}).a, ({color2}).a, saturate({factor})))")
         else:
             source_a = writers[(node_id, operation.inputs[0].socket_id)]
             source_b = writers[(node_id, operation.inputs[1].socket_id)]

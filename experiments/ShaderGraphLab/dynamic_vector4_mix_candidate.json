@@ -1,0 +1,25 @@
+{
+  "status": "candidate-lowered-no-shader-runtime",
+  "semanticHashSha256": "0A9694211AA973335E79B201018DD8C7775CFC8D7556BAFAE409FB7373A69166",
+  "shaderStructureHashSha256": "0A9694211AA973335E79B201018DD8C7775CFC8D7556BAFAE409FB7373A69166",
+  "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+  "parameterValues": [],
+  "parameterBindings": [],
+  "parameterBlock": null,
+  "topologicalNodeIds": [
+    "color1",
+    "color2",
+    "factor",
+    "mixed"
+  ],
+  "outputType": "Vector4",
+  "hlslBody": "float4 n_color1_value = float4(0.25f, 0.75f, 0.5f, 0.25f);\nfloat4 n_color2_value = float4(0.75f, 0.25f, 0.5f, 0.75f);\nfloat n_factor_value = 0.400000006f;\nfloat4 n_mixed_result = float4(lerp((n_color1_value).rgb, (n_color2_value).rgb, saturate(n_factor_value)), lerp((n_color1_value).a, (n_color2_value).a, saturate(n_factor_value)));\nreturn n_mixed_result;\n",
+  "warnings": [],
+  "limitations": [
+    "prototype supports Float/Vector4 sockets and 15 closed implementation IDs only",
+    "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+    "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+    "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+    "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+  ]
+}

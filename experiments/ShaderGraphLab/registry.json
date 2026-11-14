@@ -181,6 +181,20 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.color.mix.saturated_factor.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix",
+      "category": "Color",
+      "implementationId": "vector4.mix.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
       "semanticVersion": 1,
       "displayName": "Replicate to Vector4",
