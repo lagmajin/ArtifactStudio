@@ -4,7 +4,7 @@
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、dynamic graph capability manifest/candidate。
 - **確認できた事実:** prototypeのtrusted implementation setとtyped arithmetic loweringはregistryから任意コードを実行せず、既知IDの演算子だけを選ぶ設計である。Scalar `float.subtract` を閉じた実装IDと `artifact.rd.math.subtract.float32@1` operationとして追加し、必須Float `a/b`→Float `result` signatureを既存validatorへ含めた。式は`a - b`でclampしない。root capability listとregistry digestを更新し、既存Add/Mul fixtureに加え`0.75 - 0.25`のfocused document/candidateをgeneratorで作成した。候補HLSLは`(n_minuend_value - n_subtrahend_value)`を出力する。
 - **価値または懸念:** prototypeのpalette/loweringに基本scalar arithmeticをひとつ増やし、registry-selected operationとtrusted native implementationの境界を保つ。shader runtime/finite arithmetic結果、Subtract専用graphの実行証拠はまだない。
-- **次に確認すべきこと:** candidate digestを含む既存R&D manifest verifierへのfocused subtract case照合を追加し、許可された検証時にregistry lock/negative signature、将来HLSL compiler/runtimeとbinary32 edge behaviorを評価する。
+- **次に確認すべきこと:** manifest verifierにfocused subtract candidateの再生成・payload・digest照合を追加した。許可された検証時にregistry lock/negative signature、将来HLSL compiler/runtimeとbinary32 edge behaviorを評価する。
 
 ## 2026-11-15: Shader graph state guard must accept successful compilation warnings
 - **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope`、`dynamic_graph_prototype.py::compile_document_from_data`。

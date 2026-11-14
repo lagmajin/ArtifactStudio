@@ -1346,11 +1346,15 @@ def validate(root: Path) -> list[str]:
     dynamic_registry_path = root / dynamic_contract.get("registryFixture", "")
     dynamic_document_path = root / dynamic_contract.get("documentFixture", "")
     dynamic_candidate_path = root / dynamic_contract.get("candidateFixture", "")
+    dynamic_subtract_document_path = root / dynamic_contract.get("subtractDocumentFixture", "")
+    dynamic_subtract_candidate_path = root / dynamic_contract.get("subtractCandidateFixture", "")
     dynamic_prototype_path = root / dynamic_contract.get("prototype", "")
     try:
         dynamic_registry_source = json.loads(dynamic_registry_path.read_text(encoding="utf-8"))
         dynamic_document = json.loads(dynamic_document_path.read_text(encoding="utf-8"))
         dynamic_candidate = json.loads(dynamic_candidate_path.read_text(encoding="utf-8"))
+        dynamic_subtract_document = json.loads(dynamic_subtract_document_path.read_text(encoding="utf-8"))
+        dynamic_subtract_candidate = json.loads(dynamic_subtract_candidate_path.read_text(encoding="utf-8"))
         dynamic_spec = importlib.util.spec_from_file_location("shader_graph_dynamic_prototype", dynamic_prototype_path)
         if dynamic_spec is None or dynamic_spec.loader is None:
             raise RuntimeError("cannot load dynamic graph prototype")
@@ -1686,6 +1690,7 @@ def validate(root: Path) -> list[str]:
         removed_contract_diagnostics = dynamic_module.compare_registry_contracts(saved_registry_lock, removed_contract_registry)
         additive_version_diagnostics = dynamic_module.compare_registry_contracts(saved_registry_lock, additive_version_registry)
         regenerated_candidate = dynamic_module.compile_document_from_data(dynamic_document, dynamic_registry)
+        regenerated_subtract_candidate = dynamic_module.compile_document_from_data(dynamic_subtract_document, dynamic_registry)
         preserved_document = dynamic_module.preserve_document(dynamic_document)
         unknown_version_document = copy.deepcopy(dynamic_document)
         unknown_version_document["nodes"][0]["semanticVersion"] = 99
@@ -2445,12 +2450,15 @@ def validate(root: Path) -> list[str]:
             "registryContractLockPersistsAndAllowsPresentationChanges": sealed_round_trip["registryContractLock"] == sealed_document["registryContractLock"] and sealed_presentation_compile["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"],
             "sealedGraphRejectsSameVersionContractDrift": sealed_contract_diagnostic == {"code": "registry.operation.contract_changed", "severity": "error", "path": "/registryContractLock/artifact.rd.math.add.float32@1"},
             **{case_id: result is not None for case_id, result in diagnostics.items()},
+            "subtractCandidateReproducesDedicatedGraph": dynamic_subtract_candidate == regenerated_subtract_candidate and regenerated_subtract_candidate.get("outputType") == "Float" and "(n_minuend_value - n_subtrahend_value)" in regenerated_subtract_candidate.get("hlslBody", "") and dynamic_subtract_document.get("output") == {"nodeId": "difference", "socketId": "result"},
         }
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or
+                dynamic_subtract_candidate != regenerated_subtract_candidate or
                 hashlib.sha256(dynamic_registry_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("registrySha256") or
                 hashlib.sha256(dynamic_document_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("documentSha256") or
                 hashlib.sha256(dynamic_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("candidateSha256") or
+                hashlib.sha256(dynamic_subtract_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("subtractCandidateSha256") or
                 regenerated_candidate.get("semanticHashSha256") != dynamic_contract.get("semanticHashSha256") or
                 hashlib.sha256(regenerated_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() != dynamic_contract.get("hlslSha256") or
                 dynamic_contract.get("supportedImplementationIds") != ["float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply", "vector4.add", "vector4.multiply", "float.replicate.rgb_alpha_one", "vector4.extract_x"] or

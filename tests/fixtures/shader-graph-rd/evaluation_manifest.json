@@ -5877,7 +5877,8 @@
         "sanitizedIdentifierCollisionRejected",
         "nonFiniteBinary32ParameterRejected",
         "inlineShaderSourceRejected",
-        "socketTypeMismatchRejected"
+        "socketTypeMismatchRejected",
+        "subtractCandidateReproducesDedicatedGraph"
       ],
       "registrySha256": "9346269F0F2EE2C22A90E3C744807D1E4A3C40D62C9A2C1C5C829469087D0025",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
