@@ -508,7 +508,7 @@ Added `vector4.subtract` as the same closed two-required-input/one-output signat
 
 ## Vector4 invert graph candidate (2026-11-15)
 
-Added the existing source-audited `artifact.vector4.invert.linear_factor` identity to the dynamic registry with required Vector4 `color` and Float `factor` inputs. The closed implementation emits `lerp(color, 1-color, saturate(factor))` across RGBA, and the graph fixture binds the existing formula golden's `factor=0.5` values. The manifest ties the candidate expression and graph inputs to that case. This demonstrates composing a source-derived non-binary operator in the dynamic graph; it does not prove GPU arithmetic, compiler contraction, rendered parity, optional/unconnected Factor defaults, or Blender compatibility.
+Added the existing source-audited `artifact.vector4.invert.linear_factor` identity to the dynamic registry with required Vector4 `color` and Float `factor` inputs. The closed implementation emits `lerp(color, 1-color, saturate(factor))` across RGBA, and the graph fixture binds the existing formula golden's `factor=0.5` values. The validator contract lowers all seven source-golden input cases through temporary graph documents and checks the generated expression and typed output, including factor endpoints/out-of-range values and raw components outside 0..1. This demonstrates composing a source-derived non-binary operator in the dynamic graph; it does not prove GPU arithmetic, compiler contraction, rendered parity, optional/unconnected Factor defaults, or Blender compatibility.
 
 ## Compatible operation replacement (2026-11-14)
 

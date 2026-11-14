@@ -5905,6 +5905,7 @@
         "vector4DivideCandidateMatchesAllLegacyBinary32Lanes",
         "vector4SubtractCandidateMatchesBinary32LaneGolden",
         "vector4InvertCandidateReproducesSourceFormulaCase",
+        "vector4InvertCandidateLowersAllGoldenInputs",
         "paletteSearchFiltersRegisteredOperations",
         "registryRejectsScalarTypeConfusion",
         "registryFileRejectsNestedValuesBeyondLimit",
