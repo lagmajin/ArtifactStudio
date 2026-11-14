@@ -5825,6 +5825,24 @@
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
       "vector4RampCandidateSha256": "271A784FFF7F50E9740B09D45866D1C288A901082123FF921B12C91C9CAEF717",
       "vector4RampDocumentSha256": "8F36900F46AF7C0DE4ADAE92741B50A7D3621393AF10B8A1F29FB7A7D6EB608C",
+      "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
+      "rampImageEvaluationPlan": {
+        "status": "planned-runtime-unverified",
+        "fixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
+        "factorSamples": [0.0, 0.4999, 0.5, 0.5001, 1.0],
+        "captureRoute": "not-implemented-core-hlsl-candidate-has-no-runtime-route",
+        "comparison": "legacy Core ColorRamp GPU output at all samples as a characterization baseline with no assumed tie-order equivalence; independent CPU binary32 formula golden defines the dynamic candidate proposal; exact tie uses the proposed last-authored policy",
+        "captureConditions": {
+          "target": "opaque unit plane with fixed orthographic camera and unlit display of raw Ramp RGBA",
+          "resolution": "256x256 RGBA32F source plus lossless display PNG",
+          "colorSpace": "record raw linear RGBA32F; display conversion recorded separately",
+          "alpha": "record raw alpha and composite the same capture over black and white",
+          "regions": "full plane and center 128x128 crop",
+          "runtime": "capture each constant factor sample on every supported backend; retain compiler, GPU, and build identity",
+          "visualReview": "compare full image and crop; inspect duplicate boundary response, alpha, banding, and non-finite pixels"
+        },
+        "acceptance": "repeat baseline captures five times to characterize measurement noise; fix raw-float tolerance before candidate comparison, compare candidate to the independent formula golden, and report legacy differences separately; no visual or backend acceptance while route is unimplemented"
+      },
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
       "hlslSha256": "9E7EA72060D5BB4355B8628EE07FD8F0E3035DE2EA3C31D3D263D5FAE0E97392",
       "supportedImplementationIds": [
@@ -5945,6 +5963,7 @@
         "vector4RampLowersEditableStableStopsAndBothOutputs",
         "vector4RampAlphaCanBeSelectedAsFloatOutput",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
+        "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "candidateGeneratorIncludesAllTenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
@@ -6068,7 +6087,9 @@
           "severity": "error",
           "path": "/links/0"
         }
-      }
+      },
+      "vector4RampFormulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
+      "vector4RampFormulaGoldenSha256": "2C34AE541273DC374F61098758227D97B5D97F67576A4DE9E854F2D22BB12AE3"
     }
   },
   "loweringIdentityContract": {
