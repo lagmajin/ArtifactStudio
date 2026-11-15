@@ -96,14 +96,14 @@ def _load_corpus(path: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
 
 def _validate_summary_schema(corpus: dict[str, Any]) -> list[str]:
     schema = corpus.get("measurementSummarySchema")
-    if not isinstance(schema, dict) or schema.get("version") != 1:
-        return ["corpus must declare measurementSummarySchema version 1"]
+    if not isinstance(schema, dict) or schema.get("version") != 2:
+        return ["corpus must declare measurementSummarySchema version 2"]
     errors: list[str] = []
     if schema.get("groupBy") != list(GROUP_FIELDS):
         errors.append("corpus summary groupBy does not match this reducer")
     boundary_schema = schema.get("boundaryDisposition", {})
     case_identity_rule = boundary_schema.get("caseIdentity", "") if isinstance(boundary_schema, dict) else ""
-    if not isinstance(case_identity_rule, str) or "must equal the referenced generated corpus case" not in case_identity_rule:
+    if not isinstance(case_identity_rule, str) or "payloadSha256" not in case_identity_rule or "must equal the referenced generated corpus case" not in case_identity_rule:
         errors.append("corpus boundary schema does not pin measured case identity fields")
     percentile_schema = schema.get("percentiles", {})
     if not isinstance(percentile_schema, dict):
@@ -172,6 +172,8 @@ def _boundary_issues(record: dict[str, Any], case: dict[str, Any]) -> list[str]:
     issues: list[str] = []
     if record.get("effectiveLimits") != case.get("caseLimits"):
         issues.append("effectiveLimits do not match the generated corpus case")
+    if record.get("payloadSha256") != case.get("payloadSha256"):
+        issues.append("payloadSha256 does not match the referenced generated corpus payload")
     for record_field, case_field in (
         ("inputUtf8Bytes", "serializedUtf8Bytes"),
         ("documentNodes", "documentNodes"),

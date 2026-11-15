@@ -229,13 +229,13 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
             })
     return {
         "kind": "artifact-shader-graph-document-limit-corpus",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "status": "generated-inputs-only-not-core-runtime-evidence",
         "limitsAreExperimentalInputsNotProductionDefaults": True,
         "limits": limits,
         "cases": cases,
         "measurementRecordFields": [
-            "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+            "runId", "caseId", "payloadSha256", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
             "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
             "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
             "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
@@ -245,6 +245,7 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
         "measurementRecordSemantics": {
             "phase": ["cold-parse", "warm-validation"],
             "sampleIndex": "zero-based within a case/phase; retain every raw sample",
+            "payloadSha256": "uppercase SHA-256 of the exact UTF-8 input bytes measured; must match the referenced corpus payload",
             "timings": "integer nanoseconds per stage; use null when that stage was not reached",
             "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
             "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
@@ -257,7 +258,7 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
 
 def _measurement_summary_schema() -> dict[str, Any]:
     return {
-        "version": 1,
+        "version": 2,
         "groupBy": ["runId", "caseId", "phase", "appRevision", "buildAndCompiler", "platform", "hardware", "instrumentation", "effectiveLimits"],
         "minimumTimedSamples": 30,
         "percentiles": {
@@ -267,7 +268,7 @@ def _measurement_summary_schema() -> dict[str, Any]:
             "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero",
         },
         "boundaryDisposition": {
-            "caseIdentity": "measured effectiveLimits, inputUtf8Bytes, documentNodes, and documentLinks must equal the referenced generated corpus case",
+            "caseIdentity": "measured payloadSha256, effectiveLimits, inputUtf8Bytes, documentNodes, and documentLinks must equal the referenced generated corpus case",
             "limit-minus-one": "must be accepted",
             "exact-limit": "must be accepted",
             "limit-plus-one": "must be rejected at or before the stage required by the selected limit contract",
@@ -283,7 +284,7 @@ def _measurement_summary_schema() -> dict[str, Any]:
 def validate_case_set(corpus: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     expected_record_fields = [
-        "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+        "runId", "caseId", "payloadSha256", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
         "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
         "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
         "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
@@ -293,14 +294,15 @@ def validate_case_set(corpus: dict[str, Any]) -> list[str]:
     expected_record_semantics = {
         "phase": ["cold-parse", "warm-validation"],
         "sampleIndex": "zero-based within a case/phase; retain every raw sample",
+        "payloadSha256": "uppercase SHA-256 of the exact UTF-8 input bytes measured; must match the referenced corpus payload",
         "timings": "integer nanoseconds per stage; use null when that stage was not reached",
         "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
         "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
         "destinationUnchanged": "true is required for every rejected mutating request; null only when the measured API has no destination state",
         "warmup": "record warmup separately or exclude it from sampleIndex; collect at least 30 timed successful samples after warmup",
     }
-    if corpus.get("schemaVersion") != 2:
-        errors.append("corpus schema version must be 2 for the per-stage measurement record contract")
+    if corpus.get("schemaVersion") != 3:
+        errors.append("corpus schema version must be 3 for the payload-pinned measurement record contract")
     if corpus.get("measurementRecordFields") != expected_record_fields:
         errors.append("measurement records must expose separate per-stage timings and run provenance")
     if corpus.get("measurementRecordSemantics") != expected_record_semantics:

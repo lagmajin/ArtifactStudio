@@ -345,7 +345,7 @@ def validate(root: Path) -> list[str]:
     measurement_protocol = resource_bounds.get("measurementProtocol", {})
     record_schema = measurement_protocol.get("measurementRecordSchema", {})
     expected_stage_duration_fields = ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs"]
-    if (record_schema.get("version") != 2
+    if (record_schema.get("version") != 3
             or record_schema.get("caseIdFormat") != "<limitField>.<boundary>; stable and unique within one generated corpus"
             or record_schema.get("phaseValues") != ["cold-parse", "warm-validation"]
             or record_schema.get("stageDurationFieldsNs") != expected_stage_duration_fields

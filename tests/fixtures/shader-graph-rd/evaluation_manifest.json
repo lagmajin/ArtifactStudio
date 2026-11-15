@@ -3570,10 +3570,10 @@
           "whether rejection happened before parse, index/adjacency allocation, or lowering as required"
         ],
         "measurementRecordSchema": {
-          "version": 2,
+          "version": 3,
           "caseIdFormat": "<limitField>.<boundary>; stable and unique within one generated corpus",
           "requiredFields": [
-            "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+            "runId", "caseId", "payloadSha256", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
             "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
             "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
             "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
@@ -3585,6 +3585,7 @@
           "recordSemantics": {
             "phase": ["cold-parse", "warm-validation"],
             "sampleIndex": "zero-based within a case/phase; retain every raw sample",
+            "payloadSha256": "uppercase SHA-256 of the exact UTF-8 input bytes measured; must match the referenced corpus payload",
             "timings": "integer nanoseconds per stage; use null when that stage was not reached",
             "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
             "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
@@ -3596,7 +3597,7 @@
           "destinationUnchanged": "every rejected mutating request must record true; use null only when the measured API has no destination state"
         },
         "measurementSummarySchema": {
-          "version": 1,
+          "version": 2,
           "groupBy": ["runId", "caseId", "phase", "appRevision", "buildAndCompiler", "platform", "hardware", "instrumentation", "effectiveLimits"],
           "minimumTimedSamples": 30,
           "percentiles": {
@@ -3606,7 +3607,7 @@
             "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero"
           },
           "boundaryDisposition": {
-            "caseIdentity": "measured effectiveLimits, inputUtf8Bytes, documentNodes, and documentLinks must equal the referenced generated corpus case",
+            "caseIdentity": "measured payloadSha256, effectiveLimits, inputUtf8Bytes, documentNodes, and documentLinks must equal the referenced generated corpus case",
             "limit-minus-one": "must be accepted",
             "exact-limit": "must be accepted",
             "limit-plus-one": "must be rejected at or before the stage required by the selected limit contract",

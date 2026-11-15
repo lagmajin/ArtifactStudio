@@ -686,3 +686,8 @@ The full `measurementRecordSemantics` object is now duplicated in the manifest c
 ### Resource measurement summary reducer (2026-11-15)
 
 Added `summarize_document_limit_measurements.py` to consume JSONL measurement rows with their generated boundary corpus. It separates each run/case/phase/context, computes nearest-rank median/p95/p99 over non-null integer metrics, validates sample indices and required boundary stage, and reports destination-preservation uncertainty. It matches measured effective limits and input byte/node/link counts to the referenced case, then carries the case payload hash and boundary metadata into the summary. It emits evidence-only statuses and never selects production limits. The manifest validator source compares reducer grouping keys, metric fields, context fields, and rejection-stage vocabulary with the generated manifest contract. Generator output and manifest summary schema were compared after the schema update; the reducer and manifest validator were not run on synthetic rows, and build/tests remain unrun.
+
+
+### Measurement payload provenance schema v3 (2026-11-15)
+
+Measurement records now require the uppercase SHA-256 of the exact UTF-8 payload presented to the measured API. The reducer checks it against the generated case in addition to effective limits and input dimensions, and includes case boundary metadata and payload identity in each summary. Corpus/record schema versions are advanced so older records without input identity cannot be mistaken for this contract. Generation and schema equality are source-checked; no raw runtime records exist.
