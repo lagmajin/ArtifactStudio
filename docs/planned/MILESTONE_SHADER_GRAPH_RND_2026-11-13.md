@@ -681,3 +681,8 @@ The documented protocol required parse, structural validation, canonicalization,
 
 
 The full `measurementRecordSemantics` object is now duplicated in the manifest contract and compared against generated corpus output by the manifest validator, in addition to required-field and stage-duration checks. This prevents meaning drift in sample indexing, null/unavailable metrics, allocation scope, rejection stages, destination guarantees, and warmup handling. The validator is still unrun.
+
+
+### Resource measurement summary reducer (2026-11-15)
+
+Added `summarize_document_limit_measurements.py` to consume JSONL measurement rows with their generated boundary corpus. It separates each run/case/phase/context, computes nearest-rank median/p95/p99 over non-null integer metrics, validates sample indices and required boundary stage, and reports destination-preservation uncertainty. It emits evidence-only statuses and never selects production limits. Generator output and manifest summary schema were compared after the schema update; the reducer itself was not run on synthetic rows, and manifest validator/build/tests remain unrun.
