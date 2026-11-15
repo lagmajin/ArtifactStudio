@@ -4,7 +4,8 @@
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`dynamic_vector2_mapping.json`。
 - **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補を追加した。mapped/direct graph の resource requirements と resolved binding key は一致し、semantic/HLSL source identity は変わる source contract を記録した。
 - **価値または懸念:** UV変換がbinding metadataでなく接続可能なグラフ演算になり、resource identityから独立したshader semanticsとして表現される。production material path、回転・wrap・GPU動作は未検証。
-- **次に確認すべきこと:** manifest validatorの実行が許可された後に新旧候補・source contractを検証し、runtime評価が許可された後にchannel-probe画像で座標とsampling結果を確認する。
+- **追加で確認できた事実 (2026-11-15):** `dynamic_generic_image_mapping.json` は schema-v4 Mapping fixture から生成され、local editor の `--document` で開ける。generic Image Texture resource は意図的に未解決であるため、これ自体はsample出力の画像評価にならない。manifestにidentity/nonuniform/negative/zero scaleの評価caseとbaseline noise基準の判定順を明記した。
+- **次に確認すべきこと:** production resource adapter が接続された後、channel-probeの同一assetでdirect-UVを5回以上captureし、候補画像を見る前に領域別許容差を固定する。その後にMappingケースとruntime/backend/性能ゲートを実行する。
 
 ## 2026-11-15: Shader graph retains documents when image bindings disappear
 - **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::validate_document_for_editing`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json`。

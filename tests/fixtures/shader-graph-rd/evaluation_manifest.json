@@ -6326,7 +6326,40 @@
             "candidateFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor_candidate.json",
             "candidateSha256": "AB2AFA98E07D6D89B68DF338C1040EFC0B166FDE1B05984BD1C9763165777623",
             "expectedCoordinateExpression": "(UV0 * float2(2.0, 0.5)) + float2(0.25, -0.125)",
-            "contract": "the texture Sample consumes the Mapping node output; symbolic resource requirement equals the direct-UV candidate; GPU sampling remains unverified"
+            "contract": "the texture Sample consumes the Mapping node output; symbolic resource requirement equals the direct-UV candidate; GPU sampling remains unverified",
+            "parameterCases": [
+              {
+                "id": "identity",
+                "scale": [1.0, 1.0],
+                "offset": [0.0, 0.0],
+                "expected": "mappedUV equals input UV; compare pixel output with the direct-UV graph"
+              },
+              {
+                "id": "nonuniform-scale-offset",
+                "scale": [2.0, 0.5],
+                "offset": [0.25, -0.125],
+                "expected": "mappedUV = inputUV * scale + offset; this is the persisted candidate fixture"
+              },
+              {
+                "id": "negative-scale",
+                "scale": [-1.0, 1.0],
+                "offset": [1.0, 0.0],
+                "expected": "horizontal coordinate is mirrored around the unit interval before sampler addressing"
+              },
+              {
+                "id": "zero-scale",
+                "scale": [0.0, 0.0],
+                "offset": [0.375, 0.375],
+                "expected": "all pixels sample the same texel-center coordinate, subject to the recorded filter and UV convention"
+              }
+            ],
+            "samplingRegions": [
+              "UV texel centers and image corners",
+              "UV seam and repeat-address crossings introduced by scale or offset",
+              "individual RGBA channels and alpha transition",
+              "full frame and named edge crops"
+            ],
+            "imageAcceptance": "Capture five repeated direct-UV baselines before candidate review; derive per-region tolerance from baseline noise, then require identity Mapping to remain within that tolerance and each nonidentity case to match its declared coordinate response. Record filter and repeat behavior rather than assuming them."
           }
         },
         "packedMetallicRoughnessCharacterization": {
