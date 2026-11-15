@@ -3441,6 +3441,31 @@ def validate(root: Path) -> list[str]:
         replacement_session_undo = dynamic_module.preserve_document(replacement_session.document)
         replacement_session.apply({"type": "redo"})
         replacement_session_redo = dynamic_module.preserve_document(replacement_session.document)
+        vector3_replaced_graph = dynamic_module.replace_node_operation(
+            dynamic_vector3_arithmetic_document, dynamic_registry, "difference",
+            "artifact.rd.math.multiply.vector3.float32", 1)
+        vector3_replaced_compile = dynamic_module.compile_document_from_data(
+            vector3_replaced_graph, dynamic_registry)
+        vector3_replacement_command = dynamic_module.create_document_command(
+            "Replace Vector3 Subtract with Multiply", dynamic_vector3_arithmetic_document,
+            vector3_replaced_graph)
+        vector3_replacement_undo = dynamic_module.apply_document_command(
+            vector3_replacement_command, vector3_replaced_graph, direction="undo")
+        vector3_replacement_redo = dynamic_module.apply_document_command(
+            vector3_replacement_command, vector3_replacement_undo, direction="redo")
+        vector3_replacement_session = local_ui_module.Session(
+            dynamic_registry, dynamic_vector3_arithmetic_document, None, [])
+        vector3_replacement_session.apply({
+            "type": "replace", "nodeId": "difference",
+            "operationId": "artifact.rd.math.multiply.vector3.float32", "semanticVersion": 1})
+        vector3_replacement_session_after = dynamic_module.preserve_document(
+            vector3_replacement_session.document)
+        vector3_replacement_session.apply({"type": "undo"})
+        vector3_replacement_session_undo = dynamic_module.preserve_document(
+            vector3_replacement_session.document)
+        vector3_replacement_session.apply({"type": "redo"})
+        vector3_replacement_session_redo = dynamic_module.preserve_document(
+            vector3_replacement_session.document)
         batch_failure_diagnostic = diagnostic_for(lambda: dynamic_module.apply_document_batch(connected_graph, [
             lambda graph: dynamic_module.edit_node_layout(graph, "source_left", {"x": 777}),
             lambda graph: dynamic_module.edit_node_parameters(graph, dynamic_registry, "source_left", {"unknown": 4.0}),
@@ -3954,6 +3979,7 @@ def validate(root: Path) -> list[str]:
             "localImageMappingChangesShaderWithoutChangingResolvedBinding": local_image_mapping_edit_state["validation"]["status"] == "valid" and local_image_mapping_edit_compilation["resourceBindingStatus"] == "resolved" and local_image_mapping_edit_compilation["resourceBindingKeySha256"] == local_image_resolved_compilation["resourceBindingKeySha256"] and local_image_mapping_edit_compilation["semanticHashSha256"] != local_image_resolved_compilation["semanticHashSha256"] and local_image_mapping_edit_compilation["typedIRSemanticHashSha256"] != local_image_resolved_compilation["typedIRSemanticHashSha256"] and local_image_mapping_edit_compilation["shaderStructureHashSha256"] != local_image_resolved_compilation["shaderStructureHashSha256"] and local_image_mapping_edit_compilation["hlslBodySha256"] != local_image_resolved_compilation["hlslBodySha256"],
             "assetSnapshotReadersEnforceByteAndJsonDepthBounds": oversized_catalog_diagnostic == "asset.catalog.size.invalid" and oversized_source_states_diagnostic == "asset.source_states.size.invalid" and nested_catalog_diagnostic == "asset.catalog.json.invalid" and nested_source_states_diagnostic == "asset.source_states.json.invalid",
             "operationReplacementPreservesCompatibleLinksAndHistory": replaced_graph["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replaced_graph["links"] == connected_graph["links"] and replaced_graph_validation["status"] == "valid" and " * " in replaced_graph_compile["hlslBody"] and replaced_graph_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and replacement_undo == connected_graph and replacement_redo == replaced_graph and incompatible_replacement_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/2/operationId"} and changed_unmaterialized_default_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/0/parameters/value"} and sealed_replacement_compile["outputType"] == "Float" and "artifact.rd.math.add.float32@1" not in sealed_replacement["registryContractLock"] and "artifact.rd.math.multiply.float32@1" in sealed_replacement["registryContractLock"] and replacement_session_after["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replacement_session_undo == connected_graph and replacement_session_redo == replacement_session_after,
+            "vector3OperationReplacementPreservesTypedLinksAndUndo": next(node for node in vector3_replaced_graph["nodes"] if node["nodeId"] == "difference")["operationId"] == "artifact.rd.math.multiply.vector3.float32" and vector3_replaced_graph["links"] == dynamic_vector3_arithmetic_document["links"] and [item["implementationId"] for item in vector3_replaced_compile["typedIR"]["operations"]] == ["vector3.constant", "vector3.constant", "vector3.add", "vector3.multiply", "vector3.multiply"] and "float3 n_difference_result = (n_sum_result * n_right_value);" in vector3_replaced_compile["hlslBody"] and vector3_replacement_undo == dynamic_vector3_arithmetic_document and vector3_replacement_redo == vector3_replaced_graph and next(node for node in vector3_replacement_session_after["nodes"] if node["nodeId"] == "difference")["operationId"] == "artifact.rd.math.multiply.vector3.float32" and vector3_replacement_session_undo == dynamic_vector3_arithmetic_document and vector3_replacement_session_redo == vector3_replacement_session_after and vector3_replacement_session.history,
             "localUiHttpRoutesHandleStateEditAndReject": ui_http_page_status == 200 and b"Shader Graph Lab" in ui_http_page_body and ui_http_state_status == 200 and ui_http_state["validation"]["status"] == "valid" and bool(ui_http_state["compilation"]["hlslBody"]) and ui_http_reject_status == 400 and not ui_http_rejected["ok"] and ui_http_rejected["diagnostics"][0]["code"] == "link.socket.missing_or_direction_invalid" and ui_http_edit_status == 200 and ui_http_edited["document"]["nodes"][0]["layout"]["x"] == 88.0 and ui_http_undo_status == 200 and ui_http_undone["document"]["nodes"][0]["layout"]["x"] == 0.0,
             "vector3LocalUiEditsThreeComponentsAndBlocksParameterExposure": ".wire.Vector3 { stroke: #64a6d8; }" in local_ui_html_source and ".socket.Vector3 { background: #4d83ad; border-color: #8dc2e8; }" in local_ui_html_source and "socketDefault.length===3?'vector-3':''" in local_ui_html_source and "param.valueType==='Vector3F32'?'vector-3':''" in local_ui_html_source and "definition.valueType==='Vector3F32'||definition.valueType==='Vector4F32'" in local_ui_html_source and "param.valueType==='Vector3F32'?'<span class=\"small\">Node parameter · 3 components</span>'" in local_ui_html_source and "param.valueType==='Float32'||param.valueType==='Vector4F32'" in local_ui_html_source,
             "instantiatedNodeUsesDeclaredParameterDefault": created_constant_node["parameters"] == {"value": 0.0} and "= 0.0f;" in created_constant_compile["hlslBody"],

@@ -660,3 +660,8 @@ Added a schema-v3 fixture with a nonzero three-lane default on the optional `vec
 ### Dynamic graph validator check-list consistency (2026-11-15)
 
 A static comparison found eleven legacy diagnostic names present in `contractChecks` and `diagnosticGoldens` but absent from the validator's ordered `checks` map. Added one explicit boolean comparison per diagnostic golden so the source contract list now accounts for the existing schema/kind/required-array/version/writer/cycle/required-input/identifier/finite-value/code-payload/type-mismatch probes. The new Vector3 default check is also included. An AST-based static consistency audit confirmed all 140 ordered names match the manifest, and pinned Vector3 document/candidate digests match. This audit did not execute the manifest validator or those probes; behavior remains unverified until the authorized validator run.
+
+
+### Vector3 operation replacement and history (2026-11-15)
+
+Added validator source coverage that replaces the middle Vector3 Subtract operation with Vector3 Multiply while preserving the same required `a`/`b` and `result` pin contract. The check compares unchanged links, the updated typed implementation sequence and HLSL expression, direct document-command undo/redo, and Graph Lab action undo/redo. This records operation substitution semantics for the first-class Vector3 path; it is not runtime validation and does not establish compatibility across persisted registry versions.

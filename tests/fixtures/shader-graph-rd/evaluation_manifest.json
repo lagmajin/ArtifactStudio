@@ -6009,6 +6009,7 @@
         "localImageMappingChangesShaderWithoutChangingResolvedBinding",
         "assetSnapshotReadersEnforceByteAndJsonDepthBounds",
         "operationReplacementPreservesCompatibleLinksAndHistory",
+        "vector3OperationReplacementPreservesTypedLinksAndUndo",
         "localUiHttpRoutesHandleStateEditAndReject",
         "vector3LocalUiEditsThreeComponentsAndBlocksParameterExposure",
         "instantiatedNodeUsesDeclaredParameterDefault",

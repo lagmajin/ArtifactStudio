@@ -14835,3 +14835,11 @@
 - **価値または懸念:** The manifest describes evidence only when the validator actually asserts it. Orphaned case names can otherwise make an apparently complete matrix fail closed or leave the validator permanently inconsistent.
 - **次に確認すべきこと:** Run the manifest validator when authorized and inspect every diagnostic result; then reconcile any runtime/source mismatches rather than weakening the manifest list.
 - **未検証:** No validator execution or probe behavior was run; the AST check proves only source/manifest name order and digest consistency.
+
+
+## 2026-11-15: Vector3 operation substitution needs typed-link history coverage
+- **関連:** `experiments/ShaderGraphLab/registry.json` Vector3 Add/Subtract/Multiply、`dynamic_graph_prototype.py::replace_node_operation`、`local_graph_lab.py` replace/undo/redo actions。
+- **確認できた事実:** Vector3 Subtract and Multiply declare the same required Vector3 input IDs and Vector3 output ID, so the prototype's compatibility rule permits substitution while retaining existing links. Validator source now describes replacing the middle operation in a persisted arithmetic graph, checking typed IR/HLSL, then undoing and redoing through both document commands and the local Graph Lab session.
+- **価値または懸念:** A node editor that supports operation replacement must preserve graph topology and history across compatible typed nodes; only the Float route had an explicit history contract before this addition.
+- **次に確認すべきこと:** Execute the manifest validator when authorized and verify exact document equality after undo/redo; then test replacement after save/reload and under registry contract locks before treating it as production behavior.
+- **未検証:** The new source check has not run; browser interaction, saved-file history, and runtime rendering are unverified.
