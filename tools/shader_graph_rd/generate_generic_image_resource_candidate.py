@@ -6,7 +6,6 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-import copy
 from pathlib import Path
 import sys
 
@@ -27,36 +26,18 @@ def main() -> int:
 
     document_path = root / contract["documentFixture"]
     catalog_path = root / contract["assetCatalogFixture"]
+    source_states_path = root / contract["assetSourceStatesFixture"]
     candidate_path = root / contract["candidateFixture"]
     document = json.loads(document_path.read_text(encoding="utf-8"))
     asset_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-    candidate = module.project_resource_requirements(document, asset_catalog)
-    relinked_document = copy.deepcopy(document)
-    previous_asset_id = relinked_document["resources"][0]["source"]["assetId"]
-    replacement_asset_id = "22222222-2222-4222-8222-222222222222"
-    relinked_document["resources"][0]["source"]["assetId"] = replacement_asset_id
-    relinked_catalog = {asset_id: asset_type for asset_id, asset_type in asset_catalog.items()
-                        if asset_id.lower() != previous_asset_id.lower()}
-    relinked_catalog[replacement_asset_id] = "Image"
-    relinked_candidate = module.project_resource_requirements(
-        relinked_document, relinked_catalog)
-    candidate["assetRelinkProjection"] = {
-        "previousAssetId": previous_asset_id,
-        "replacementAssetId": replacement_asset_id,
-        "previousResolution": candidate["assetResolutions"],
-        "replacementResolution": relinked_candidate["assetResolutions"],
-        "resourceRequirementsUnchanged": candidate["resourceRequirements"] ==
-                                         relinked_candidate["resourceRequirements"],
-        "resourceRequirementIdentityUnchanged": candidate["resourceRequirementIdentitySha256"] ==
-                                                 relinked_candidate["resourceRequirementIdentitySha256"],
-        "resourceBindingKeyStatus": "not-projected",
-        "shaderCodeIdentity": "not-measured-no-shader-code-is-generated",
-    }
+    source_states = json.loads(source_states_path.read_text(encoding="utf-8"))
+    candidate = module.build_candidate(document, asset_catalog, source_states)
     candidate_path.write_text(json.dumps(candidate, indent=2, ensure_ascii=False) + "\n",
                               encoding="utf-8", newline="\n")
 
     for key, path in (("documentSha256", document_path),
                       ("assetCatalogSha256", catalog_path),
+                      ("assetSourceStatesSha256", source_states_path),
                       ("prototypeSha256", prototype_path),
                       ("candidateSha256", candidate_path)):
         contract[key] = hashlib.sha256(path.read_bytes()).hexdigest().upper()

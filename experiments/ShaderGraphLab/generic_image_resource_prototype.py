@@ -8,6 +8,7 @@ requirements. It does not compile shaders, load images, or create GPU objects.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import heapq
 import json
@@ -19,6 +20,9 @@ from typing import Any
 
 UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
+FILTERS = {"nearest", "linear"}
+MIP_FILTERS = {"none", "nearest", "linear"}
+ADDRESS_MODES = {"clamp", "repeat", "mirror"}
 MAX_NODES = 4096
 MAX_LINKS = 16384
 MAX_RESOURCES = 4096
@@ -38,6 +42,32 @@ class ContractError(ValueError):
 def _require(condition: bool, message: str, code: str, path: str) -> None:
     if not condition:
         raise ContractError(message, code, path)
+
+
+def _pointer_segment(value: str) -> str:
+    return value.replace("~", "~0").replace("/", "~1")
+
+
+def _canonical_sampler(raw: Any, path: str) -> dict[str, Any]:
+    fields = {"minFilter", "magFilter", "mipFilter", "addressU", "addressV", "maxAnisotropy"}
+    _require(isinstance(raw, dict) and set(raw) == fields,
+             "sampler descriptor has missing or unknown fields", "sampler.shape.invalid", path)
+    for field in ("minFilter", "magFilter"):
+        _require(isinstance(raw[field], str) and raw[field] in FILTERS,
+                 f"{field} is unsupported", "sampler.filter.invalid",
+                 f"{path}/{field}")
+    _require(isinstance(raw["mipFilter"], str) and raw["mipFilter"] in MIP_FILTERS,
+             "mipFilter is unsupported",
+             "sampler.filter.invalid", f"{path}/mipFilter")
+    for field in ("addressU", "addressV"):
+        _require(isinstance(raw[field], str) and raw[field] in ADDRESS_MODES,
+                 f"{field} is unsupported",
+                 "sampler.address.invalid", f"{path}/{field}")
+    anisotropy = raw["maxAnisotropy"]
+    _require(isinstance(anisotropy, int) and not isinstance(anisotropy, bool) and
+             1 <= anisotropy <= 16, "maxAnisotropy must be an integer from 1 to 16",
+             "sampler.anisotropy.invalid", f"{path}/maxAnisotropy")
+    return {field: raw[field] for field in sorted(fields)}
 
 
 def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str, Any]:
@@ -111,6 +141,7 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
     output_types: dict[tuple[str, str], str] = {}
     input_types: dict[tuple[str, str], str] = {}
     required_inputs: set[tuple[str, str]] = set()
+    sampling_by_node: dict[str, dict[str, Any]] = {}
     for index, node in enumerate(nodes_raw):
         path = f"/nodes/{index}"
         _require(isinstance(node, dict), "node must be an object", "node.invalid", path)
@@ -139,7 +170,7 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
             output_types[(node_id, "value")] = "Vector2"
         elif operation == "artifact.texture.sample.image2d":
             _require(set(node) == {"nodeId", "operationId", "semanticVersion", "parameters",
-                                   "resourceReferences", "layout"},
+                                   "resourceReferences", "sampler", "colorInterpretation", "layout"},
                      "Image Texture node shape is invalid", "node.shape.invalid", path)
             references = node["resourceReferences"]
             _require(isinstance(references, dict) and set(references) == {"image"} and
@@ -149,6 +180,14 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
             resource_id = references["image"]
             _require(resource_id in resources, "node references a missing resourceId",
                      "resource.reference.missing", f"{path}/resourceReferences/image")
+            sampler = _canonical_sampler(node["sampler"], f"{path}/sampler")
+            color_interpretation = node["colorInterpretation"]
+            _require(isinstance(color_interpretation, str) and
+                     color_interpretation in {"linear", "srgb"},
+                     "colorInterpretation must be linear or srgb",
+                     "resource.color_interpretation.invalid", f"{path}/colorInterpretation")
+            sampling_by_node[node_id] = {"sampler": sampler,
+                                         "colorInterpretation": color_interpretation}
             input_types[(node_id, "uv")] = "Vector2"
             required_inputs.add((node_id, "uv"))
             output_types[(node_id, "color")] = "Vector4"
@@ -275,6 +314,189 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
         "runtimeStatus": "synthetic asset catalog lookup only; source revisions, samplers, UV/color binding, asset loading, and GPU sampling are not projected",
     }
     return projection
+
+
+def project_resource_bindings(document: Any, resource_projection: Any,
+                              asset_source_states: Any) -> dict[str, Any]:
+    """Resolve source revisions and authored sampler/color state into a binding key."""
+    _require(isinstance(resource_projection, dict) and
+             resource_projection.get("documentStatus") == "valid" and
+             isinstance(resource_projection.get("resourceRequirements"), list) and
+             isinstance(resource_projection.get("assetResolutions"), list),
+             "resource projection is invalid", "resource.projection.invalid",
+             "/resourceProjection")
+    _require(isinstance(asset_source_states, dict),
+             "asset source states must map Asset UUID to source revision",
+             "resource.source_states.invalid", "/assetSourceStates")
+
+    canonical_states: dict[str, dict[str, Any]] = {}
+    for asset_id, state in asset_source_states.items():
+        _require(isinstance(asset_id, str) and UUID.fullmatch(asset_id),
+                 "asset source state key must be a canonical UUID string",
+                 "resource.source_state.asset_id.invalid", "/assetSourceStates")
+        normalized_id = asset_id.lower()
+        _require(normalized_id not in canonical_states,
+                 "asset source states contain duplicate UUIDs",
+                 "resource.source_state.asset_id.duplicate", "/assetSourceStates")
+        _require(isinstance(state, dict) and set(state) == {"sourceRevision"},
+                 "asset source state shape is invalid", "resource.source_state.shape.invalid",
+                 f"/assetSourceStates/{asset_id}")
+        revision = state["sourceRevision"]
+        _require(isinstance(revision, int) and not isinstance(revision, bool) and revision > 0,
+                 "sourceRevision must be a positive integer",
+                 "resource.source_revision.invalid",
+                 f"/assetSourceStates/{asset_id}/sourceRevision")
+        canonical_states[normalized_id] = {"sourceRevision": revision}
+
+    resolutions = {item["resourceKey"]: item
+                   for item in resource_projection["assetResolutions"]}
+    node_by_id = {node["nodeId"]: node for node in document["nodes"]}
+    resolved = []
+    unresolved = []
+    for requirement in resource_projection["resourceRequirements"]:
+        resource_key = requirement["resourceKey"]
+        resolution = resolutions.get(resource_key)
+        if resolution is None or resolution.get("assetType") is None:
+            unresolved.append(resource_key)
+            continue
+        _require(resolution.get("assetType") == "Image",
+                 "sampledTexture2D requires an Image asset",
+                 "resource.binding.asset_type.incompatible",
+                 f"/assetResolutions/{_pointer_segment(resource_key)}/assetType")
+        source_state = canonical_states.get(resolution.get("assetId"))
+        if source_state is None:
+            unresolved.append(resource_key)
+            continue
+        node = node_by_id.get(requirement.get("nodeId"))
+        _require(isinstance(node, dict), "resource requirement node is missing",
+                 "resource.requirement.node_missing", f"/resourceRequirements/{_pointer_segment(resource_key)}")
+        sampling = {
+            "sampler": _canonical_sampler(node.get("sampler"),
+                                          f"/nodes/{_pointer_segment(node['nodeId'])}/sampler"),
+            "colorInterpretation": node.get("colorInterpretation"),
+        }
+        _require(isinstance(sampling["colorInterpretation"], str) and
+                 sampling["colorInterpretation"] in {"linear", "srgb"},
+                 "colorInterpretation must be linear or srgb",
+                 "resource.color_interpretation.invalid",
+                 f"/nodes/{_pointer_segment(node['nodeId'])}/colorInterpretation")
+        resolved.append({
+            "resourceKey": resource_key,
+            "resourceId": requirement["resourceId"],
+            "nodeId": requirement["nodeId"],
+            "assetId": resolution["assetId"],
+            "assetType": resolution["assetType"],
+            "sourceRevision": source_state["sourceRevision"],
+            **sampling,
+        })
+
+    if unresolved:
+        return {"resourceBindingStatus": "unresolved" if not resolved else "incomplete",
+                "resolvedResourceBindings": resolved,
+                "unresolvedResourceKeys": sorted(unresolved),
+                "resourceBindingKeySha256": None,
+                "bindingIdentityFields": ["resourceKey", "resourceId", "assetId", "assetType",
+                                          "sourceRevision", "sampler", "colorInterpretation"],
+                "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"}
+    if not resolved:
+        return {"resourceBindingStatus": "not-required", "resolvedResourceBindings": [],
+                "unresolvedResourceKeys": [], "resourceBindingKeySha256": None,
+                "bindingIdentityFields": ["resourceKey", "resourceId", "assetId", "assetType",
+                                          "sourceRevision", "sampler", "colorInterpretation"],
+                "runtimeStatus": "no active image requirements"}
+    resolved.sort(key=lambda item: item["resourceKey"])
+    canonical = json.dumps(resolved, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=False, allow_nan=False).encode("utf-8")
+    return {"resourceBindingStatus": "resolved",
+            "resolvedResourceBindings": resolved,
+            "unresolvedResourceKeys": [],
+            "resourceBindingKeySha256": hashlib.sha256(canonical).hexdigest().upper(),
+            "bindingIdentityFields": ["resourceKey", "resourceId", "assetId", "assetType",
+                                      "sourceRevision", "sampler", "colorInterpretation"],
+            "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"}
+
+
+def build_candidate(document: Any, asset_catalog: dict[str, Any],
+                    asset_source_states: dict[str, Any]) -> dict[str, Any]:
+    """Build reproducible graph, relink, and runtime binding identity projections."""
+    candidate = project_resource_requirements(document, asset_catalog)
+    candidate["runtimeBindingProjection"] = project_resource_bindings(
+        document, candidate, asset_source_states)
+
+    relinked_document = copy.deepcopy(document)
+    previous_asset_id = relinked_document["resources"][0]["source"]["assetId"]
+    replacement_asset_id = "22222222-2222-4222-8222-222222222222"
+    relinked_document["resources"][0]["source"]["assetId"] = replacement_asset_id
+    relinked_catalog = {asset_id: asset_type for asset_id, asset_type in asset_catalog.items()
+                        if asset_id.lower() != previous_asset_id.lower()}
+    relinked_catalog[replacement_asset_id] = "Image"
+    relinked_candidate = project_resource_requirements(relinked_document, relinked_catalog)
+    relinked_source_states = {
+        asset_id: state for asset_id, state in asset_source_states.items()
+        if asset_id.lower() != previous_asset_id.lower()}
+    relinked_source_states[replacement_asset_id] = {"sourceRevision": 1}
+    relinked_binding = project_resource_bindings(
+        relinked_document, relinked_candidate, relinked_source_states)
+
+    revision_changed_states = copy.deepcopy(asset_source_states)
+    revision_asset_id = "33333333-3333-4333-8333-333333333333"
+    revision_changed_states[revision_asset_id]["sourceRevision"] += 1
+    revision_changed_binding = project_resource_bindings(
+        document, candidate, revision_changed_states)
+
+    sampler_changed_document = copy.deepcopy(document)
+    sampler_changed_document["nodes"][1]["sampler"]["minFilter"] = "nearest"
+    sampler_changed_projection = project_resource_requirements(
+        sampler_changed_document, asset_catalog)
+    sampler_changed_binding = project_resource_bindings(
+        sampler_changed_document, sampler_changed_projection, asset_source_states)
+
+    color_changed_document = copy.deepcopy(document)
+    color_changed_document["nodes"][1]["colorInterpretation"] = "linear"
+    color_changed_projection = project_resource_requirements(
+        color_changed_document, asset_catalog)
+    color_changed_binding = project_resource_bindings(
+        color_changed_document, color_changed_projection, asset_source_states)
+    missing_source_binding = project_resource_bindings(document, candidate, {})
+
+    candidate["assetRelinkProjection"] = {
+        "previousAssetId": previous_asset_id,
+        "replacementAssetId": replacement_asset_id,
+        "previousResolution": candidate["assetResolutions"],
+        "replacementResolution": relinked_candidate["assetResolutions"],
+        "resourceRequirementsUnchanged": candidate["resourceRequirements"] ==
+                                         relinked_candidate["resourceRequirements"],
+        "resourceRequirementIdentityUnchanged": candidate["resourceRequirementIdentitySha256"] ==
+                                                 relinked_candidate["resourceRequirementIdentitySha256"],
+        "resourceBindingKeyChanged": candidate["runtimeBindingProjection"]["resourceBindingKeySha256"] !=
+                                     relinked_binding["resourceBindingKeySha256"],
+        "replacementBindingProjection": relinked_binding,
+        "shaderCodeIdentity": "not-measured-no-shader-code-is-generated",
+    }
+    candidate["bindingIdentityMutationProbes"] = {
+        "sourceRevisionChangesBindingKey": candidate["runtimeBindingProjection"]["resourceBindingKeySha256"] !=
+                                            revision_changed_binding["resourceBindingKeySha256"],
+        "samplerChangePreservesSymbolicRequirementButChangesBindingKey":
+            candidate["resourceRequirementIdentitySha256"] ==
+            sampler_changed_projection["resourceRequirementIdentitySha256"] and
+            candidate["runtimeBindingProjection"]["resourceBindingKeySha256"] !=
+            sampler_changed_binding["resourceBindingKeySha256"],
+        "colorInterpretationChangePreservesSymbolicRequirementButChangesBindingKey":
+            candidate["resourceRequirementIdentitySha256"] ==
+            color_changed_projection["resourceRequirementIdentitySha256"] and
+            candidate["runtimeBindingProjection"]["resourceBindingKeySha256"] !=
+            color_changed_binding["resourceBindingKeySha256"],
+        "missingSourceRevisionProducesNoBindingKey":
+            missing_source_binding["resourceBindingStatus"] == "unresolved" and
+            missing_source_binding["resourceBindingKeySha256"] is None,
+        "UVCoordinatesRemainGraphInputs": all(
+            {"from": {"nodeId": "uv", "socketId": "value"},
+             "to": {"nodeId": node_id, "socketId": "uv"}} in document["links"]
+            for node_id in ("image_sample", "roughness_sample")) and
+            all("uvSet" not in item and "uvTransform" not in item
+                for item in candidate["resourceRequirements"]),
+    }
+    return candidate
 
 
 def main() -> int:

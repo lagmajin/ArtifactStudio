@@ -16,6 +16,15 @@
       "semanticVersion": 1,
       "parameters": {},
       "resourceReferences": {"image": "image.albedo"},
+      "sampler": {
+        "minFilter": "linear",
+        "magFilter": "linear",
+        "mipFilter": "linear",
+        "addressU": "repeat",
+        "addressV": "repeat",
+        "maxAnisotropy": 1
+      },
+      "colorInterpretation": "srgb",
       "layout": {"x": 280, "y": 80}
     },
     {
@@ -24,6 +33,15 @@
       "semanticVersion": 1,
       "parameters": {},
       "resourceReferences": {"image": "image.roughness"},
+      "sampler": {
+        "minFilter": "linear",
+        "magFilter": "linear",
+        "mipFilter": "linear",
+        "addressU": "repeat",
+        "addressV": "repeat",
+        "maxAnisotropy": 1
+      },
+      "colorInterpretation": "linear",
       "layout": {"x": 280, "y": 240}
     },
     {

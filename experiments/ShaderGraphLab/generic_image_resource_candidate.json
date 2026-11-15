@@ -45,6 +45,57 @@
   "resourceBindingStatus": "not-projected",
   "resourceBindingKeySha256": null,
   "runtimeStatus": "synthetic asset catalog lookup only; source revisions, samplers, UV/color binding, asset loading, and GPU sampling are not projected",
+  "runtimeBindingProjection": {
+    "resourceBindingStatus": "resolved",
+    "resolvedResourceBindings": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "nodeId": "image_sample",
+        "assetId": "11111111-1111-4111-8111-111111111111",
+        "assetType": "Image",
+        "sourceRevision": 1,
+        "sampler": {
+          "addressU": "repeat",
+          "addressV": "repeat",
+          "magFilter": "linear",
+          "maxAnisotropy": 1,
+          "minFilter": "linear",
+          "mipFilter": "linear"
+        },
+        "colorInterpretation": "srgb"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.roughness",
+        "nodeId": "roughness_sample",
+        "assetId": "33333333-3333-4333-8333-333333333333",
+        "assetType": "Image",
+        "sourceRevision": 7,
+        "sampler": {
+          "addressU": "repeat",
+          "addressV": "repeat",
+          "magFilter": "linear",
+          "maxAnisotropy": 1,
+          "minFilter": "linear",
+          "mipFilter": "linear"
+        },
+        "colorInterpretation": "linear"
+      }
+    ],
+    "unresolvedResourceKeys": [],
+    "resourceBindingKeySha256": "966D8F2C4ED37F279EB77968E162591DEA183AEA1E292B4BCF688BA9ADD2BA2B",
+    "bindingIdentityFields": [
+      "resourceKey",
+      "resourceId",
+      "assetId",
+      "assetType",
+      "sourceRevision",
+      "sampler",
+      "colorInterpretation"
+    ],
+    "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"
+  },
   "assetRelinkProjection": {
     "previousAssetId": "11111111-1111-4111-8111-111111111111",
     "replacementAssetId": "22222222-2222-4222-8222-222222222222",
@@ -78,7 +129,65 @@
     ],
     "resourceRequirementsUnchanged": true,
     "resourceRequirementIdentityUnchanged": true,
-    "resourceBindingKeyStatus": "not-projected",
+    "resourceBindingKeyChanged": true,
+    "replacementBindingProjection": {
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "assetId": "22222222-2222-4222-8222-222222222222",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "srgb"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceId": "image.roughness",
+          "nodeId": "roughness_sample",
+          "assetId": "33333333-3333-4333-8333-333333333333",
+          "assetType": "Image",
+          "sourceRevision": 7,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "linear"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "AB31CCBD4F4B2FAC82488B068E8822F08C97692DE1BFFCE8ED7A369707D9135D",
+      "bindingIdentityFields": [
+        "resourceKey",
+        "resourceId",
+        "assetId",
+        "assetType",
+        "sourceRevision",
+        "sampler",
+        "colorInterpretation"
+      ],
+      "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"
+    },
     "shaderCodeIdentity": "not-measured-no-shader-code-is-generated"
+  },
+  "bindingIdentityMutationProbes": {
+    "sourceRevisionChangesBindingKey": true,
+    "samplerChangePreservesSymbolicRequirementButChangesBindingKey": true,
+    "colorInterpretationChangePreservesSymbolicRequirementButChangesBindingKey": true,
+    "missingSourceRevisionProducesNoBindingKey": true,
+    "UVCoordinatesRemainGraphInputs": true
   }
 }

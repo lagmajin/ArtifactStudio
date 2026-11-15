@@ -6391,17 +6391,22 @@
         "prototype": "experiments/ShaderGraphLab/generic_image_resource_prototype.py",
         "documentFixture": "tests/fixtures/shader-graph-rd/generic_image_resource_reference_proposal.json",
         "assetCatalogFixture": "tests/fixtures/shader-graph-rd/generic_image_asset_catalog.json",
+        "assetSourceStatesFixture": "tests/fixtures/shader-graph-rd/generic_image_source_states.json",
         "candidateFixture": "experiments/ShaderGraphLab/generic_image_resource_candidate.json",
         "generator": "tools/shader_graph_rd/generate_generic_image_resource_candidate.py",
-        "documentSha256": "2AF0049B3FA7F2E8117D7154CB25410F05591E73C10A207F4B19250A0E865D9E",
+        "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
-        "prototypeSha256": "14DA00DE50ADB2EB4331C62B34AE1C2D7CEA25ABCABF471A499080D7983F3A9D",
-        "candidateSha256": "563DE71C580908D6995026A4A78DEA8B1683D5981A8ED7FD83AFACFD4DFECF0B",
+        "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
+        "prototypeSha256": "BC2267E0F31BE491745AB4957C1C781EFD910758B66192FD000B40C5DC2A4758",
+        "candidateSha256": "71D23A14D979414442A4301F60B3180E9829520D6E8B7A84AF39289A2E741F1F",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
           "artifact.texture.sample.image2d",
           "artifact.rd.math.add.vector4.float32",
+          "complete bounded sampler descriptor",
+          "node-authored linear or sRGB interpretation",
+          "external positive sourceRevision lookup",
           "explicit Vector2 UV links",
           "stable document resourceId references to project Asset UUIDs",
           "output-rooted active resource requirement projection",
@@ -6416,10 +6421,36 @@
         "negativeContract": [
           "invalid schema envelope, node/resource IDs, duplicate IDs, malformed UUIDs, unknown resource references, invalid sockets, type-mismatched links, multiple input writers, unconnected UV, and cycles return stable diagnostics",
           "non-string link endpoint node/socket IDs reject with a stable diagnostic instead of leaking a Python type error",
+          "malformed sampler enums and anisotropy bounds reject with stable diagnostics",
+          "boolean, zero, negative, and non-integer source revisions reject instead of becoming cache keys",
           "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
           "non-Image catalog type rejects the resource binding"
         ],
-        "identityBoundary": "typed resourceRequirements contain only symbolic resourceKey/resourceId/node identity and have a canonical SHA-256; Asset UUID and catalog type are reported in a separate assetResolutions sidecar, so changing the selected asset leaves this resource-requirement identity unchanged; source revision, sampler settings, UV transform, color interpretation, GPU resource lifetime, and resource binding hash are deliberately not projected",
+        "identityBoundary": "resourceRequirementIdentitySha256 covers only symbolic resourceKey/resourceId/node identity; Asset UUID and catalog type live in the resolution sidecar, and source revision, sampler, and color interpretation participate only in the separate runtimeBindingProjection key; UV remains in explicit graph links",
+        "runtimeBindingProjectionContract": {
+          "status": "logical-binding-key-candidate-no-gpu-runtime",
+          "bindingIdentityFields": [
+            "resourceKey",
+            "resourceId",
+            "assetId",
+            "assetType",
+            "sourceRevision",
+            "sampler",
+            "colorInterpretation"
+          ],
+          "samplerAndColor": "sampler descriptor and color interpretation are authored per Image Texture node in the document and participate in binding identity",
+          "uvPolicy": "UV coordinates remain explicit typed graph links from Vector2 source nodes; UV set or transform are not smuggled into the external binding record",
+          "sourceRevision": "positive host-supplied source revision participates in the binding key; this synthetic fixture does not prove AssetManager revisions advance for every import, relink, or content change",
+          "mutations": [
+            "relinking one asset changes the binding key while preserving symbolic resource requirement identity",
+            "sourceRevision increment changes the binding key",
+            "sampler change changes the binding key while preserving symbolic resource requirement identity",
+            "color interpretation change changes the binding key while preserving symbolic resource requirement identity",
+            "missing source revision leaves active resource requirements unresolved and produces no binding key"
+          ],
+          "excludedIdentity": "no shader code, backend shader compile key, PSO key, device generation, physical texture/sampler handles, or GPU allocation reuse claim is produced",
+          "runtimeStatus": "synthetic logical state projection only; no actual project lookup, image load, sampler creation, SRB update, or rendered sampling"
+        },
         "runtimeStatus": "prototype candidate only; no project AssetDatabase lookup, HLSL generation, shader compilation, image load, GPU sampling, Core adapter, or runtime validation"
       }
     }
