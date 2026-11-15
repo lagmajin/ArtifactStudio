@@ -90,28 +90,48 @@ def _canonical_bytes(document: dict[str, Any]) -> bytes:
     return (json.dumps(document, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
 
 
+def _topological_order(adjacency: dict[str, list[str]]) -> list[str] | None:
+    """Return an iterative topological order, or None when the graph has a cycle."""
+    indegree = {node_id: 0 for node_id in adjacency}
+    for targets in adjacency.values():
+        for target in targets:
+            if target not in indegree:
+                continue
+            indegree[target] += 1
+    ready = [node_id for node_id, count in indegree.items() if count == 0]
+    order: list[str] = []
+    while ready:
+        node_id = ready.pop()
+        order.append(node_id)
+        for target in adjacency[node_id]:
+            if target not in indegree:
+                continue
+            indegree[target] -= 1
+            if indegree[target] == 0:
+                ready.append(target)
+    return order if len(order) == len(adjacency) else None
+
+
 def _candidate_math_depth(document: dict[str, Any]) -> int:
     by_id = {node["id"]: node for node in document["nodes"]}
+    outgoing = {node_id: [] for node_id in by_id}
     incoming = {node_id: [] for node_id in by_id}
     for link in document["links"]:
-        incoming[link["to"]].append(link["from"])
+        source, target = link["from"], link["to"]
+        if source in by_id and target in by_id:
+            outgoing[source].append(target)
+            incoming[target].append(source)
     output_ids = [node["id"] for node in document["nodes"] if node["type"] == "MaterialOutput"]
     if len(output_ids) != 1:
         return 0
+    order = _topological_order(outgoing)
+    if order is None:
+        raise ValueError("cycle in generated graph")
     best: dict[str, int] = {}
-    visiting: set[str] = set()
-    def visit(node_id: str) -> int:
-        if node_id in best:
-            return best[node_id]
-        if node_id in visiting:
-            raise ValueError("cycle in generated graph")
-        visiting.add(node_id)
+    for node_id in order:
         own = int(by_id[node_id]["type"] == "Math")
-        depth = own + max((visit(parent) for parent in incoming[node_id]), default=0)
-        visiting.remove(node_id)
-        best[node_id] = depth
-        return depth
-    return visit(output_ids[0])
+        best[node_id] = own + max((best[parent] for parent in incoming[node_id]), default=0)
+    return best[output_ids[0]]
 
 
 def _byte_boundary_document(target_bytes: int) -> tuple[dict[str, Any], bytes]:
@@ -266,20 +286,9 @@ def validate_case_set(corpus: dict[str, Any]) -> list[str]:
             errors.append(f"{field}/{label}: every link endpoint must exist")
         adjacency = {node_id: [] for node_id in node_ids}
         for source, _, target, _ in link_edges:
-            adjacency[source].append(target)
-        visiting: set[str] = set()
-        visited: set[str] = set()
-        def visit(node_id: str) -> bool:
-            if node_id in visiting:
-                return False
-            if node_id in visited:
-                return True
-            visiting.add(node_id)
-            acyclic = all(visit(target) for target in adjacency[node_id])
-            visiting.remove(node_id)
-            visited.add(node_id)
-            return acyclic
-        if not all(visit(node_id) for node_id in node_ids):
+            if source in adjacency and target in adjacency:
+                adjacency[source].append(target)
+        if _topological_order(adjacency) is None:
             errors.append(f"{field}/{label}: generated graph must be acyclic")
         if field == "maxJsonBytes" and (case.get("serializedUtf8Bytes") != case.get("measuredDimensionValue") or not nodes[0].get("opaqueExtensions")):
             errors.append(f"{field}/{label}: exact byte boundary must include opaque extension bytes")

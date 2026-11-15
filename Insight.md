@@ -14843,3 +14843,11 @@
 - **価値または懸念:** A node editor that supports operation replacement must preserve graph topology and history across compatible typed nodes; only the Float route had an explicit history contract before this addition.
 - **次に確認すべきこと:** Execute the manifest validator when authorized and verify exact document equality after undo/redo; then test replacement after save/reload and under registry contract locks before treating it as production behavior.
 - **未検証:** The new source check has not run; browser interaction, saved-file history, and runtime rendering are unverified.
+
+
+## 2026-11-15: Resource-limit corpus generation must itself be stack-safe
+- **関連:** `tools/shader_graph_rd/generate_document_limit_corpus.py::_candidate_math_depth/validate_case_set`、`validate_shader_graph_manifest.py` のgenerator sample。
+- **確認できた事実:** The corpus generator recursively walked output ancestors for depth and recursively visited all nodes for cycle detection. A sufficiently deep probe could therefore fail in the Python generator before testing the target implementation. Both now use iterative topological ordering; depth propagation follows that order. A 12-case corpus with depth limit 1600 generated and passed the generator's internal consistency validation, and the manifest validator's generator sample is raised to depth 2048.
+- **価値または懸念:** A stress harness that has the same recursion failure mode as the target can mask the target's actual threshold and produce misleading resource evidence.
+- **次に確認すべきこと:** When authorized, run the manifest validator and then run the generated deep corpus against an iterative Core candidate while recording stack high-water, allocations, and rejection stage.
+- **未検証:** The ArtifactCore traversal is still unchanged and unmeasured; successful Python corpus generation does not establish Core stack safety or a production depth limit.

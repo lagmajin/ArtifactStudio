@@ -361,7 +361,7 @@ def validate(root: Path) -> list[str]:
             raise RuntimeError("cannot load document limit corpus generator")
         corpus_module = importlib.util.module_from_spec(corpus_spec)
         corpus_spec.loader.exec_module(corpus_module)
-        sample_limits = {"maxJsonBytes": 4096, "maxNodes": 64, "maxLinks": 6, "maxTraversalDepth": 32}
+        sample_limits = {"maxJsonBytes": 4096, "maxNodes": 64, "maxLinks": 6, "maxTraversalDepth": 2048}
         sample_corpus = corpus_module.build_case_set(sample_limits)
         corpus_errors = corpus_module.validate_case_set(sample_corpus)
         if corpus_errors:

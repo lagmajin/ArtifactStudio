@@ -665,3 +665,8 @@ A static comparison found eleven legacy diagnostic names present in `contractChe
 ### Vector3 operation replacement and history (2026-11-15)
 
 Added validator source coverage that replaces the middle Vector3 Subtract operation with Vector3 Multiply while preserving the same required `a`/`b` and `result` pin contract. The check compares unchanged links, the updated typed implementation sequence and HLSL expression, direct document-command undo/redo, and Graph Lab action undo/redo. This records operation substitution semantics for the first-class Vector3 path; it is not runtime validation and does not establish compatibility across persisted registry versions.
+
+
+### Deep-limit corpus generator traversal (2026-11-15)
+
+The parent-side limit-corpus generator used recursive DFS both to calculate output-reachable Math depth and to reject cycles, so it could fail around Python's recursion boundary before producing the deep inputs intended for resource-bound evaluation. Replaced both traversals with iterative topological ordering and depth propagation. The manifest validator's deterministic generator sample now requests depth 2048, and a generated 12-case corpus at candidate depth 1600 completed with byte/node/link/depth boundary validation. This verifies the corpus generator path only; it does not execute or profile ArtifactCore, select production limits, or establish graph runtime stack safety.
