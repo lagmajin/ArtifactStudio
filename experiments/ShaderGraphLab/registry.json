@@ -262,6 +262,32 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.subtract.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Subtract",
+      "category": "Math",
+      "implementationId": "vector3.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Multiply",
+      "category": "Math",
+      "implementationId": "vector3.multiply",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.vector4.float32",
       "semanticVersion": 1,
       "displayName": "Vector4",

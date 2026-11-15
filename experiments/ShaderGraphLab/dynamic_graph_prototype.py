@@ -48,7 +48,7 @@ MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linea
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector3.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
-    "float.divide.positive_floor_1e5", "vector3.add",
+    "float.divide.positive_floor_1e5", "vector3.add", "vector3.subtract", "vector3.multiply",
     "float.uv0.x", "vector2.uv0", "vector2.mapping.scale_offset",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
@@ -981,7 +981,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
                 operation.parameters[0].value_type != "Vector4F32"):
             raise ContractError(f"{path_label} vector4.constant requires zero inputs, one Vector4 output, and one Vector4F32 value parameter", code="operation.signature.invalid", path=path)
-        if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector3.add", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5"} and (
+        if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector3.add", "vector3.subtract", "vector3.multiply", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5"} and (
                 (operation.inputs[0].value_type if len(operation.inputs) > 0 else None) !=
                 ("Float" if implementation_id.startswith("float.") else "Vector3" if implementation_id.startswith("vector3.") else "Vector4") or
                 (operation.inputs[1].value_type if len(operation.inputs) > 1 else None) !=
@@ -4325,7 +4325,7 @@ def compile_document_from_data(
             else:
                 operator = {
                     "float.add": "+", "float.subtract": "-", "float.multiply": "*",
-                    "vector3.add": "+",
+                    "vector3.add": "+", "vector3.subtract": "-", "vector3.multiply": "*",
                     "vector4.add": "+", "vector4.subtract": "-", "vector4.multiply": "*",
                 }[implementation_id]
                 expression = f"({a} {operator} {b})"

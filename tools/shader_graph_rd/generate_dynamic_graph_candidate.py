@@ -26,6 +26,8 @@ def main() -> int:
     candidate_specs = [("documentFixture", "candidateFixture", "candidateSha256", "documentSha256")]
     candidate_specs.append(("vector3ConstantDocumentFixture", "vector3ConstantCandidateFixture",
                             "vector3ConstantCandidateSha256", "vector3ConstantDocumentSha256"))
+    candidate_specs.append(("vector3ArithmeticDocumentFixture", "vector3ArithmeticCandidateFixture",
+                            "vector3ArithmeticCandidateSha256", "vector3ArithmeticDocumentSha256"))
     candidate_specs.append(("optionalDefaultDocumentFixture", "optionalDefaultCandidateFixture",
                             "optionalDefaultCandidateSha256", "optionalDefaultDocumentSha256"))
     candidate_specs.append(("optionalVector4DefaultDocumentFixture", "optionalVector4DefaultCandidateFixture",
