@@ -3826,16 +3826,16 @@
       "defaultLane": "unclassified-do-not-register-as-green",
       "registrationPolicy": "expected-failure candidates and default-lane cases stay outside the green target until assigned to characterization, expected-failure, or target-acceptance lanes and reviewed after execution",
       "expectedFailureCandidates": [
-        {"testCase": "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "sourceCoverageKey": "canonicalSerialization"},
-        {"testCase": "MultipleMaterialOutputsRequireExplicitSelection", "sourceCoverageKey": "multipleOutputSelection"},
-        {"testCase": "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph", "sourceCoverageKey": "singleWriterInput"},
-        {"testCase": "EmptyColorRampStopsAreNotSilentlyIgnored", "sourceCoverageKey": "rampEmptyAndOversizedCases"},
-        {"testCase": "ExcessColorRampStopsAreNotSilentlyTruncated", "sourceCoverageKey": "rampEmptyAndOversizedCases"},
-        {"testCase": "LinkRejectsPinsOwnedByAnotherGraph", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation"},
-        {"testCase": "LinkRejectsIncompatiblePinTypes", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation"},
-        {"testCase": "LinkRejectsMultipleWritersForOneInput", "sourceCoverageKey": "singleWriterInput"},
-        {"testCase": "SanitizedNodeIdentifiersDoNotCollide", "sourceCoverageKey": "identifierSanitizationCollision"},
-        {"testCase": "OutOfRangeGraphBaseColorAlphaIsDiagnosed", "sourceCoverageKey": "graphBaseColorAlphaRange"}
+        {"testCase": "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "sourceCoverageKey": "canonicalSerialization", "assertionFragments": ["EXPECT_EQ(forward.toJson({}), reverse.toJson({})", "Equivalent graph documents should serialize canonically regardless "]},
+        {"testCase": "MultipleMaterialOutputsRequireExplicitSelection", "sourceCoverageKey": "multipleOutputSelection", "assertionFragments": ["EXPECT_FALSE(result.ok)", "multiple Material Output"]},
+        {"testCase": "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph", "sourceCoverageKey": "singleWriterInput", "assertionFragments": ["EXPECT_FALSE(loaded.ok)", "graph.toJson({}), before"]},
+        {"testCase": "EmptyColorRampStopsAreNotSilentlyIgnored", "sourceCoverageKey": "rampEmptyAndOversizedCases", "assertionFragments": ["EXPECT_TRUE(!loaded.ok || !loaded.error.empty())", "An empty Color Ramp must be rejected"]},
+        {"testCase": "ExcessColorRampStopsAreNotSilentlyTruncated", "sourceCoverageKey": "rampEmptyAndOversizedCases", "assertionFragments": ["EXPECT_TRUE(!loaded.ok || !loaded.error.empty())", "Stops above the supported limit must be rejected"]},
+        {"testCase": "LinkRejectsPinsOwnedByAnotherGraph", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation", "assertionFragments": ["EXPECT_TRUE(graph.links.empty())", "Pin* owned by another graph"]},
+        {"testCase": "LinkRejectsIncompatiblePinTypes", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation", "assertionFragments": ["EXPECT_TRUE(graph.links.empty())", "Float output must not be connected"]},
+        {"testCase": "LinkRejectsMultipleWritersForOneInput", "sourceCoverageKey": "singleWriterInput", "assertionFragments": ["EXPECT_EQ(graph.links.size(), 1u)", "at most one incoming link"]},
+        {"testCase": "SanitizedNodeIdentifiersDoNotCollide", "sourceCoverageKey": "identifierSanitizationCollision", "assertionFragments": ["float4 base_color_Color =", "Distinct graph IDs must not emit duplicate HLSL declarations"]},
+        {"testCase": "OutOfRangeGraphBaseColorAlphaIsDiagnosed", "sourceCoverageKey": "graphBaseColorAlphaRange", "assertionFragments": ["EXPECT_TRUE(diagnosed)", "alpha outside [0,1]"]}
       ]
     },
     "contractTestRegistered": false,

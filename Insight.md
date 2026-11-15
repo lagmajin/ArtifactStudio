@@ -14891,7 +14891,7 @@
 - **未検証:** ビルド/テスト/manifest validatorは未実行。実Core測定、集計器のraw record実入力挙動、limit選定は未実施。
 ## 2026-11-15: Legacy C++ graph contract candidates must not silently become a green suite
 - **関連:** `tests/ArtifactCore/ShaderGraphContractTest.cpp`、manifest `evidence.contractTestLanePlan`、validator test-source inventory check。
-- **確認できた事実:** 37件のC++ contract sourceには現行挙動のcharacterizationと新しい厳格Core候補が混在し、manifestもcanonical serialization・ambiguous output・single-writer・link validation・ramp bounds・identifier collision・BaseColor alpha等の現行gapをexpected-to-failとして記録していた。manifestは明示された10ケースをcandidate laneへ分類し、それ以外をunclassified/do-not-register-as-greenにする。validator sourceはその一覧が実在test名とsource coverage keyに一致し、target未登録・未実行であることを確認する。
+- **確認できた事実:** 37件のC++ contract sourceには現行挙動のcharacterizationと新しい厳格Core候補が混在し、manifestもcanonical serialization・ambiguous output・single-writer・link validation・ramp bounds・identifier collision・BaseColor alpha等の現行gapをexpected-to-failとして記録していた。manifestは明示された10ケースをcandidate laneへ分類し、それ以外をunclassified/do-not-register-as-greenにする。validator sourceは一覧のtest名・source coverage key・本文assertion fragmentを照合し、target未登録・未実行であることを確認する。
 - **価値または懸念:** 未実装のpromotion要件を通常のgreen suiteへ混ぜて誤った失敗/成功シグナルを作るのを防ぐ。これはsource分類であり、実際のpass/fail結果ではない。
 - **次に確認すべきこと:** 各caseをcharacterization・expected-failure・target-acceptanceに精密分類し、明示的な実行許可後にlane別に実行する。期待との差分からCore側対応とpromotion gateを更新する。
 - **未検証:** C++ test targetは未登録・未実行。manifest validator、build、test、GPU captureはいずれも今回未実行。

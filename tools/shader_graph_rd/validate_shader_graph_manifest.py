@@ -5061,6 +5061,19 @@ def validate(root: Path) -> list[str]:
             or evidence.get("contractTestRegistered") is not False
             or evidence.get("buildOrTestExecuted") is not False):
         errors.append("legacy C++ contract test lanes must keep source-audited expected failures and unclassified cases out of the unexecuted green target")
+    for item in expected_failure_cases:
+        if not isinstance(item, dict):
+            continue
+        test_case = item.get("testCase", "")
+        assertion_fragments = item.get("assertionFragments", [])
+        body = re.search(
+            rf"\bTEST\s*\(\s*ShaderGraphContractTest\s*,\s*{re.escape(test_case)}\s*\)\s*\{{(.*?)(?=\nTEST\s*\(|\Z)",
+            source,
+            re.DOTALL,
+        ) if isinstance(test_case, str) and test_case else None
+        if (not body or not isinstance(assertion_fragments, list) or not assertion_fragments
+                or any(not isinstance(fragment, str) or fragment not in body.group(1) for fragment in assertion_fragments)):
+            errors.append(f"expected-failure lane must retain its declared assertion fragments: {test_case}")
     required_contract_tests = {"CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "LayoutRoundTripsWithoutChangingSemanticCompileHash", "FailedLoadPreservesExistingGraph"}
     if not required_contract_tests <= set(found_cases):
         errors.append("contract source lacks canonicalization/layout/atomic-load gate cases")
