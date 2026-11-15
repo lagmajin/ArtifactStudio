@@ -14875,3 +14875,10 @@
 - **価値または懸念:** Identical field names can still encode incompatible null, timing, or rejection meanings; equality across generator, manifest, and validator keeps future measurements interpretable.
 - **次に確認すべきこと:** Run the manifest validator when authorized and ensure its dynamic sample catches any change to either side of this schema contract.
 - **未検証:** Only source and generated-corpus comparisons are prepared; the manifest validator has not been executed and no measured records exist.
+
+## 2026-11-15: Raw resource samples need deterministic summaries
+- **関連:** `tools/shader_graph_rd/generate_document_limit_corpus.py` measurement records、`tests/fixtures/shader-graph-rd/evaluation_manifest.json` resource-bound protocol。
+- **確認できた事実:** 計画は30以上の反復とmedian/p95/p99を要求していたが、分位点方式、集計時のgroup key、null値と不足sampleの扱い、境界accept/reject結果のsummary formatは固定されていなかった。generator/manifestに、nearest-rank集計、case/phase/build/platform/instrumentation/effective-limit別集計、nullを0にしない規則、境界契約違反数とdecision statusのsummary schemaを追加し、validator sourceで一致確認するようにした。
+- **価値または懸念:** 手動集計の実装差やcold/warm混在による判断ぶれを抑え、異なる環境の結果を誤って同じ母集団として扱わない。仕様のみであり、集計器やCore計測はまだない。
+- **次に確認すべきこと:** manifest validator実行の許可後にschema整合を検証し、計測runnerを追加する段階ではraw recordからsummaryを生成する独立ツールと既知値fixtureを用意する。
+- **未検証:** 今回は仕様/source更新まで。集計ロジックの実装・実行、実測値の妥当性、production limit選定はいずれも未実施。

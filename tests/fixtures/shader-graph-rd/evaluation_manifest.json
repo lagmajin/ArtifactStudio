@@ -3595,6 +3595,26 @@
           "unreachedStage": "record null duration and counters explicitly; do not represent unavailable instrumentation as zero",
           "destinationUnchanged": "every rejected mutating request must record true; use null only when the measured API has no destination state"
         },
+        "measurementSummarySchema": {
+          "version": 1,
+          "groupBy": ["caseId", "phase", "appRevision", "buildAndCompiler", "platform", "hardware", "instrumentation", "effectiveLimits"],
+          "minimumTimedSamples": 30,
+          "percentiles": {
+            "method": "nearest-rank; sort non-null integer nanosecond values ascending; rank is ceil(p*n), one-based",
+            "values": ["median", "p95", "p99"],
+            "fields": ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes", "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes"],
+            "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero"
+          },
+          "boundaryDisposition": {
+            "limit-minus-one": "must be accepted",
+            "exact-limit": "must be accepted",
+            "limit-plus-one": "must be rejected at or before the stage required by the selected limit contract",
+            "rejectedMutation": "every rejected mutating sample must have destinationUnchanged=true",
+            "productionSelection": "no numeric production limit may be selected until reviewed resource thresholds and safety margins are supplied; this summary reports evidence and contract violations but does not choose limits"
+          },
+          "requiredSummaryFields": ["caseId", "phase", "context", "observedSampleCount", "fieldSummaries", "acceptCount", "rejectCount", "contractViolationCount", "decisionStatus"],
+          "decisionStatusValues": ["insufficient-samples", "incomplete-instrumentation", "contract-violation", "evidence-only-no-production-limit"]
+        },
         "executionMethod": "For each shape, sweep sizes geometrically until failure/resource budget, then refine around the transition; repeat successful timed samples at least 30 times after warmup and report median/p95/p99. Keep raw per-run records, compiler/build/backend/CPU/OS details, and instrumentation overhead. Repeat cold parse and warm validation separately.",
         "decisionRule": "Choose production limits below the first unacceptable resource or latency transition with an explicit safety margin agreed in review; supported configurations must pass every exact-limit case and reject every limit-plus-one case without partial commit.",
         "allocationInstrumentation": "Use allocator hooks or a dedicated counting allocator in an isolated contract-test process; do not add hot-path logging or per-frame counters to production code solely for this R&D measurement.",

@@ -251,6 +251,30 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
             "destinationUnchanged": "true is required for every rejected mutating request; null only when the measured API has no destination state",
             "warmup": "record warmup separately or exclude it from sampleIndex; collect at least 30 timed successful samples after warmup",
         },
+        "measurementSummarySchema": _measurement_summary_schema(),
+    }
+
+
+def _measurement_summary_schema() -> dict[str, Any]:
+    return {
+        "version": 1,
+        "groupBy": ["caseId", "phase", "appRevision", "buildAndCompiler", "platform", "hardware", "instrumentation", "effectiveLimits"],
+        "minimumTimedSamples": 30,
+        "percentiles": {
+            "method": "nearest-rank; sort non-null integer nanosecond values ascending; rank is ceil(p*n), one-based",
+            "values": ["median", "p95", "p99"],
+            "fields": ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes", "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes"],
+            "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero",
+        },
+        "boundaryDisposition": {
+            "limit-minus-one": "must be accepted",
+            "exact-limit": "must be accepted",
+            "limit-plus-one": "must be rejected at or before the stage required by the selected limit contract",
+            "rejectedMutation": "every rejected mutating sample must have destinationUnchanged=true",
+            "productionSelection": "no numeric production limit may be selected until reviewed resource thresholds and safety margins are supplied; this summary reports evidence and contract violations but does not choose limits",
+        },
+        "requiredSummaryFields": ["caseId", "phase", "context", "observedSampleCount", "fieldSummaries", "acceptCount", "rejectCount", "contractViolationCount", "decisionStatus"],
+        "decisionStatusValues": ["insufficient-samples", "incomplete-instrumentation", "contract-violation", "evidence-only-no-production-limit"],
     }
 
 

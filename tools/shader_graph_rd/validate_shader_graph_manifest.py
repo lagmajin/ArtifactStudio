@@ -380,6 +380,8 @@ def validate(root: Path) -> list[str]:
             errors.append("generated document limit corpus record fields must match the manifest measurement schema")
         if sample_corpus.get("measurementRecordSemantics") != record_schema.get("recordSemantics"):
             errors.append("generated document limit corpus record semantics must match the manifest measurement schema")
+        if sample_corpus.get("measurementSummarySchema") != measurement_protocol.get("measurementSummarySchema"):
+            errors.append("generated document limit summary schema must match the manifest aggregation and boundary-decision contract")
         sample_case_ids = [case.get("caseId") for case in sample_corpus.get("cases", [])]
         if len(sample_case_ids) != 12 or len(sample_case_ids) != len(set(sample_case_ids)):
             errors.append("generated document limit cases must have 12 unique stable IDs for measurement records")
