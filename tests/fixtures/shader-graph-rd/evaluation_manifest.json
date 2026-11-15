@@ -6418,11 +6418,12 @@
         "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
-        "prototypeSha256": "0E78E63E9A0989A15211D2D0E5F5ADBEDEDF5D263451797040C4D1B8F0B91174",
-        "candidateSha256": "D63524FC7D69485A6EE9BFA76EC9A1EBA0CF435EA866F83E95CEC278231C5434",
+        "prototypeSha256": "BE147823B157AB0CBE29EA3756E0498797AD41C04A99D6C95B7E55EFB7BBBE53",
+        "candidateSha256": "DB4ED0679E855840824067E74E5F0038E615A43F903F71956FB537C87D95749C",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
+          "artifact.mapping.vector2.scale_offset",
           "artifact.texture.sample.image2d",
           "artifact.rd.math.add.vector4.float32",
           "complete bounded sampler descriptor",
@@ -6504,9 +6505,18 @@
           ],
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
-        "runtimeStatus": "schema-v4 source adapter reaches dynamic registry validation, typed IR, and HLSL candidate lowering with node-persisted resourceReference and resource table; save/undo/clipboard/duplicate contracts are declared in source but not executed here, and no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, or runtime validation is established",
+        "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
         "dynamicResolverPrototypeSha256": "8B22D59BE4A20A741BD00F80BB4A150018B59EEEA5A5A9ECF0288ECAA5F29F63",
-        "dynamicRegistrySha256": "BC665D3810167606BD336850E110835A1169F120030E490DE9F682028326781F"
+        "dynamicRegistrySha256": "BC665D3810167606BD336850E110835A1169F120030E490DE9F682028326781F",
+        "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
+        "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
+        "mappedUvContract": {
+          "operationId": "artifact.mapping.vector2.scale_offset@1",
+          "typedBehavior": "four finite Float32 parameters are preserved by the schema-v4 adapter and lowered by the closed dynamic registry implementation",
+          "sampling": "the Mapping output feeds Image Texture uv; emitted Sample consumes n_mapping_vector",
+          "identity": "resource requirements and resolved binding key equal the same document with a direct UV link; graph semantic and HLSL source identity differ",
+          "runtimeStatus": "candidate generation only; production persistence, shader compilation, image sampling, and GPU behavior remain unverified"
+        }
       }
     }
   },

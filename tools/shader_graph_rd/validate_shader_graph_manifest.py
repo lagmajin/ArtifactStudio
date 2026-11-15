@@ -1439,11 +1439,13 @@ def validate(root: Path) -> list[str]:
         generic_image_document_path = root / generic_image_contract.get("documentFixture", "")
         generic_image_catalog_path = root / generic_image_contract.get("assetCatalogFixture", "")
         generic_image_source_states_path = root / generic_image_contract.get("assetSourceStatesFixture", "")
+        generic_image_mapped_uv_document_path = root / generic_image_contract.get("mappedUvDocumentFixture", "")
         generic_image_candidate_path = root / generic_image_contract.get("candidateFixture", "")
         generic_image_prototype_path = root / generic_image_contract.get("prototype", "")
         generic_image_document = json.loads(generic_image_document_path.read_text(encoding="utf-8"))
         generic_image_catalog = json.loads(generic_image_catalog_path.read_text(encoding="utf-8"))
         generic_image_source_states = json.loads(generic_image_source_states_path.read_text(encoding="utf-8"))
+        generic_image_mapped_uv_document = json.loads(generic_image_mapped_uv_document_path.read_text(encoding="utf-8"))
         generic_image_candidate = json.loads(generic_image_candidate_path.read_text(encoding="utf-8"))
         generic_image_spec = importlib.util.spec_from_file_location(
             "shader_graph_generic_image_resource_prototype", generic_image_prototype_path)
@@ -1554,6 +1556,40 @@ def validate(root: Path) -> list[str]:
                 "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
                 "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
             }
+        }
+        mapped_generic_projection = generic_image_module.project_resource_requirements(
+            generic_image_mapped_uv_document, generic_image_catalog)
+        mapped_generic_dynamic_document = generic_image_module.adapt_document_to_dynamic_registry(
+            generic_image_mapped_uv_document, mapped_generic_projection)
+        mapped_generic_dynamic_bindings = generic_image_module.build_dynamic_resolved_bindings(
+            generic_image_mapped_uv_document, mapped_generic_projection,
+            generic_image_source_states)
+        mapped_generic_dynamic_candidate = dynamic_resolver_module.compile_document_from_data(
+            mapped_generic_dynamic_document, dynamic_adapter_registry,
+            resolved_resource_bindings=mapped_generic_dynamic_bindings)
+        direct_uv_generic_document = copy.deepcopy(generic_image_mapped_uv_document)
+        direct_uv_generic_document["nodes"] = [
+            node for node in direct_uv_generic_document["nodes"]
+            if node["nodeId"] != "mapping"]
+        direct_uv_generic_document["links"] = [
+            {"from": {"nodeId": "uv", "socketId": "value"},
+             "to": {"nodeId": "image_sample", "socketId": "uv"}}]
+        direct_uv_generic_projection = generic_image_module.project_resource_requirements(
+            direct_uv_generic_document, generic_image_catalog)
+        direct_uv_generic_dynamic_document = generic_image_module.adapt_document_to_dynamic_registry(
+            direct_uv_generic_document, direct_uv_generic_projection)
+        direct_uv_generic_bindings = generic_image_module.build_dynamic_resolved_bindings(
+            direct_uv_generic_document, direct_uv_generic_projection,
+            generic_image_source_states)
+        direct_uv_generic_dynamic_candidate = dynamic_resolver_module.compile_document_from_data(
+            direct_uv_generic_dynamic_document, dynamic_adapter_registry,
+            resolved_resource_bindings=direct_uv_generic_bindings)
+        regenerated_generic_image_candidate["mappedUvDynamicResolverAdapter"] = {
+            "dynamicDocument": mapped_generic_dynamic_document,
+            "resourceProjection": mapped_generic_projection,
+            "compilerCandidate": mapped_generic_dynamic_candidate,
+            "directUvCompilerCandidate": direct_uv_generic_dynamic_candidate,
+            "contract": "Mapping is retained as a graph operation and its output reaches the generic Image Texture UV input; resource and resolved binding identities match the direct-UV graph",
         }
         relinked_generic_image_document = copy.deepcopy(generic_image_document)
         relinked_generic_asset_id = "22222222-2222-4222-8222-222222222222"
@@ -2630,6 +2666,16 @@ def validate(root: Path) -> list[str]:
                 return {key: error.to_json()[key] for key in ("code", "severity", "path")}
             return None
 
+        invalid_generic_mapping_parameter_document = copy.deepcopy(
+            generic_image_mapped_uv_document)
+        invalid_generic_mapping_parameter_document["nodes"][1]["parameters"]["scaleX"] = 1.0e100
+        try:
+            generic_image_module.project_resource_requirements(
+                invalid_generic_mapping_parameter_document, generic_image_catalog)
+            invalid_generic_mapping_parameter_diagnostic = None
+        except generic_image_module.ContractError as error:
+            invalid_generic_mapping_parameter_diagnostic = error.to_json()
+
         graph_limits = dynamic_contract.get("graphResourceLimits", {})
         graph_limit_goldens = dynamic_contract.get("sourceGuardGoldens", {}).get("graphLimitDiagnostics", [])
         ui_limit_document = copy.deepcopy(dynamic_document)
@@ -3646,6 +3692,40 @@ def validate(root: Path) -> list[str]:
             regenerated_generic_image_candidate.get("assetRelinkProjection", {}).get(
                 "shaderCodeIdentity") == "not-measured-no-shader-code-is-generated" and
             all(regenerated_generic_image_candidate.get("bindingIdentityMutationProbes", {}).values()) and
+            regenerated_generic_image_candidate.get("mappedUvDynamicResolverAdapter", {}).get(
+                "compilerCandidate") == mapped_generic_dynamic_candidate and
+            regenerated_generic_image_candidate.get("mappedUvDynamicResolverAdapter", {}).get(
+                "directUvCompilerCandidate") == direct_uv_generic_dynamic_candidate and
+            mapped_generic_projection.get("documentStatus") == "valid" and
+            mapped_generic_projection.get("activeNodeIds") == ["image_sample", "mapping", "uv"] and
+            mapped_generic_dynamic_document["nodes"][1]["parameters"] ==
+            generic_image_mapped_uv_document["nodes"][1]["parameters"] and
+            "float2 n_mapping_vector = ((n_uv_value * float2(2.0f, 0.5f)) + float2(0.25f, -0.125f));" in
+            mapped_generic_dynamic_candidate.get("hlslBody", "") and
+            "g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_mapping_vector)" in
+            mapped_generic_dynamic_candidate.get("hlslBody", "") and
+            mapped_generic_dynamic_candidate.get("resourceRequirements") ==
+            direct_uv_generic_dynamic_candidate.get("resourceRequirements") and
+            mapped_generic_dynamic_candidate.get("resourceBindingKeySha256") ==
+            direct_uv_generic_dynamic_candidate.get("resourceBindingKeySha256") and
+            mapped_generic_dynamic_candidate.get("semanticHashSha256") !=
+            direct_uv_generic_dynamic_candidate.get("semanticHashSha256") and
+            "artifact.mapping.vector2.scale_offset" in
+            generic_image_contract.get("supportedSubset", []) and
+            generic_image_contract.get("mappedUvContract") == {
+                "operationId": "artifact.mapping.vector2.scale_offset@1",
+                "typedBehavior": "four finite Float32 parameters are preserved by the schema-v4 adapter and lowered by the closed dynamic registry implementation",
+                "sampling": "the Mapping output feeds Image Texture uv; emitted Sample consumes n_mapping_vector",
+                "identity": "resource requirements and resolved binding key equal the same document with a direct UV link; graph semantic and HLSL source identity differ",
+                "runtimeStatus": "candidate generation only; production persistence, shader compilation, image sampling, and GPU behavior remain unverified",
+            } and
+            invalid_generic_mapping_parameter_diagnostic == {
+                "code": "parameter.float32.invalid", "severity": "error",
+                "path": "/nodes/1/parameters/scaleX",
+                "message": "mapping parameter must fit binary32"} and
+            generic_image_mapped_uv_document["nodes"][1]["parameters"]["scaleX"] == 2.0 and
+            hashlib.sha256(generic_image_mapped_uv_document_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("mappedUvDocumentSha256") and
             hashlib.sha256(generic_image_document_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("documentSha256") and
             hashlib.sha256(generic_image_catalog_path.read_bytes()).hexdigest().upper() ==

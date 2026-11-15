@@ -16,6 +16,7 @@ import heapq
 import json
 import math
 import re
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +71,19 @@ def _canonical_sampler(raw: Any, path: str) -> dict[str, Any]:
              1 <= anisotropy <= 16, "maxAnisotropy must be an integer from 1 to 16",
              "sampler.anisotropy.invalid", f"{path}/maxAnisotropy")
     return {field: raw[field] for field in sorted(fields)}
+
+
+def _canonical_float32(value: Any, path: str) -> float:
+    _require(isinstance(value, (int, float)) and not isinstance(value, bool),
+             "mapping parameter must be a finite number", "parameter.float32.invalid", path)
+    try:
+        numeric_value = float(value)
+        canonical = struct.unpack("<f", struct.pack("<f", numeric_value))[0]
+    except (OverflowError, struct.error):
+        canonical = math.inf
+    _require(math.isfinite(canonical), "mapping parameter must fit binary32",
+             "parameter.float32.invalid", path)
+    return canonical
 
 
 def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str, Any]:
@@ -170,6 +184,18 @@ def project_resource_requirements(document: Any, asset_catalog: Any) -> dict[str
             _require(set(node) == {"nodeId", "operationId", "semanticVersion", "parameters", "layout"} and
                      node["parameters"] == {}, "UV0 node shape is invalid", "node.shape.invalid", path)
             output_types[(node_id, "value")] = "Vector2"
+        elif operation == "artifact.mapping.vector2.scale_offset":
+            parameter_ids = {"scaleX", "scaleY", "offsetX", "offsetY"}
+            _require(set(node) == {"nodeId", "operationId", "semanticVersion", "parameters", "layout"} and
+                     isinstance(node["parameters"], dict) and
+                     set(node["parameters"]) == parameter_ids,
+                     "Vector2 Mapping node shape is invalid", "node.shape.invalid", path)
+            for parameter_id in sorted(parameter_ids):
+                _canonical_float32(node["parameters"][parameter_id],
+                                   f"{path}/parameters/{parameter_id}")
+            input_types[(node_id, "vector")] = "Vector2"
+            required_inputs.add((node_id, "vector"))
+            output_types[(node_id, "vector")] = "Vector2"
         elif operation == "artifact.texture.sample.image2d":
             _require(set(node) == {"nodeId", "operationId", "semanticVersion", "parameters",
                                    "resourceReferences", "sampler", "colorInterpretation", "layout"},
@@ -423,6 +449,7 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
     """Translate schema-v4 nodes into a graph with persisted per-node references."""
     operation_map = {
         "artifact.input.texcoord.uv0.vector2": "artifact.input.texcoord.uv0.vector2",
+        "artifact.mapping.vector2.scale_offset": "artifact.mapping.vector2.scale_offset",
         "artifact.texture.sample.image2d": "artifact.texture.sample.image2d",
         "artifact.rd.math.add.vector4.float32": "artifact.rd.math.add.vector4.float32",
     }
@@ -440,7 +467,8 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
             "nodeId": node["nodeId"],
             "operationId": dynamic_operation,
             "semanticVersion": node["semanticVersion"],
-            "parameters": {},
+            "parameters": (copy.deepcopy(node["parameters"])
+                           if operation_id == "artifact.mapping.vector2.scale_offset" else {}),
             "layout": copy.deepcopy(node["layout"]),
         }
         if operation_id == "artifact.texture.sample.image2d":

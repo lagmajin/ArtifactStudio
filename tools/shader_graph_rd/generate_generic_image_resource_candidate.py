@@ -37,10 +37,12 @@ def main() -> int:
     document_path = root / contract["documentFixture"]
     catalog_path = root / contract["assetCatalogFixture"]
     source_states_path = root / contract["assetSourceStatesFixture"]
+    mapped_document_path = root / contract["mappedUvDocumentFixture"]
     candidate_path = root / contract["candidateFixture"]
     document = json.loads(document_path.read_text(encoding="utf-8"))
     asset_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     source_states = json.loads(source_states_path.read_text(encoding="utf-8"))
+    mapped_document = json.loads(mapped_document_path.read_text(encoding="utf-8"))
     candidate = module.build_candidate(document, asset_catalog, source_states)
     resource_projection = module.project_resource_requirements(document, asset_catalog)
     dynamic_document = module.adapt_document_to_dynamic_registry(document, resource_projection)
@@ -63,6 +65,32 @@ def main() -> int:
         shared_resource_dynamic_document,
         dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
         resolved_resource_bindings=shared_resource_dynamic_bindings)
+    mapped_projection = module.project_resource_requirements(mapped_document, asset_catalog)
+    mapped_dynamic_document = module.adapt_document_to_dynamic_registry(
+        mapped_document, mapped_projection)
+    mapped_dynamic_bindings = module.build_dynamic_resolved_bindings(
+        mapped_document, mapped_projection, source_states)
+    mapped_dynamic_candidate = dynamic_module.compile_document_from_data(
+        mapped_dynamic_document,
+        dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
+        resolved_resource_bindings=mapped_dynamic_bindings)
+    direct_uv_document = json.loads(json.dumps(mapped_document))
+    direct_uv_document["nodes"] = [node for node in direct_uv_document["nodes"]
+                                   if node["nodeId"] != "mapping"]
+    direct_uv_document["links"] = [
+        {"from": {"nodeId": "uv", "socketId": "value"},
+         "to": {"nodeId": "image_sample", "socketId": "uv"}}
+    ]
+    direct_uv_projection = module.project_resource_requirements(direct_uv_document,
+                                                                asset_catalog)
+    direct_uv_dynamic_document = module.adapt_document_to_dynamic_registry(
+        direct_uv_document, direct_uv_projection)
+    direct_uv_dynamic_bindings = module.build_dynamic_resolved_bindings(
+        direct_uv_document, direct_uv_projection, source_states)
+    direct_uv_dynamic_candidate = dynamic_module.compile_document_from_data(
+        direct_uv_dynamic_document,
+        dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
+        resolved_resource_bindings=direct_uv_dynamic_bindings)
     baseline_projection = {key: dynamic_candidate[key] for key in (
         "resourceBindingStatus", "resolvedResourceBindings", "unresolvedResourceKeys",
         "resourceBindingKeySha256")}
@@ -82,6 +110,13 @@ def main() -> int:
             "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
         }
     }
+    candidate["mappedUvDynamicResolverAdapter"] = {
+        "dynamicDocument": mapped_dynamic_document,
+        "resourceProjection": mapped_projection,
+        "compilerCandidate": mapped_dynamic_candidate,
+        "directUvCompilerCandidate": direct_uv_dynamic_candidate,
+        "contract": "Mapping is retained as a graph operation and its output reaches the generic Image Texture UV input; resource and resolved binding identities match the direct-UV graph",
+    }
     candidate_path.write_text(json.dumps(candidate, indent=2, ensure_ascii=False) + "\n",
                               encoding="utf-8", newline="\n")
 
@@ -94,6 +129,8 @@ def main() -> int:
     contract["dynamicResolverPrototypeSha256"] = hashlib.sha256(dynamic_path.read_bytes()).hexdigest().upper()
     contract["dynamicRegistrySha256"] = hashlib.sha256(
         (root / dynamic_contract["registryFixture"]).read_bytes()).hexdigest().upper()
+    contract["mappedUvDocumentSha256"] = hashlib.sha256(
+        mapped_document_path.read_bytes()).hexdigest().upper()
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
                              encoding="utf-8", newline="\n")
     print(f"Updated {contract['candidateFixture']} ({contract['candidateSha256']})")
