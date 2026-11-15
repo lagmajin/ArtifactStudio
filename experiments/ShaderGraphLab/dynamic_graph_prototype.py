@@ -2793,6 +2793,49 @@ def edit_node_parameters(document: Any, registry: dict[tuple[str, int], Operatio
     return edited
 
 
+def edit_node_resource_reference(document: Any, registry: dict[tuple[str, int], Operation],
+                                 node_id: str, resource_reference: Any) -> dict[str, Any]:
+    """Atomically set or clear an Image Texture node's authored resource reference."""
+    if not isinstance(node_id, str) or not IDENTIFIER.fullmatch(node_id):
+        raise ContractError("node ID is invalid", code="node.id.invalid", path="/nodeId")
+    edited = preserve_document(document)
+    nodes = edited.get("nodes") if isinstance(edited, dict) else None
+    if not isinstance(nodes, list):
+        raise ContractError("document nodes must be an array",
+                            code="schema.collection.required", path="/nodes")
+    matches = [(index, node) for index, node in enumerate(nodes)
+               if isinstance(node, dict) and node.get("nodeId") == node_id]
+    if len(matches) != 1:
+        raise ContractError("node is missing or ambiguous",
+                            code="node.id.not_unique_or_missing", path="/nodes")
+    index, node = matches[0]
+    operation = _lookup_operation(registry, node.get("operationId"), node.get("semanticVersion"))
+    if operation is None:
+        raise ContractError("node operation is unavailable",
+                            code="node.operation.version.unsupported",
+                            path=f"/nodes/{index}/semanticVersion")
+    if operation.implementation_id != GENERIC_TEXTURE_SAMPLE:
+        raise ContractError("resourceReference is only supported by Image Texture nodes",
+                            code="resource.reference.operation.unsupported",
+                            path=f"/nodes/{index}/resourceReference")
+    if "registryContractLock" in edited:
+        compatibility = compare_registry_contracts(edited["registryContractLock"], registry)
+        if compatibility:
+            issue = compatibility[0]
+            raise ContractError(issue["message"], code=issue["code"], path=issue["path"])
+    if resource_reference is None:
+        node["resourceReference"] = None
+        return edited
+    canonical = _canonical_image_resource_reference(resource_reference, node_id, index)
+    expected_key = f"artifact.shadergraph.image.{node_id}"
+    if canonical["resourceKey"] != expected_key:
+        raise ContractError("resourceKey must be node-scoped from nodeId",
+                            code="resource.reference.key.invalid",
+                            path=f"/nodes/{index}/resourceReference/resourceKey")
+    node["resourceReference"] = canonical
+    return edited
+
+
 def edit_node_socket_default(document: Any, registry: dict[tuple[str, int], Operation],
                              node_id: str, socket_id: str, value: Any) -> dict[str, Any]:
     """Edit one node-owned optional input default, preserving it in schema v3."""

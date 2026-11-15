@@ -6463,6 +6463,7 @@
           "uvMapping": "the fixture's UV0 graph source maps to resolver compatibility metadata uvSet=0 and identity uvTransform; UV values and future Mapping nodes remain graph semantics",
           "persistenceContract": {
             "nodeField": "resourceReference stores resourceKey, resourceId, sampler, and colorInterpretation on the generic Image Texture node",
+            "editApi": "edit_node_resource_reference atomically replaces or clears the reference and rejects invalid values without changing the source document",
             "incompleteAuthoring": "a newly instantiated Image Texture without a resource selection remains editable with a repair warning but compilation rejects it",
             "runtimeOnlyFields": "Asset UUID, asset type, source revision, resolved sampler object, and GPU handles remain outside the graph document",
             "bindingConsistency": "host-resolved samplerKey and colorInterpretation must match the node-authored sampler and color fields",
@@ -6480,7 +6481,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document whose generic nodes contain persisted resourceReference fields; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter reaches dynamic registry validation, typed IR, and HLSL candidate lowering with node-persisted resourceReference; save/undo/clipboard/duplicate contracts are declared in source but not executed here, and no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, or runtime validation is established",
-        "dynamicResolverPrototypeSha256": "0EB6FB020316B01543CC60310788120DE0891FC15C3B1ED7BF08604090E50CB3",
+        "dynamicResolverPrototypeSha256": "75CEB50F06A79D2867C3BC8CF9781B4C783323848F0B13338E8858E13D15BFCD",
         "dynamicRegistrySha256": "E7EEF0DBA8AAB1A1266851D294E42DF851C20B5E451F3B4A10586DFB3678597C"
       }
     }

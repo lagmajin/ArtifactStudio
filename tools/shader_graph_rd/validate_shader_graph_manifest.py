@@ -1719,7 +1719,11 @@ def validate(root: Path) -> list[str]:
         generic_image_layout_edited = dynamic_module.edit_node_layout(
             generic_image_dynamic_document, "image_sample", {"x": 300.0})
         generic_image_command_document = copy.deepcopy(generic_image_dynamic_document)
-        generic_image_command_document["nodes"][1]["resourceReference"]["resourceId"] = "image.relinked"
+        relinked_image_reference = copy.deepcopy(generic_image_reference)
+        relinked_image_reference["resourceId"] = "image.relinked"
+        generic_image_command_document = dynamic_module.edit_node_resource_reference(
+            generic_image_dynamic_document, dynamic_registry, "image_sample",
+            relinked_image_reference)
         generic_image_document_command = dynamic_module.create_document_command(
             "Relink graph image", generic_image_dynamic_document,
             generic_image_command_document)
@@ -1736,10 +1740,61 @@ def validate(root: Path) -> list[str]:
             generic_image_dynamic_document, dynamic_registry,
             [{"sourceNodeId": "uv", "nodeId": "uv_duplicate"},
              {"sourceNodeId": "image_sample", "nodeId": "image_duplicate"}])
+        baseline_generic_image_compile = dynamic_module.compile_document_from_data(
+            generic_image_dynamic_document, dynamic_registry,
+            resolved_resource_bindings=generic_image_dynamic_bindings)
+        sampler_edited_reference = copy.deepcopy(generic_image_reference)
+        sampler_edited_reference["sampler"]["minFilter"] = "nearest"
+        sampler_edited_document = dynamic_module.edit_node_resource_reference(
+            generic_image_dynamic_document, dynamic_registry, "image_sample",
+            sampler_edited_reference)
+        sampler_edited_bindings = copy.deepcopy(generic_image_dynamic_bindings)
+        sampler_edited_bytes = json.dumps(sampler_edited_reference["sampler"], sort_keys=True,
+                                          separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        sampler_edited_bindings["artifact.shadergraph.image.image_sample"]["samplerKey"] = (
+            "sampler." + hashlib.sha256(sampler_edited_bytes).hexdigest().lower())
+        sampler_edited_compile = dynamic_module.compile_document_from_data(
+            sampler_edited_document, dynamic_registry,
+            resolved_resource_bindings=sampler_edited_bindings)
+        color_edited_reference = copy.deepcopy(generic_image_reference)
+        color_edited_reference["colorInterpretation"] = "linear"
+        color_edited_document = dynamic_module.edit_node_resource_reference(
+            generic_image_dynamic_document, dynamic_registry, "image_sample",
+            color_edited_reference)
+        color_edited_bindings = copy.deepcopy(generic_image_dynamic_bindings)
+        color_edited_bindings["artifact.shadergraph.image.image_sample"][
+            "colorInterpretation"] = "linear"
+        color_edited_compile = dynamic_module.compile_document_from_data(
+            color_edited_document, dynamic_registry,
+            resolved_resource_bindings=color_edited_bindings)
+        invalid_image_reference = copy.deepcopy(generic_image_reference)
+        invalid_image_reference["sampler"]["minFilter"] = "cubic"
+        invalid_image_edit_error = None
+        try:
+            dynamic_module.edit_node_resource_reference(
+                generic_image_dynamic_document, dynamic_registry, "image_sample",
+                invalid_image_reference)
+        except dynamic_module.ContractError as error:
+            invalid_image_edit_error = error.to_json()
         def generic_reference_for(graph, node_id):
             return next(node["resourceReference"] for node in graph["nodes"]
                         if node.get("nodeId") == node_id)
         generic_image_persistence_contract = {
+            "resourceReferenceEditsAreAtomicAndKeepShaderSourceSeparateFromBindingState": (
+                invalid_image_edit_error is not None and
+                invalid_image_edit_error["code"] == "resource.sampler.invalid" and
+                generic_reference_for(generic_image_dynamic_document, "image_sample") ==
+                generic_image_reference and
+                sampler_edited_compile["semanticHashSha256"] ==
+                baseline_generic_image_compile["semanticHashSha256"] and
+                sampler_edited_compile["hlslBody"] == baseline_generic_image_compile["hlslBody"] and
+                sampler_edited_compile["resourceBindingKeySha256"] !=
+                baseline_generic_image_compile["resourceBindingKeySha256"] and
+                color_edited_compile["semanticHashSha256"] ==
+                baseline_generic_image_compile["semanticHashSha256"] and
+                color_edited_compile["hlslBody"] == baseline_generic_image_compile["hlslBody"] and
+                color_edited_compile["resourceBindingKeySha256"] !=
+                baseline_generic_image_compile["resourceBindingKeySha256"]),
             "resolvedBindingCannotOverridePersistedSamplerOrColor": (
                 mismatched_image_binding_error is not None and
                 mismatched_image_binding_error["code"] ==
