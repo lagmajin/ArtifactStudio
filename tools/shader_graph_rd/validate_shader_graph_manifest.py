@@ -1847,6 +1847,11 @@ def validate(root: Path) -> list[str]:
             return next(node["resourceReference"] for node in graph["nodes"]
                         if node.get("nodeId") == node_id)
         generic_image_persistence_contract = {
+            "projectAssetUuidStaysOutOfTypedIrAndHlsl": all(
+                resource["source"]["assetId"] not in generic_image_dynamic_candidate["hlslBody"] and
+                resource["source"]["assetId"] not in json.dumps(
+                    generic_image_dynamic_candidate["typedIR"], sort_keys=True)
+                for resource in generic_image_dynamic_document["resources"]),
             "sharedResourceIdKeepsPerNodeBindingAndShaderSymbols": (
                 regenerated_generic_image_candidate.get("sharedResourceSelectionProjection", {}).get(
                     "resourceRequirements", []) ==
