@@ -662,7 +662,11 @@ The candidate generator ran and the fixture pins were refreshed. The manifest co
 
 ### Vector3 optional socket default edit contract (2026-11-15)
 
-Added a schema-v3 fixture with a nonzero three-lane default on the optional `vector3.add` input. Its validator source contract edits the default, checks binary32 typed-IR values and emitted `float3(...)`, submits a three-lane Graph Lab `socketDefault` action, then checks exact undo/redo document restoration. This closes the source-contract gap between the existing generic array editor and Vector3 defaults; it does not add Vector3 graph-parameter packing or runtime evidence. Candidate generation refreshed the fixture and manifest digests. The validator remains unrun; no browser, shader compiler, renderer, or GPU path was exercised.
+Added a schema-v3 fixture with a nonzero three-lane default on the optional `vector3.add` input. Its validator source contract edits the default, checks binary32 typed-IR values and emitted `float3(...)`, submits a three-lane Graph Lab `socketDefault` action, then checks exact undo/redo document restoration. This closes the source-contract gap between the existing generic array editor and Vector3 defaults. Graph-parameter packing was added separately in the 2026-11-15 ABI candidate section. Candidate generation refreshed the fixture and manifest digests. The validator remains unrun; no browser, shader compiler, renderer, or GPU path was exercised.
+
+### Vector3 graph-parameter editor wiring correction (2026-11-15)
+
+Source review found two local editor branches that still treated Vector3 as node-only: the node row always displayed a noninteractive label instead of its Expose/Unexpose control, and the existing graph-parameter picker accepted only scalar values or four-lane arrays. The UI now renders the normal exposure control for Vector3 and accepts only matching three-lane values when selecting a shared parameter. The manifest source contract now pins both conditions. This repairs the local editing path to match the already-present schema/lowering candidate; browser interaction, undo/redo, manifest validation, compiler reflection, upload, and GPU execution remain unverified.
 
 
 ### Dynamic graph validator check-list consistency (2026-11-15)

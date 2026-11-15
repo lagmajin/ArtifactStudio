@@ -14824,6 +14824,14 @@
 - **次に確認すべきこと:** Run the manifest contract after authorization, confirm `float3` packoffset layout with the actual shader compiler/reflection, and test host packing/upload including the unused fourth cbuffer byte lane before considering any Core ABI.
 
 
+## 2026-11-15: Vector3 graph-parameter local editor path was still node-only
+- **関連:** `experiments/ShaderGraphLab/local_graph_lab.html`, `tools/shader_graph_rd/validate_shader_graph_manifest.py`, `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`.
+- **確認できた事実:** Graph parameter schema, lowering, Vector3 candidate ABI, and three-lane graph-parameter value editor existed, but the node row rendered Vector3 as a permanent node-only label. The existing-parameter picker also validated every non-Vector4 parameter as a scalar, so it rejected Vector3 records.
+- **変更した事実:** Vector3 node rows now use the standard Expose/Unexpose control, and the picker validates a three-lane finite value for Vector3. The source contract now checks those editor conditions.
+- **価値または懸念:** The editor surface now matches the source candidate contract and permits sharing a Vector3 value across nodes. Event-level behavior remains unverified until the manifest contract and browser session are run.
+- **次に確認すべきこと:** Under the authorized validation workflow, exercise create/reuse/edit/unexpose plus undo/redo for a shared Vector3 parameter, then verify cbuffer reflection and host upload before considering Core promotion.
+
+
 ## 2026-11-15: Vector3 socket-default UI needed an explicit persistence/undo gate
 - **関連:** `experiments/ShaderGraphLab/dynamic_optional_vector3_default.json`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`experiments/ShaderGraphLab/local_graph_lab.html`。
 - **確認できた事実:** The browser renderer already maps array defaults to lane editors, and the host action routes `socketDefault` to `edit_node_socket_default`; source coverage had pinned Float and Vector4 but not Vector3 lane edits. A schema-v3 Vector3 fixture now pins a nonzero default, and validator source declares typed lowering, browser action, and undo/redo restoration checks. Candidate generation completed and updated the manifest digest.

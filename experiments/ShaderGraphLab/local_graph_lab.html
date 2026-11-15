@@ -402,7 +402,7 @@
         const exposureAction=ambiguous||!canExpose||param.valueType==='RampStops'?'disabled':exposure
           ? `data-unexpose-node="${esc(id)}" data-unexpose-param="${esc(param.parameterId)}" title="Disconnect this parameter from the graph input"`
           : `data-expose-node="${esc(id)}" data-expose-param="${esc(param.parameterId)}" title="Expose as graph parameter"`;
-        return `<div class="param"><span>${esc(param.parameterId)}</span>${editor}${exposure?`<span class="small">↗ ${esc(exposure.label)}</span>`:''}${param.valueType==='RampStops'?'<span class="small">Node parameter · 2–32 stops</span>':param.valueType==='Vector3F32'?'<span class="small">Node parameter · 3 components</span>':`<button ${exposureAction}>${exposure?'Unexpose':'Expose'}</button>`}</div>`;
+        return `<div class="param"><span>${esc(param.parameterId)}</span>${editor}${exposure?`<span class="small">↗ ${esc(exposure.label)}</span>`:''}${param.valueType==='RampStops'?'<span class="small">Node parameter · 2–32 stops</span>':`<button ${exposureAction}>${exposure?'Unexpose':'Expose'}</button>`}</div>`;
       }).join('');
       const genericImageSample=node.operationId==='artifact.texture.sample.image2d';
       const resourceReference=node.resourceReference&&typeof node.resourceReference==='object'&&!Array.isArray(node.resourceReference)?node.resourceReference:{};
@@ -735,7 +735,7 @@
     if(!operation) return;
     const definition=operation.parameters.find(item=>item.parameterId===parameterId);
     const graphParameters=Array.isArray(state.document.graphParameters)?state.document.graphParameters:[];
-    const compatible=graphParameters.filter(item=>item&&item.valueType===definition.valueType&&typeof item.parameterId==='string'&&typeof item.label==='string'&&Array.isArray(item.bindings)&&item.bindings.length>0&&(definition.valueType==='Vector4F32'?Array.isArray(item.value)&&item.value.length===4&&item.value.every(Number.isFinite):typeof item.value==='number'&&Number.isFinite(item.value)));
+    const compatible=graphParameters.filter(item=>item&&item.valueType===definition.valueType&&typeof item.parameterId==='string'&&typeof item.label==='string'&&Array.isArray(item.bindings)&&item.bindings.length>0&&(definition.valueType==='Float32'?typeof item.value==='number'&&Number.isFinite(item.value):Array.isArray(item.value)&&item.value.length===(definition.valueType==='Vector3F32'?3:4)&&item.value.every(Number.isFinite)));
     $('expose-context').textContent=`${nodeId}.${parameterId} · ${definition.valueType}`;
     $('expose-target').innerHTML='<option value="">Create a new graph parameter</option>'+compatible.map(item=>`<option value="${esc(item.parameterId)}">${esc(item.label)} · ${esc(item.parameterId)} (${item.bindings.length} bound)</option>`).join('');
     let base=`${nodeId}_${parameterId}`.replace(/[^A-Za-z0-9_.-]/g,'_');
