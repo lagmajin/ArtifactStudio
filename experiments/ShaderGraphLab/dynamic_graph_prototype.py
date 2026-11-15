@@ -415,13 +415,13 @@ def assign_resident_generic_parameter_slots(parameter_bindings: Any) -> list[dic
             raise ContractError("resident parameter ID is duplicated",
                                 code="shader.binding.logical_id.duplicate", path=path)
         expected_symbol = "P_" + re.sub(r"[^A-Za-z0-9_]", "_", parameter_id)
-        if (not isinstance(value_type, str) or value_type not in {"Float32", "Vector4F32"} or
+        if (not isinstance(value_type, str) or value_type not in {"Float32", "Vector3F32", "Vector4F32"} or
                 symbol != expected_symbol or binding.get("blockBindingId") != "artifact.shadergraph.parameters" or
                 not isinstance(binding.get("bindings"), list) or not binding["bindings"] or
                 symbol in seen_symbols):
             raise ContractError("resident parameter binding is invalid or duplicated",
                                 code="shader.binding.resident_contract.invalid", path=path)
-        slot_count = 1 if value_type == "Float32" else 4
+        slot_count = {"Float32": 1, "Vector3F32": 3, "Vector4F32": 4}[value_type]
         if next_slot + slot_count > RESIDENT_GENERIC_PARAMETER_LANE_COUNT:
             raise ContractError("resident generic ABI supports at most sixteen scalar lanes",
                             code="shader.binding.resident_slot_overflow", path="/parameterBindings")
@@ -429,7 +429,8 @@ def assign_resident_generic_parameter_slots(parameter_bindings: Any) -> list[dic
         seen_symbols.add(symbol)
         slot_indices = list(range(next_slot, next_slot + slot_count))
         abi_names = [f"g_P{slot}" for slot in slot_indices]
-        hlsl_expression = abi_names[0] if slot_count == 1 else "float4(" + ", ".join(abi_names) + ")"
+        hlsl_expression = (abi_names[0] if slot_count == 1 else
+                           f"float{slot_count}(" + ", ".join(abi_names) + ")")
         result.append({
             "parameterId": parameter_id,
             "valueType": value_type,
@@ -2461,9 +2462,10 @@ def _canonical_parameters(raw: Any, operation: Operation, node_id: str, node_ind
 def _canonical_graph_parameter_value(value_type: str, value: Any, path: str) -> float | list[float]:
     if value_type == "Float32":
         return _f32(value, "graph parameter", path=path, code="graph.parameter.value.invalid")
-    if value_type == "Vector4F32":
-        if not isinstance(value, (list, tuple)) or len(value) != 4:
-            raise ContractError("Vector4 graph parameter requires four Float32 values",
+    if value_type in {"Vector3F32", "Vector4F32"}:
+        lane_count = 3 if value_type == "Vector3F32" else 4
+        if not isinstance(value, (list, tuple)) or len(value) != lane_count:
+            raise ContractError(f"{value_type[:-3]} graph parameter requires {lane_count} Float32 values",
                                 code="graph.parameter.value.invalid", path=path)
         return [_f32(component, f"graph parameter[{index}]", path=f"{path}/{index}",
                       code="graph.parameter.value.invalid") for index, component in enumerate(value)]
@@ -2507,7 +2509,7 @@ def _apply_graph_parameters(document: dict[str, Any], nodes: dict[str, dict[str,
         if not isinstance(label, str) or not label.strip():
             raise ContractError("graph parameter label is empty", code="graph.parameter.label.invalid",
                                 path=f"{path}/label")
-        if not isinstance(value_type, str) or value_type not in {"Float32", "Vector4F32"}:
+        if not isinstance(value_type, str) or value_type not in {"Float32", "Vector3F32", "Vector4F32"}:
             raise ContractError("graph parameter type is unsupported", code="graph.parameter.type.invalid",
                                 path=f"{path}/valueType")
         value = _canonical_graph_parameter_value(value_type, raw["value"], f"{path}/value")
@@ -2591,7 +2593,7 @@ def expose_node_parameter(document: Any, registry: dict[tuple[str, int], Operati
     if parameter is None:
         raise ContractError("node parameter is unavailable", code="node.parameter.unknown",
                             path=f"/nodes/{node_index}/parameters/{_pointer_segment(node_parameter_id)}")
-    if parameter.value_type not in {"Float32", "Vector4F32"}:
+    if parameter.value_type not in {"Float32", "Vector3F32", "Vector4F32"}:
         raise ContractError("node parameter type has no graph-parameter packing contract",
                             code="graph.parameter.type.unsupported",
                             path=f"/nodes/{node_index}/parameters/{_pointer_segment(node_parameter_id)}")
@@ -2854,7 +2856,7 @@ def unexpose_node_parameter(document: Any, registry: dict[tuple[str, int], Opera
         isinstance(graph_parameter.get("parameterId"), str) and
         bool(IDENTIFIER.fullmatch(graph_parameter["parameterId"])) and
         isinstance(graph_parameter.get("label"), str) and bool(graph_parameter["label"].strip()) and
-        graph_parameter.get("valueType") in {"Float32", "Vector4F32"} and
+        graph_parameter.get("valueType") in {"Float32", "Vector3F32", "Vector4F32"} and
         all(isinstance(binding, dict) and set(binding) == {"nodeId", "parameterId"} and
             isinstance(binding.get("nodeId"), str) and isinstance(binding.get("parameterId"), str)
             for binding in graph_parameter["bindings"])
@@ -3535,7 +3537,7 @@ def validate_document_for_editing(
                 if not isinstance(graph_parameter["label"], str) or not graph_parameter["label"].strip():
                     report("graph.parameter.label.invalid", f"{path}/label", "graph parameter label is empty")
                 value_type = graph_parameter["valueType"]
-                value_type_valid = isinstance(value_type, str) and value_type in {"Float32", "Vector4F32"}
+                value_type_valid = isinstance(value_type, str) and value_type in {"Float32", "Vector3F32", "Vector4F32"}
                 if not value_type_valid:
                     report("graph.parameter.type.invalid", f"{path}/valueType", "graph parameter type is unsupported")
                     canonical_value = None
@@ -4046,7 +4048,8 @@ def compile_document_from_data(
     parameter_cursor = 0
     for parameter in sorted(active_graph_parameters, key=lambda item: item["parameterId"]):
         value_type = parameter["valueType"]
-        field_size = 16 if value_type == "Vector4F32" else 4
+        # Reserve a complete 16-byte register for vectors, including Vector3.
+        field_size = 16 if value_type in {"Vector3F32", "Vector4F32"} else 4
         if field_size == 16:
             parameter_cursor = (parameter_cursor + 15) // 16 * 16
         byte_offset = parameter_cursor
@@ -4106,7 +4109,7 @@ def compile_document_from_data(
     if parameter_block is not None:
         hlsl_lines.append("cbuffer ArtifactGraphParameters {")
         hlsl_lines.extend(
-            f"    {'float4' if field['valueType'] == 'Vector4F32' else 'float'} {field['hlslSymbol']} : packoffset({field['hlslPackOffset']});"
+            f"    { {'Float32': 'float', 'Vector3F32': 'float3', 'Vector4F32': 'float4'}[field['valueType']] } {field['hlslSymbol']} : packoffset({field['hlslPackOffset']});"
             for field in parameter_fields
         )
         hlsl_lines.append("};")
@@ -4214,8 +4217,13 @@ def compile_document_from_data(
                 values = data["parameters"][parameter_id]
                 expression = "float4(" + ", ".join(_hlsl_float(value) for value in values) + ")"
         elif implementation_id == "vector3.constant":
-            values = data["parameters"][operation.parameters[0].parameter_id]
-            expression = "float3(" + ", ".join(_hlsl_float(value) for value in values) + ")"
+            parameter_id = operation.parameters[0].parameter_id
+            graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
+            if graph_parameter_id is not None:
+                expression = "P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)
+            else:
+                values = data["parameters"][parameter_id]
+                expression = "float3(" + ", ".join(_hlsl_float(value) for value in values) + ")"
         elif implementation_id == "vector2.mapping.scale_offset":
             value = input_expression(node_id, "vector")
             parameters = data["parameters"]
@@ -4499,7 +4507,7 @@ def compile_document_from_data(
         "hlslBody": hlsl,
         "warnings": warnings,
         "limitations": [
-            f"prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector4 graph parameters, and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
+            f"prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and {len(BUILTIN_IMPLEMENTATIONS)} closed implementation IDs only",
             "registry metadata may select existing implementations but cannot supply executable code or HLSL",
             "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
             "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",

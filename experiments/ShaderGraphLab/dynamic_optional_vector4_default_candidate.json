@@ -97,7 +97,7 @@
   "hlslBody": "float4 n_source_value = float4(0.200000003f, 0.400000006f, 0.600000024f, 0.800000012f);\nfloat4 n_sum_result = (n_source_value + float4(0.100000001f, 0.200000003f, 0.300000012f, 0.400000006f));\nreturn n_sum_result;\n",
   "warnings": [],
   "limitations": [
-    "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector4 graph parameters, and 38 closed implementation IDs only",
+    "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and 38 closed implementation IDs only",
     "registry metadata may select existing implementations but cannot supply executable code or HLSL",
     "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
     "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",

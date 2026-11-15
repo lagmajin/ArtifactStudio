@@ -390,7 +390,7 @@
       }).join('');
       const outputs = op.outputs.map(pin => `<div class="socket-row"><button class="small" ${ambiguous?'disabled':`data-output-node="${esc(id)}" data-output-socket="${esc(pin.socketId)}"`}>Set Output</button><span class="socket-label">${esc(pin.socketId)} <span class="small">${esc(pin.valueType)}</span><button class="socket ${esc(pin.valueType)}" ${ambiguous?'disabled':`data-socket="${esc(pin.socketId)}" data-direction="output" data-node="${esc(id)}"`} title="${esc(pin.valueType)} output"></button></span></div>`).join('');
       const params = op.parameters.map(param => {
-        const canExpose=param.valueType==='Float32'||param.valueType==='Vector4F32';
+        const canExpose=param.valueType==='Float32'||param.valueType==='Vector3F32'||param.valueType==='Vector4F32';
         const exposure=!canExpose?null:node.nodeId!==undefined&&(node.nodeId===null||['string','number','boolean'].includes(typeof node.nodeId))
           ? exposuresByNodeParameter.get(inputKey(node.nodeId,param.parameterId)):null;
         const value = exposure ? exposure.value : nodeParameters[param.parameterId];
@@ -837,9 +837,9 @@
       : graphParameters.length?graphParameters.map(parameter=>{
       if (!parameter||typeof parameter!=='object'||typeof parameter.parameterId!=='string'||typeof parameter.label!=='string'||!Array.isArray(parameter.bindings))
         return `<section class="graph-parameter"><span class="small">Invalid graph parameter record</span></section>`;
-      const validType=parameter.valueType==='Float32'||parameter.valueType==='Vector4F32';
+      const validType=parameter.valueType==='Float32'||parameter.valueType==='Vector3F32'||parameter.valueType==='Vector4F32';
       const validValue=parameter.valueType==='Float32'?typeof parameter.value==='number'&&Number.isFinite(parameter.value)
-        :Array.isArray(parameter.value)&&parameter.value.length===4&&parameter.value.every(component=>typeof component==='number'&&Number.isFinite(component));
+        :Array.isArray(parameter.value)&&parameter.value.length===(parameter.valueType==='Vector3F32'?3:4)&&parameter.value.every(component=>typeof component==='number'&&Number.isFinite(component));
       if (!validType||!validValue)
         return `<section class="graph-parameter"><span class="small">Invalid value for ${esc(parameter.parameterId)} (${esc(parameter.valueType)})</span></section>`;
       const targets=parameter.bindings.map(binding=>binding&&typeof binding.nodeId==='string'&&typeof binding.parameterId==='string'
@@ -853,7 +853,7 @@
     $('graph-parameters').querySelectorAll('[data-graph-param]').forEach(input=>input.addEventListener('change',()=>{
       const definition=graphParameters.find(item=>item&&item.parameterId===input.dataset.graphParam);
       if (!definition) return;
-      const value=definition.valueType==='Vector4F32'
+      const value=definition.valueType==='Vector3F32'||definition.valueType==='Vector4F32'
         ? [...$('graph-parameters').querySelectorAll(`[data-graph-param="${CSS.escape(input.dataset.graphParam)}"]`)].map(component=>component.valueAsNumber)
         : input.valueAsNumber;
       post({type:'graphParameter',graphParameterId:definition.parameterId,value});
