@@ -14819,3 +14819,11 @@
 - **追加で確認できた事実:** The registry and source-contract fixture now also compose Vector3 add→subtract→multiply and reject a Float source linked into a Vector3 input. These remain unexecuted manifest checks and candidate HLSL, not renderer evidence.
 - **追加で確認できた事実:** Source inspection found the local editor rendered Vector3F32 as an array but submitted changes as a scalar, and exposed a graph-parameter action without a packing contract. The editor now sends all three lanes and marks the value node-only; the manifest source contract records the editor wiring.
 - **未検証:** The manifest validator, shader compiler, renderer, or GPU capture has not been run for these Vector3 boundaries; Vector3 graph-parameter packing remains unspecified.
+
+
+## 2026-11-15: Vector3 socket-default UI needed an explicit persistence/undo gate
+- **関連:** `experiments/ShaderGraphLab/dynamic_optional_vector3_default.json`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`experiments/ShaderGraphLab/local_graph_lab.html`。
+- **確認できた事実:** The browser renderer already maps array defaults to lane editors, and the host action routes `socketDefault` to `edit_node_socket_default`; source coverage had pinned Float and Vector4 but not Vector3 lane edits. A schema-v3 Vector3 fixture now pins a nonzero default, and validator source declares typed lowering, browser action, and undo/redo restoration checks. Candidate generation completed and updated the manifest digest.
+- **価値または懸念:** Vector3 values could appear editable while persistence/history remained unproven for this arity. Pinning the full three-lane path reduces the chance that UI and serialized document silently diverge before considering Core promotion.
+- **次に確認すべきこと:** Run the manifest validator when authorized, then exercise the local Graph Lab and verify a shader compiler/runtime result before promoting any Vector3 API into ArtifactCore.
+- **未検証:** The new source contract has not been executed; browser interaction, actual undo behavior, HLSL compilation, renderer output, and Core suitability remain unverified.
