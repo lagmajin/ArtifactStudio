@@ -5989,6 +5989,7 @@
         "transactionAuthorsGraphFromEmptyDocumentAsOneUndoableCommand",
         "localUiSessionActionsStayAtomicAndUndoable",
         "localImageResolverRequiresAssetRevisionAndSupportedUvPath",
+        "localImageMappingChangesShaderWithoutChangingResolvedBinding",
         "operationReplacementPreservesCompatibleLinksAndHistory",
         "localUiHttpRoutesHandleStateEditAndReject",
         "instantiatedNodeUsesDeclaredParameterDefault",
