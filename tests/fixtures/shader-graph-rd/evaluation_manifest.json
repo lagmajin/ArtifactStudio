@@ -3571,6 +3571,7 @@
         ],
         "measurementRecordSchema": {
           "version": 2,
+          "caseIdFormat": "<limitField>.<boundary>; stable and unique within one generated corpus",
           "requiredFields": [
             "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
             "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",

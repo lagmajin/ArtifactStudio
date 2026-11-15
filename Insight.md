@@ -14859,3 +14859,11 @@
 - **価値または懸念:** A combined duration cannot distinguish parser cost from graph-index or lowering cost, and a missing measurement encoded as zero can falsely appear fast. Null and stage-specific fields preserve that distinction.
 - **次に確認すべきこと:** Run the generator and manifest validator when authorized, then populate raw records from an isolated instrumented Core contract-test process before selecting supported limits.
 - **未検証:** No Core profiling data exists; the new record format is not yet consumed by a measurement runner.
+
+
+## 2026-11-15: Measurement records require stable IDs on generated cases
+- **関連:** `tools/shader_graph_rd/generate_document_limit_corpus.py` case generation/validation、manifest `measurementRecordSchema`。
+- **確認できた事実:** Schema v2 required a `caseId` in each measurement record while generated boundary case objects had only `limitField` and `boundary`. Cases now have unique stable IDs in `<limitField>.<boundary>` form; generator validation checks format and uniqueness, and the manifest validator source checks the required format and 12 unique sample IDs.
+- **価値または懸念:** Without stable case identity, measurements cannot be joined unambiguously to the exact boundary input and effective limits that produced them.
+- **次に確認すべきこと:** Regenerate the corpus and confirm record references resolve exactly once; include the case ID and payload hash in any future raw measurement export.
+- **未検証:** No runtime measurement record has been produced and no Core performance evidence exists.

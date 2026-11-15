@@ -346,6 +346,7 @@ def validate(root: Path) -> list[str]:
     record_schema = measurement_protocol.get("measurementRecordSchema", {})
     expected_stage_duration_fields = ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs"]
     if (record_schema.get("version") != 2
+            or record_schema.get("caseIdFormat") != "<limitField>.<boundary>; stable and unique within one generated corpus"
             or record_schema.get("phaseValues") != ["cold-parse", "warm-validation"]
             or record_schema.get("stageDurationFieldsNs") != expected_stage_duration_fields
             or "retain every sample" not in record_schema.get("rawSamples", "")
@@ -377,6 +378,9 @@ def validate(root: Path) -> list[str]:
             errors.extend("document limit corpus: " + item for item in corpus_errors)
         if sample_corpus.get("measurementRecordFields") != record_schema.get("requiredFields"):
             errors.append("generated document limit corpus record fields must match the manifest measurement schema")
+        sample_case_ids = [case.get("caseId") for case in sample_corpus.get("cases", [])]
+        if len(sample_case_ids) != 12 or len(sample_case_ids) != len(set(sample_case_ids)):
+            errors.append("generated document limit cases must have 12 unique stable IDs for measurement records")
     except (OSError, ImportError, AttributeError, TypeError, ValueError, RuntimeError) as error:
         errors.append(f"cannot validate deterministic document limit corpus generator: {error}")
     socket_types = core_schema.get("legacySocketTypeCharacterization", {})

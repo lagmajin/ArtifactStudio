@@ -675,3 +675,6 @@ The parent-side limit-corpus generator used recursive DFS both to calculate outp
 ### Resource-limit measurement record schema (2026-11-15)
 
 The documented protocol required parse, structural validation, canonicalization, and lowering to be timed separately, but generated records exposed one combined duration field. Corpus schema v2 now records those four nanosecond fields separately, along with cold-parse/warm-validation phase, sample index, effective limits, observed input dimensions, allocation/memory/stack metrics, rejection stage, and destination preservation. Null is explicit for unreached stages or unavailable counters; it is not interpreted as zero. The manifest pins the required field list and the generator checks its own schema; the manifest validator also compares the generated schema against that list. This prepares reproducible measurement records but contains no Core measurements and does not select production limits.
+
+
+**Case identity correction (2026-11-15):** measurement schema v2 requires `caseId`; generated boundary records now emit stable `<limitField>.<boundary>` IDs and reject missing, duplicate, or mismatched IDs in the generator consistency pass. The manifest pins the ID format and the validator's generated-corpus sample checks 12 unique IDs. This closes record-to-input provenance; no runtime measurement rows exist yet.

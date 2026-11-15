@@ -210,6 +210,7 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
             if field != "maxJsonBytes":
                 case_limits["maxJsonBytes"] = max(case_limits["maxJsonBytes"], len(payload))
             cases.append({
+                "caseId": f"{field}.{label}",
                 "limitField": field,
                 "boundary": label,
                 "limitValue": limit,
@@ -282,6 +283,10 @@ def validate_case_set(corpus: dict[str, Any]) -> list[str]:
     expected_fields = {"maxJsonBytes", "maxNodes", "maxLinks", "maxTraversalDepth"}
     if len(cases) != 12 or {case.get("limitField") for case in cases} != expected_fields:
         errors.append("corpus must contain three boundary cases for each DocumentLimits field")
+    case_ids = [case.get("caseId") for case in cases]
+    if (len(case_ids) != len(set(case_ids)) or any(not isinstance(case_id, str) or not case_id for case_id in case_ids)
+            or any(case.get("caseId") != f"{case.get('limitField')}.{case.get('boundary')}" for case in cases)):
+        errors.append("every limit boundary case must have one unique stable caseId")
     for case in cases:
         field = case.get("limitField")
         label = case.get("boundary")
