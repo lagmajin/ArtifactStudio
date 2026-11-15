@@ -33,6 +33,8 @@ ACTION_FIELDS = {
     "disconnect": ({"fromNode", "fromSocket", "toNode", "toSocket"}, set()),
     "disconnectLink": ({"linkIndex", "expectedDocumentHash"}, set()),
     "parameter": ({"nodeId", "values"}, set()),
+    "imageResource": ({"nodeId", "resourceId", "assetId"}, {"sampler", "colorInterpretation"}),
+    "clearImageResource": ({"nodeId"}, set()),
     "socketDefault": ({"nodeId", "socketId", "value"}, set()),
     "expose": ({"nodeId", "parameterId", "graphParameterId", "label"}, set()),
     "graphParameter": ({"graphParameterId", "value"}, set()),
@@ -268,6 +270,32 @@ class Session:
             after = graph.disconnect_link_at(before, action.get("linkIndex"))
         elif kind == "parameter":
             after = graph.edit_node_parameters(before, self.registry, action.get("nodeId"), action.get("values"))
+        elif kind == "imageResource":
+            node_id = action.get("nodeId")
+            nodes = before.get("nodes")
+            if not isinstance(nodes, list):
+                raise graph.ContractError("document nodes must be an array",
+                                          code="schema.collection.required", path="/nodes")
+            node = next((item for item in nodes if isinstance(item, dict) and
+                         item.get("nodeId") == node_id), None)
+            previous = node.get("resourceReference") if isinstance(node, dict) else None
+            reference = dict(previous) if isinstance(previous, dict) else {
+                "resourceKey": f"artifact.shadergraph.image.{node_id}",
+                "sampler": {
+                    "minFilter": "linear", "magFilter": "linear", "mipFilter": "linear",
+                    "addressU": "repeat", "addressV": "repeat", "maxAnisotropy": 1,
+                },
+                "colorInterpretation": "srgb",
+            }
+            reference["resourceId"] = action["resourceId"]
+            if "sampler" in action:
+                reference["sampler"] = action["sampler"]
+            if "colorInterpretation" in action:
+                reference["colorInterpretation"] = action["colorInterpretation"]
+            after = graph.set_graph_resource_asset(before, action["resourceId"], action["assetId"])
+            after = graph.edit_node_resource_reference(after, self.registry, node_id, reference)
+        elif kind == "clearImageResource":
+            after = graph.edit_node_resource_reference(before, self.registry, action.get("nodeId"), None)
         elif kind == "socketDefault":
             after = graph.edit_node_socket_default(before, self.registry, action.get("nodeId"),
                                                    action.get("socketId"), action.get("value"))

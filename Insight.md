@@ -1,11 +1,10 @@
 **最終更新:** 2026-11-15
 
-## 2026-11-15: UV mapping parameters should be graph semantics
-- **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`dynamic_vector2_mapping.json`。
-- **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補を追加した。mapped/direct graph の resource requirements と resolved binding key は一致し、semantic/HLSL source identity は変わる source contract を記録した。
-- **価値または懸念:** UV変換がbinding metadataでなく接続可能なグラフ演算になり、resource identityから独立したshader semanticsとして表現される。production material path、回転・wrap・GPU動作は未検証。
-- **追加で確認できた事実 (2026-11-15):** `dynamic_generic_image_mapping.json` は schema-v4 Mapping fixture から生成され、local editor の `--document` で開ける。generic Image Texture resource は意図的に未解決であるため、これ自体はsample出力の画像評価にならない。manifestにidentity/nonuniform/negative/zero scaleの評価caseとbaseline noise基準の判定順を明記した。
-- **次に確認すべきこと:** production resource adapter が接続された後、channel-probeの同一assetでdirect-UVを5回以上captureし、候補画像を見る前に領域別許容差を固定する。その後にMappingケースとruntime/backend/性能ゲートを実行する。
+## 2026-11-15: UV mapping and image resources should remain graph-authored
+- **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`local_graph_lab.py`、`local_graph_lab.html`、`dynamic_generic_image_mapping.json`。
+- **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補がある。mapped/direct graph はresource requirementsとresolved binding keyを保ちつつ、semantic/HLSL source identityを変える。local editorで開けるschema-v1例はUV0→Mapping→Image Textureを保持するが、resourceは未解決である。Image Texture node向けの編集UIはnode参照、document resource tableのAsset UUID、sampler、色解釈を単一undoable actionで保存する。これは文字列UUIDをdocument値へ保存するだけで、AssetDatabase検索、revision解決、画像load、GPU bindingは行わない。
+- **価値または懸念:** UV変換とtexture参照の authored state を接続可能なshader graphへ置き、resource identityとshader semanticsを分離できる。production material path、Asset picker、回転・wrap・GPU動作は未検証。
+- **次に確認すべきこと:** resource編集/clear/undo/redo/save/reloadをaction契約として検証可能になった後に確認する。production resource adapter接続後はchannel-probe direct-UV baselineを5回以上取得し、候補画像を見る前に領域別許容差を固定してからMapping・runtime/backend/性能ゲートを実施する。
 
 ## 2026-11-15: Shader graph retains documents when image bindings disappear
 - **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::validate_document_for_editing`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json`。
