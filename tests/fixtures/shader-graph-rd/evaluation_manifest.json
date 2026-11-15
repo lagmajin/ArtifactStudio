@@ -6466,6 +6466,7 @@
             "editApi": "edit_node_resource_reference atomically replaces or clears the reference and rejects invalid values without changing the source document",
             "incompleteAuthoring": "a newly instantiated Image Texture without a resource selection remains editable with a repair warning but compilation rejects it",
             "resourceTable": "the graph document persists resourceId to project Asset UUID mapping in a bounded resources table; asset type and source revision are host-resolved",
+            "assetAvailability": "validate_document_for_editing accepts host binding results; unresolved active resources produce stable repair warnings and set compilationAvailable false while preserving the document",
             "assetRelink": "set_graph_resource_asset updates the table while preserving node resourceId; stale external bindings are rejected and updated bindings keep shader source identity",
             "runtimeOnlyFields": "asset type, source revision, resolved sampler object, and GPU handles remain outside the graph document",
             "bindingConsistency": "host-resolved samplerKey and colorInterpretation must match the node-authored sampler and color fields",
@@ -6484,7 +6485,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter reaches dynamic registry validation, typed IR, and HLSL candidate lowering with node-persisted resourceReference and resource table; save/undo/clipboard/duplicate contracts are declared in source but not executed here, and no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, or runtime validation is established",
-        "dynamicResolverPrototypeSha256": "862A02667C10AEC08C959C40B52BC6FBE8E23020BEB460E4E4B29188168AFD0F",
+        "dynamicResolverPrototypeSha256": "F11A7BDA75D3E1AC73A46F96B6EC174C6D130A5CF5CA6E11D84D599072385D46",
         "dynamicRegistrySha256": "E7EEF0DBA8AAB1A1266851D294E42DF851C20B5E451F3B4A10586DFB3678597C"
       }
     }

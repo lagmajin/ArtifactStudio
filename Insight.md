@@ -1,5 +1,11 @@
 **最終更新:** 2026-11-15
 
+## 2026-11-15: Shader graph retains documents when image bindings disappear
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::validate_document_for_editing`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json`。
+- **確認できた事実:** Image Texture の active resource が host binding に解決できない場合、編集用診断で graph document を保持したまま `resource.binding.unresolved` warning を resource key ごとに出し、status を `repairable`、`compilationAvailable` を false にする契約を追加した。resolved binding の供給時は診断なしで `valid` になる source assertion も追加した。
+- **価値または懸念:** Asset が削除・未ロードでも編集状態を保ち、未解決 binding をコンパイル可能と誤認しない。production Asset resolver/runtime bindingとの接続は未実装であり、assertionは未実行。
+- **次に確認すべきこと:** ビルド／テスト実行が明示許可された後、manifest validatorでmissing/resolved両状態と既存resource lifecycle契約を確認する。
+
 ## 2026-11-15: Shader graph R&D should add scalar subtraction as a closed operation
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、dynamic graph capability manifest/candidate。
 - **確認できた事実:** prototypeのtrusted implementation setとtyped arithmetic loweringはregistryから任意コードを実行せず、既知IDの演算子だけを選ぶ設計である。Scalar `float.subtract` を閉じた実装IDと `artifact.rd.math.subtract.float32@1` operationとして追加し、必須Float `a/b`→Float `result` signatureを既存validatorへ含めた。式は`a - b`でclampしない。root capability listとregistry digestを更新し、既存Add/Mul fixtureに加え`0.75 - 0.25`のfocused document/candidateをgeneratorで作成した。候補HLSLは`(n_minuend_value - n_subtrahend_value)`を出力する。

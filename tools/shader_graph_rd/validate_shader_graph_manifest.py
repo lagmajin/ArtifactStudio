@@ -1719,6 +1719,12 @@ def validate(root: Path) -> list[str]:
             generic_image_document, generic_image_projection)
         generic_image_dynamic_bindings = generic_image_module.build_dynamic_resolved_bindings(
             generic_image_document, generic_image_projection, generic_image_source_states)
+        generic_image_missing_asset_validation = dynamic_module.validate_document_for_editing(
+            generic_image_dynamic_document, dynamic_registry,
+            resolved_resource_bindings={})
+        generic_image_resolved_asset_validation = dynamic_module.validate_document_for_editing(
+            generic_image_dynamic_document, dynamic_registry,
+            resolved_resource_bindings=generic_image_dynamic_bindings)
         mismatched_image_bindings = copy.deepcopy(generic_image_dynamic_bindings)
         mismatched_image_bindings["artifact.shadergraph.image.image_sample"][
             "samplerKey"] = "sampler.stale"
@@ -1847,6 +1853,16 @@ def validate(root: Path) -> list[str]:
             return next(node["resourceReference"] for node in graph["nodes"]
                         if node.get("nodeId") == node_id)
         generic_image_persistence_contract = {
+            "missingAssetKeepsDocumentRepairableAndBlocksApplication": (
+                generic_image_missing_asset_validation["status"] == "repairable" and
+                not generic_image_missing_asset_validation["compilationAvailable"] and
+                {item["path"] for item in generic_image_missing_asset_validation["diagnostics"]
+                 if item["code"] == "resource.binding.unresolved"} == {
+                    "/resourceBindings/artifact.shadergraph.image.image_sample",
+                    "/resourceBindings/artifact.shadergraph.image.roughness_sample"} and
+                generic_image_resolved_asset_validation["status"] == "valid" and
+                generic_image_resolved_asset_validation["compilationAvailable"] and
+                not generic_image_resolved_asset_validation["diagnostics"]),
             "projectAssetUuidStaysOutOfTypedIrAndHlsl": all(
                 resource["source"]["assetId"] not in generic_image_dynamic_candidate["hlslBody"] and
                 resource["source"]["assetId"] not in json.dumps(

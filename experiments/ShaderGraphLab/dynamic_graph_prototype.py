@@ -3301,7 +3301,12 @@ def diagnose_unavailable_operations(document: Any, registry: dict[tuple[str, int
     return diagnostics
 
 
-def validate_document_for_editing(document: Any, registry: dict[tuple[str, int], Operation]) -> dict[str, Any]:
+def validate_document_for_editing(
+    document: Any,
+    registry: dict[tuple[str, int], Operation],
+    *,
+    resolved_resource_bindings: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Aggregate graph diagnostics; missing required inputs remain edit-time warnings."""
     diagnostics: list[dict[str, str]] = []
     compile_result = None
@@ -3633,10 +3638,18 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
 
     if not repairable and not any(item["severity"] == "error" for item in diagnostics):
         try:
-            compile_result = compile_document_from_data(preserved, registry)
+            compile_result = compile_document_from_data(
+                preserved, registry,
+                resolved_resource_bindings=resolved_resource_bindings)
             for warning in compile_result.get("warnings", []):
                 node_id = warning.removeprefix("node ").removesuffix(" is unreachable from the selected output")
                 report("graph.node.unreachable", f"/nodes/{_pointer_segment(node_id)}", warning, severity="warning")
+            for resource_key in compile_result.get("unresolvedResourceKeys", []):
+                report("resource.binding.unresolved",
+                       f"/resourceBindings/{_pointer_segment(resource_key)}",
+                       "project Asset or runtime source is unavailable; the graph is retained for repair",
+                       severity="warning")
+                repairable = True
         except ContractError as error:
             if error.code != "node.input.required_unconnected":
                 diagnostics.append(error.to_json())
