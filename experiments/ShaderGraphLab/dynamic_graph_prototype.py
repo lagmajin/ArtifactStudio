@@ -49,7 +49,7 @@ MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linea
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
     "float.divide.positive_floor_1e5",
-    "float.uv0.x", "vector2.uv0",
+    "float.uv0.x", "vector2.uv0", "vector2.mapping.scale_offset",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
     "float.clamp.sorted_bounds",
@@ -949,6 +949,15 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].socket_id != "value" or
                 operation.outputs[0].value_type != "Vector2" or operation.parameters):
             raise ContractError(f"{path_label} vector2.uv0 requires no inputs or parameters and one Vector2 value output", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector2.mapping.scale_offset" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("vector", "Vector2", True)] or
+                [(item.socket_id, item.value_type) for item in operation.outputs] !=
+                [("vector", "Vector2")] or
+                [(item.parameter_id, item.value_type) for item in operation.parameters] !=
+                [("scaleX", "Float32"), ("scaleY", "Float32"),
+                 ("offsetX", "Float32"), ("offsetY", "Float32")]):
+            raise ContractError(f"{path_label} vector2.mapping.scale_offset requires one Vector2 input/output and four Float32 parameters", code="operation.signature.invalid", path=path)
         if implementation_id == "float.constant" and (
                 operation.inputs or operation.outputs[0].value_type != "Float" or
                 len(operation.parameters) != 1 or operation.parameters[0].parameter_id != "value" or
@@ -4167,6 +4176,12 @@ def compile_document_from_data(
             else:
                 values = data["parameters"][parameter_id]
                 expression = "float4(" + ", ".join(_hlsl_float(value) for value in values) + ")"
+        elif implementation_id == "vector2.mapping.scale_offset":
+            value = input_expression(node_id, "vector")
+            parameters = data["parameters"]
+            scale = f"float2({_hlsl_float(parameters['scaleX'])}, {_hlsl_float(parameters['scaleY'])})"
+            offset = f"float2({_hlsl_float(parameters['offsetX'])}, {_hlsl_float(parameters['offsetY'])})"
+            expression = f"(({value} * {scale}) + {offset})"
         elif implementation_id == "float.replicate.rgb_alpha_one":
             value = input_expression(node_id, operation.inputs[0].socket_id)
             expression = f"float4({value}, {value}, {value}, 1.0f)"

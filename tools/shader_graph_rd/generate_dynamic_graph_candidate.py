@@ -30,6 +30,8 @@ def main() -> int:
                             "optionalVector4DefaultCandidateSha256", "optionalVector4DefaultDocumentSha256"))
     candidate_specs.append(("vector2UvDocumentFixture", "vector2UvCandidateFixture",
                             "vector2UvCandidateSha256", "vector2UvDocumentSha256"))
+    candidate_specs.append(("vector2MappingDocumentFixture", "vector2MappingCandidateFixture",
+                            "vector2MappingCandidateSha256", "vector2MappingDocumentSha256"))
     candidate_specs.append(("baseColorTextureDocumentFixture", "baseColorTextureCandidateFixture",
                             "baseColorTextureCandidateSha256", "baseColorTextureDocumentSha256"))
     candidate_specs.append(("textureChannelsDocumentFixture", "textureChannelsCandidateFixture",

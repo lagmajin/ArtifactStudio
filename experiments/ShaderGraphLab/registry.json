@@ -23,6 +23,21 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.mapping.vector2.scale_offset",
+      "semanticVersion": 1,
+      "displayName": "Vector2 Mapping",
+      "category": "Vector",
+      "implementationId": "vector2.mapping.scale_offset",
+      "inputs": [{"socketId": "vector", "valueType": "Vector2", "required": true}],
+      "outputs": [{"socketId": "vector", "valueType": "Vector2"}],
+      "parameters": [
+        {"parameterId": "scaleX", "valueType": "Float32", "default": 1.0},
+        {"parameterId": "scaleY", "valueType": "Float32", "default": 1.0},
+        {"parameterId": "offsetX", "valueType": "Float32", "default": 0.0},
+        {"parameterId": "offsetY", "valueType": "Float32", "default": 0.0}
+      ]
+    },
+    {
       "operationId": "artifact.texture.sample.base_color",
       "semanticVersion": 1,
       "displayName": "Image Texture Base Color",
