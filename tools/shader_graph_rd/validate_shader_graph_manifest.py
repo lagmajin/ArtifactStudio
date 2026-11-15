@@ -1800,6 +1800,36 @@ def validate(root: Path) -> list[str]:
             asset_source_states=local_image_source_states,
             asset_source_states_sha256=local_image_source_states_hash).state()
         local_image_mapping_edit_compilation = local_image_mapping_edit_state["compilation"]
+        uv_node = copy.deepcopy(next(node for node in local_image_document["nodes"]
+                                     if node.get("operationId") ==
+                                     "artifact.input.texcoord.uv0.vector2"))
+        image_node = copy.deepcopy(next(node for node in local_image_document["nodes"]
+                                        if node.get("operationId") ==
+                                        "artifact.texture.sample.image2d"))
+        mapping_operation = dynamic_registry[("artifact.mapping.vector2.scale_offset", 1)]
+        long_mapping_nodes = [dynamic_module.instantiate_node(
+            mapping_operation, f"mapping_{index:04d}") for index in range(1500)]
+        long_mapping_links = [{"from": {"nodeId": uv_node["nodeId"], "socketId": "value"},
+                               "to": {"nodeId": long_mapping_nodes[0]["nodeId"], "socketId": "vector"}}]
+        long_mapping_links.extend(
+            {"from": {"nodeId": source["nodeId"], "socketId": "vector"},
+             "to": {"nodeId": target["nodeId"], "socketId": "vector"}}
+            for source, target in zip(long_mapping_nodes, long_mapping_nodes[1:]))
+        long_mapping_links.append({
+            "from": {"nodeId": long_mapping_nodes[-1]["nodeId"], "socketId": "vector"},
+            "to": {"nodeId": image_node["nodeId"], "socketId": "uv"}})
+        long_mapping_document = copy.deepcopy(local_image_document)
+        long_mapping_document["nodes"] = [uv_node, *long_mapping_nodes, image_node]
+        long_mapping_document["links"] = long_mapping_links
+        long_mapping_session = local_ui_module.Session(
+            dynamic_registry, long_mapping_document, None, [],
+            asset_catalog=local_image_catalog,
+            asset_catalog_sha256=local_image_catalog_hash,
+            asset_source_states=local_image_source_states,
+            asset_source_states_sha256=local_image_source_states_hash)
+        long_mapping_bindings = long_mapping_session._resolved_resource_bindings()
+        long_mapping_binding = long_mapping_bindings.get(
+            local_image_resolver_contract.get("resourceKey"), {})
         def snapshot_loader_error(loader, path):
             try:
                 loader(path)
@@ -3862,6 +3892,7 @@ def validate(root: Path) -> list[str]:
             "transactionAuthorsGraphFromEmptyDocumentAsOneUndoableCommand": len(authoring_graph["nodes"]) == 3 and len(authoring_graph["links"]) == 2 and authoring_validation["status"] == "valid" and authoring_validation["compilationAvailable"] and authoring_compile["hlslBody"].count(" = ") == 3 and authoring_compile["outputType"] == "Float" and authoring_undo == empty_graph and authoring_redo == authoring_graph,
             "localUiSessionActionsStayAtomicAndUndoable": ui_session_document["output"] == {"nodeId": "ui_sum", "socketId": "result"} and len(ui_session_document["nodes"]) == 3 and len(ui_session_document["links"]) == 2 and ui_session.state()["validation"]["status"] == "valid" and ui_session.state()["compilation"]["status"] == "candidate-lowered-no-shader-runtime" and ui_session_rejected_connect == {"code": "link.socket.missing_or_direction_invalid", "severity": "error", "path": "/links/to/socketId"} and ui_session_after_reject == ui_session_before_reject and ui_session_history_after_reject == ui_session_history_before_reject and ui_session_undo_document["output"] == {"nodeId": "", "socketId": ""} and len(ui_session_undo_document["links"]) == 2 and ui_session_redo_document == ui_session_document and ui_session_saved == ui_session_document and ui_session_undo is None and ui_session_redo is None,
             "localImageResolverRequiresAssetRevisionAndSupportedUvPath": local_image_resolved_state["validation"]["status"] == "valid" and local_image_resolved_compilation["resourceBindingStatus"] == "resolved" and local_image_expected_binding.get("assetId") == local_image_resolver_contract.get("assetId") and local_image_expected_binding.get("sourceRevision") == local_image_resolver_contract.get("sourceRevision") and local_image_expected_binding.get("uvSet") == local_image_resolver_contract.get("uvSet") and local_image_expected_binding.get("uvTransform") == {"scaleU": 1.0, "scaleV": 1.0, "rotationDegrees": 0.0, "offsetU": 0.0, "offsetV": 0.0} and local_image_catalog_only_state["compilation"]["resourceBindingStatus"] == "unresolved" and local_image_no_snapshot_state["compilation"]["resourceBindingStatus"] == "unresolved" and local_image_changed_compilation["resourceBindingStatus"] == "resolved" and local_image_changed_compilation["resourceBindingKeySha256"] != local_image_resolved_compilation["resourceBindingKeySha256"] and local_image_changed_compilation["semanticHashSha256"] == local_image_resolved_compilation["semanticHashSha256"] and local_image_changed_compilation["typedIRSemanticHashSha256"] == local_image_resolved_compilation["typedIRSemanticHashSha256"] and local_image_changed_compilation["shaderStructureHashSha256"] == local_image_resolved_compilation["shaderStructureHashSha256"] and local_image_changed_compilation["hlslBodySha256"] == local_image_resolved_compilation["hlslBodySha256"] and local_image_catalog_hash == hashlib.sha256(local_image_catalog_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("assetCatalogSha256") and local_image_source_states_hash == hashlib.sha256(local_image_source_states_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("assetSourceStatesSha256") and hashlib.sha256(local_image_document_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("documentSha256"),
+            "localImageLongMappingChainResolvesIteratively": len(long_mapping_nodes) == 1500 and len(long_mapping_document["nodes"]) < dynamic_module.MAX_GRAPH_NODES and long_mapping_binding.get("assetId") == local_image_resolver_contract.get("assetId") and long_mapping_binding.get("sourceRevision") == local_image_resolver_contract.get("sourceRevision") and long_mapping_binding.get("uvSet") == local_image_resolver_contract.get("uvSet"),
             "localImageMappingChangesShaderWithoutChangingResolvedBinding": local_image_mapping_edit_state["validation"]["status"] == "valid" and local_image_mapping_edit_compilation["resourceBindingStatus"] == "resolved" and local_image_mapping_edit_compilation["resourceBindingKeySha256"] == local_image_resolved_compilation["resourceBindingKeySha256"] and local_image_mapping_edit_compilation["semanticHashSha256"] != local_image_resolved_compilation["semanticHashSha256"] and local_image_mapping_edit_compilation["typedIRSemanticHashSha256"] != local_image_resolved_compilation["typedIRSemanticHashSha256"] and local_image_mapping_edit_compilation["shaderStructureHashSha256"] != local_image_resolved_compilation["shaderStructureHashSha256"] and local_image_mapping_edit_compilation["hlslBodySha256"] != local_image_resolved_compilation["hlslBodySha256"],
             "assetSnapshotReadersEnforceByteAndJsonDepthBounds": oversized_catalog_diagnostic == "asset.catalog.size.invalid" and oversized_source_states_diagnostic == "asset.source_states.size.invalid" and nested_catalog_diagnostic == "asset.catalog.json.invalid" and nested_source_states_diagnostic == "asset.source_states.json.invalid",
             "operationReplacementPreservesCompatibleLinksAndHistory": replaced_graph["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replaced_graph["links"] == connected_graph["links"] and replaced_graph_validation["status"] == "valid" and " * " in replaced_graph_compile["hlslBody"] and replaced_graph_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and replacement_undo == connected_graph and replacement_redo == replaced_graph and incompatible_replacement_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/2/operationId"} and changed_unmaterialized_default_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/0/parameters/value"} and sealed_replacement_compile["outputType"] == "Float" and "artifact.rd.math.add.float32@1" not in sealed_replacement["registryContractLock"] and "artifact.rd.math.multiply.float32@1" in sealed_replacement["registryContractLock"] and replacement_session_after["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replacement_session_undo == connected_graph and replacement_session_redo == replacement_session_after,

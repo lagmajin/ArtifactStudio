@@ -235,31 +235,50 @@ class Session:
         resources_by_id = {item.get("resourceId"): item for item in resources
                             if isinstance(item, dict) and isinstance(item.get("resourceId"), str)}
         assets_by_id = {item["assetId"]: item for item in self.asset_catalog}
+        incoming_by_input: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for link in links:
+            target = link.get("to") if isinstance(link, dict) else None
+            if (isinstance(target, dict) and isinstance(target.get("nodeId"), str) and
+                    isinstance(target.get("socketId"), str)):
+                incoming_by_input.setdefault(
+                    (target["nodeId"], target["socketId"]), []).append(link)
         bindings: dict[str, dict[str, Any]] = {}
+        uv_set_cache: dict[str, int | None] = {}
 
-        def uv_set_for(node_id: str, visited: set[str]) -> int | None:
-            if node_id in visited:
-                return None
-            visited.add(node_id)
-            node = nodes_by_id.get(node_id)
-            if node is None:
-                return None
-            operation = graph._lookup_operation(
-                self.registry, node.get("operationId"), node.get("semanticVersion"))
-            if operation is None:
-                return None
-            if operation.implementation_id == "vector2.uv0":
-                return 0
-            if operation.implementation_id != "vector2.mapping.scale_offset":
-                return None
-            incoming = [link for link in links if isinstance(link, dict) and
-                        isinstance(link.get("to"), dict) and
-                        link["to"].get("nodeId") == node_id and
-                        link["to"].get("socketId") == "vector"]
-            if len(incoming) != 1 or not isinstance(incoming[0].get("from"), dict):
-                return None
-            source_id = incoming[0]["from"].get("nodeId")
-            return uv_set_for(source_id, visited) if isinstance(source_id, str) else None
+        def uv_set_for(node_id: str) -> int | None:
+            current = node_id
+            path: list[str] = []
+            path_nodes: set[str] = set()
+            resolved_uv_set: int | None = None
+            while True:
+                if current in uv_set_cache:
+                    resolved_uv_set = uv_set_cache[current]
+                    break
+                if current in path_nodes:
+                    break
+                path_nodes.add(current)
+                path.append(current)
+                node = nodes_by_id.get(current)
+                if node is None:
+                    break
+                operation = graph._lookup_operation(
+                    self.registry, node.get("operationId"), node.get("semanticVersion"))
+                if operation is None:
+                    break
+                if operation.implementation_id == "vector2.uv0":
+                    resolved_uv_set = 0
+                    break
+                if operation.implementation_id != "vector2.mapping.scale_offset":
+                    break
+                incoming = incoming_by_input.get((current, "vector"), [])
+                source = incoming[0].get("from") if len(incoming) == 1 else None
+                source_id = source.get("nodeId") if isinstance(source, dict) else None
+                if not isinstance(source_id, str):
+                    break
+                current = source_id
+            for visited_node_id in path:
+                uv_set_cache[visited_node_id] = resolved_uv_set
+            return resolved_uv_set
 
         for requirement in candidate["resourceRequirements"]:
             resource_key = requirement.get("resourceKey")
@@ -275,13 +294,10 @@ class Session:
             asset = assets_by_id.get(asset_id) if asset_id is not None else None
             source_state = self.asset_source_states.get(asset_id) if asset_id is not None else None
             sample_node_id = requirement.get("nodeId")
-            uv_links = [link for link in links if isinstance(link, dict) and
-                        isinstance(link.get("to"), dict) and
-                        link["to"].get("nodeId") == sample_node_id and
-                        link["to"].get("socketId") == "uv"]
+            uv_links = incoming_by_input.get((sample_node_id, "uv"), [])
             uv_source = uv_links[0].get("from") if len(uv_links) == 1 else None
             uv_source_id = uv_source.get("nodeId") if isinstance(uv_source, dict) else None
-            sample_uv = uv_set_for(uv_source_id, set()) if isinstance(uv_source_id, str) else None
+            sample_uv = uv_set_for(uv_source_id) if isinstance(uv_source_id, str) else None
             if (asset is None or source_state is None or sample_uv is None or
                     asset["assetType"] != "Image"):
                 continue
