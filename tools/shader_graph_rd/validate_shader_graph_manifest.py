@@ -1444,12 +1444,56 @@ def validate(root: Path) -> list[str]:
         generic_image_module = importlib.util.module_from_spec(generic_image_spec)
         sys.modules[generic_image_spec.name] = generic_image_module
         generic_image_spec.loader.exec_module(generic_image_module)
+        dynamic_resolver_path = root / dynamic_contract.get("prototype", "")
+        dynamic_resolver_spec = importlib.util.spec_from_file_location(
+            "shader_graph_dynamic_binding_resolver_contract", dynamic_resolver_path)
+        if dynamic_resolver_spec is None or dynamic_resolver_spec.loader is None:
+            raise RuntimeError("cannot load dynamic graph binding resolver contract")
+        dynamic_resolver_module = importlib.util.module_from_spec(dynamic_resolver_spec)
+        sys.modules[dynamic_resolver_spec.name] = dynamic_resolver_module
+        dynamic_resolver_spec.loader.exec_module(dynamic_resolver_module)
+
+        def project_generic_image_through_dynamic_resolver(document, catalog, source_states):
+            projection = generic_image_module.project_resource_requirements(document, catalog)
+            resolutions = {item["resourceKey"]: item for item in projection["assetResolutions"]}
+            nodes_by_id = {item["nodeId"]: item for item in document["nodes"]}
+            states_by_id = {key.lower(): value for key, value in source_states.items()}
+            bindings = {}
+            for requirement in projection["resourceRequirements"]:
+                resolution = resolutions.get(requirement["resourceKey"])
+                if resolution is None or resolution["assetType"] is None:
+                    continue
+                state = states_by_id.get(resolution["assetId"].lower())
+                if state is None:
+                    continue
+                node = nodes_by_id[requirement["nodeId"]]
+                sampler_bytes = json.dumps(node["sampler"], sort_keys=True,
+                                           separators=(",", ":"),
+                                           ensure_ascii=False).encode("utf-8")
+                bindings[requirement["resourceKey"]] = {
+                    "assetId": resolution["assetId"],
+                    "assetType": resolution["assetType"],
+                    "sourceRevision": state["sourceRevision"],
+                    "samplerKey": "sampler." + hashlib.sha256(sampler_bytes).hexdigest().lower(),
+                    "uvSet": 0,
+                    "uvTransform": {"scaleU": 1.0, "scaleV": 1.0,
+                                    "rotationDegrees": 0.0, "offsetU": 0.0,
+                                    "offsetV": 0.0},
+                    "colorInterpretation": node["colorInterpretation"],
+                }
+            resolved = dynamic_resolver_module._project_resolved_resource_bindings(
+                projection["resourceRequirements"], bindings)
+            return projection, resolved
+
         regenerated_generic_image_candidate = generic_image_module.build_candidate(
             generic_image_document, generic_image_catalog, generic_image_source_states)
         generic_image_projection = generic_image_module.project_resource_requirements(
             generic_image_document, generic_image_catalog)
         generic_image_binding_projection = generic_image_module.project_resource_bindings(
             generic_image_document, generic_image_projection, generic_image_source_states)
+        generic_image_dynamic_projection, generic_image_dynamic_binding = (
+            project_generic_image_through_dynamic_resolver(
+                generic_image_document, generic_image_catalog, generic_image_source_states))
         relinked_generic_image_document = copy.deepcopy(generic_image_document)
         relinked_generic_asset_id = "22222222-2222-4222-8222-222222222222"
         relinked_generic_image_document["resources"][0]["source"]["assetId"] = relinked_generic_asset_id
@@ -1463,11 +1507,19 @@ def validate(root: Path) -> list[str]:
         relinked_generic_binding_projection = generic_image_module.project_resource_bindings(
             relinked_generic_image_document, relinked_generic_image_candidate,
             relinked_generic_source_states)
+        _, relinked_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            relinked_generic_image_document,
+            {relinked_generic_asset_id: "Image",
+             "33333333-3333-4333-8333-333333333333": "Image"},
+            relinked_generic_source_states)
         revision_changed_generic_source_states = copy.deepcopy(generic_image_source_states)
         revision_changed_generic_source_states["33333333-3333-4333-8333-333333333333"][
             "sourceRevision"] += 1
         revision_changed_generic_binding_projection = generic_image_module.project_resource_bindings(
             generic_image_document, generic_image_projection,
+            revision_changed_generic_source_states)
+        _, revision_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            generic_image_document, generic_image_catalog,
             revision_changed_generic_source_states)
         sampler_changed_generic_document = copy.deepcopy(generic_image_document)
         sampler_changed_generic_document["nodes"][1]["sampler"]["minFilter"] = "nearest"
@@ -1476,6 +1528,9 @@ def validate(root: Path) -> list[str]:
         sampler_changed_generic_binding_projection = generic_image_module.project_resource_bindings(
             sampler_changed_generic_document, sampler_changed_generic_projection,
             generic_image_source_states)
+        _, sampler_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            sampler_changed_generic_document, generic_image_catalog,
+            generic_image_source_states)
         color_changed_generic_document = copy.deepcopy(generic_image_document)
         color_changed_generic_document["nodes"][1]["colorInterpretation"] = "linear"
         color_changed_generic_projection = generic_image_module.project_resource_requirements(
@@ -1483,10 +1538,24 @@ def validate(root: Path) -> list[str]:
         color_changed_generic_binding_projection = generic_image_module.project_resource_bindings(
             color_changed_generic_document, color_changed_generic_projection,
             generic_image_source_states)
+        _, color_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            color_changed_generic_document, generic_image_catalog,
+            generic_image_source_states)
+        rewired_uv_generic_document = copy.deepcopy(generic_image_document)
+        rewired_uv_generic_document["nodes"][3]["nodeId"] = "uv_rewired"
+        for generic_link in rewired_uv_generic_document["links"]:
+            if generic_link["from"]["nodeId"] == "uv":
+                generic_link["from"]["nodeId"] = "uv_rewired"
+        rewired_uv_generic_projection, rewired_uv_generic_dynamic_binding = (
+            project_generic_image_through_dynamic_resolver(
+                rewired_uv_generic_document, generic_image_catalog,
+                generic_image_source_states))
         unresolved_generic_image_candidate = generic_image_module.project_resource_requirements(
             generic_image_document, {})
         unresolved_generic_binding_projection = generic_image_module.project_resource_bindings(
             generic_image_document, generic_image_projection, {})
+        _, unresolved_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            generic_image_document, generic_image_catalog, {})
         dangling_generic_resource_document = copy.deepcopy(generic_image_document)
         dangling_generic_resource_document["nodes"][1]["resourceReferences"]["image"] = "image.missing"
         dangling_generic_resource_diagnostic = None
@@ -3133,6 +3202,25 @@ def validate(root: Path) -> list[str]:
             generic_image_binding_projection.get("bindingIdentityFields") ==
             generic_image_contract.get("runtimeBindingProjectionContract", {}).get(
                 "bindingIdentityFields") and
+            regenerated_generic_image_candidate.get("dynamicResolverBindingAdapter", {}).get(
+                "projection") == generic_image_dynamic_binding and
+            generic_image_dynamic_binding.get("resourceBindingStatus") == "resolved" and
+            len(generic_image_dynamic_binding.get("resolvedResourceBindings", [])) == 2 and
+            len(generic_image_dynamic_binding.get("resourceBindingKeySha256", "")) == 64 and
+            generic_image_dynamic_binding.get("resourceBindingKeySha256") !=
+            relinked_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_binding.get("resourceBindingKeySha256") !=
+            revision_changed_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_binding.get("resourceBindingKeySha256") !=
+            sampler_changed_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_binding.get("resourceBindingKeySha256") !=
+            color_changed_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_binding.get("resourceBindingKeySha256") ==
+            rewired_uv_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_projection.get("resourceRequirementIdentitySha256") ==
+            rewired_uv_generic_projection.get("resourceRequirementIdentitySha256") and
+            unresolved_generic_dynamic_binding.get("resourceBindingStatus") == "unresolved" and
+            unresolved_generic_dynamic_binding.get("resourceBindingKeySha256") is None and
             regenerated_generic_image_candidate.get("resourceRequirements") ==
             relinked_generic_image_candidate.get("resourceRequirements") and
             regenerated_generic_image_candidate.get("resourceRequirementIdentitySha256") ==
@@ -3170,6 +3258,8 @@ def validate(root: Path) -> list[str]:
             generic_image_contract.get("assetSourceStatesSha256") and
             hashlib.sha256(generic_image_prototype_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("prototypeSha256") and
+            hashlib.sha256(dynamic_resolver_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("dynamicResolverPrototypeSha256") and
             hashlib.sha256(generic_image_candidate_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("candidateSha256"))
 

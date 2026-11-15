@@ -6398,7 +6398,7 @@
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
         "prototypeSha256": "BC2267E0F31BE491745AB4957C1C781EFD910758B66192FD000B40C5DC2A4758",
-        "candidateSha256": "71D23A14D979414442A4301F60B3180E9829520D6E8B7A84AF39289A2E741F1F",
+        "candidateSha256": "8653C7B2D51E60C268F15DDF32C7BE6D6FF5E0A323B294E4ACB4196F13E141B3",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
@@ -6451,7 +6451,20 @@
           "excludedIdentity": "no shader code, backend shader compile key, PSO key, device generation, physical texture/sampler handles, or GPU allocation reuse claim is produced",
           "runtimeStatus": "synthetic logical state projection only; no actual project lookup, image load, sampler creation, SRB update, or rendered sampling"
         },
-        "runtimeStatus": "prototype candidate only; no project AssetDatabase lookup, HLSL generation, shader compilation, image load, GPU sampling, Core adapter, or runtime validation"
+        "dynamicResolverBindingAdapterContract": {
+          "status": "source-adapter-projection-only-not-registry-or-lowering-integration",
+          "resolverSource": "experiments/ShaderGraphLab/dynamic_graph_prototype.py::_project_resolved_resource_bindings",
+          "samplerKey": "sampler.<lowercase SHA-256 of canonical node sampler descriptor>",
+          "uvMapping": "the fixture's UV0 graph source maps to resolver compatibility metadata uvSet=0 and identity uvTransform; UV values and future Mapping nodes remain graph semantics",
+          "mutationRequirements": [
+            "asset relink, source revision, sampler, and color interpretation changes must change the dynamic resolver binding key",
+            "rewiring the UV source without changing the sampled nodes must preserve the dynamic resolver binding key",
+            "missing source revision must be unresolved with no dynamic resolver binding key"
+          ],
+          "limitations": "this calls the existing binding resolver with synthetic adapter records; generic image nodes still do not pass dynamic registry validation or reach its typed IR/HLSL lowering, and no source or GPU identity is measured"
+        },
+        "runtimeStatus": "source adapter now exercises the dynamic compiler's binding resolver only; no generic node registry/compiler integration, project AssetDatabase lookup, HLSL generation for generic nodes, shader compilation, image load, GPU sampling, Core adapter, or runtime validation",
+        "dynamicResolverPrototypeSha256": "E87D0BFD0DA994C5E869F468C733404CB81159F8FE922DC11B133BFB3EFB5BAC"
       }
     }
   },
