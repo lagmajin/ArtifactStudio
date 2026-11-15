@@ -6398,8 +6398,8 @@
         "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
-        "prototypeSha256": "310D47C4651791D08AC852242CA550A87446E69C9B451319601B904BAE440682",
-        "candidateSha256": "997C1E38284684C9EB34F589F9812E13A0D2D1B6BB1F966515ABDA03392EC221",
+        "prototypeSha256": "0E78E63E9A0989A15211D2D0E5F5ADBEDEDF5D263451797040C4D1B8F0B91174",
+        "candidateSha256": "331479B238178B7A7805E85BB7384561A9A39DE8EB03B26B87DBB08E9EACF530",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
@@ -6427,7 +6427,7 @@
           "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
           "non-Image catalog type rejects the resource binding"
         ],
-        "identityBoundary": "resourceRequirementIdentitySha256 covers only symbolic resourceKey/resourceId/node identity; Asset UUID and catalog type live in the resolution sidecar, and source revision, sampler, and color interpretation participate only in the separate runtimeBindingProjection key; UV remains in explicit graph links",
+        "identityBoundary": "resourceRequirementIdentitySha256 covers symbolic resourceKey/resourceId/node identity; the document resource table persists resourceId-to-Asset-UUID mapping, while catalog type and source revision are host-resolved and sampler/color participate only in the separate runtimeBindingProjection key; UV remains in explicit graph links",
         "runtimeBindingProjectionContract": {
           "status": "logical-binding-key-candidate-no-gpu-runtime",
           "bindingIdentityFields": [
@@ -6453,7 +6453,7 @@
           "runtimeStatus": "synthetic logical state projection only; no actual project lookup, image load, sampler creation, SRB update, or rendered sampling"
         },
         "dynamicResolverBindingAdapterContract": {
-          "status": "source-only-v4-to-registry-adapter-with-node-persisted-resource-reference",
+          "status": "source-only-v4-to-registry-adapter-with-persisted-node-reference-and-resource-table",
           "resolverSource": "experiments/ShaderGraphLab/dynamic_graph_prototype.py::_project_resolved_resource_bindings",
           "compilerSource": "experiments/ShaderGraphLab/dynamic_graph_prototype.py::compile_document_from_data",
           "registeredOperation": "artifact.texture.sample.image2d@1 / texture.sample.image2d",
@@ -6465,12 +6465,14 @@
             "nodeField": "resourceReference stores resourceKey, resourceId, sampler, and colorInterpretation on the generic Image Texture node",
             "editApi": "edit_node_resource_reference atomically replaces or clears the reference and rejects invalid values without changing the source document",
             "incompleteAuthoring": "a newly instantiated Image Texture without a resource selection remains editable with a repair warning but compilation rejects it",
-            "runtimeOnlyFields": "Asset UUID, asset type, source revision, resolved sampler object, and GPU handles remain outside the graph document",
+            "resourceTable": "the graph document persists resourceId to project Asset UUID mapping in a bounded resources table; asset type and source revision are host-resolved",
+            "assetRelink": "set_graph_resource_asset updates the table while preserving node resourceId; stale external bindings are rejected and updated bindings keep shader source identity",
+            "runtimeOnlyFields": "asset type, source revision, resolved sampler object, and GPU handles remain outside the graph document",
             "bindingConsistency": "host-resolved samplerKey and colorInterpretation must match the node-authored sampler and color fields",
             "sharedResourceSelection": "multiple Image Texture nodes may use one resourceId while retaining distinct node-scoped resource keys, shader symbols, and resolved binding records",
-            "roundtrip": "canonical JSON save/load preserves the complete resourceReference object",
-            "undoRedo": "document commands restore the old and new references exactly",
-            "clipboardAndDuplicate": "copy preserves resourceId and authored sampling settings; paste/duplicate remap resourceKey to the new node ID",
+            "roundtrip": "canonical JSON save/load preserves resourceReference objects and the resource table",
+            "undoRedo": "document commands restore node references and resource-table Asset relinks exactly",
+            "clipboardAndDuplicate": "clipboard carries referenced table records; paste imports them, rejects conflicting resourceId mappings, and remaps resourceKey; duplicate retains the shared table and remaps resourceKey",
             "semanticIdentity": "resourceKey/resourceId are graph semantics; sampler/color interpretation affect binding identity and do not alter emitted HLSL identity",
             "evidence": "source-level manifest contract; not yet executed in this turn"
           },
@@ -6479,10 +6481,10 @@
             "rewiring the UV source must change graph/shader identity while preserving the dynamic resolver binding key",
             "missing source revision must be unresolved with no dynamic resolver binding key"
           ],
-          "limitations": "the schema-v4 document is adapted into a schema-v1 registry document whose generic nodes contain persisted resourceReference fields; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
+          "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
-        "runtimeStatus": "schema-v4 source adapter reaches dynamic registry validation, typed IR, and HLSL candidate lowering with node-persisted resourceReference; save/undo/clipboard/duplicate contracts are declared in source but not executed here, and no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, or runtime validation is established",
-        "dynamicResolverPrototypeSha256": "75CEB50F06A79D2867C3BC8CF9781B4C783323848F0B13338E8858E13D15BFCD",
+        "runtimeStatus": "schema-v4 source adapter reaches dynamic registry validation, typed IR, and HLSL candidate lowering with node-persisted resourceReference and resource table; save/undo/clipboard/duplicate contracts are declared in source but not executed here, and no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, or runtime validation is established",
+        "dynamicResolverPrototypeSha256": "862A02667C10AEC08C959C40B52BC6FBE8E23020BEB460E4E4B29188168AFD0F",
         "dynamicRegistrySha256": "E7EEF0DBA8AAB1A1266851D294E42DF851C20B5E451F3B4A10586DFB3678597C"
       }
     }

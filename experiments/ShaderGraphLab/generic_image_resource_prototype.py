@@ -465,6 +465,7 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
         "kind": "artifact-shader-graph-rd-document",
         "nodes": dynamic_nodes,
         "links": copy.deepcopy(document["links"]),
+        "resources": copy.deepcopy(document["resources"]),
         "output": copy.deepcopy(document["output"]),
     }
     return dynamic_document

@@ -79,7 +79,7 @@ def main() -> int:
         "adapterPolicy": {
             "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
             "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-            "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
+            "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
         }
     }
     candidate_path.write_text(json.dumps(candidate, indent=2, ensure_ascii=False) + "\n",

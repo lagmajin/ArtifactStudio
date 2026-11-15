@@ -1544,7 +1544,7 @@ def validate(root: Path) -> list[str]:
             "adapterPolicy": {
                 "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
                 "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-                "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
+                "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
             }
         }
         relinked_generic_image_document = copy.deepcopy(generic_image_document)
@@ -1752,11 +1752,57 @@ def validate(root: Path) -> list[str]:
             generic_image_document_command, generic_image_command_document, direction="undo")
         generic_image_redo_document = dynamic_module.apply_document_command(
             generic_image_document_command, generic_image_undo_document, direction="redo")
+        asset_relinked_dynamic_document = dynamic_module.set_graph_resource_asset(
+            generic_image_dynamic_document, "image.albedo",
+            "22222222-2222-4222-8222-222222222222")
+        asset_relink_command = dynamic_module.create_document_command(
+            "Relink graph resource", generic_image_dynamic_document,
+            asset_relinked_dynamic_document)
+        asset_relink_undo_document = dynamic_module.apply_document_command(
+            asset_relink_command, asset_relinked_dynamic_document, direction="undo")
+        asset_relink_redo_document = dynamic_module.apply_document_command(
+            asset_relink_command, asset_relink_undo_document, direction="redo")
+        asset_relinked_bindings = copy.deepcopy(generic_image_dynamic_bindings)
+        asset_relinked_bindings["artifact.shadergraph.image.image_sample"]["assetId"] = (
+            "22222222-2222-4222-8222-222222222222")
+        stale_asset_binding_error = None
+        try:
+            dynamic_module.compile_document_from_data(
+                asset_relinked_dynamic_document, dynamic_registry,
+                resolved_resource_bindings=generic_image_dynamic_bindings)
+        except dynamic_module.ContractError as error:
+            stale_asset_binding_error = error.to_json()
+        asset_relinked_compile = dynamic_module.compile_document_from_data(
+            asset_relinked_dynamic_document, dynamic_registry,
+            resolved_resource_bindings=asset_relinked_bindings)
         generic_image_clipboard = dynamic_module.copy_nodes_subgraph(
             generic_image_dynamic_document, ["uv", "image_sample"], dynamic_registry)
         generic_image_pasted_document = dynamic_module.paste_nodes_subgraph(
             generic_image_dynamic_document, dynamic_registry, generic_image_clipboard,
             {"uv": "uv_pasted", "image_sample": "image_pasted"})
+        clipboard_target_node = dynamic_module.instantiate_node(
+            dynamic_registry[("artifact.rd.constant.float32", 1)], "clipboard_target")
+        clipboard_target_document = {
+            "schemaVersion": 1,
+            "kind": "artifact-shader-graph-rd-document",
+            "nodes": [clipboard_target_node], "links": [],
+            "output": {"nodeId": "clipboard_target", "socketId": "value"},
+        }
+        portable_image_paste = dynamic_module.paste_nodes_subgraph(
+            clipboard_target_document, dynamic_registry, generic_image_clipboard,
+            {"uv": "uv_portable", "image_sample": "image_portable"})
+        conflicting_clipboard_target = copy.deepcopy(clipboard_target_document)
+        conflicting_clipboard_target["resources"] = [{
+            "resourceId": "image.albedo", "resourceKind": "sampledTexture2D",
+            "source": {"kind": "projectAsset", "assetId": "99999999-9999-4999-8999-999999999999"},
+        }]
+        resource_conflict_paste_error = None
+        try:
+            dynamic_module.paste_nodes_subgraph(
+                conflicting_clipboard_target, dynamic_registry, generic_image_clipboard,
+                {"uv": "uv_conflict", "image_sample": "image_conflict"})
+        except dynamic_module.ContractError as error:
+            resource_conflict_paste_error = error.to_json()
         generic_image_duplicated_document = dynamic_module.duplicate_nodes_batch(
             generic_image_dynamic_document, dynamic_registry,
             [{"sourceNodeId": "uv", "nodeId": "uv_duplicate"},
@@ -1856,12 +1902,39 @@ def validate(root: Path) -> list[str]:
                 generic_image_reference,
             "undoRedoPreservesResourceReference":
                 generic_reference_for(generic_image_undo_document, "image_sample") == generic_image_reference and
-                generic_reference_for(generic_image_redo_document, "image_sample")["resourceId"] == "image.relinked",
+                generic_reference_for(generic_image_redo_document, "image_sample")["resourceId"] == "image.roughness",
+            "assetRelinkPersistsInResourceTableWithoutChangingShaderIdentity": (
+                asset_relinked_dynamic_document["resources"][0]["source"]["assetId"] ==
+                "22222222-2222-4222-8222-222222222222" and
+                asset_relink_undo_document["resources"] ==
+                generic_image_dynamic_document["resources"] and
+                asset_relink_redo_document["resources"] ==
+                asset_relinked_dynamic_document["resources"] and
+                generic_reference_for(asset_relinked_dynamic_document, "image_sample") ==
+                generic_image_reference and
+                stale_asset_binding_error is not None and
+                stale_asset_binding_error["code"] ==
+                "resource.binding.asset_reference.mismatch" and
+                asset_relinked_compile["semanticHashSha256"] ==
+                baseline_generic_image_compile["semanticHashSha256"] and
+                asset_relinked_compile["hlslBody"] == baseline_generic_image_compile["hlslBody"] and
+                asset_relinked_compile["resourceBindingKeySha256"] !=
+                baseline_generic_image_compile["resourceBindingKeySha256"]),
             "clipboardPastePreservesResourceIdAndRemapsNodeScopedKey": (
                 generic_reference_for(generic_image_pasted_document, "image_pasted")["resourceId"] ==
                 generic_image_reference["resourceId"] and
                 generic_reference_for(generic_image_pasted_document, "image_pasted")["resourceKey"] ==
                 "artifact.shadergraph.image.image_pasted"),
+            "clipboardCarriesResourceTableAndRejectsConflictingRelink": (
+                generic_image_clipboard["schemaVersion"] == 4 and
+                len(generic_image_clipboard["resources"]) == 1 and
+                generic_image_clipboard["resources"][0]["resourceId"] == "image.albedo" and
+                portable_image_paste["resources"] == generic_image_clipboard["resources"] and
+                dynamic_module.compile_document_from_data(
+                    portable_image_paste, dynamic_registry)["compilationAvailable"] and
+                resource_conflict_paste_error is not None and
+                resource_conflict_paste_error["code"] ==
+                "resource.reference.resource.conflict"),
             "duplicatePreservesResourceIdAndRemapsNodeScopedKey": (
                 generic_reference_for(generic_image_duplicated_document, "image_duplicate")["resourceId"] ==
                 generic_image_reference["resourceId"] and

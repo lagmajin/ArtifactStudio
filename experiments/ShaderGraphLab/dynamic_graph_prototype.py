@@ -62,6 +62,7 @@ MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
 MAX_GRAPH_NODES = 4096
 MAX_GRAPH_LINKS = 16384
+MAX_GRAPH_RESOURCES = 4096
 MIN_RAMP_STOPS = 2
 MAX_RAMP_STOPS = 32
 SOURCE_CONTEXTS = {
@@ -82,6 +83,7 @@ HLSL_SOURCE_CONTEXT_BINDINGS = {
 }
 FORBIDDEN_CODE_FIELDS = {"hlsl", "source", "code", "expression", "python", "shadersource"}
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
+ASSET_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
 class DuplicateJsonKey(ValueError):
@@ -713,6 +715,13 @@ def _reject_code_payload(value: Any, path: tuple[str, ...] = ()) -> None:
             for key, child in current.items():
                 child_path = (*current_path, str(key))
                 if isinstance(key, str) and key.lower() in FORBIDDEN_CODE_FIELDS:
+                    project_asset_source = (
+                        key.lower() == "source" and len(child_path) >= 3 and
+                        child_path[-3].lower() == "resources" and
+                        child_path[-2].isdigit())
+                    if project_asset_source:
+                        pending.append((child, child_path))
+                        continue
                     json_path = "/" + "/".join(_pointer_segment(segment) for segment in child_path)
                     raise ContractError(
                         "executable/source payload field is forbidden",
@@ -1146,6 +1155,47 @@ def _canonical_image_resource_reference(raw: Any, node_id: str, node_index: int)
             "colorInterpretation": color}
 
 
+def _canonical_graph_resources(raw: Any, *, path: str = "/resources") -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    if not isinstance(raw, list):
+        raise ContractError("resources must be an array",
+                            code="schema.collection.required", path=path)
+    if len(raw) > MAX_GRAPH_RESOURCES:
+        raise ContractError("document exceeds the resource limit",
+                            code="graph.resources.limit_exceeded", path=path)
+    records = []
+    by_id: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(raw):
+        item_path = f"{path}/{index}"
+        if not isinstance(item, dict) or set(item) != {"resourceId", "resourceKind", "source"}:
+            raise ContractError("resource entry has an invalid shape",
+                                code="resource.shape.invalid", path=item_path)
+        resource_id = item.get("resourceId")
+        if not isinstance(resource_id, str) or not IDENTIFIER.fullmatch(resource_id):
+            raise ContractError("resourceId is invalid", code="resource.id.invalid",
+                                path=f"{item_path}/resourceId")
+        if resource_id in by_id:
+            raise ContractError("resourceId is duplicated", code="resource.id.duplicate",
+                                path=f"{item_path}/resourceId")
+        if item.get("resourceKind") != "sampledTexture2D":
+            raise ContractError("resourceKind is unsupported", code="resource.kind.unsupported",
+                                path=f"{item_path}/resourceKind")
+        source = item.get("source")
+        if (not isinstance(source, dict) or set(source) != {"kind", "assetId"} or
+                source.get("kind") != "projectAsset"):
+            raise ContractError("resource source is invalid", code="resource.source.invalid",
+                                path=f"{item_path}/source")
+        asset_id = source.get("assetId")
+        if not isinstance(asset_id, str) or not ASSET_UUID.fullmatch(asset_id):
+            raise ContractError("assetId must be a canonical UUID string",
+                                code="resource.asset_id.invalid",
+                                path=f"{item_path}/source/assetId")
+        record = {"resourceId": resource_id, "resourceKind": "sampledTexture2D",
+                  "source": {"kind": "projectAsset", "assetId": asset_id.lower()}}
+        records.append(record)
+        by_id[resource_id] = record
+    return records, by_id
+
+
 def _canonical_socket_default_value(value: Any, definition: Socket, node_id: str,
                                     path: str) -> float | list[float]:
     if definition.value_type == "Float":
@@ -1250,6 +1300,8 @@ def add_node(document: Any, registry: dict[tuple[str, int], Operation],
         raise ContractError(f"operation {operation_id}@{semantic_version} is unavailable",
                             code="node.operation.version.unsupported", path="/operationId")
     nodes.append(instantiate_node(operation, node_id, x=x, y=y))
+    if operation.implementation_id == GENERIC_TEXTURE_SAMPLE and "resources" not in edited:
+        edited["resources"] = []
     if any(not item.required for item in operation.inputs):
         _upgrade_document_to_socket_defaults(edited, registry)
     return edited
@@ -1965,15 +2017,34 @@ def copy_nodes_subgraph(document: Any, node_ids: list[str],
         x, y = coordinates[node_id]
         copied["layout"] = {"x": x - origin_x, "y": y - origin_y}
         copied_nodes.append(copied)
+    carries_image_nodes = any(
+        isinstance(node, dict) and
+        node.get("operationId") == "artifact.texture.sample.image2d"
+        for node in copied_nodes)
+    copied_resources = []
+    if carries_image_nodes:
+        raw_resources = preserved.get("resources", [])
+        _, source_resources_by_id = _canonical_graph_resources(raw_resources)
+        selected_resource_ids = {
+            node["resourceReference"].get("resourceId")
+            for node in copied_nodes
+            if isinstance(node.get("resourceReference"), dict)
+        }
+        copied_resources = [source_resources_by_id[resource_id]
+                            for resource_id in sorted(selected_resource_ids)
+                            if resource_id in source_resources_by_id]
     payload = {
         "kind": "artifact-shader-graph-rd-subgraph",
-        "schemaVersion": 3 if any("socketDefaults" in node for node in copied_nodes) else 2,
+        "schemaVersion": (4 if carries_image_nodes else
+                          3 if any("socketDefaults" in node for node in copied_nodes) else 2),
         "nodes": copied_nodes,
         "links": internal_links,
         "graphParameters": graph_parameters,
         "registryContractLock": registry_lock,
         "layoutBounds": {"width": max_x - origin_x, "height": max_y - origin_y},
     }
+    if carries_image_nodes:
+        payload["resources"] = copied_resources
     _reject_code_payload(payload)
     return payload
 
@@ -1986,16 +2057,18 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
     if (not isinstance(clipboard, dict) or
             clipboard.get("kind") != "artifact-shader-graph-rd-subgraph" or
             isinstance(clipboard.get("schemaVersion"), bool) or
-            clipboard.get("schemaVersion") not in (1, 2, 3)):
+            clipboard.get("schemaVersion") not in (1, 2, 3, 4)):
         raise ContractError("clipboard payload kind or schema is unsupported",
                             code="clipboard.schema.unsupported", path="/")
     clipboard_version = clipboard["schemaVersion"]
     expected_fields = {"kind", "schemaVersion", "nodes", "links", "graphParameters", "registryContractLock"}
-    if clipboard_version in (2, 3):
+    if clipboard_version in (2, 3, 4):
         expected_fields.add("layoutBounds")
+    if clipboard_version == 4:
+        expected_fields.add("resources")
     if (set(clipboard) != expected_fields or
             clipboard.get("kind") != "artifact-shader-graph-rd-subgraph" or
-            clipboard_version not in (1, 2, 3)):
+            clipboard_version not in (1, 2, 3, 4)):
         raise ContractError("clipboard payload kind or schema is unsupported",
                             code="clipboard.schema.unsupported", path="/")
     _reject_code_payload(clipboard)
@@ -2004,7 +2077,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
         raise ContractError("clipboard nodes and links must be arrays",
                             code="clipboard.shape.invalid", path="/")
     bounds = clipboard.get("layoutBounds")
-    if clipboard_version in (2, 3):
+    if clipboard_version in (2, 3, 4):
         if not isinstance(bounds, dict) or set(bounds) != {"width", "height"}:
             raise ContractError("clipboard layout bounds are invalid",
                                 code="clipboard.layout_bounds.invalid", path="/layoutBounds")
@@ -2050,8 +2123,23 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
     if collision is not None:
         raise ContractError(f"node ID {collision} already exists",
                             code="node.id.duplicate", path="/newNodeIds")
-    if clipboard_version == 3 and edited.get("schemaVersion") != 3:
+    if clipboard_version in (3, 4) and edited.get("schemaVersion") != 3 and any(
+            isinstance(node, dict) and "socketDefaults" in node for node in source_nodes):
         _upgrade_document_to_socket_defaults(edited, registry)
+    if clipboard_version == 4:
+        incoming_resources, incoming_resources_by_id = _canonical_graph_resources(
+            clipboard.get("resources"), path="/resources")
+        target_resources, target_resources_by_id = _canonical_graph_resources(
+            edited.get("resources", []))
+        for resource_id, resource in incoming_resources_by_id.items():
+            existing = target_resources_by_id.get(resource_id)
+            if existing is not None and existing != resource:
+                raise ContractError("clipboard resource ID conflicts with the target document",
+                                    code="resource.reference.resource.conflict",
+                                    path=f"/resources/{_pointer_segment(resource_id)}")
+            if existing is None:
+                target_resources.append(resource)
+        edited["resources"] = target_resources
     clones = []
     layout_points = []
     for index, source in enumerate(source_nodes):
@@ -2066,7 +2154,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
                 f"artifact.shadergraph.image.{clone['nodeId']}")
         source_x = _f32(layout.get("x"), "clipboard layout x", path=f"/nodes/{index}/layout/x", code="node.layout.coordinate.invalid")
         source_y = _f32(layout.get("y"), "clipboard layout y", path=f"/nodes/{index}/layout/y", code="node.layout.coordinate.invalid")
-        if clipboard_version in (2, 3) and (source_x < 0 or source_y < 0 or source_x > bound_width or source_y > bound_height):
+        if clipboard_version in (2, 3, 4) and (source_x < 0 or source_y < 0 or source_x > bound_width or source_y > bound_height):
             raise ContractError("clipboard node layout exceeds its bounds",
                                 code="clipboard.layout_bounds.invalid", path=f"/nodes/{index}/layout")
         layout_points.append((source_x, source_y))
@@ -2082,7 +2170,7 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
                 clone["socketDefaults"] = _canonical_socket_defaults(
                     clone.get("socketDefaults", {}), operation, clone["nodeId"], index)
         clones.append(clone)
-    if clipboard_version in (2, 3) and (max(point[0] for point in layout_points) != bound_width or
+    if clipboard_version in (2, 3, 4) and (max(point[0] for point in layout_points) != bound_width or
                                    max(point[1] for point in layout_points) != bound_height or
                                    min(point[0] for point in layout_points) != 0 or
                                    min(point[1] for point in layout_points) != 0):
@@ -2832,7 +2920,34 @@ def edit_node_resource_reference(document: Any, registry: dict[tuple[str, int], 
         raise ContractError("resourceKey must be node-scoped from nodeId",
                             code="resource.reference.key.invalid",
                             path=f"/nodes/{index}/resourceReference/resourceKey")
+    _, resources_by_id = _canonical_graph_resources(edited.get("resources", []))
+    if canonical["resourceId"] not in resources_by_id:
+        raise ContractError("resourceId is missing from the document resource table",
+                            code="resource.reference.resource.missing",
+                            path=f"/nodes/{index}/resourceReference/resourceId")
     node["resourceReference"] = canonical
+    return edited
+
+
+def set_graph_resource_asset(document: Any, resource_id: str, asset_id: str) -> dict[str, Any]:
+    """Create or relink one stable graph resource to a project Asset UUID."""
+    if not isinstance(resource_id, str) or not IDENTIFIER.fullmatch(resource_id):
+        raise ContractError("resourceId is invalid", code="resource.id.invalid", path="/resourceId")
+    if not isinstance(asset_id, str) or not ASSET_UUID.fullmatch(asset_id):
+        raise ContractError("assetId must be a canonical UUID string",
+                            code="resource.asset_id.invalid", path="/assetId")
+    edited = preserve_document(document)
+    if not isinstance(edited, dict) or edited.get("kind") != "artifact-shader-graph-rd-document":
+        raise ContractError("document kind is unsupported", code="document.kind.unsupported", path="/kind")
+    records, by_id = _canonical_graph_resources(edited.get("resources", []))
+    normalized_asset_id = asset_id.lower()
+    existing = by_id.get(resource_id)
+    if existing is None:
+        records.append({"resourceId": resource_id, "resourceKind": "sampledTexture2D",
+                        "source": {"kind": "projectAsset", "assetId": normalized_asset_id}})
+    else:
+        existing["source"]["assetId"] = normalized_asset_id
+    edited["resources"] = records
     return edited
 
 
@@ -3212,7 +3327,8 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
         if preserved.get("kind") != "artifact-shader-graph-rd-document":
             report("document.kind.unsupported", "/kind", "document kind is unsupported; source document remains editable for repair", severity="warning")
             repairable = True
-        allowed = {"schemaVersion", "kind", "nodes", "links", "output", "registryContractLock"}
+        allowed = {"schemaVersion", "kind", "nodes", "links", "output",
+                   "registryContractLock", "resources"}
         required = {"schemaVersion", "kind", "nodes", "links", "output"}
         if schema_version in (2, 3):
             allowed.add("graphParameters")
@@ -3250,6 +3366,14 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
         diagnostics.sort(key=lambda item: (0 if item["severity"] == "error" else 1, item["path"], item["code"]))
         return {"status": "invalid", "repairable": repairable, "compilationAvailable": False,
                 "diagnostics": diagnostics, "semanticHashSha256": None}
+    if "resources" in preserved:
+        try:
+            _canonical_graph_resources(preserved["resources"])
+        except ContractError as error:
+            diagnostics.append(error.to_json())
+            diagnostics.sort(key=lambda item: (0 if item["severity"] == "error" else 1, item["path"], item["code"]))
+            return {"status": "invalid", "repairable": repairable, "compilationAvailable": False,
+                    "diagnostics": diagnostics, "semanticHashSha256": None}
 
     node_by_id: dict[str, tuple[int, Operation, dict[str, Any]]] = {}
     canonical_node_parameters: dict[str, dict[str, float | list[float]]] = {}
@@ -3656,7 +3780,8 @@ def compile_document_from_data(
         raise ContractError("document schemaVersion must be 1, 2, or 3", code="schema.version.unsupported", path="/schemaVersion")
     if document.get("kind") != "artifact-shader-graph-rd-document":
         raise ContractError("document kind is unsupported", code="document.kind.unsupported", path="/kind")
-    allowed_document_fields = {"schemaVersion", "kind", "nodes", "links", "output", "registryContractLock"}
+    allowed_document_fields = {"schemaVersion", "kind", "nodes", "links", "output",
+                               "registryContractLock", "resources"}
     if document["schemaVersion"] in (2, 3):
         allowed_document_fields.add("graphParameters")
         if "graphParameters" not in document:
@@ -3746,6 +3871,18 @@ def compile_document_from_data(
                                 path=f"/nodes/{node_index}/resourceReference/resourceKey")
         seen_resource_keys.add(reference["resourceKey"])
         canonical_node_resource_references[node_id] = reference
+
+    _, resources_by_id = _canonical_graph_resources(
+        document.get("resources", []), path="/resources")
+    if generic_image_node_ids and "resources" not in document:
+        raise ContractError("generic Image Texture nodes require a document resource table",
+                            code="schema.field.required", path="/resources")
+    for node_id, reference in canonical_node_resource_references.items():
+        if reference["resourceId"] not in resources_by_id:
+            node_index = node_indices[node_id]
+            raise ContractError("resourceId is missing from the document resource table",
+                                code="resource.reference.resource.missing",
+                                path=f"/nodes/{node_index}/resourceReference/resourceId")
 
     graph_parameters = _apply_graph_parameters(document, nodes, node_indices)
 
@@ -4214,11 +4351,18 @@ def compile_document_from_data(
                                        separators=(",", ":"), ensure_ascii=False,
                                        allow_nan=False).encode("utf-8")
             expected_sampler_key = "sampler." + hashlib.sha256(sampler_bytes).hexdigest().lower()
+            resource_record = resources_by_id.get(reference["resourceId"])
             if (binding.get("samplerKey") != expected_sampler_key or
                     binding.get("colorInterpretation") != reference["colorInterpretation"]):
                 raise ContractError("resolved sampler/color state differs from the node resourceReference",
                                     code="resource.binding.authored_state.mismatch",
                                     path=f"/resourceBindings/{_pointer_segment(resource_key)}")
+            if (resource_record is not None and
+                    isinstance(binding.get("assetId"), str) and
+                    binding["assetId"].lower() != resource_record["source"]["assetId"]):
+                raise ContractError("resolved Asset UUID differs from the document resource table",
+                                    code="resource.binding.asset_reference.mismatch",
+                                    path=f"/resourceBindings/{_pointer_segment(resource_key)}/assetId")
     resource_binding_projection = _project_resolved_resource_bindings(
         resource_requirements, resolved_resource_bindings)
     typed_ir_canonical = json.dumps(

@@ -389,6 +389,24 @@
           }
         }
       ],
+      "resources": [
+        {
+          "resourceId": "image.albedo",
+          "resourceKind": "sampledTexture2D",
+          "source": {
+            "kind": "projectAsset",
+            "assetId": "11111111-1111-4111-8111-111111111111"
+          }
+        },
+        {
+          "resourceId": "image.roughness",
+          "resourceKind": "sampledTexture2D",
+          "source": {
+            "kind": "projectAsset",
+            "assetId": "33333333-3333-4333-8333-333333333333"
+          }
+        }
+      ],
       "output": {
         "nodeId": "combine",
         "socketId": "result"
@@ -797,6 +815,24 @@
             }
           }
         ],
+        "resources": [
+          {
+            "resourceId": "image.albedo",
+            "resourceKind": "sampledTexture2D",
+            "source": {
+              "kind": "projectAsset",
+              "assetId": "11111111-1111-4111-8111-111111111111"
+            }
+          },
+          {
+            "resourceId": "image.roughness",
+            "resourceKind": "sampledTexture2D",
+            "source": {
+              "kind": "projectAsset",
+              "assetId": "33333333-3333-4333-8333-333333333333"
+            }
+          }
+        ],
         "output": {
           "nodeId": "combine",
           "socketId": "result"
@@ -1055,7 +1091,7 @@
     "adapterPolicy": {
       "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
       "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-      "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
+      "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
     }
   }
 }
