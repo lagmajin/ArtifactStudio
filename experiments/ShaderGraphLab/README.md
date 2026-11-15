@@ -99,18 +99,30 @@ python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/S
 ```
 
 To populate its Image Texture selector from a saved `AssetDatabase::toJson()`
-snapshot, pass the snapshot on startup:
+snapshot, pass the snapshot on startup. An optional host-exported source-version
+snapshot enables the prototype's binding projection:
 
 ```powershell
-python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json --asset-catalog path/to/asset-database.json
+python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json --asset-catalog path/to/asset-database.json --asset-source-states path/to/asset-source-states.json
 ```
 
 The adapter accepts the AssetDatabase JSON array, normalizes Qt UUID braces,
 and lists only `AssetType::Image` records. It drops paths and metadata before
-serving choices to the local page and displays the snapshot hash. The snapshot
-does not refresh; without one, the editor offers a manual UUID reference field.
+serving choices to the local page and displays the snapshot hash. The optional
+source-state file is a JSON object keyed by Asset UUID, with each value shaped
+as `{"sourceRevision": 3}`; its revision must be exported by a host that reads
+`AssetManager::sourceVersion()`. Both files are static startup snapshots and do
+not refresh. The editor projects a resolver candidate only when the selected
+asset is an Image, its source revision is present, and the sample's UV link
+traces through supported Mapping nodes to UV0. Missing data stays unresolved.
+This candidate projection does not load project files or images, create a GPU
+binding, or establish a live AssetManager connection. Without an AssetDatabase
+snapshot, the editor offers a manual UUID reference field; source states require
+the catalog snapshot.
 
-This schema-v1 document is emitted by the schema-v4 adapter candidate. Its Image Texture resource is intentionally unresolved in the editor, so it demonstrates graph construction and typed parameter editing, not image sampling.
+This schema-v1 document is emitted by the schema-v4 adapter candidate. It
+demonstrates graph construction, typed parameter editing, and a synthetic host
+binding projection, not image sampling.
 
 Then open `http://127.0.0.1:8765/` in a browser. The server binds to loopback
 only. The editor exposes a registry palette searchable by label, category, or

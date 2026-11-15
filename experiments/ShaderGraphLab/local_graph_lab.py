@@ -25,6 +25,7 @@ MAX_HISTORY_COMMANDS = 100
 MAX_HISTORY_PAYLOAD_BYTES = 32 * 1024 * 1024
 MAX_ASSET_CATALOG_BYTES = 16 * 1024 * 1024
 MAX_ASSET_CATALOG_RECORDS = 16384
+MAX_ASSET_SOURCE_STATES_BYTES = 4 * 1024 * 1024
 ASSET_TYPE_IMAGE = 1
 ACTION_FIELDS = {
     "undo": (set(), set()),
@@ -109,6 +110,50 @@ def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
     return images, hashlib.sha256(payload).hexdigest().upper()
 
 
+def load_asset_source_states(path: Path) -> tuple[dict[str, dict[str, int]], str]:
+    """Read the host-exported AssetManager sourceVersion map."""
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        raise graph.ContractError(f"cannot read AssetManager source state: {error}",
+                                  code="asset.source_states.read.failed",
+                                  path="/assetSourceStates") from error
+    if len(payload) > MAX_ASSET_SOURCE_STATES_BYTES:
+        raise graph.ContractError("AssetManager source state exceeds the size limit",
+                                  code="asset.source_states.size.invalid",
+                                  path="/assetSourceStates")
+    try:
+        raw_states = json.loads(payload.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise graph.ContractError("AssetManager source state is not valid UTF-8 JSON",
+                                  code="asset.source_states.json.invalid",
+                                  path="/assetSourceStates") from error
+    if not isinstance(raw_states, dict) or len(raw_states) > MAX_ASSET_CATALOG_RECORDS:
+        raise graph.ContractError("AssetManager source state must be a bounded object",
+                                  code="asset.source_states.shape.invalid",
+                                  path="/assetSourceStates")
+    states: dict[str, dict[str, int]] = {}
+    for raw_id, state in raw_states.items():
+        asset_id = raw_id[1:-1] if raw_id.startswith("{") and raw_id.endswith("}") else raw_id
+        if not graph.ASSET_UUID.fullmatch(asset_id):
+            raise graph.ContractError("source state has an invalid Asset UUID",
+                                      code="asset.source_state.asset_id.invalid",
+                                      path=f"/assetSourceStates/{graph._pointer_segment(raw_id)}")
+        asset_id = asset_id.lower()
+        if asset_id in states:
+            raise graph.ContractError("source state contains duplicate normalized Asset UUIDs",
+                                      code="asset.source_state.asset_id.duplicate",
+                                      path=f"/assetSourceStates/{graph._pointer_segment(raw_id)}")
+        if (not isinstance(state, dict) or set(state) != {"sourceRevision"} or
+                isinstance(state.get("sourceRevision"), bool) or
+                not isinstance(state.get("sourceRevision"), int) or state["sourceRevision"] < 1):
+            raise graph.ContractError("sourceRevision must be a positive integer",
+                                      code="asset.source_state.revision.invalid",
+                                      path=f"/assetSourceStates/{graph._pointer_segment(raw_id)}/sourceRevision")
+        states[asset_id] = {"sourceRevision": state["sourceRevision"]}
+    return states, hashlib.sha256(payload).hexdigest().upper()
+
+
 @dataclass
 class Session:
     registry: dict[tuple[str, int], graph.Operation]
@@ -117,6 +162,8 @@ class Session:
     history: list[graph.DocumentCommand]
     asset_catalog: list[dict[str, str]] | None = None
     asset_catalog_sha256: str | None = None
+    asset_source_states: dict[str, dict[str, int]] | None = None
+    asset_source_states_sha256: str | None = None
     cursor: int = 0
     last_history_action_key: tuple[str, str] | None = None
     last_history_action_time: float = 0.0
@@ -135,9 +182,12 @@ class Session:
             self.saved_document_hash = current_hash
 
     def state(self) -> dict[str, Any]:
-        validation = graph.validate_document_for_editing(self.document, self.registry)
+        resolved_bindings = self._resolved_resource_bindings()
+        validation = graph.validate_document_for_editing(
+            self.document, self.registry, resolved_resource_bindings=resolved_bindings)
         try:
-            compilation = graph.compile_document_from_data(self.document, self.registry)
+            compilation = graph.compile_document_from_data(
+                self.document, self.registry, resolved_resource_bindings=resolved_bindings)
         except graph.ContractError as error:
             compilation = {"status": "unavailable", "diagnostics": [error.to_json()]}
         return {
@@ -146,6 +196,8 @@ class Session:
             "assetCatalog": self.asset_catalog or [],
             "assetCatalogStatus": "snapshot" if self.asset_catalog is not None else "not-provided",
             "assetCatalogSha256": self.asset_catalog_sha256,
+            "assetSourceStatesStatus": "snapshot" if self.asset_source_states is not None else "not-provided",
+            "assetSourceStatesSha256": self.asset_source_states_sha256,
             "validation": validation,
             "compilation": compilation,
             "history": {
@@ -161,6 +213,90 @@ class Session:
             "saveConflict": self.save_conflict,
             "clipboard": self.clipboard,
         }
+
+    def _resolved_resource_bindings(self) -> dict[str, dict[str, Any]]:
+        if self.asset_catalog is None or self.asset_source_states is None:
+            return {}
+        try:
+            candidate = graph.compile_document_from_data(self.document, self.registry)
+        except graph.ContractError:
+            return {}
+        if not candidate.get("resourceRequirements"):
+            return {}
+        nodes = self.document.get("nodes")
+        links = self.document.get("links")
+        resources = self.document.get("resources")
+        if not isinstance(nodes, list) or not isinstance(links, list) or not isinstance(resources, list):
+            return {}
+        nodes_by_id = {item.get("nodeId"): item for item in nodes
+                       if isinstance(item, dict) and isinstance(item.get("nodeId"), str)}
+        resources_by_id = {item.get("resourceId"): item for item in resources
+                            if isinstance(item, dict) and isinstance(item.get("resourceId"), str)}
+        assets_by_id = {item["assetId"]: item for item in self.asset_catalog}
+        bindings: dict[str, dict[str, Any]] = {}
+
+        def uv_set_for(node_id: str, visited: set[str]) -> int | None:
+            if node_id in visited:
+                return None
+            visited.add(node_id)
+            node = nodes_by_id.get(node_id)
+            if node is None:
+                return None
+            operation = graph._lookup_operation(
+                self.registry, node.get("operationId"), node.get("semanticVersion"))
+            if operation is None:
+                return None
+            if operation.implementation_id == "vector2.uv0":
+                return 0
+            if operation.implementation_id != "vector2.mapping.scale_offset":
+                return None
+            incoming = [link for link in links if isinstance(link, dict) and
+                        isinstance(link.get("to"), dict) and
+                        link["to"].get("nodeId") == node_id and
+                        link["to"].get("socketId") == "vector"]
+            if len(incoming) != 1 or not isinstance(incoming[0].get("from"), dict):
+                return None
+            source_id = incoming[0]["from"].get("nodeId")
+            return uv_set_for(source_id, visited) if isinstance(source_id, str) else None
+
+        for requirement in candidate["resourceRequirements"]:
+            resource_key = requirement.get("resourceKey")
+            node = nodes_by_id.get(requirement.get("nodeId"))
+            reference = node.get("resourceReference") if isinstance(node, dict) else None
+            if (not isinstance(resource_key, str) or not isinstance(reference, dict) or
+                    reference.get("resourceKey") != resource_key):
+                continue
+            resource = resources_by_id.get(reference.get("resourceId"))
+            source = resource.get("source") if isinstance(resource, dict) else None
+            raw_asset_id = source.get("assetId") if isinstance(source, dict) else None
+            asset_id = raw_asset_id.lower() if isinstance(raw_asset_id, str) else None
+            asset = assets_by_id.get(asset_id) if asset_id is not None else None
+            source_state = self.asset_source_states.get(asset_id) if asset_id is not None else None
+            sample_node_id = requirement.get("nodeId")
+            uv_links = [link for link in links if isinstance(link, dict) and
+                        isinstance(link.get("to"), dict) and
+                        link["to"].get("nodeId") == sample_node_id and
+                        link["to"].get("socketId") == "uv"]
+            uv_source = uv_links[0].get("from") if len(uv_links) == 1 else None
+            uv_source_id = uv_source.get("nodeId") if isinstance(uv_source, dict) else None
+            sample_uv = uv_set_for(uv_source_id, set()) if isinstance(uv_source_id, str) else None
+            if (asset is None or source_state is None or sample_uv is None or
+                    asset["assetType"] != "Image"):
+                continue
+            sampler_bytes = json.dumps(reference.get("sampler"), sort_keys=True,
+                                       separators=(",", ":"), ensure_ascii=False,
+                                       allow_nan=False).encode("utf-8")
+            bindings[resource_key] = {
+                "assetId": asset_id,
+                "assetType": "Image",
+                "sourceRevision": source_state["sourceRevision"],
+                "samplerKey": "sampler." + hashlib.sha256(sampler_bytes).hexdigest().lower(),
+                "uvSet": sample_uv,
+                "uvTransform": {"scaleU": 1.0, "scaleV": 1.0,
+                                "rotationDegrees": 0.0, "offsetU": 0.0, "offsetV": 0.0},
+                "colorInterpretation": reference.get("colorInterpretation"),
+            }
+        return bindings
 
     def compare_disk(self, node_id: str | None = None) -> dict[str, Any]:
         if self.document_path is None:
@@ -552,6 +688,8 @@ def main() -> int:
     parser.add_argument("--registry", type=Path, default=root / "registry.json")
     parser.add_argument("--asset-catalog", type=Path,
                         help="optional AssetDatabase::toJson() snapshot for Image Texture selection")
+    parser.add_argument("--asset-source-states", type=Path,
+                        help="optional AssetManager sourceVersion map keyed by Asset UUID")
     parser.add_argument("--host", default="127.0.0.1", choices=("127.0.0.1",))
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
@@ -563,12 +701,25 @@ def main() -> int:
             parser.error(f"{error.code}: {error.message}")
     else:
         asset_catalog, asset_catalog_sha256 = None, None
+    if args.asset_source_states:
+        if asset_catalog is None:
+            parser.error("--asset-source-states requires --asset-catalog")
+        try:
+            asset_source_states, asset_source_states_sha256 = load_asset_source_states(
+                args.asset_source_states.resolve())
+        except graph.ContractError as error:
+            parser.error(f"{error.code}: {error.message}")
+    else:
+        asset_source_states, asset_source_states_sha256 = None, None
     document_path = args.document.resolve() if args.document else None
     initial_path = document_path or (root / "dynamic_add.json")
     document, document_file_hash = graph.load_document_snapshot(initial_path)
     page = (root / "local_graph_lab.html").read_bytes()
     session = Session(registry, document, document_path, [], asset_catalog=asset_catalog,
-                      asset_catalog_sha256=asset_catalog_sha256, saved_file_hash=document_file_hash)
+                      asset_catalog_sha256=asset_catalog_sha256,
+                      asset_source_states=asset_source_states,
+                      asset_source_states_sha256=asset_source_states_sha256,
+                      saved_file_hash=document_file_hash)
     server = HTTPServer((args.host, args.port), make_handler(session, page))
     print(f"ShaderGraphLab is available at http://{args.host}:{args.port}/")
     print("Local-only R&D UI; generated HLSL is a candidate string, not a compiled shader.")
