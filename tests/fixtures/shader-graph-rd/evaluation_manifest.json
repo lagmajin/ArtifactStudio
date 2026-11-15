@@ -6000,6 +6000,7 @@
         "assetSnapshotReadersEnforceByteAndJsonDepthBounds",
         "operationReplacementPreservesCompatibleLinksAndHistory",
         "localUiHttpRoutesHandleStateEditAndReject",
+        "vector3LocalUiEditsThreeComponentsAndBlocksParameterExposure",
         "instantiatedNodeUsesDeclaredParameterDefault",
         "editingParameterChangesSemanticOutput",
         "graphParametersExposeShareAndEditTypedNodeValues",
