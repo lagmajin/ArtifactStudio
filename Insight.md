@@ -14882,3 +14882,9 @@
 - **価値または懸念:** 手動集計の実装差やcold/warm混在による判断ぶれを抑え、異なる環境の結果を誤って同じ母集団として扱わない。仕様のみであり、集計器やCore計測はまだない。
 - **次に確認すべきこと:** manifest validator実行の許可後にschema整合を検証し、計測runnerを追加する段階ではraw recordからsummaryを生成する独立ツールと既知値fixtureを用意する。
 - **未検証:** 今回は仕様/source更新まで。集計ロジックの実装・実行、実測値の妥当性、production limit選定はいずれも未実施。
+## 2026-11-15: Resource measurement summaries need an executable, corpus-bound reducer
+- **関連:** 	ools/shader_graph_rd/summarize_document_limit_measurements.py、limit corpus caseId、manifest measurement summary schema。
+- **確認できた事実:** manifestは集計方式と境界判定項目を定義していたが、それをJSONL raw measurementsへ適用するプログラムはなかった。新しいstdlib-only reducerはrun/case/phase/environment/effective-limitで分離し、nearest-rank分位点、field別有効数、limit境界の受理・拒否、拒否時destination保持、sample IDの連続性をsummaryに出す。production limitは選ばない。
+- **価値または懸念:** 実測runner導入後、手作業の集計差を抑え、再現可能なsummaryを作れる。ただしresultStatusの独自enumには依存せず、境界 disposition は明示stageと生成corpusから判定する。
+- **次に確認すべきこと:** 実測データが揃った段階で、代表・malformed双方のraw record fixtureを設け、reducerの期待summaryと異常系終了コードを検証する。manifest validatorが利用可能になったらsummary schemaとの接続も確認する。
+- **未検証:** ビルド/テスト/manifest validatorは未実行。実Core測定、集計器の実入力挙動、limit選定は未実施。
