@@ -670,3 +670,8 @@ Added validator source coverage that replaces the middle Vector3 Subtract operat
 ### Deep-limit corpus generator traversal (2026-11-15)
 
 The parent-side limit-corpus generator used recursive DFS both to calculate output-reachable Math depth and to reject cycles, so it could fail around Python's recursion boundary before producing the deep inputs intended for resource-bound evaluation. Replaced both traversals with iterative topological ordering and depth propagation. The manifest validator's deterministic generator sample now requests depth 2048, and a generated 12-case corpus at candidate depth 1600 completed with byte/node/link/depth boundary validation. This verifies the corpus generator path only; it does not execute or profile ArtifactCore, select production limits, or establish graph runtime stack safety.
+
+
+### Resource-limit measurement record schema (2026-11-15)
+
+The documented protocol required parse, structural validation, canonicalization, and lowering to be timed separately, but generated records exposed one combined duration field. Corpus schema v2 now records those four nanosecond fields separately, along with cold-parse/warm-validation phase, sample index, effective limits, observed input dimensions, allocation/memory/stack metrics, rejection stage, and destination preservation. Null is explicit for unreached stages or unavailable counters; it is not interpreted as zero. The manifest pins the required field list and the generator checks its own schema; the manifest validator also compares the generated schema against that list. This prepares reproducible measurement records but contains no Core measurements and does not select production limits.

@@ -3569,6 +3569,22 @@
           "process stack high-water mark for traversal tests where platform instrumentation is available",
           "whether rejection happened before parse, index/adjacency allocation, or lowering as required"
         ],
+        "measurementRecordSchema": {
+          "version": 2,
+          "requiredFields": [
+            "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+            "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
+            "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
+            "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
+            "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes",
+            "rejectionStage", "destinationUnchanged", "resultStatus", "notes"
+          ],
+          "phaseValues": ["cold-parse", "warm-validation"],
+          "stageDurationFieldsNs": ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs"],
+          "rawSamples": "retain every sample with a zero-based sampleIndex; report warmup separately and keep cold parse and warm validation distributions distinct",
+          "unreachedStage": "record null duration and counters explicitly; do not represent unavailable instrumentation as zero",
+          "destinationUnchanged": "every rejected mutating request must record true; use null only when the measured API has no destination state"
+        },
         "executionMethod": "For each shape, sweep sizes geometrically until failure/resource budget, then refine around the transition; repeat successful timed samples at least 30 times after warmup and report median/p95/p99. Keep raw per-run records, compiler/build/backend/CPU/OS details, and instrumentation overhead. Repeat cold parse and warm validation separately.",
         "decisionRule": "Choose production limits below the first unacceptable resource or latency transition with an explicit safety margin agreed in review; supported configurations must pass every exact-limit case and reject every limit-plus-one case without partial commit.",
         "allocationInstrumentation": "Use allocator hooks or a dedicated counting allocator in an isolated contract-test process; do not add hot-path logging or per-frame counters to production code solely for this R&D measurement.",

@@ -228,22 +228,56 @@ def build_case_set(limits: dict[str, int]) -> dict[str, Any]:
             })
     return {
         "kind": "artifact-shader-graph-document-limit-corpus",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "status": "generated-inputs-only-not-core-runtime-evidence",
         "limitsAreExperimentalInputsNotProductionDefaults": True,
         "limits": limits,
         "cases": cases,
         "measurementRecordFields": [
-            "runId", "caseId", "appRevision", "buildAndCompiler", "platform", "instrumentation",
-            "parseValidationCanonicalizationLoweringNs", "peakLiveBytes", "allocationCount",
-            "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes", "rejectionStage",
-            "destinationUnchanged", "resultStatus", "notes",
+            "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+            "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
+            "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
+            "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
+            "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes",
+            "rejectionStage", "destinationUnchanged", "resultStatus", "notes",
         ],
+        "measurementRecordSemantics": {
+            "phase": ["cold-parse", "warm-validation"],
+            "sampleIndex": "zero-based within a case/phase; retain every raw sample",
+            "timings": "integer nanoseconds per stage; use null when that stage was not reached",
+            "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
+            "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
+            "destinationUnchanged": "true is required for every rejected mutating request; null only when the measured API has no destination state",
+            "warmup": "record warmup separately or exclude it from sampleIndex; collect at least 30 timed successful samples after warmup",
+        },
     }
 
 
 def validate_case_set(corpus: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    expected_record_fields = [
+        "runId", "caseId", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
+        "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
+        "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
+        "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
+        "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes",
+        "rejectionStage", "destinationUnchanged", "resultStatus", "notes",
+    ]
+    expected_record_semantics = {
+        "phase": ["cold-parse", "warm-validation"],
+        "sampleIndex": "zero-based within a case/phase; retain every raw sample",
+        "timings": "integer nanoseconds per stage; use null when that stage was not reached",
+        "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
+        "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
+        "destinationUnchanged": "true is required for every rejected mutating request; null only when the measured API has no destination state",
+        "warmup": "record warmup separately or exclude it from sampleIndex; collect at least 30 timed successful samples after warmup",
+    }
+    if corpus.get("schemaVersion") != 2:
+        errors.append("corpus schema version must be 2 for the per-stage measurement record contract")
+    if corpus.get("measurementRecordFields") != expected_record_fields:
+        errors.append("measurement records must expose separate per-stage timings and run provenance")
+    if corpus.get("measurementRecordSemantics") != expected_record_semantics:
+        errors.append("measurement record semantics must preserve cold/warm phase and unavailable-value meaning")
     cases = corpus.get("cases", [])
     expected_fields = {"maxJsonBytes", "maxNodes", "maxLinks", "maxTraversalDepth"}
     if len(cases) != 12 or {case.get("limitField") for case in cases} != expected_fields:

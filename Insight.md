@@ -14851,3 +14851,11 @@
 - **価値または懸念:** A stress harness that has the same recursion failure mode as the target can mask the target's actual threshold and produce misleading resource evidence.
 - **次に確認すべきこと:** When authorized, run the manifest validator and then run the generated deep corpus against an iterative Core candidate while recording stack high-water, allocations, and rejection stage.
 - **未検証:** The ArtifactCore traversal is still unchanged and unmeasured; successful Python corpus generation does not establish Core stack safety or a production depth limit.
+
+
+## 2026-11-15: Resource-limit measurement records must separate stages and phases
+- **関連:** `tools/shader_graph_rd/generate_document_limit_corpus.py::measurementRecordFields`、manifest `measurements.resourceBounds.measurementProtocol`。
+- **確認できた事実:** The protocol asked for separate parse/validation/canonicalization/lowering durations, cold and warm measurements, allocator data, and rejection stage, but the generated record previously had one combined timing field. Corpus schema v2 now emits four stage timing fields plus phase/sample provenance, effective limits and input dimensions, memory/allocator/stack counters, rejection stage, and destination-preservation result. The manifest and generator internal consistency checks pin the same required field list.
+- **価値または懸念:** A combined duration cannot distinguish parser cost from graph-index or lowering cost, and a missing measurement encoded as zero can falsely appear fast. Null and stage-specific fields preserve that distinction.
+- **次に確認すべきこと:** Run the generator and manifest validator when authorized, then populate raw records from an isolated instrumented Core contract-test process before selecting supported limits.
+- **未検証:** No Core profiling data exists; the new record format is not yet consumed by a measurement runner.

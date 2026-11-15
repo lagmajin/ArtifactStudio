@@ -343,6 +343,15 @@ def validate(root: Path) -> list[str]:
     if resource_bounds.get("status") != "no-production-limits-defined" or any(value is not None for value in resource_bounds.get("supportedLimits", {}).values()):
         errors.append("production document limits must remain unselected until runtime measurement")
     measurement_protocol = resource_bounds.get("measurementProtocol", {})
+    record_schema = measurement_protocol.get("measurementRecordSchema", {})
+    expected_stage_duration_fields = ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs"]
+    if (record_schema.get("version") != 2
+            or record_schema.get("phaseValues") != ["cold-parse", "warm-validation"]
+            or record_schema.get("stageDurationFieldsNs") != expected_stage_duration_fields
+            or "retain every sample" not in record_schema.get("rawSamples", "")
+            or "record null duration" not in record_schema.get("unreachedStage", "")
+            or "must record true" not in record_schema.get("destinationUnchanged", "")):
+        errors.append("resource-bound measurements must preserve per-stage cold/warm samples and explicit unavailable results")
     required_profiles = {"representative-small", "representative-medium", "adversarial-wide", "adversarial-deep", "malformed-boundary"}
     profile_ids = {item.get("profile") for item in measurement_protocol.get("profiles", []) if isinstance(item, dict)}
     required_measurements = {"serialized UTF-8 byte count including opaque extensions", "parse, structural validation, canonicalization, and lowering wall time separately", "peak live bytes, total allocation count, total allocated bytes, and largest single allocation"}
@@ -366,6 +375,8 @@ def validate(root: Path) -> list[str]:
         corpus_errors = corpus_module.validate_case_set(sample_corpus)
         if corpus_errors:
             errors.extend("document limit corpus: " + item for item in corpus_errors)
+        if sample_corpus.get("measurementRecordFields") != record_schema.get("requiredFields"):
+            errors.append("generated document limit corpus record fields must match the manifest measurement schema")
     except (OSError, ImportError, AttributeError, TypeError, ValueError, RuntimeError) as error:
         errors.append(f"cannot validate deterministic document limit corpus generator: {error}")
     socket_types = core_schema.get("legacySocketTypeCharacterization", {})
