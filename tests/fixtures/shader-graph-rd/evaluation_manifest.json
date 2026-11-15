@@ -5810,43 +5810,47 @@
       },
       "documentFixture": "experiments/ShaderGraphLab/dynamic_add.json",
       "candidateFixture": "tests/fixtures/shader-graph-rd/dynamic_add_lowering_candidate.json",
-      "candidateSha256": "328B1F6CA6EC23CF1D079E9B39AC082C37D6332CFE0841414BFA0EED1D79787F",
+      "candidateSha256": "5AFAB2CB3F2D74D57760BC3C13D98B23B92A85FC3849C2CB02A17CC8F4DBCF2D",
+      "vector3ConstantDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector3_constant.json",
+      "vector3ConstantCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector3_constant_candidate.json",
+      "vector3ConstantCandidateSha256": "B9C1D61D4CE0A0A7013C818B56469EB5FC2D1FC00AF9F037CAE31A80FAF275C4",
+      "vector3ConstantDocumentSha256": "1240F082D66C8BCE82128ECC27FB84D771C98D6F45F8307317DE32618932AE5E",
       "emittedSourceHashContract": "SHA-256 of exact UTF-8 hlslBody bytes; adapter-specific source identity, separate from semantic and structure hashes",
       "subtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_subtract.json",
       "subtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_subtract_candidate.json",
-      "subtractCandidateSha256": "19E38EE2AFE7F655B7204B3E31D047D4D299E5967D53CE377F9E7C69E83CF769",
+      "subtractCandidateSha256": "ED876C67F32DE67F831B23E069E23EC11EE3FEB7C9320C3092C7E3FE2936E241",
       "subtractDocumentSha256": "040258DCF5A452A8E732D7A6CF9A184E88C7167A122201CD1752CA674B3A17C5",
       "divideDocumentFixture": "experiments/ShaderGraphLab/dynamic_divide.json",
       "divideCandidateFixture": "experiments/ShaderGraphLab/dynamic_divide_candidate.json",
-      "divideCandidateSha256": "874BDE2017E7BF1D4F549E8ECD586C0A143CC5C172B812548652C83DA8E3620E",
+      "divideCandidateSha256": "DBD1116A32AF5C1C089295AB999549A3FB7366993DC0542BB2C19F5D7B14A5A3",
       "divideDocumentSha256": "8711041DF96A2BA1B6AD5262525F86241F87712A1D271A3F1CD45184ACCFCD11",
       "vector4DivideDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide.json",
       "vector4DivideCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_divide_candidate.json",
-      "vector4DivideCandidateSha256": "87D687B89D4EC36BD8F52A5066F0D0365B2E4A45A995FA988737EED91AD5623D",
+      "vector4DivideCandidateSha256": "7DD5345129005505FD11E15ABDFCCC1BFC08E657C1F6B7E1F4E9A2E62054368F",
       "vector4DivideDocumentSha256": "A4221B83ABFDC49F2B149E54139A3A9CB30394B1D8FF7FD5CEB7BA25563177CE",
       "vector4SubtractDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract.json",
       "vector4SubtractCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_subtract_candidate.json",
-      "vector4SubtractCandidateSha256": "2167C05DCF5060E1456C86404644AABDFB1AA8E9BB1FBB63B16D420085BAECD4",
+      "vector4SubtractCandidateSha256": "8D136F2E1E1C61BCA7FC5DD03DCF5C431ABC375DD6D71EFE9C554DFCFA3DB5CC",
       "vector4SubtractDocumentSha256": "4DD469714A2BC7E7F2E442413ACE7E74CEEA6DFFEBE5CFEFF38BF89B0EC359CD",
       "vector4InvertDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert.json",
       "vector4InvertCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_invert_candidate.json",
-      "vector4InvertCandidateSha256": "63A39BA876DB45A4996778E018407DDC7F01675AB81585FF71DA120246F01DA8",
+      "vector4InvertCandidateSha256": "971AA66B39594B7D0451DD7292E1378A657D62A5E2FA10E608B5941E1718EEF5",
       "vector4InvertDocumentSha256": "C69ECB8C32E08CC432C5D9A6ACDDC03A1B5B10A78CACF2D9F938DDB79E0365CB",
       "clampDocumentFixture": "experiments/ShaderGraphLab/dynamic_clamp.json",
       "clampCandidateFixture": "experiments/ShaderGraphLab/dynamic_clamp_candidate.json",
-      "clampCandidateSha256": "6304DE1E47580318CA78E43052FFA486064A94C7F710E254B9918D39ABB79AFD",
+      "clampCandidateSha256": "ED9B5424A33192EB993B6968DB4FD02DFA3CA75894D6AE2BA31DFEB94D1CE80F",
       "clampDocumentSha256": "824478A7FFC9E7C12D4DCD597308BBF5504B1DD109A825AF95428A2D1D830D79",
       "vector4MixDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix.json",
       "vector4MixCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_mix_candidate.json",
-      "vector4MixCandidateSha256": "0974C585A53E15EC3923F687A3936C22DB210D6C0BBF3D10977EAED7295E8C6B",
+      "vector4MixCandidateSha256": "9E44AB9E296A631EFA0CF18C8F1B492A7ECCBF3F5FC80FC5260FB60FF1694DE7",
       "vector4MixDocumentSha256": "A542DCBDF25A090EFB57D3AFBBEF7351D226CCE331A6950593F3624CB22CAA20",
       "vector4SeparateDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels.json",
       "vector4SeparateCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_separate_channels_candidate.json",
-      "vector4SeparateCandidateSha256": "FC1BFF265AE17A11E9D4CEB467AE0DAEB7B15F27AF3E3ED19A749D4C05310BBE",
+      "vector4SeparateCandidateSha256": "E73354EF3E59319C1EE66913ED16C63693322F76CA6EB19B32A8ABE2E62E035C",
       "vector4SeparateDocumentSha256": "F81E339823B9B70D9510A488B68B853494517D499E3E8297038E4062BF8565B7",
       "vector4RampDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
       "vector4RampCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
-      "vector4RampCandidateSha256": "A3BE9D9D08D5F6BF495DBA872666968C476DE995CF2C87271D254772EE8D6655",
+      "vector4RampCandidateSha256": "94DD01FF70DFF10675DB11C1CD18479D2120AE67FD4FEF62D3E998C1D73A6FCF",
       "vector4RampDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
       "vector4RampFormulaGoldenGenerator": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
       "rampImageEvaluationPlan": {
@@ -5927,6 +5931,8 @@
         "float.uv0.x",
         "vector2.uv0",
         "vector2.mapping.scale_offset",
+        "vector3.constant",
+        "vector3.add",
         "vector4.constant",
         "float.add",
         "float.subtract",
@@ -5998,6 +6004,7 @@
         "editingParameterChangesSemanticOutput",
         "graphParametersExposeShareAndEditTypedNodeValues",
         "parameterEditsRejectAtomically",
+        "vector3ConstantUsesTypedFloat3Path",
         "vector4ConstantParametersCanonicalizeAndLower",
         "vector4ArithmeticLowersComponentwiseWithTypedLinks",
         "explicitScalarVectorConversionsAreTypedAndDeterministic",
@@ -6148,7 +6155,7 @@
           "path": "/nodes/0/semanticVersion"
         }
       },
-      "registrySha256": "BC665D3810167606BD336850E110835A1169F120030E490DE9F682028326781F",
+      "registrySha256": "2EE3AF0D1049F0184292F6C98FB17E2F78A2B584F2A71057E09BADA31A6605F5",
       "documentSha256": "D2DDAC57E10170AEE1895B69640E63D7AD5DDDEE87C6F089CEC8FE2A1FDF0377",
       "diagnosticGoldens": {
         "unsupportedSchemaVersionRejected": {
@@ -6233,27 +6240,27 @@
       "socketDefaultContract": "optional input sockets carry a typed binary32 operation default; schema version 3 stores editable per-node overrides; a connected producer overrides its stored default; required inputs still need links; only an unconnected default participates in active semantic and typed-IR identity",
       "optionalDefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_default.json",
       "optionalDefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_default_candidate.json",
-      "optionalDefaultCandidateSha256": "149002BF7B1E9899FD25041996A06180CC21D9048035E1ED8E4AECA2AA29421C",
+      "optionalDefaultCandidateSha256": "9D49EE76E99E7B5106055B06A3BA5B652E4AA639B2AE54021869D672C0DE88F7",
       "optionalDefaultDocumentSha256": "B89D6151B7A3E04FE82E8B237C3441F53D581A3FA765CF5E2CC9A5D2092915EF",
       "optionalVector4DefaultDocumentFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default.json",
       "optionalVector4DefaultCandidateFixture": "experiments/ShaderGraphLab/dynamic_optional_vector4_default_candidate.json",
-      "optionalVector4DefaultCandidateSha256": "3833E6FE904444D2ACB2AC816B3494B8F482E222596479E1AB1B5E96D45C09F7",
+      "optionalVector4DefaultCandidateSha256": "F1B314BFFDC2D62274C48998476E403D4FCB8255F8DD8649A49B139CCACDF835",
       "optionalVector4DefaultDocumentSha256": "41C2CE731D096724EE9F1197351216B19C321785B06CF41E45C7549B0700176F",
       "vector2UvDocumentFixture": "experiments/ShaderGraphLab/dynamic_uv0_vector2.json",
       "vector2UvCandidateFixture": "experiments/ShaderGraphLab/dynamic_uv0_vector2_candidate.json",
       "vector2MappingDocumentFixture": "experiments/ShaderGraphLab/dynamic_vector2_mapping.json",
       "vector2MappingCandidateFixture": "experiments/ShaderGraphLab/dynamic_vector2_mapping_candidate.json",
-      "vector2MappingCandidateSha256": "2660A21A3C1685726A0291E83BC2E53EF6C66185C199F2D705A146FEB51CD991",
+      "vector2MappingCandidateSha256": "3890842D73500C28DD628532D928C9F13FE5CFBB5698D49A51D231D63AC4E8F8",
       "vector2MappingDocumentSha256": "5CE2EF45700D8B0C610BFCD6DC0AE2F5E410C1753A0409E6F5D07531B03FAB46",
-      "vector2UvCandidateSha256": "7B08A4BEAB49DAAA3588B07563B13C89D0D339EE959DA051949D9AB97871F062",
+      "vector2UvCandidateSha256": "6E522FE05DDAFF39EB09EE38D0CFBD520BC73386F6C76F7C96098CFE45DC074B",
       "vector2UvDocumentSha256": "058911A94DAA75E756AEAF1455564829990B137EE2F5342006F9845E449AC61F",
       "baseColorTextureDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor.json",
       "baseColorTextureCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor_candidate.json",
       "mappedBaseColorTextureDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor.json",
       "mappedBaseColorTextureCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor_candidate.json",
-      "mappedBaseColorTextureCandidateSha256": "AB2AFA98E07D6D89B68DF338C1040EFC0B166FDE1B05984BD1C9763165777623",
+      "mappedBaseColorTextureCandidateSha256": "F5D3262590EFCA185D6879436DDC45B4446CBF98F119FDB38429827EFC94FC57",
       "mappedBaseColorTextureDocumentSha256": "30AAEFFD7FB8E70DBFA61596937BCD4F125210526947EB195DA0EB0D9833D92D",
-      "baseColorTextureCandidateSha256": "B3E97F7544302328D7674670E32AB62DCDC7B1522F71F0C8EEC54027F7D420F8",
+      "baseColorTextureCandidateSha256": "F5741C392DFCF391ACA3F61A28F0F306BCB8D000DD0ED1C5FCFE94D4B3A92B91",
       "baseColorTextureDocumentSha256": "84CAA4D21EB1F90D61F99A7BD830592117088F544BB5305ACDA31868323E4F16",
       "textureSampleResourceContract": {
         "status": "candidate-source-only-runtime-unverified",
@@ -6341,32 +6348,56 @@
             "documentFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor.json",
             "documentSha256": "30AAEFFD7FB8E70DBFA61596937BCD4F125210526947EB195DA0EB0D9833D92D",
             "candidateFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor_candidate.json",
-            "candidateSha256": "AB2AFA98E07D6D89B68DF338C1040EFC0B166FDE1B05984BD1C9763165777623",
+            "candidateSha256": "F5D3262590EFCA185D6879436DDC45B4446CBF98F119FDB38429827EFC94FC57",
             "expectedCoordinateExpression": "(UV0 * float2(2.0, 0.5)) + float2(0.25, -0.125)",
             "contract": "the texture Sample consumes the Mapping node output; symbolic resource requirement equals the direct-UV candidate; GPU sampling remains unverified",
             "parameterCases": [
               {
                 "id": "identity",
-                "scale": [1.0, 1.0],
-                "offset": [0.0, 0.0],
+                "scale": [
+                  1.0,
+                  1.0
+                ],
+                "offset": [
+                  0.0,
+                  0.0
+                ],
                 "expected": "mappedUV equals input UV; compare pixel output with the direct-UV graph"
               },
               {
                 "id": "nonuniform-scale-offset",
-                "scale": [2.0, 0.5],
-                "offset": [0.25, -0.125],
+                "scale": [
+                  2.0,
+                  0.5
+                ],
+                "offset": [
+                  0.25,
+                  -0.125
+                ],
                 "expected": "mappedUV = inputUV * scale + offset; this is the persisted candidate fixture"
               },
               {
                 "id": "negative-scale",
-                "scale": [-1.0, 1.0],
-                "offset": [1.0, 0.0],
+                "scale": [
+                  -1.0,
+                  1.0
+                ],
+                "offset": [
+                  1.0,
+                  0.0
+                ],
                 "expected": "horizontal coordinate is mirrored around the unit interval before sampler addressing"
               },
               {
                 "id": "zero-scale",
-                "scale": [0.0, 0.0],
-                "offset": [0.375, 0.375],
+                "scale": [
+                  0.0,
+                  0.0
+                ],
+                "offset": [
+                  0.375,
+                  0.375
+                ],
                 "expected": "all pixels sample the same texel-center coordinate, subject to the recorded filter and UV convention"
               }
             ],
@@ -6388,7 +6419,7 @@
       },
       "textureChannelsDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_separate_channels.json",
       "textureChannelsCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_separate_channels_candidate.json",
-      "textureChannelsCandidateSha256": "3249FCEE6F30B52B2334984F0A35D1CAFEC46EA4BB9401A7FD454F75C09F1ED8",
+      "textureChannelsCandidateSha256": "F2DB289643F9CA261CA254DCCFC19860BB68AE80D8727B856C7984F28C2FBD95",
       "textureChannelsDocumentSha256": "2B72DC2562CC4CFE488FCB45C239EA9F674B3CF0C0C1D71B619D557331A5C656",
       "resourceBindingProjectionContract": {
         "status": "host-adapter-projection-candidate-runtime-unverified",

@@ -224,6 +224,44 @@
       ]
     },
     {
+      "operationId": "artifact.rd.constant.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3",
+      "category": "Input",
+      "implementationId": "vector3.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Vector3"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Vector3F32",
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.math.add.vector3.float32.default_b",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Add (zero default)",
+      "category": "Math",
+      "implementationId": "vector3.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": false, "default": [0.0, 0.0, 0.0]}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.vector4.float32",
       "semanticVersion": 1,
       "displayName": "Vector4",
