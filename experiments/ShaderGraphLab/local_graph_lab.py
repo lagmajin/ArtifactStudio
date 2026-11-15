@@ -61,7 +61,8 @@ ACTION_FIELDS = {
 def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
     """Read image choices from AssetDatabase::toJson() without retaining paths."""
     try:
-        payload = path.read_bytes()
+        with path.open("rb") as snapshot_file:
+            payload = snapshot_file.read(MAX_ASSET_CATALOG_BYTES + 1)
     except OSError as error:
         raise graph.ContractError(f"cannot read AssetDatabase snapshot: {error}",
                                   code="asset.catalog.read.failed", path="/assetCatalog") from error
@@ -70,7 +71,7 @@ def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
                                   code="asset.catalog.size.invalid", path="/assetCatalog")
     try:
         records = json.loads(payload.decode("utf-8"))
-    except (UnicodeError, json.JSONDecodeError) as error:
+    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
         raise graph.ContractError("AssetDatabase snapshot is not valid UTF-8 JSON",
                                   code="asset.catalog.json.invalid", path="/assetCatalog") from error
     if not isinstance(records, list) or len(records) > MAX_ASSET_CATALOG_RECORDS:
@@ -113,7 +114,8 @@ def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
 def load_asset_source_states(path: Path) -> tuple[dict[str, dict[str, int]], str]:
     """Read the host-exported AssetManager sourceVersion map."""
     try:
-        payload = path.read_bytes()
+        with path.open("rb") as snapshot_file:
+            payload = snapshot_file.read(MAX_ASSET_SOURCE_STATES_BYTES + 1)
     except OSError as error:
         raise graph.ContractError(f"cannot read AssetManager source state: {error}",
                                   code="asset.source_states.read.failed",
@@ -124,7 +126,7 @@ def load_asset_source_states(path: Path) -> tuple[dict[str, dict[str, int]], str
                                   path="/assetSourceStates")
     try:
         raw_states = json.loads(payload.decode("utf-8"))
-    except (UnicodeError, json.JSONDecodeError) as error:
+    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
         raise graph.ContractError("AssetManager source state is not valid UTF-8 JSON",
                                   code="asset.source_states.json.invalid",
                                   path="/assetSourceStates") from error

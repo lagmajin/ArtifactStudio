@@ -5990,6 +5990,7 @@
         "localUiSessionActionsStayAtomicAndUndoable",
         "localImageResolverRequiresAssetRevisionAndSupportedUvPath",
         "localImageMappingChangesShaderWithoutChangingResolvedBinding",
+        "assetSnapshotReadersEnforceByteAndJsonDepthBounds",
         "operationReplacementPreservesCompatibleLinksAndHistory",
         "localUiHttpRoutesHandleStateEditAndReject",
         "instantiatedNodeUsesDeclaredParameterDefault",
