@@ -5941,7 +5941,8 @@
         "texture.sample.emission",
         "texture.sample.metallic_roughness",
         "texture.sample.normal",
-        "texture.sample.occlusion"
+        "texture.sample.occlusion",
+        "texture.sample.image2d"
       ],
       "contractChecks": [
         "layoutExcludedFromSemanticIdentity",
@@ -6397,8 +6398,8 @@
         "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
-        "prototypeSha256": "BC2267E0F31BE491745AB4957C1C781EFD910758B66192FD000B40C5DC2A4758",
-        "candidateSha256": "8653C7B2D51E60C268F15DDF32C7BE6D6FF5E0A323B294E4ACB4196F13E141B3",
+        "prototypeSha256": "E9945E737D00D28E68CCA463BB35393120F5F302560D05CDAAB25448AF4B0D9F",
+        "candidateSha256": "3292D264E29055D5CE8FA83806B807CD6E53D78E4066F424908A25288A4ECF20",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
@@ -6452,19 +6453,24 @@
           "runtimeStatus": "synthetic logical state projection only; no actual project lookup, image load, sampler creation, SRB update, or rendered sampling"
         },
         "dynamicResolverBindingAdapterContract": {
-          "status": "source-adapter-projection-only-not-registry-or-lowering-integration",
+          "status": "source-only-v4-to-registry-adapter-and-lowering-candidate-no-runtime",
           "resolverSource": "experiments/ShaderGraphLab/dynamic_graph_prototype.py::_project_resolved_resource_bindings",
+          "compilerSource": "experiments/ShaderGraphLab/dynamic_graph_prototype.py::compile_document_from_data",
+          "registeredOperation": "artifact.texture.sample.image2d@1 / texture.sample.image2d",
+          "typedIr": "each image operation carries its node-scoped resourceKey, document resourceId, and distinct symbolic texture/sampler shader symbols",
+          "hlsl": "each active generic image node lowers a raw float4 Sample using its explicit Vector2 input; no asset UUID or sampler descriptor is embedded in emitted source",
           "samplerKey": "sampler.<lowercase SHA-256 of canonical node sampler descriptor>",
           "uvMapping": "the fixture's UV0 graph source maps to resolver compatibility metadata uvSet=0 and identity uvTransform; UV values and future Mapping nodes remain graph semantics",
           "mutationRequirements": [
-            "asset relink, source revision, sampler, and color interpretation changes must change the dynamic resolver binding key",
-            "rewiring the UV source without changing the sampled nodes must preserve the dynamic resolver binding key",
+            "asset relink, source revision, sampler, and color interpretation changes must preserve semantic/source hashes and change only the dynamic resolver binding key",
+            "rewiring the UV source must change graph/shader identity while preserving the dynamic resolver binding key",
             "missing source revision must be unresolved with no dynamic resolver binding key"
           ],
-          "limitations": "this calls the existing binding resolver with synthetic adapter records; generic image nodes still do not pass dynamic registry validation or reach its typed IR/HLSL lowering, and no source or GPU identity is measured"
+          "limitations": "the schema-v4 document is translated into a transient schema-v1 registry document plus a node-reference sidecar; document persistence/editor operations are not integrated, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
-        "runtimeStatus": "source adapter now exercises the dynamic compiler's binding resolver only; no generic node registry/compiler integration, project AssetDatabase lookup, HLSL generation for generic nodes, shader compilation, image load, GPU sampling, Core adapter, or runtime validation",
-        "dynamicResolverPrototypeSha256": "E87D0BFD0DA994C5E869F468C733404CB81159F8FE922DC11B133BFB3EFB5BAC"
+        "runtimeStatus": "schema-v4 source adapter now reaches dynamic registry validation, typed IR and HLSL candidate lowering; no project AssetDatabase lookup, HLSL compilation, image load, GPU sampling, Core adapter, persistence/editor integration, or runtime validation",
+        "dynamicResolverPrototypeSha256": "0CEA404D7B3CD06B2F71FED2098231AB93FD9281401A0BB4099F303FDE9BD90B",
+        "dynamicRegistrySha256": "E7EEF0DBA8AAB1A1266851D294E42DF851C20B5E451F3B4A10586DFB3678597C"
       }
     }
   },

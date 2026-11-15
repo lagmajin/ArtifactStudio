@@ -42,7 +42,9 @@ TEXTURE_SAMPLE_SLOTS = {
     "texture.sample.normal": ("Normal", "g_NormalTexture"),
     "texture.sample.occlusion": ("Occlusion", "g_OcclusionTexture"),
 }
-MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_stops", *TEXTURE_SAMPLE_SLOTS}
+GENERIC_TEXTURE_SAMPLE = "texture.sample.image2d"
+MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linear_stops",
+                               *TEXTURE_SAMPLE_SLOTS, GENERIC_TEXTURE_SAMPLE}
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
@@ -54,7 +56,7 @@ BUILTIN_IMPLEMENTATIONS = {
     *VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION,
     "float.replicate.rgb_alpha_one", "vector4.extract_x",
     "vector4.separate_channels",
-    "vector4.ramp.linear_stops", *TEXTURE_SAMPLE_SLOTS,
+    "vector4.ramp.linear_stops", *TEXTURE_SAMPLE_SLOTS, GENERIC_TEXTURE_SAMPLE,
 }
 MAX_JSON_NESTING = 256
 MAX_JSON_FILE_BYTES = 16 * 1024 * 1024
@@ -1011,7 +1013,7 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.parameters[0].value_type != "RampStops" or
                 operation.parameters[0].default is None):
             raise ContractError(f"{path_label} vector4.ramp.linear_stops requires a Float factor input, RampStops parameter, Vector4 color and Float alpha outputs", code="operation.signature.invalid", path=path)
-        if implementation_id in TEXTURE_SAMPLE_SLOTS and (
+        if implementation_id in (set(TEXTURE_SAMPLE_SLOTS) | {GENERIC_TEXTURE_SAMPLE}) and (
                 [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
                 [("uv", "Vector2", True)] or
                 [(item.socket_id, item.value_type) for item in operation.outputs] !=
@@ -3524,6 +3526,7 @@ def compile_document_from_data(
     *,
     hlsl_context_bindings: dict[tuple[str, str], str] | None = None,
     resolved_resource_bindings: dict[str, dict[str, Any]] | None = None,
+    node_resource_references: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     if hlsl_context_bindings is None:
         context_binding_expressions = HLSL_SOURCE_CONTEXT_BINDINGS
@@ -3611,6 +3614,40 @@ def compile_document_from_data(
         nodes[node_id] = {"operation": operation, "parameters": parameters,
                           "socketDefaults": socket_defaults, "raw": raw, "symbol": symbol}
         node_indices[node_id] = index
+
+    generic_image_node_ids = {
+        node_id for node_id, data in nodes.items()
+        if data["operation"].implementation_id == GENERIC_TEXTURE_SAMPLE
+    }
+    if node_resource_references is None:
+        node_resource_references = {}
+    if not isinstance(node_resource_references, dict):
+        raise ContractError("node resource references must be an object keyed by nodeId",
+                            code="resource.reference.invalid", path="/nodeResourceReferences")
+    if set(node_resource_references) != generic_image_node_ids:
+        raise ContractError("generic Image Texture nodes require exactly one resource reference each",
+                            code="resource.reference.coverage.invalid",
+                            path="/nodeResourceReferences")
+    canonical_node_resource_references: dict[str, dict[str, str]] = {}
+    seen_resource_keys: set[str] = set()
+    for node_id in sorted(generic_image_node_ids):
+        reference = node_resource_references[node_id]
+        if (not isinstance(reference, dict) or set(reference) != {"resourceKey", "resourceId"} or
+                not all(isinstance(reference.get(key), str) and
+                        IDENTIFIER.fullmatch(reference[key])
+                        for key in ("resourceKey", "resourceId"))):
+            raise ContractError("resource reference requires valid resourceKey and resourceId",
+                                code="resource.reference.invalid",
+                                path=f"/nodeResourceReferences/{_pointer_segment(node_id)}")
+        if reference["resourceKey"] in seen_resource_keys:
+            raise ContractError("resourceKey is duplicated",
+                                code="resource.reference.key.duplicate",
+                                path=f"/nodeResourceReferences/{_pointer_segment(node_id)}/resourceKey")
+        seen_resource_keys.add(reference["resourceKey"])
+        canonical_node_resource_references[node_id] = {
+            "resourceKey": reference["resourceKey"],
+            "resourceId": reference["resourceId"],
+        }
 
     graph_parameters = _apply_graph_parameters(document, nodes, node_indices)
 
@@ -3831,6 +3868,18 @@ def compile_document_from_data(
                 "uvContract": "explicit-Vector2-input-no-implicit-transform",
                 "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode",
             }]
+        elif implementation_id == GENERIC_TEXTURE_SAMPLE:
+            reference = canonical_node_resource_references[node_id]
+            ir_operation["resourceDependencies"] = [{
+                "resourceKey": reference["resourceKey"],
+                "resourceId": reference["resourceId"],
+                "resourceKind": "sampledTexture2D",
+                "shaderSymbol": f"g_GraphTexture_{symbol[2:]}",
+                "samplerSymbol": f"g_GraphSampler_{symbol[2:]}",
+                "samplerContract": "resolved-per-node-binding",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode",
+            }]
         if implementation_id in SOURCE_CONTEXTS:
             context = SOURCE_CONTEXTS[implementation_id]
             ir_operation["sourceContext"] = {
@@ -3890,6 +3939,21 @@ def compile_document_from_data(
             alpha_symbol = f"{symbol}_alpha"
             hlsl_lines.extend([
                 f"float4 {color_symbol} = {shader_symbol}.Sample(g_BaseColorSampler, {uv});",
+                f"float {alpha_symbol} = {color_symbol}.a;",
+            ])
+            expressions[(node_id, "color")] = color_symbol
+            expressions[(node_id, "alpha")] = alpha_symbol
+            continue
+        elif implementation_id == GENERIC_TEXTURE_SAMPLE:
+            uv = input_expression(node_id, "uv")
+            resource = canonical_node_resource_references[node_id]
+            resource_suffix = re.sub(r"[^A-Za-z0-9_]", "_", node_id)
+            shader_symbol = f"g_GraphTexture_{resource_suffix}"
+            sampler_symbol = f"g_GraphSampler_{resource_suffix}"
+            color_symbol = f"{symbol}_color"
+            alpha_symbol = f"{symbol}_alpha"
+            hlsl_lines.extend([
+                f"float4 {color_symbol} = {shader_symbol}.Sample({sampler_symbol}, {uv});",
                 f"float {alpha_symbol} = {color_symbol}.a;",
             ])
             expressions[(node_id, "color")] = color_symbol
@@ -3989,6 +4053,8 @@ def compile_document_from_data(
                           (node_id, socket.socket_id) not in writers}
         if input_defaults:
             record["inputDefaults"] = input_defaults
+        if node_id in canonical_node_resource_references:
+            record["resourceReference"] = canonical_node_resource_references[node_id]
         active_node_records.append(record)
     semantic_projection = {
         "schemaVersion": document["schemaVersion"],

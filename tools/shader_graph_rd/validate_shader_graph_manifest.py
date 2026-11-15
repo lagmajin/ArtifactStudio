@@ -1452,6 +1452,9 @@ def validate(root: Path) -> list[str]:
         dynamic_resolver_module = importlib.util.module_from_spec(dynamic_resolver_spec)
         sys.modules[dynamic_resolver_spec.name] = dynamic_resolver_module
         dynamic_resolver_spec.loader.exec_module(dynamic_resolver_module)
+        dynamic_adapter_registry_path = root / dynamic_contract.get("registryFixture", "")
+        dynamic_adapter_registry = dynamic_resolver_module.load_registry(
+            dynamic_adapter_registry_path)
 
         def project_generic_image_through_dynamic_resolver(document, catalog, source_states):
             projection = generic_image_module.project_resource_requirements(document, catalog)
@@ -1485,6 +1488,17 @@ def validate(root: Path) -> list[str]:
                 projection["resourceRequirements"], bindings)
             return projection, resolved
 
+        def compile_generic_image_through_dynamic_registry(document, catalog, states):
+            projection = generic_image_module.project_resource_requirements(document, catalog)
+            adapted_document, node_references = generic_image_module.adapt_document_to_dynamic_registry(
+                document, projection)
+            resolved_bindings = generic_image_module.build_dynamic_resolved_bindings(
+                document, projection, states)
+            return dynamic_resolver_module.compile_document_from_data(
+                adapted_document, dynamic_adapter_registry,
+                node_resource_references=node_references,
+                resolved_resource_bindings=resolved_bindings)
+
         regenerated_generic_image_candidate = generic_image_module.build_candidate(
             generic_image_document, generic_image_catalog, generic_image_source_states)
         generic_image_projection = generic_image_module.project_resource_requirements(
@@ -1494,6 +1508,27 @@ def validate(root: Path) -> list[str]:
         generic_image_dynamic_projection, generic_image_dynamic_binding = (
             project_generic_image_through_dynamic_resolver(
                 generic_image_document, generic_image_catalog, generic_image_source_states))
+        generic_image_dynamic_candidate = compile_generic_image_through_dynamic_registry(
+            generic_image_document, generic_image_catalog, generic_image_source_states)
+        generic_image_adapted_document, generic_image_node_references = (
+            generic_image_module.adapt_document_to_dynamic_registry(
+                generic_image_document, generic_image_projection))
+        generic_image_resolver_projection = {
+            key: generic_image_dynamic_candidate[key] for key in (
+                "resourceBindingStatus", "resolvedResourceBindings",
+                "unresolvedResourceKeys", "resourceBindingKeySha256")}
+        regenerated_generic_image_candidate["dynamicResolverBindingAdapter"] = {
+            "status": "generic-node-document-adapted-and-lowered-by-dynamic-prototype",
+            "dynamicDocument": generic_image_adapted_document,
+            "nodeResourceReferences": generic_image_node_references,
+            "projection": generic_image_resolver_projection,
+            "compilerCandidate": generic_image_dynamic_candidate,
+            "adapterPolicy": {
+                "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
+                "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
+                "scope": "The translated graph uses the closed dynamic registry and HLSL candidate lowering. Schema-v4 persistence, editor authoring, shader compilation, and GPU binding remain outside this adapter."
+            }
+        }
         relinked_generic_image_document = copy.deepcopy(generic_image_document)
         relinked_generic_asset_id = "22222222-2222-4222-8222-222222222222"
         relinked_generic_image_document["resources"][0]["source"]["assetId"] = relinked_generic_asset_id
@@ -1512,6 +1547,11 @@ def validate(root: Path) -> list[str]:
             {relinked_generic_asset_id: "Image",
              "33333333-3333-4333-8333-333333333333": "Image"},
             relinked_generic_source_states)
+        relinked_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
+            relinked_generic_image_document,
+            {relinked_generic_asset_id: "Image",
+             "33333333-3333-4333-8333-333333333333": "Image"},
+            relinked_generic_source_states)
         revision_changed_generic_source_states = copy.deepcopy(generic_image_source_states)
         revision_changed_generic_source_states["33333333-3333-4333-8333-333333333333"][
             "sourceRevision"] += 1
@@ -1519,6 +1559,9 @@ def validate(root: Path) -> list[str]:
             generic_image_document, generic_image_projection,
             revision_changed_generic_source_states)
         _, revision_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            generic_image_document, generic_image_catalog,
+            revision_changed_generic_source_states)
+        revision_changed_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
             generic_image_document, generic_image_catalog,
             revision_changed_generic_source_states)
         sampler_changed_generic_document = copy.deepcopy(generic_image_document)
@@ -1531,6 +1574,9 @@ def validate(root: Path) -> list[str]:
         _, sampler_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
             sampler_changed_generic_document, generic_image_catalog,
             generic_image_source_states)
+        sampler_changed_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
+            sampler_changed_generic_document, generic_image_catalog,
+            generic_image_source_states)
         color_changed_generic_document = copy.deepcopy(generic_image_document)
         color_changed_generic_document["nodes"][1]["colorInterpretation"] = "linear"
         color_changed_generic_projection = generic_image_module.project_resource_requirements(
@@ -1539,6 +1585,9 @@ def validate(root: Path) -> list[str]:
             color_changed_generic_document, color_changed_generic_projection,
             generic_image_source_states)
         _, color_changed_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            color_changed_generic_document, generic_image_catalog,
+            generic_image_source_states)
+        color_changed_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
             color_changed_generic_document, generic_image_catalog,
             generic_image_source_states)
         rewired_uv_generic_document = copy.deepcopy(generic_image_document)
@@ -1550,11 +1599,16 @@ def validate(root: Path) -> list[str]:
             project_generic_image_through_dynamic_resolver(
                 rewired_uv_generic_document, generic_image_catalog,
                 generic_image_source_states))
+        rewired_uv_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
+            rewired_uv_generic_document, generic_image_catalog,
+            generic_image_source_states)
         unresolved_generic_image_candidate = generic_image_module.project_resource_requirements(
             generic_image_document, {})
         unresolved_generic_binding_projection = generic_image_module.project_resource_bindings(
             generic_image_document, generic_image_projection, {})
         _, unresolved_generic_dynamic_binding = project_generic_image_through_dynamic_resolver(
+            generic_image_document, generic_image_catalog, {})
+        unresolved_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
             generic_image_document, generic_image_catalog, {})
         dangling_generic_resource_document = copy.deepcopy(generic_image_document)
         dangling_generic_resource_document["nodes"][1]["resourceReferences"]["image"] = "image.missing"
@@ -3204,6 +3258,17 @@ def validate(root: Path) -> list[str]:
                 "bindingIdentityFields") and
             regenerated_generic_image_candidate.get("dynamicResolverBindingAdapter", {}).get(
                 "projection") == generic_image_dynamic_binding and
+            regenerated_generic_image_candidate.get("dynamicResolverBindingAdapter", {}).get(
+                "compilerCandidate") == generic_image_dynamic_candidate and
+            generic_image_dynamic_candidate.get("status") == "candidate-lowered-no-shader-runtime" and
+            generic_image_dynamic_candidate.get("outputType") == "Vector4" and
+            len(generic_image_dynamic_candidate.get("resourceRequirements", [])) == 2 and
+            len({item.get("shaderSymbol") for item in
+                 generic_image_dynamic_candidate.get("resourceRequirements", [])}) == 2 and
+            "g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_uv_value)" in
+            generic_image_dynamic_candidate.get("hlslBody", "") and
+            "g_GraphTexture_roughness_sample.Sample(g_GraphSampler_roughness_sample, n_uv_value)" in
+            generic_image_dynamic_candidate.get("hlslBody", "") and
             generic_image_dynamic_binding.get("resourceBindingStatus") == "resolved" and
             len(generic_image_dynamic_binding.get("resolvedResourceBindings", [])) == 2 and
             len(generic_image_dynamic_binding.get("resourceBindingKeySha256", "")) == 64 and
@@ -3215,12 +3280,38 @@ def validate(root: Path) -> list[str]:
             sampler_changed_generic_dynamic_binding.get("resourceBindingKeySha256") and
             generic_image_dynamic_binding.get("resourceBindingKeySha256") !=
             color_changed_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("semanticHashSha256") ==
+            relinked_generic_dynamic_candidate.get("semanticHashSha256") ==
+            revision_changed_generic_dynamic_candidate.get("semanticHashSha256") ==
+            sampler_changed_generic_dynamic_candidate.get("semanticHashSha256") ==
+            color_changed_generic_dynamic_candidate.get("semanticHashSha256") and
+            generic_image_dynamic_candidate.get("hlslBody") ==
+            relinked_generic_dynamic_candidate.get("hlslBody") ==
+            revision_changed_generic_dynamic_candidate.get("hlslBody") ==
+            sampler_changed_generic_dynamic_candidate.get("hlslBody") ==
+            color_changed_generic_dynamic_candidate.get("hlslBody") and
+            generic_image_dynamic_candidate.get("resourceBindingKeySha256") !=
+            relinked_generic_dynamic_candidate.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("resourceBindingKeySha256") !=
+            revision_changed_generic_dynamic_candidate.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("resourceBindingKeySha256") !=
+            sampler_changed_generic_dynamic_candidate.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("resourceBindingKeySha256") !=
+            color_changed_generic_dynamic_candidate.get("resourceBindingKeySha256") and
             generic_image_dynamic_binding.get("resourceBindingKeySha256") ==
             rewired_uv_generic_dynamic_binding.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("resourceBindingKeySha256") ==
+            rewired_uv_generic_dynamic_candidate.get("resourceBindingKeySha256") and
+            generic_image_dynamic_candidate.get("semanticHashSha256") !=
+            rewired_uv_generic_dynamic_candidate.get("semanticHashSha256") and
+            generic_image_dynamic_candidate.get("hlslBody") !=
+            rewired_uv_generic_dynamic_candidate.get("hlslBody") and
             generic_image_dynamic_projection.get("resourceRequirementIdentitySha256") ==
             rewired_uv_generic_projection.get("resourceRequirementIdentitySha256") and
             unresolved_generic_dynamic_binding.get("resourceBindingStatus") == "unresolved" and
             unresolved_generic_dynamic_binding.get("resourceBindingKeySha256") is None and
+            unresolved_generic_dynamic_candidate.get("resourceBindingStatus") == "unresolved" and
+            unresolved_generic_dynamic_candidate.get("resourceBindingKeySha256") is None and
             regenerated_generic_image_candidate.get("resourceRequirements") ==
             relinked_generic_image_candidate.get("resourceRequirements") and
             regenerated_generic_image_candidate.get("resourceRequirementIdentitySha256") ==
@@ -3260,6 +3351,8 @@ def validate(root: Path) -> list[str]:
             generic_image_contract.get("prototypeSha256") and
             hashlib.sha256(dynamic_resolver_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("dynamicResolverPrototypeSha256") and
+            hashlib.sha256(dynamic_adapter_registry_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("dynamicRegistrySha256") and
             hashlib.sha256(generic_image_candidate_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("candidateSha256"))
 
@@ -3350,7 +3443,7 @@ def validate(root: Path) -> list[str]:
             "typedIRIsBackendSourceNeutralAndContentAddressed": dynamic_contract.get("typedIRContract") == typed_ir_contract_expected and all(typed_ir_hash_matches(item) for item in dynamic_candidate_results) and alternate_context_candidate["typedIR"] == regenerated_vector4_ramp_candidate["typedIR"] and alternate_context_candidate["typedIRSemanticHashSha256"] == regenerated_vector4_ramp_candidate["typedIRSemanticHashSha256"] and reordered_multi_context_candidate["typedIRSemanticHashSha256"] == multi_context_candidate["typedIRSemanticHashSha256"] and shared_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.25 and edited_graph_parameter_compile["typedIR"]["graphParameters"][0]["value"] == 0.75 and edited_graph_parameter_compile["typedIRSemanticHashSha256"] != shared_graph_parameter_compile["typedIRSemanticHashSha256"] and "(In.UV).x" not in json.dumps(regenerated_vector4_ramp_candidate["typedIR"], sort_keys=True) and "(MaterialInput.UV).x" not in json.dumps(alternate_context_candidate["typedIR"], sort_keys=True),
             "typedIRHasWellTypedCompleteEdges": all(typed_ir_edges_are_well_typed(item) for item in dynamic_candidate_results + [multi_context_candidate, regenerated_vector4_ramp_alpha_candidate, optional_b_compile, optional_b_override_compile]) and dynamic_vector4_ramp_candidate["typedIR"]["schemaId"] == "artifact.shadergraph.typed-ir" and dynamic_vector4_separate_candidate["typedIR"]["schemaVersion"] == 1,
             "vector2UvContextLowersAsTypedHostInput": dynamic_vector2_uv_candidate == regenerated_vector2_uv_candidate and dynamic_vector2_uv_document.get("output") == {"nodeId": "uv", "socketId": "value"} and regenerated_vector2_uv_candidate.get("outputType") == "Vector2" and "float2 n_uv_value = In.UV;" in regenerated_vector2_uv_candidate.get("hlslBody", "") and regenerated_vector2_uv_candidate.get("typedIR", {}).get("operations", [])[0].get("sourceContext") == {"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2"} and regenerated_vector2_uv_candidate.get("contextBindings") == [{"contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslExpression": "In.UV", "nodeIds": ["uv"]}] and hashlib.sha256(dynamic_vector2_uv_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvDocumentSha256") and hashlib.sha256(dynamic_vector2_uv_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("vector2UvCandidateSha256") and typed_ir_hash_matches(dynamic_vector2_uv_candidate) and {"implementationId": "vector2.uv0", "contextId": "artifact.material.surface.uv0", "component": "xy", "valueType": "Vector2", "hlslCandidate": "In.UV", "evidence": "ArtifactCore TexCoordNode lowers In.UV in the existing material graph path", "backendNeutral": False} in dynamic_contract.get("sourceContextBindings", []),
-            "baseColorTextureHasTypedResourceAndExplicitUv": dynamic_base_color_texture_candidate == regenerated_base_color_texture_candidate and dynamic_base_color_texture_document.get("output") == {"nodeId": "texture", "socketId": "color"} and "float4 n_texture_color = g_BaseColorTexture.Sample(g_BaseColorSampler, n_uv_value);" in regenerated_base_color_texture_candidate.get("hlslBody", "") and regenerated_base_color_texture_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.material.texture.base_color", "resourceKind": "sampledTexture2D", "slot": "BaseColor", "shaderSymbol": "g_BaseColorTexture", "samplerSymbol": "g_BaseColorSampler", "samplerContract": "legacy-shared-sampler-uncharacterized", "uvContract": "explicit-Vector2-input-no-implicit-transform", "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"}] and regenerated_base_color_texture_candidate.get("typedIR", {}).get("operations", [])[1].get("resourceDependencies") == regenerated_base_color_texture_candidate.get("resourceRequirements") and "float n_texture_alpha = n_texture_color.a;" in regenerated_base_color_texture_candidate.get("hlslBody", "") and hashlib.sha256(dynamic_base_color_texture_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureDocumentSha256") and hashlib.sha256(dynamic_base_color_texture_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureCandidateSha256") and typed_ir_hash_matches(dynamic_base_color_texture_candidate) and [operation.get("operationId") for operation in dynamic_registry_source.get("operations", []) if operation.get("implementationId", "").startswith("texture.sample.")] == dynamic_contract.get("textureSampleResourceContract", {}).get("operationIds"),
+            "baseColorTextureHasTypedResourceAndExplicitUv": dynamic_base_color_texture_candidate == regenerated_base_color_texture_candidate and dynamic_base_color_texture_document.get("output") == {"nodeId": "texture", "socketId": "color"} and "float4 n_texture_color = g_BaseColorTexture.Sample(g_BaseColorSampler, n_uv_value);" in regenerated_base_color_texture_candidate.get("hlslBody", "") and regenerated_base_color_texture_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.material.texture.base_color", "resourceKind": "sampledTexture2D", "slot": "BaseColor", "shaderSymbol": "g_BaseColorTexture", "samplerSymbol": "g_BaseColorSampler", "samplerContract": "legacy-shared-sampler-uncharacterized", "uvContract": "explicit-Vector2-input-no-implicit-transform", "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"}] and regenerated_base_color_texture_candidate.get("typedIR", {}).get("operations", [])[1].get("resourceDependencies") == regenerated_base_color_texture_candidate.get("resourceRequirements") and "float n_texture_alpha = n_texture_color.a;" in regenerated_base_color_texture_candidate.get("hlslBody", "") and hashlib.sha256(dynamic_base_color_texture_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureDocumentSha256") and hashlib.sha256(dynamic_base_color_texture_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureCandidateSha256") and typed_ir_hash_matches(dynamic_base_color_texture_candidate) and [operation.get("operationId") for operation in dynamic_registry_source.get("operations", []) if operation.get("implementationId", "").startswith("texture.sample.") and operation.get("implementationId") != "texture.sample.image2d"] == dynamic_contract.get("textureSampleResourceContract", {}).get("operationIds"),
             "textureResourceBindingIdentityIsSeparateFromShaderIdentity": regenerated_base_color_texture_candidate.get("resourceBindingStatus") == "unresolved" and regenerated_base_color_texture_candidate.get("resourceBindingKeySha256") is None and resolved_texture_candidate_a.get("resourceBindingStatus") == "resolved" and resolved_texture_candidate_a.get("unresolvedResourceKeys") == [] and all(candidate.get("resourceBindingKeySha256") != resolved_texture_candidate_a.get("resourceBindingKeySha256") and candidate.get("semanticHashSha256") == resolved_texture_candidate_a.get("semanticHashSha256") and candidate.get("typedIRSemanticHashSha256") == resolved_texture_candidate_a.get("typedIRSemanticHashSha256") and candidate.get("shaderStructureHashSha256") == resolved_texture_candidate_a.get("shaderStructureHashSha256") and candidate.get("hlslBodySha256") == resolved_texture_candidate_a.get("hlslBodySha256") for candidate in texture_binding_mutations),
             "genericImageResourceReferenceProjectsNodeScopedRequirement": generic_image_relink_contract_ok,
             "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved": unresolved_generic_image_candidate.get("assetResolutionStatus") == "unresolved" and unresolved_generic_image_candidate.get("resourceBindingKeySha256") is None and dangling_generic_resource_diagnostic == {"code": "resource.reference.missing", "severity": "error", "path": "/nodes/1/resourceReferences/image", "message": "node references a missing resourceId"} and unsupported_generic_schema_diagnostic == {"code": "schema.version.unsupported", "severity": "error", "path": "/schemaVersion", "message": "document schema identity is unsupported"} and incompatible_generic_image_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resources/image.albedo/source/assetId", "message": "sampledTexture2D requires an Image asset"} and unresolved_generic_binding_projection.get("resourceBindingStatus") == "unresolved" and unresolved_generic_binding_projection.get("resourceBindingKeySha256") is None,
@@ -3462,7 +3555,7 @@ def validate(root: Path) -> list[str]:
                 hashlib.sha256(dynamic_texture_channels_candidate_path.read_bytes()).hexdigest().upper() != dynamic_contract.get("textureChannelsCandidateSha256") or
                 regenerated_candidate.get("semanticHashSha256") != dynamic_contract.get("semanticHashSha256") or
                 hashlib.sha256(regenerated_candidate.get("hlslBody", "").encode("utf-8")).hexdigest().upper() != dynamic_contract.get("hlslSha256") or
-                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "float.uv0.x", "vector2.uv0", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels", "vector4.ramp.linear_stops", "texture.sample.base_color", "texture.sample.opacity", "texture.sample.emission", "texture.sample.metallic_roughness", "texture.sample.normal", "texture.sample.occlusion"] or
+                dynamic_contract.get("supportedImplementationIds") != ["float.constant", "float.uv0.x", "vector2.uv0", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels", "vector4.ramp.linear_stops", "texture.sample.base_color", "texture.sample.opacity", "texture.sample.emission", "texture.sample.metallic_roughness", "texture.sample.normal", "texture.sample.occlusion", "texture.sample.image2d"] or
                 dynamic_contract.get("contractChecks") != list(checks) or
                 not all(checks.values()) or
                 diagnostics != dynamic_contract.get("diagnosticGoldens") or
@@ -3471,7 +3564,7 @@ def validate(root: Path) -> list[str]:
                 regenerated_candidate.get("status") != "candidate-lowered-no-shader-runtime" or
                 "no shader compiler/backend/runtime" not in " ".join(regenerated_candidate.get("limitations", []))):
             failed_dynamic_checks = [name for name, passed in checks.items() if not passed]
-            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "float.uv0.x", "vector2.uv0", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels", "vector4.ramp.linear_stops", "texture.sample.base_color", "texture.sample.opacity", "texture.sample.emission", "texture.sample.metallic_roughness", "texture.sample.normal", "texture.sample.occlusion"]))
+            errors.append("dynamic graph prototype evidence must reproduce the data-only registry, typed validation, deterministic active lowering, and fail-closed probes without claiming runtime support; failed checks: " + ", ".join(failed_dynamic_checks) + "; parameter uniforms stable=" + str(graph_parameter_uniforms_stable) + "; parameter block layout valid=" + str(parameter_block_layout_valid) + "; manifest checks match: " + str(dynamic_contract.get("contractChecks") == list(checks)) + "; diagnostic goldens match: " + str(diagnostics == dynamic_contract.get("diagnosticGoldens")) + "; operation IDs match: " + str(dynamic_contract.get("supportedImplementationIds") == ["float.constant", "float.uv0.x", "vector2.uv0", "vector4.constant", "float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5", "vector4.invert.linear_factor", "float.clamp.sorted_bounds", "float.replicate.rgb_alpha_one", "vector4.extract_x", "vector4.mix.saturated_factor", "vector4.mixrgb.add.saturated_factor", "vector4.mixrgb.multiply.saturated_factor", "vector4.mixrgb.screen.saturated_factor", "vector4.mixrgb.overlay.saturated_factor", "vector4.mixrgb.darken.saturated_factor", "vector4.mixrgb.lighten.saturated_factor", "vector4.mixrgb.difference.saturated_factor", "vector4.separate_channels", "vector4.ramp.linear_stops", "texture.sample.base_color", "texture.sample.opacity", "texture.sample.emission", "texture.sample.metallic_roughness", "texture.sample.normal", "texture.sample.occlusion", "texture.sample.image2d"]))
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError, ImportError, TypeError, ValueError, OverflowError, struct.error, RuntimeError, KeyError) as error:
         errors.append(f"cannot validate dynamic graph prototype evidence: {error}")
     promotion_waves = operation_schema.get("operationPromotionWaves", [])

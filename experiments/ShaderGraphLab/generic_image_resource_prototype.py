@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Validate the schema-v4 generic Image Texture resource-reference proposal.
+"""Validate and adapt the schema-v4 generic Image Texture resource proposal.
 
-This isolated prototype projects active document references into typed resource
-requirements. It does not compile shaders, load images, or create GPU objects.
+This prototype projects active resources and translates the closed fixture into
+the data-driven registry compiler's document/sidecar inputs. It emits only a
+source-level HLSL candidate; it does not invoke a shader compiler, load images,
+or create GPU objects.
 """
 
 from __future__ import annotations
@@ -414,6 +416,92 @@ def project_resource_bindings(document: Any, resource_projection: Any,
             "bindingIdentityFields": ["resourceKey", "resourceId", "assetId", "assetType",
                                       "sourceRevision", "sampler", "colorInterpretation"],
             "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"}
+
+
+def adapt_document_to_dynamic_registry(document: dict[str, Any],
+                                       resource_projection: dict[str, Any]) -> tuple[dict[str, Any], dict[str, dict[str, str]]]:
+    """Translate the closed schema-v4 fixture into the registry prototype's graph envelope."""
+    operation_map = {
+        "artifact.input.texcoord.uv0.vector2": "artifact.input.texcoord.uv0.vector2",
+        "artifact.texture.sample.image2d": "artifact.texture.sample.image2d",
+        "artifact.rd.math.add.vector4.float32": "artifact.rd.math.add.vector4.float32",
+    }
+    requirements_by_node = {item["nodeId"]: item
+                            for item in resource_projection["resourceRequirements"]}
+    dynamic_nodes = []
+    node_resource_references = {}
+    for node in document["nodes"]:
+        operation_id = node["operationId"]
+        _require(operation_id in operation_map,
+                 "operation has no dynamic registry adapter",
+                 "adapter.operation.unsupported",
+                 f"/nodes/{_pointer_segment(node['nodeId'])}/operationId")
+        dynamic_operation = operation_map[operation_id]
+        dynamic_nodes.append({
+            "nodeId": node["nodeId"],
+            "operationId": dynamic_operation,
+            "semanticVersion": node["semanticVersion"],
+            "parameters": {},
+            "layout": copy.deepcopy(node["layout"]),
+        })
+        if operation_id == "artifact.texture.sample.image2d":
+            requirement = requirements_by_node.get(node["nodeId"])
+            resource_id = node["resourceReferences"]["image"]
+            resource_key = (requirement["resourceKey"] if isinstance(requirement, dict)
+                            else f"artifact.shadergraph.image.{node['nodeId']}")
+            _require(not isinstance(requirement, dict) or
+                     requirement.get("resourceId") == resource_id,
+                     "active image requirement differs from its document reference",
+                     "adapter.resource_requirement.mismatch",
+                     f"/nodes/{_pointer_segment(node['nodeId'])}/resourceReferences/image")
+            node_resource_references[node["nodeId"]] = {
+                "resourceKey": resource_key,
+                "resourceId": resource_id,
+            }
+    dynamic_document = {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": dynamic_nodes,
+        "links": copy.deepcopy(document["links"]),
+        "output": copy.deepcopy(document["output"]),
+    }
+    return dynamic_document, node_resource_references
+
+
+def build_dynamic_resolved_bindings(document: dict[str, Any],
+                                    resource_projection: dict[str, Any],
+                                    asset_source_states: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Map the generic authored image state into the dynamic resolver's host-binding shape."""
+    logical_projection = project_resource_bindings(document, resource_projection,
+                                                    asset_source_states)
+    resolved = {item["resourceKey"]: item
+                for item in logical_projection["resolvedResourceBindings"]}
+    asset_resolutions = {item["resourceKey"]: item
+                         for item in resource_projection["assetResolutions"]}
+    nodes = {item["nodeId"]: item for item in document["nodes"]}
+    result = {}
+    for requirement in resource_projection["resourceRequirements"]:
+        resource_key = requirement["resourceKey"]
+        logical = resolved.get(resource_key)
+        resolution = asset_resolutions.get(resource_key)
+        if logical is None or resolution is None:
+            continue
+        sampler_bytes = json.dumps(logical["sampler"], sort_keys=True,
+                                   separators=(",", ":"), ensure_ascii=False,
+                                   allow_nan=False).encode("utf-8")
+        node = nodes[requirement["nodeId"]]
+        result[resource_key] = {
+            "assetId": logical["assetId"],
+            "assetType": logical["assetType"],
+            "sourceRevision": logical["sourceRevision"],
+            "samplerKey": "sampler." + hashlib.sha256(sampler_bytes).hexdigest().lower(),
+            "uvSet": 0,
+            "uvTransform": {"scaleU": 1.0, "scaleV": 1.0,
+                            "rotationDegrees": 0.0, "offsetU": 0.0,
+                            "offsetV": 0.0},
+            "colorInterpretation": node["colorInterpretation"],
+        }
+    return result
 
 
 def build_candidate(document: Any, asset_catalog: dict[str, Any],

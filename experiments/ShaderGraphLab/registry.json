@@ -173,6 +173,21 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.texture.sample.image2d",
+      "semanticVersion": 1,
+      "displayName": "Image Texture",
+      "category": "Texture",
+      "implementationId": "texture.sample.image2d",
+      "inputs": [
+        {"socketId": "uv", "valueType": "Vector2", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "color", "valueType": "Vector4"},
+        {"socketId": "alpha", "valueType": "Float"}
+      ],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.float32",
       "semanticVersion": 1,
       "displayName": "Float",
