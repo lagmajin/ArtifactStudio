@@ -101,6 +101,10 @@ def _validate_summary_schema(corpus: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if schema.get("groupBy") != list(GROUP_FIELDS):
         errors.append("corpus summary groupBy does not match this reducer")
+    boundary_schema = schema.get("boundaryDisposition", {})
+    case_identity_rule = boundary_schema.get("caseIdentity", "") if isinstance(boundary_schema, dict) else ""
+    if not isinstance(case_identity_rule, str) or "must equal the referenced generated corpus case" not in case_identity_rule:
+        errors.append("corpus boundary schema does not pin measured case identity fields")
     percentile_schema = schema.get("percentiles", {})
     if not isinstance(percentile_schema, dict):
         return errors + ["corpus percentiles must be an object"]
@@ -113,7 +117,7 @@ def _validate_summary_schema(corpus: dict[str, Any]) -> list[str]:
         errors.append("corpus percentile method is not nearest-rank")
     required = schema.get("requiredSummaryFields", [])
     summary_fields = {
-        "caseId", "phase", "context", "observedSampleCount", "fieldSummaries",
+        "caseId", "case", "phase", "context", "observedSampleCount", "fieldSummaries",
         "acceptCount", "rejectCount", "destinationPreservationUnknownCount",
         "contractViolationCount", "decisionStatus",
     }
@@ -166,6 +170,15 @@ def _row_issues(record: dict[str, Any], required_fields: Iterable[str]) -> list[
 
 def _boundary_issues(record: dict[str, Any], case: dict[str, Any]) -> list[str]:
     issues: list[str] = []
+    if record.get("effectiveLimits") != case.get("caseLimits"):
+        issues.append("effectiveLimits do not match the generated corpus case")
+    for record_field, case_field in (
+        ("inputUtf8Bytes", "serializedUtf8Bytes"),
+        ("documentNodes", "documentNodes"),
+        ("documentLinks", "documentLinks"),
+    ):
+        if record.get(record_field) != case.get(case_field):
+            issues.append(f"{record_field} does not match the generated corpus case")
     observed_stage = record.get("rejectionStage")
     disposition = case.get("expectedDisposition")
     if disposition == "accept-if-semantically-valid":
@@ -258,6 +271,10 @@ def summarize(records: list[dict[str, Any]], cases: dict[str, dict[str, Any]], r
             decision = "evidence-only-no-production-limit"
         summaries.append({
             "caseId": context["caseId"],
+            "case": {
+                field: case.get(field)
+                for field in ("limitField", "boundary", "limitValue", "measuredDimensionValue", "payloadSha256", "expectedDisposition")
+            },
             "phase": context["phase"],
             "context": {"runId": context["runId"], **{field: context[field] for field in REQUIRED_CONTEXT_FIELDS}},
             "observedSampleCount": observed_count,

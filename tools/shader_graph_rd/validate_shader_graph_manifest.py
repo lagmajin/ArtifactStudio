@@ -388,6 +388,9 @@ def validate(root: Path) -> list[str]:
             raise RuntimeError("cannot load document limit measurement summarizer")
         summary_module = importlib.util.module_from_spec(summary_spec)
         summary_spec.loader.exec_module(summary_module)
+        summary_schema_errors = summary_module._validate_summary_schema(sample_corpus)
+        if summary_schema_errors:
+            errors.extend("measurement summary reducer schema: " + item for item in summary_schema_errors)
         summary_schema = measurement_protocol.get("measurementSummarySchema", {})
         expected_group_fields = summary_schema.get("groupBy", [])
         expected_metric_fields = summary_schema.get("percentiles", {}).get("fields", [])

@@ -267,13 +267,14 @@ def _measurement_summary_schema() -> dict[str, Any]:
             "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero",
         },
         "boundaryDisposition": {
+            "caseIdentity": "measured effectiveLimits, inputUtf8Bytes, documentNodes, and documentLinks must equal the referenced generated corpus case",
             "limit-minus-one": "must be accepted",
             "exact-limit": "must be accepted",
             "limit-plus-one": "must be rejected at or before the stage required by the selected limit contract",
             "rejectedMutation": "every rejected mutating sample must have destinationUnchanged=true",
             "productionSelection": "no numeric production limit may be selected until reviewed resource thresholds and safety margins are supplied; this summary reports evidence and contract violations but does not choose limits",
         },
-        "requiredSummaryFields": ["caseId", "phase", "context", "observedSampleCount", "fieldSummaries", "acceptCount", "rejectCount", "destinationPreservationUnknownCount", "contractViolationCount", "decisionStatus"],
+        "requiredSummaryFields": ["caseId", "case", "phase", "context", "observedSampleCount", "fieldSummaries", "acceptCount", "rejectCount", "destinationPreservationUnknownCount", "contractViolationCount", "decisionStatus"],
         "decisionStatusValues": ["insufficient-samples", "incomplete-instrumentation", "contract-violation", "evidence-only-no-production-limit"],
         "decisionRules": "contract violation takes precedence; otherwise fewer than minimumTimedSamples is insufficient; otherwise all metric fields unavailable or any rejected sample with unknown destination preservation is incomplete-instrumentation; otherwise report evidence-only-no-production-limit",
     }
