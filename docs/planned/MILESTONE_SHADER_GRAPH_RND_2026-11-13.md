@@ -655,3 +655,8 @@ This deliberately does not expose Vector3 graph parameters: their HLSL constant-
 ### Vector3 optional socket default edit contract (2026-11-15)
 
 Added a schema-v3 fixture with a nonzero three-lane default on the optional `vector3.add` input. Its validator source contract edits the default, checks binary32 typed-IR values and emitted `float3(...)`, submits a three-lane Graph Lab `socketDefault` action, then checks exact undo/redo document restoration. This closes the source-contract gap between the existing generic array editor and Vector3 defaults; it does not add Vector3 graph-parameter packing or runtime evidence. Candidate generation refreshed the fixture and manifest digests. The validator remains unrun; no browser, shader compiler, renderer, or GPU path was exercised.
+
+
+### Dynamic graph validator check-list consistency (2026-11-15)
+
+A static comparison found eleven legacy diagnostic names present in `contractChecks` and `diagnosticGoldens` but absent from the validator's ordered `checks` map. Added one explicit boolean comparison per diagnostic golden so the source contract list now accounts for the existing schema/kind/required-array/version/writer/cycle/required-input/identifier/finite-value/code-payload/type-mismatch probes. The new Vector3 default check is also included. An AST-based static consistency audit confirmed all 140 ordered names match the manifest, and pinned Vector3 document/candidate digests match. This audit did not execute the manifest validator or those probes; behavior remains unverified until the authorized validator run.

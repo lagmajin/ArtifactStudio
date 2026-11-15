@@ -14827,3 +14827,11 @@
 - **価値または懸念:** Vector3 values could appear editable while persistence/history remained unproven for this arity. Pinning the full three-lane path reduces the chance that UI and serialized document silently diverge before considering Core promotion.
 - **次に確認すべきこと:** Run the manifest validator when authorized, then exercise the local Graph Lab and verify a shader compiler/runtime result before promoting any Vector3 API into ArtifactCore.
 - **未検証:** The new source contract has not been executed; browser interaction, actual undo behavior, HLSL compilation, renderer output, and Core suitability remain unverified.
+
+
+## 2026-11-15: Dynamic graph validator had orphaned diagnostic goldens
+- **関連:** `tools/shader_graph_rd/validate_shader_graph_manifest.py::checks/diagnostic_probes`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json::dynamicGraphPrototype.contractChecks`。
+- **確認できた事実:** Static AST comparison showed 11 diagnostic case IDs in the manifest's ordered `contractChecks` and `diagnosticGoldens` but absent from the validator's `checks` dictionary, making the final exact-list comparison fail. The validator now maps each named probe result to its pinned diagnostic golden as an explicit boolean check. A static order audit confirms all 140 check names match; the Vector3 fixture and candidate SHA-256 values also match the manifest.
+- **価値または懸念:** The manifest describes evidence only when the validator actually asserts it. Orphaned case names can otherwise make an apparently complete matrix fail closed or leave the validator permanently inconsistent.
+- **次に確認すべきこと:** Run the manifest validator when authorized and inspect every diagnostic result; then reconcile any runtime/source mismatches rather than weakening the manifest list.
+- **未検証:** No validator execution or probe behavior was run; the AST check proves only source/manifest name order and digest consistency.
