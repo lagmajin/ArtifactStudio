@@ -678,3 +678,6 @@ The documented protocol required parse, structural validation, canonicalization,
 
 
 **Case identity correction (2026-11-15):** measurement schema v2 requires `caseId`; generated boundary records now emit stable `<limitField>.<boundary>` IDs and reject missing, duplicate, or mismatched IDs in the generator consistency pass. The manifest pins the ID format and the validator's generated-corpus sample checks 12 unique IDs. This closes record-to-input provenance; no runtime measurement rows exist yet.
+
+
+The full `measurementRecordSemantics` object is now duplicated in the manifest contract and compared against generated corpus output by the manifest validator, in addition to required-field and stage-duration checks. This prevents meaning drift in sample indexing, null/unavailable metrics, allocation scope, rejection stages, destination guarantees, and warmup handling. The validator is still unrun.

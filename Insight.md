@@ -14867,3 +14867,11 @@
 - **価値または懸念:** Without stable case identity, measurements cannot be joined unambiguously to the exact boundary input and effective limits that produced them.
 - **次に確認すべきこと:** Regenerate the corpus and confirm record references resolve exactly once; include the case ID and payload hash in any future raw measurement export.
 - **未検証:** No runtime measurement record has been produced and no Core performance evidence exists.
+
+
+## 2026-11-15: Measurement schema semantics need end-to-end equality checks
+- **関連:** `generate_document_limit_corpus.py::measurementRecordSemantics`、manifest `measurementRecordSchema.recordSemantics`、validator generator sample。
+- **確認できた事実:** The manifest previously checked field names, phase values, and stage duration names but did not mirror all generator semantics. It now pins the complete semantics object and the validator source compares the generated object for exact equality, including null-stage meaning, allocator scope, rejection-stage vocabulary, destination preservation, sample indexing, and warmup.
+- **価値または懸念:** Identical field names can still encode incompatible null, timing, or rejection meanings; equality across generator, manifest, and validator keeps future measurements interpretable.
+- **次に確認すべきこと:** Run the manifest validator when authorized and ensure its dynamic sample catches any change to either side of this schema contract.
+- **未検証:** Only source and generated-corpus comparisons are prepared; the manifest validator has not been executed and no measured records exist.
