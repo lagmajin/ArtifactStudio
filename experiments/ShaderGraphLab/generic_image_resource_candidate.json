@@ -214,6 +214,19 @@
           "layout": {
             "x": 280,
             "y": 80
+          },
+          "resourceReference": {
+            "resourceKey": "artifact.shadergraph.image.image_sample",
+            "resourceId": "image.albedo",
+            "sampler": {
+              "minFilter": "linear",
+              "magFilter": "linear",
+              "mipFilter": "linear",
+              "addressU": "repeat",
+              "addressV": "repeat",
+              "maxAnisotropy": 1
+            },
+            "colorInterpretation": "srgb"
           }
         },
         {
@@ -224,6 +237,19 @@
           "layout": {
             "x": 280,
             "y": 240
+          },
+          "resourceReference": {
+            "resourceKey": "artifact.shadergraph.image.roughness_sample",
+            "resourceId": "image.roughness",
+            "sampler": {
+              "minFilter": "linear",
+              "magFilter": "linear",
+              "mipFilter": "linear",
+              "addressU": "repeat",
+              "addressV": "repeat",
+              "maxAnisotropy": 1
+            },
+            "colorInterpretation": "linear"
           }
         },
         {
@@ -282,16 +308,6 @@
       "output": {
         "nodeId": "combine",
         "socketId": "result"
-      }
-    },
-    "nodeResourceReferences": {
-      "image_sample": {
-        "resourceKey": "artifact.shadergraph.image.image_sample",
-        "resourceId": "image.albedo"
-      },
-      "roughness_sample": {
-        "resourceKey": "artifact.shadergraph.image.roughness_sample",
-        "resourceId": "image.roughness"
       }
     },
     "projection": {
@@ -586,7 +602,7 @@
     "adapterPolicy": {
       "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
       "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-      "scope": "The translated graph uses the closed dynamic registry and HLSL candidate lowering. Schema-v4 persistence, editor authoring, shader compilation, and GPU binding remain outside this adapter."
+      "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
     }
   }
 }

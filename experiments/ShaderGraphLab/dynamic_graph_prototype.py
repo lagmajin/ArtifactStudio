@@ -1091,7 +1091,7 @@ def instantiate_node(operation: Operation, node_id: str, *, x: float = 0.0, y: f
         raise ContractError("nodeId is invalid", code="node.id.invalid", path="/nodeId")
     parameters = {item.parameter_id: copy.deepcopy(item.default)
                   for item in operation.parameters if item.default is not None}
-    return {
+    node = {
         "nodeId": node_id,
         "operationId": operation.operation_id,
         "semanticVersion": operation.semantic_version,
@@ -1101,6 +1101,49 @@ def instantiate_node(operation: Operation, node_id: str, *, x: float = 0.0, y: f
             "y": _f32(y, "layout.y", path="/layout/y", code="node.layout.coordinate.invalid"),
         },
     }
+    if operation.implementation_id == GENERIC_TEXTURE_SAMPLE:
+        node["resourceReference"] = None
+    return node
+
+
+def _canonical_image_resource_reference(raw: Any, node_id: str, node_index: int) -> dict[str, Any]:
+    path = f"/nodes/{node_index}/resourceReference"
+    if (not isinstance(raw, dict) or
+            set(raw) != {"resourceKey", "resourceId", "sampler", "colorInterpretation"}):
+        raise ContractError("Image Texture resourceReference must contain resourceKey, resourceId, sampler, and colorInterpretation",
+                            code="resource.reference.invalid", path=path)
+    resource_key, resource_id = raw.get("resourceKey"), raw.get("resourceId")
+    if (not isinstance(resource_key, str) or not IDENTIFIER.fullmatch(resource_key) or
+            not isinstance(resource_id, str) or not IDENTIFIER.fullmatch(resource_id)):
+        raise ContractError("resourceKey and resourceId must be valid identifiers",
+                            code="resource.reference.invalid", path=path)
+    sampler = raw.get("sampler")
+    sampler_fields = {"minFilter", "magFilter", "mipFilter", "addressU", "addressV", "maxAnisotropy"}
+    if not isinstance(sampler, dict) or set(sampler) != sampler_fields:
+        raise ContractError("sampler descriptor has an invalid shape",
+                            code="resource.sampler.invalid", path=f"{path}/sampler")
+    enums = {
+        "minFilter": {"nearest", "linear"}, "magFilter": {"nearest", "linear"},
+        "mipFilter": {"none", "nearest", "linear"},
+        "addressU": {"repeat", "clamp", "mirror"},
+        "addressV": {"repeat", "clamp", "mirror"},
+    }
+    for field, accepted in enums.items():
+        if not isinstance(sampler.get(field), str) or sampler[field] not in accepted:
+            raise ContractError(f"sampler {field} is unsupported",
+                                code="resource.sampler.invalid", path=f"{path}/sampler/{field}")
+    anisotropy = sampler.get("maxAnisotropy")
+    if isinstance(anisotropy, bool) or not isinstance(anisotropy, int) or not 1 <= anisotropy <= 16:
+        raise ContractError("sampler maxAnisotropy must be an integer from 1 through 16",
+                            code="resource.sampler.invalid", path=f"{path}/sampler/maxAnisotropy")
+    color = raw.get("colorInterpretation")
+    if not isinstance(color, str) or color not in {"linear", "srgb"}:
+        raise ContractError("colorInterpretation is unsupported",
+                            code="resource.color_interpretation.invalid",
+                            path=f"{path}/colorInterpretation")
+    return {"resourceKey": resource_key, "resourceId": resource_id,
+            "sampler": {field: sampler[field] for field in sorted(sampler_fields)},
+            "colorInterpretation": color}
 
 
 def _canonical_socket_default_value(value: Any, definition: Socket, node_id: str,
@@ -1262,6 +1305,8 @@ def replace_node_operation(document: Any, registry: dict[tuple[str, int], Operat
     target_key = f"{target.operation_id}@{target.semantic_version}"
     node["operationId"] = target.operation_id
     node["semanticVersion"] = target.semantic_version
+    if target.implementation_id != GENERIC_TEXTURE_SAMPLE:
+        node.pop("resourceReference", None)
     if "registryContractLock" in edited:
         lock = edited["registryContractLock"]
         still_referenced = any(isinstance(item, dict) and
@@ -1751,6 +1796,8 @@ def duplicate_nodes_batch(document: Any, registry: dict[tuple[str, int], Operati
                                 code="node.layout.invalid", path=f"/nodes/{source_index}/layout")
         clone = json.loads(canonical_json_text(source))
         clone["nodeId"] = clone_id
+        if isinstance(clone.get("resourceReference"), dict):
+            clone["resourceReference"]["resourceKey"] = f"artifact.shadergraph.image.{clone_id}"
         clone["parameters"] = canonical_parameters
         clone["layout"] = {
             "x": _f32(_f32(layout.get("x"), "source layout x", path=f"/nodes/{source_index}/layout/x", code="node.layout.coordinate.invalid") + x_offset,
@@ -2014,6 +2061,9 @@ def paste_nodes_subgraph(document: Any, registry: dict[tuple[str, int], Operatio
             raise ContractError("clipboard node layout must be an object",
                                 code="node.layout.invalid", path=f"/nodes/{index}/layout")
         clone["nodeId"] = new_node_ids[source["nodeId"]]
+        if isinstance(clone.get("resourceReference"), dict):
+            clone["resourceReference"]["resourceKey"] = (
+                f"artifact.shadergraph.image.{clone['nodeId']}")
         source_x = _f32(layout.get("x"), "clipboard layout x", path=f"/nodes/{index}/layout/x", code="node.layout.coordinate.invalid")
         source_y = _f32(layout.get("y"), "clipboard layout y", path=f"/nodes/{index}/layout/y", code="node.layout.coordinate.invalid")
         if clipboard_version in (2, 3) and (source_x < 0 or source_y < 0 or source_x > bound_width or source_y > bound_height):
@@ -3171,10 +3221,15 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
         allowed_node = {"nodeId", "operationId", "semanticVersion", "parameters", "layout"}
         if preserved.get("schemaVersion") == 3:
             allowed_node.add("socketDefaults")
+        if node.get("operationId") == "artifact.texture.sample.image2d":
+            allowed_node.add("resourceReference")
         for key in sorted(set(node) - allowed_node):
             report("node.field.unknown", f"{path}/{_pointer_segment(str(key))}", f"unknown node field {key}; retained for repair", severity="warning")
             repairable = True
-        for key in sorted(allowed_node - set(node)):
+        required_node_fields = set(allowed_node)
+        if node.get("operationId") == "artifact.texture.sample.image2d":
+            required_node_fields.discard("resourceReference")
+        for key in sorted(required_node_fields - set(node)):
             report("node.field.required", f"{path}/{key}", f"required node field {key} is missing")
         node_id, operation_id, version = node.get("nodeId"), node.get("operationId"), node.get("semanticVersion")
         if not isinstance(node_id, str) or not IDENTIFIER.fullmatch(node_id):
@@ -3197,6 +3252,17 @@ def validate_document_for_editing(document: Any, registry: dict[tuple[str, int],
             continue
         if preserved.get("schemaVersion") == 3 and "socketDefaults" not in node:
             report("node.field.required", f"{path}/socketDefaults", "schema version 3 requires socketDefaults")
+        if operation.implementation_id == GENERIC_TEXTURE_SAMPLE:
+            if node.get("resourceReference") is None:
+                report("resource.reference.required", f"{path}/resourceReference",
+                       "Image Texture resource must be selected before compilation",
+                       severity="warning")
+                repairable = True
+            else:
+                try:
+                    _canonical_image_resource_reference(node.get("resourceReference"), node_id, index)
+                except ContractError as error:
+                    diagnostics.append(error.to_json())
         symbol = "n_" + re.sub(r"[^A-Za-z0-9_]", "_", node_id)
         if symbol in sanitized:
             report("node.identifier.backend_collision", f"{path}/nodeId", f"node ID collides with {sanitized[symbol]!r} after backend sanitization")
@@ -3526,7 +3592,6 @@ def compile_document_from_data(
     *,
     hlsl_context_bindings: dict[tuple[str, str], str] | None = None,
     resolved_resource_bindings: dict[str, dict[str, Any]] | None = None,
-    node_resource_references: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     if hlsl_context_bindings is None:
         context_binding_expressions = HLSL_SOURCE_CONTEXT_BINDINGS
@@ -3579,6 +3644,8 @@ def compile_document_from_data(
         node_fields = {"nodeId", "operationId", "semanticVersion", "parameters", "layout"}
         if document["schemaVersion"] == 3:
             node_fields.add("socketDefaults")
+        if raw.get("operationId") == "artifact.texture.sample.image2d":
+            node_fields.add("resourceReference")
         if set(raw) != node_fields:
             unknown = sorted(set(raw) - node_fields)
             path = f"/nodes/{index}/{_pointer_segment(str(unknown[0]))}" if unknown else f"/nodes/{index}"
@@ -3619,35 +3686,23 @@ def compile_document_from_data(
         node_id for node_id, data in nodes.items()
         if data["operation"].implementation_id == GENERIC_TEXTURE_SAMPLE
     }
-    if node_resource_references is None:
-        node_resource_references = {}
-    if not isinstance(node_resource_references, dict):
-        raise ContractError("node resource references must be an object keyed by nodeId",
-                            code="resource.reference.invalid", path="/nodeResourceReferences")
-    if set(node_resource_references) != generic_image_node_ids:
-        raise ContractError("generic Image Texture nodes require exactly one resource reference each",
-                            code="resource.reference.coverage.invalid",
-                            path="/nodeResourceReferences")
-    canonical_node_resource_references: dict[str, dict[str, str]] = {}
+    canonical_node_resource_references: dict[str, dict[str, Any]] = {}
     seen_resource_keys: set[str] = set()
     for node_id in sorted(generic_image_node_ids):
-        reference = node_resource_references[node_id]
-        if (not isinstance(reference, dict) or set(reference) != {"resourceKey", "resourceId"} or
-                not all(isinstance(reference.get(key), str) and
-                        IDENTIFIER.fullmatch(reference[key])
-                        for key in ("resourceKey", "resourceId"))):
-            raise ContractError("resource reference requires valid resourceKey and resourceId",
-                                code="resource.reference.invalid",
-                                path=f"/nodeResourceReferences/{_pointer_segment(node_id)}")
+        node_index = node_indices[node_id]
+        reference = _canonical_image_resource_reference(
+            nodes[node_id]["raw"].get("resourceReference"), node_id, node_index)
+        expected_resource_key = f"artifact.shadergraph.image.{node_id}"
+        if reference["resourceKey"] != expected_resource_key:
+            raise ContractError("resourceKey must be node-scoped from nodeId",
+                                code="resource.reference.key.invalid",
+                                path=f"/nodes/{node_index}/resourceReference/resourceKey")
         if reference["resourceKey"] in seen_resource_keys:
             raise ContractError("resourceKey is duplicated",
                                 code="resource.reference.key.duplicate",
-                                path=f"/nodeResourceReferences/{_pointer_segment(node_id)}/resourceKey")
+                                path=f"/nodes/{node_index}/resourceReference/resourceKey")
         seen_resource_keys.add(reference["resourceKey"])
-        canonical_node_resource_references[node_id] = {
-            "resourceKey": reference["resourceKey"],
-            "resourceId": reference["resourceId"],
-        }
+        canonical_node_resource_references[node_id] = reference
 
     graph_parameters = _apply_graph_parameters(document, nodes, node_indices)
 
@@ -4054,7 +4109,11 @@ def compile_document_from_data(
         if input_defaults:
             record["inputDefaults"] = input_defaults
         if node_id in canonical_node_resource_references:
-            record["resourceReference"] = canonical_node_resource_references[node_id]
+            reference = canonical_node_resource_references[node_id]
+            record["resourceReference"] = {
+                "resourceKey": reference["resourceKey"],
+                "resourceId": reference["resourceId"],
+            }
         active_node_records.append(record)
     semantic_projection = {
         "schemaVersion": document["schemaVersion"],
@@ -4099,6 +4158,24 @@ def compile_document_from_data(
             resource_requirements_by_key[dependency["resourceKey"]] = dependency
     resource_requirements = [resource_requirements_by_key[key]
                              for key in sorted(resource_requirements_by_key)]
+    if isinstance(resolved_resource_bindings, dict):
+        references_by_key = {
+            reference["resourceKey"]: reference
+            for reference in canonical_node_resource_references.values()
+        }
+        for resource_key, reference in references_by_key.items():
+            binding = resolved_resource_bindings.get(resource_key)
+            if not isinstance(binding, dict):
+                continue
+            sampler_bytes = json.dumps(reference["sampler"], sort_keys=True,
+                                       separators=(",", ":"), ensure_ascii=False,
+                                       allow_nan=False).encode("utf-8")
+            expected_sampler_key = "sampler." + hashlib.sha256(sampler_bytes).hexdigest().lower()
+            if (binding.get("samplerKey") != expected_sampler_key or
+                    binding.get("colorInterpretation") != reference["colorInterpretation"]):
+                raise ContractError("resolved sampler/color state differs from the node resourceReference",
+                                    code="resource.binding.authored_state.mismatch",
+                                    path=f"/resourceBindings/{_pointer_segment(resource_key)}")
     resource_binding_projection = _project_resolved_resource_bindings(
         resource_requirements, resolved_resource_bindings)
     typed_ir_canonical = json.dumps(

@@ -1490,13 +1490,12 @@ def validate(root: Path) -> list[str]:
 
         def compile_generic_image_through_dynamic_registry(document, catalog, states):
             projection = generic_image_module.project_resource_requirements(document, catalog)
-            adapted_document, node_references = generic_image_module.adapt_document_to_dynamic_registry(
+            adapted_document = generic_image_module.adapt_document_to_dynamic_registry(
                 document, projection)
             resolved_bindings = generic_image_module.build_dynamic_resolved_bindings(
                 document, projection, states)
             return dynamic_resolver_module.compile_document_from_data(
                 adapted_document, dynamic_adapter_registry,
-                node_resource_references=node_references,
                 resolved_resource_bindings=resolved_bindings)
 
         regenerated_generic_image_candidate = generic_image_module.build_candidate(
@@ -1510,9 +1509,8 @@ def validate(root: Path) -> list[str]:
                 generic_image_document, generic_image_catalog, generic_image_source_states))
         generic_image_dynamic_candidate = compile_generic_image_through_dynamic_registry(
             generic_image_document, generic_image_catalog, generic_image_source_states)
-        generic_image_adapted_document, generic_image_node_references = (
-            generic_image_module.adapt_document_to_dynamic_registry(
-                generic_image_document, generic_image_projection))
+        generic_image_adapted_document = generic_image_module.adapt_document_to_dynamic_registry(
+            generic_image_document, generic_image_projection)
         generic_image_resolver_projection = {
             key: generic_image_dynamic_candidate[key] for key in (
                 "resourceBindingStatus", "resolvedResourceBindings",
@@ -1520,13 +1518,12 @@ def validate(root: Path) -> list[str]:
         regenerated_generic_image_candidate["dynamicResolverBindingAdapter"] = {
             "status": "generic-node-document-adapted-and-lowered-by-dynamic-prototype",
             "dynamicDocument": generic_image_adapted_document,
-            "nodeResourceReferences": generic_image_node_references,
             "projection": generic_image_resolver_projection,
             "compilerCandidate": generic_image_dynamic_candidate,
             "adapterPolicy": {
                 "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
                 "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-                "scope": "The translated graph uses the closed dynamic registry and HLSL candidate lowering. Schema-v4 persistence, editor authoring, shader compilation, and GPU binding remain outside this adapter."
+                "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
             }
         }
         relinked_generic_image_document = copy.deepcopy(generic_image_document)
@@ -1680,6 +1677,104 @@ def validate(root: Path) -> list[str]:
         else:
             sys.modules["dynamic_graph_prototype"] = prior_dynamic_alias
         dynamic_registry = dynamic_module.load_registry(dynamic_registry_path)
+        image_sample_operation = dynamic_registry[("artifact.texture.sample.image2d", 1)]
+        incomplete_image_node = dynamic_module.instantiate_node(
+            image_sample_operation, "incomplete_image")
+        incomplete_image_document = {
+            "schemaVersion": 1,
+            "kind": "artifact-shader-graph-rd-document",
+            "nodes": [incomplete_image_node], "links": [],
+            "output": {"nodeId": "incomplete_image", "socketId": "color"},
+        }
+        incomplete_image_validation = dynamic_module.validate_document_for_editing(
+            incomplete_image_document, dynamic_registry)
+        incomplete_image_compile_error = None
+        try:
+            dynamic_module.compile_document_from_data(
+                incomplete_image_document, dynamic_registry)
+        except dynamic_module.ContractError as error:
+            incomplete_image_compile_error = error.to_json()
+        generic_image_dynamic_document = generic_image_module.adapt_document_to_dynamic_registry(
+            generic_image_document, generic_image_projection)
+        generic_image_dynamic_bindings = generic_image_module.build_dynamic_resolved_bindings(
+            generic_image_document, generic_image_projection, generic_image_source_states)
+        mismatched_image_bindings = copy.deepcopy(generic_image_dynamic_bindings)
+        mismatched_image_bindings["artifact.shadergraph.image.image_sample"][
+            "samplerKey"] = "sampler.stale"
+        mismatched_image_binding_error = None
+        try:
+            dynamic_module.compile_document_from_data(
+                generic_image_dynamic_document, dynamic_registry,
+                resolved_resource_bindings=mismatched_image_bindings)
+        except dynamic_module.ContractError as error:
+            mismatched_image_binding_error = error.to_json()
+        generic_image_reference = next(
+            node["resourceReference"] for node in generic_image_dynamic_document["nodes"]
+            if node["nodeId"] == "image_sample")
+        generic_image_roundtrip = dynamic_module.parse_json_text(
+            dynamic_module.serialize_document(generic_image_dynamic_document))
+        generic_image_roundtrip_reference = next(
+            node["resourceReference"] for node in generic_image_roundtrip["nodes"]
+            if node["nodeId"] == "image_sample")
+        generic_image_layout_edited = dynamic_module.edit_node_layout(
+            generic_image_dynamic_document, "image_sample", {"x": 300.0})
+        generic_image_command_document = copy.deepcopy(generic_image_dynamic_document)
+        generic_image_command_document["nodes"][1]["resourceReference"]["resourceId"] = "image.relinked"
+        generic_image_document_command = dynamic_module.create_document_command(
+            "Relink graph image", generic_image_dynamic_document,
+            generic_image_command_document)
+        generic_image_undo_document = dynamic_module.apply_document_command(
+            generic_image_document_command, generic_image_command_document, direction="undo")
+        generic_image_redo_document = dynamic_module.apply_document_command(
+            generic_image_document_command, generic_image_undo_document, direction="redo")
+        generic_image_clipboard = dynamic_module.copy_nodes_subgraph(
+            generic_image_dynamic_document, ["uv", "image_sample"], dynamic_registry)
+        generic_image_pasted_document = dynamic_module.paste_nodes_subgraph(
+            generic_image_dynamic_document, dynamic_registry, generic_image_clipboard,
+            {"uv": "uv_pasted", "image_sample": "image_pasted"})
+        generic_image_duplicated_document = dynamic_module.duplicate_nodes_batch(
+            generic_image_dynamic_document, dynamic_registry,
+            [{"sourceNodeId": "uv", "nodeId": "uv_duplicate"},
+             {"sourceNodeId": "image_sample", "nodeId": "image_duplicate"}])
+        def generic_reference_for(graph, node_id):
+            return next(node["resourceReference"] for node in graph["nodes"]
+                        if node.get("nodeId") == node_id)
+        generic_image_persistence_contract = {
+            "resolvedBindingCannotOverridePersistedSamplerOrColor": (
+                mismatched_image_binding_error is not None and
+                mismatched_image_binding_error["code"] ==
+                "resource.binding.authored_state.mismatch"),
+            "unconfiguredImageCanBeEditedButCannotCompile": (
+                incomplete_image_validation["status"] == "repairable" and
+                any(item["code"] == "resource.reference.required" and
+                    item["severity"] == "warning" and
+                    item["path"] == "/nodes/0/resourceReference"
+                    for item in incomplete_image_validation["diagnostics"]) and
+                incomplete_image_compile_error is not None and
+                incomplete_image_compile_error["code"] == "resource.reference.invalid"),
+            "jsonRoundtripPreservesResourceReference":
+                generic_image_roundtrip_reference == generic_image_reference,
+            "nodeEditPreservesResourceReference":
+                generic_reference_for(generic_image_layout_edited, "image_sample") ==
+                generic_image_reference,
+            "undoRedoPreservesResourceReference":
+                generic_reference_for(generic_image_undo_document, "image_sample") == generic_image_reference and
+                generic_reference_for(generic_image_redo_document, "image_sample")["resourceId"] == "image.relinked",
+            "clipboardPastePreservesResourceIdAndRemapsNodeScopedKey": (
+                generic_reference_for(generic_image_pasted_document, "image_pasted")["resourceId"] ==
+                generic_image_reference["resourceId"] and
+                generic_reference_for(generic_image_pasted_document, "image_pasted")["resourceKey"] ==
+                "artifact.shadergraph.image.image_pasted"),
+            "duplicatePreservesResourceIdAndRemapsNodeScopedKey": (
+                generic_reference_for(generic_image_duplicated_document, "image_duplicate")["resourceId"] ==
+                generic_image_reference["resourceId"] and
+                generic_reference_for(generic_image_duplicated_document, "image_duplicate")["resourceKey"] ==
+                "artifact.shadergraph.image.image_duplicate"),
+            "roundtripClipboardAndDuplicateRemainCompilerValid": all(
+                dynamic_module.compile_document_from_data(graph, dynamic_registry)["compilationAvailable"]
+                for graph in (generic_image_roundtrip, generic_image_pasted_document,
+                              generic_image_duplicated_document)),
+        }
         candidate_generator_source = (root / "tools/shader_graph_rd/generate_dynamic_graph_candidate.py").read_text(encoding="utf-8")
         constant_operation = dynamic_registry[("artifact.rd.constant.float32", 1)]
         created_constant_node = dynamic_module.instantiate_node(constant_operation, "created_constant", x=12.0, y=34.0)
@@ -3354,7 +3449,8 @@ def validate(root: Path) -> list[str]:
             hashlib.sha256(dynamic_adapter_registry_path.read_bytes()).hexdigest().upper() ==
             generic_image_contract.get("dynamicRegistrySha256") and
             hashlib.sha256(generic_image_candidate_path.read_bytes()).hexdigest().upper() ==
-            generic_image_contract.get("candidateSha256"))
+            generic_image_contract.get("candidateSha256") and
+            all(generic_image_persistence_contract.values()))
 
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
@@ -3446,6 +3542,8 @@ def validate(root: Path) -> list[str]:
             "baseColorTextureHasTypedResourceAndExplicitUv": dynamic_base_color_texture_candidate == regenerated_base_color_texture_candidate and dynamic_base_color_texture_document.get("output") == {"nodeId": "texture", "socketId": "color"} and "float4 n_texture_color = g_BaseColorTexture.Sample(g_BaseColorSampler, n_uv_value);" in regenerated_base_color_texture_candidate.get("hlslBody", "") and regenerated_base_color_texture_candidate.get("resourceRequirements") == [{"resourceKey": "artifact.material.texture.base_color", "resourceKind": "sampledTexture2D", "slot": "BaseColor", "shaderSymbol": "g_BaseColorTexture", "samplerSymbol": "g_BaseColorSampler", "samplerContract": "legacy-shared-sampler-uncharacterized", "uvContract": "explicit-Vector2-input-no-implicit-transform", "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"}] and regenerated_base_color_texture_candidate.get("typedIR", {}).get("operations", [])[1].get("resourceDependencies") == regenerated_base_color_texture_candidate.get("resourceRequirements") and "float n_texture_alpha = n_texture_color.a;" in regenerated_base_color_texture_candidate.get("hlslBody", "") and hashlib.sha256(dynamic_base_color_texture_document_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureDocumentSha256") and hashlib.sha256(dynamic_base_color_texture_candidate_path.read_bytes()).hexdigest().upper() == dynamic_contract.get("baseColorTextureCandidateSha256") and typed_ir_hash_matches(dynamic_base_color_texture_candidate) and [operation.get("operationId") for operation in dynamic_registry_source.get("operations", []) if operation.get("implementationId", "").startswith("texture.sample.") and operation.get("implementationId") != "texture.sample.image2d"] == dynamic_contract.get("textureSampleResourceContract", {}).get("operationIds"),
             "textureResourceBindingIdentityIsSeparateFromShaderIdentity": regenerated_base_color_texture_candidate.get("resourceBindingStatus") == "unresolved" and regenerated_base_color_texture_candidate.get("resourceBindingKeySha256") is None and resolved_texture_candidate_a.get("resourceBindingStatus") == "resolved" and resolved_texture_candidate_a.get("unresolvedResourceKeys") == [] and all(candidate.get("resourceBindingKeySha256") != resolved_texture_candidate_a.get("resourceBindingKeySha256") and candidate.get("semanticHashSha256") == resolved_texture_candidate_a.get("semanticHashSha256") and candidate.get("typedIRSemanticHashSha256") == resolved_texture_candidate_a.get("typedIRSemanticHashSha256") and candidate.get("shaderStructureHashSha256") == resolved_texture_candidate_a.get("shaderStructureHashSha256") and candidate.get("hlslBodySha256") == resolved_texture_candidate_a.get("hlslBodySha256") for candidate in texture_binding_mutations),
             "genericImageResourceReferenceProjectsNodeScopedRequirement": generic_image_relink_contract_ok,
+            "genericImageResourceReferencePersistsThroughRoundtripUndoClipboardAndDuplicate":
+                generic_image_relink_contract_ok and all(generic_image_persistence_contract.values()),
             "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved": unresolved_generic_image_candidate.get("assetResolutionStatus") == "unresolved" and unresolved_generic_image_candidate.get("resourceBindingKeySha256") is None and dangling_generic_resource_diagnostic == {"code": "resource.reference.missing", "severity": "error", "path": "/nodes/1/resourceReferences/image", "message": "node references a missing resourceId"} and unsupported_generic_schema_diagnostic == {"code": "schema.version.unsupported", "severity": "error", "path": "/schemaVersion", "message": "document schema identity is unsupported"} and incompatible_generic_image_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resources/image.albedo/source/assetId", "message": "sampledTexture2D requires an Image asset"} and unresolved_generic_binding_projection.get("resourceBindingStatus") == "unresolved" and unresolved_generic_binding_projection.get("resourceBindingKeySha256") is None,
             "genericImageResourceReferenceRejectsMalformedLinkEndpoints": malformed_generic_endpoint_diagnostic == {"code": "link.endpoint.invalid", "severity": "error", "path": "/links/0", "message": "link endpoint nodeId and socketId must be strings"} and invalid_generic_sampler_diagnostic == {"code": "sampler.anisotropy.invalid", "severity": "error", "path": "/nodes/1/sampler/maxAnisotropy", "message": "maxAnisotropy must be an integer from 1 to 16"} and invalid_generic_source_revision_diagnostic == {"code": "resource.source_revision.invalid", "severity": "error", "path": "/assetSourceStates/11111111-1111-4111-8111-111111111111/sourceRevision", "message": "sourceRevision must be a positive integer"},
             "textureBindingSourceAuditPinsStableAssetAndPathBoundary": all(fragment in dynamic_asset_database_interface for fragment in ("struct AssetInfo", "QUuid id;", "QString absolutePath;", "QUuid findAssetByPath")) and all(fragment in dynamic_project_items_interface for fragment in ("QString filePath;", "QUuid assetId;")) and all(fragment in dynamic_asset_manager_interface for fragment in ("sourceVersion(const QUuid& assetId)", "invalidateSource(const QUuid& assetId)")) and "std::uint64_t version = 1;" in dynamic_asset_manager_source and "enum class AssetType" in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "Image," in (root / "ArtifactCore/include/Asset/AssetType.ixx").read_text(encoding="utf-8") and "target.path == path && target.srv" in dynamic_mesh_renderer_source and "current != incoming.trimmed()" in dynamic_mesh_renderer_source and "materialSlotTextures" in dynamic_mesh_renderer_source and incompatible_texture_asset_diagnostic == {"code": "resource.binding.asset_type.incompatible", "severity": "error", "path": "/resourceBindings/artifact.material.texture.base_color/assetType", "message": "sampledTexture2D requires an Image asset"},

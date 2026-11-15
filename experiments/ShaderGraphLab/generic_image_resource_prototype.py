@@ -2,9 +2,9 @@
 """Validate and adapt the schema-v4 generic Image Texture resource proposal.
 
 This prototype projects active resources and translates the closed fixture into
-the data-driven registry compiler's document/sidecar inputs. It emits only a
-source-level HLSL candidate; it does not invoke a shader compiler, load images,
-or create GPU objects.
+the data-driven registry compiler's editable node document plus external host
+bindings. It emits only a source-level HLSL candidate; it does not invoke a
+shader compiler, load images, or create GPU objects.
 """
 
 from __future__ import annotations
@@ -419,8 +419,8 @@ def project_resource_bindings(document: Any, resource_projection: Any,
 
 
 def adapt_document_to_dynamic_registry(document: dict[str, Any],
-                                       resource_projection: dict[str, Any]) -> tuple[dict[str, Any], dict[str, dict[str, str]]]:
-    """Translate the closed schema-v4 fixture into the registry prototype's graph envelope."""
+                                       resource_projection: dict[str, Any]) -> dict[str, Any]:
+    """Translate schema-v4 nodes into a graph with persisted per-node references."""
     operation_map = {
         "artifact.input.texcoord.uv0.vector2": "artifact.input.texcoord.uv0.vector2",
         "artifact.texture.sample.image2d": "artifact.texture.sample.image2d",
@@ -429,7 +429,6 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
     requirements_by_node = {item["nodeId"]: item
                             for item in resource_projection["resourceRequirements"]}
     dynamic_nodes = []
-    node_resource_references = {}
     for node in document["nodes"]:
         operation_id = node["operationId"]
         _require(operation_id in operation_map,
@@ -437,13 +436,13 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
                  "adapter.operation.unsupported",
                  f"/nodes/{_pointer_segment(node['nodeId'])}/operationId")
         dynamic_operation = operation_map[operation_id]
-        dynamic_nodes.append({
+        dynamic_node = {
             "nodeId": node["nodeId"],
             "operationId": dynamic_operation,
             "semanticVersion": node["semanticVersion"],
             "parameters": {},
             "layout": copy.deepcopy(node["layout"]),
-        })
+        }
         if operation_id == "artifact.texture.sample.image2d":
             requirement = requirements_by_node.get(node["nodeId"])
             resource_id = node["resourceReferences"]["image"]
@@ -454,10 +453,13 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
                      "active image requirement differs from its document reference",
                      "adapter.resource_requirement.mismatch",
                      f"/nodes/{_pointer_segment(node['nodeId'])}/resourceReferences/image")
-            node_resource_references[node["nodeId"]] = {
+            dynamic_node["resourceReference"] = {
                 "resourceKey": resource_key,
                 "resourceId": resource_id,
+                "sampler": copy.deepcopy(node["sampler"]),
+                "colorInterpretation": node["colorInterpretation"],
             }
+        dynamic_nodes.append(dynamic_node)
     dynamic_document = {
         "schemaVersion": 1,
         "kind": "artifact-shader-graph-rd-document",
@@ -465,7 +467,7 @@ def adapt_document_to_dynamic_registry(document: dict[str, Any],
         "links": copy.deepcopy(document["links"]),
         "output": copy.deepcopy(document["output"]),
     }
-    return dynamic_document, node_resource_references
+    return dynamic_document
 
 
 def build_dynamic_resolved_bindings(document: dict[str, Any],

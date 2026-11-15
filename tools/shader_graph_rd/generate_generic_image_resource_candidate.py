@@ -43,13 +43,11 @@ def main() -> int:
     source_states = json.loads(source_states_path.read_text(encoding="utf-8"))
     candidate = module.build_candidate(document, asset_catalog, source_states)
     resource_projection = module.project_resource_requirements(document, asset_catalog)
-    dynamic_document, node_resource_references = module.adapt_document_to_dynamic_registry(
-        document, resource_projection)
+    dynamic_document = module.adapt_document_to_dynamic_registry(document, resource_projection)
     dynamic_bindings = module.build_dynamic_resolved_bindings(
         document, resource_projection, source_states)
     dynamic_candidate = dynamic_module.compile_document_from_data(
         dynamic_document, dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
-        node_resource_references=node_resource_references,
         resolved_resource_bindings=dynamic_bindings)
     baseline_projection = {key: dynamic_candidate[key] for key in (
         "resourceBindingStatus", "resolvedResourceBindings", "unresolvedResourceKeys",
@@ -57,13 +55,12 @@ def main() -> int:
     candidate["dynamicResolverBindingAdapter"] = {
         "status": "generic-node-document-adapted-and-lowered-by-dynamic-prototype",
         "dynamicDocument": dynamic_document,
-        "nodeResourceReferences": node_resource_references,
         "projection": baseline_projection,
         "compilerCandidate": dynamic_candidate,
         "adapterPolicy": {
             "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
             "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
-            "scope": "The translated graph uses the closed dynamic registry and HLSL candidate lowering. Schema-v4 persistence, editor authoring, shader compilation, and GPU binding remain outside this adapter."
+            "scope": "The translated graph persists resourceReference on each generic image node and uses closed registry lowering. Asset UUID/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
         }
     }
     candidate_path.write_text(json.dumps(candidate, indent=2, ensure_ascii=False) + "\n",
