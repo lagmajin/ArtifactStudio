@@ -1744,6 +1744,53 @@ def validate(root: Path) -> list[str]:
         else:
             sys.modules["dynamic_graph_prototype"] = prior_dynamic_alias
         dynamic_registry = dynamic_module.load_registry(dynamic_registry_path)
+        local_image_resolver_contract = dynamic_contract.get(
+            "localImageResourceResolverSnapshotContract", {})
+        local_image_document_path = root / local_image_resolver_contract.get(
+            "documentFixture", "")
+        local_image_catalog_path = root / local_image_resolver_contract.get(
+            "assetCatalogFixture", "")
+        local_image_source_states_path = root / local_image_resolver_contract.get(
+            "assetSourceStatesFixture", "")
+        local_image_document, _ = dynamic_module.load_document_snapshot(
+            local_image_document_path)
+        local_image_catalog, local_image_catalog_hash = (
+            local_ui_module.load_asset_catalog_snapshot(local_image_catalog_path))
+        local_image_source_states, local_image_source_states_hash = (
+            local_ui_module.load_asset_source_states(local_image_source_states_path))
+        local_image_session = local_ui_module.Session(
+            dynamic_registry, local_image_document, None, [],
+            asset_catalog=local_image_catalog,
+            asset_catalog_sha256=local_image_catalog_hash,
+            asset_source_states=local_image_source_states,
+            asset_source_states_sha256=local_image_source_states_hash)
+        local_image_resolved_state = local_image_session.state()
+        local_image_catalog_only_session = local_ui_module.Session(
+            dynamic_registry, local_image_document, None, [],
+            asset_catalog=local_image_catalog,
+            asset_catalog_sha256=local_image_catalog_hash)
+        local_image_catalog_only_state = local_image_catalog_only_session.state()
+        local_image_no_snapshot_state = local_ui_module.Session(
+            dynamic_registry, local_image_document, None, []).state()
+        local_image_changed_source_states = copy.deepcopy(local_image_source_states)
+        local_image_changed_source_states[
+            local_image_resolver_contract["assetId"]]["sourceRevision"] += 1
+        local_image_changed_source_states_hash = hashlib.sha256(json.dumps(
+            local_image_changed_source_states, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False).encode("utf-8")).hexdigest().upper()
+        local_image_changed_revision_state = local_ui_module.Session(
+            dynamic_registry, local_image_document, None, [],
+            asset_catalog=local_image_catalog,
+            asset_catalog_sha256=local_image_catalog_hash,
+            asset_source_states=local_image_changed_source_states,
+            asset_source_states_sha256=local_image_changed_source_states_hash).state()
+        local_image_resolved_compilation = local_image_resolved_state["compilation"]
+        local_image_changed_compilation = local_image_changed_revision_state["compilation"]
+        local_image_resolved_bindings = local_image_resolved_compilation.get(
+            "resolvedResourceBindings", [])
+        local_image_expected_binding = next((binding for binding in local_image_resolved_bindings
+                                             if binding.get("resourceKey") ==
+                                             local_image_resolver_contract.get("resourceKey")), {})
         image_sample_operation = dynamic_registry[("artifact.texture.sample.image2d", 1)]
         incomplete_image_node = dynamic_module.instantiate_node(
             image_sample_operation, "incomplete_image")
@@ -3777,6 +3824,7 @@ def validate(root: Path) -> list[str]:
             "compositeAddConnectOutputEditIsOneUndoableCommand": composite_graph_edit["output"] == {"nodeId": "composite_add", "socketId": "result"} and len(composite_graph_edit["nodes"]) == len(connected_graph["nodes"]) + 1 and len(composite_graph_edit["links"]) == len(connected_graph["links"]) + 2 and composite_graph_validation["compilationAvailable"] and composite_graph_undo == connected_graph and composite_graph_redo == composite_graph_edit and composite_group_undo == connected_graph and composite_group_redo == composite_parameter_edit and composite_after_compile["semanticHashSha256"] != composite_before_compile["semanticHashSha256"] and failed_composite_diagnostic == {"code": "link.input.multiple_writers", "severity": "error", "path": "/links"} and len(connected_graph["nodes"]) == 3 and len(connected_graph["links"]) == 2 and connected_graph["output"] == {"nodeId": "sum_node", "socketId": "result"},
             "transactionAuthorsGraphFromEmptyDocumentAsOneUndoableCommand": len(authoring_graph["nodes"]) == 3 and len(authoring_graph["links"]) == 2 and authoring_validation["status"] == "valid" and authoring_validation["compilationAvailable"] and authoring_compile["hlslBody"].count(" = ") == 3 and authoring_compile["outputType"] == "Float" and authoring_undo == empty_graph and authoring_redo == authoring_graph,
             "localUiSessionActionsStayAtomicAndUndoable": ui_session_document["output"] == {"nodeId": "ui_sum", "socketId": "result"} and len(ui_session_document["nodes"]) == 3 and len(ui_session_document["links"]) == 2 and ui_session.state()["validation"]["status"] == "valid" and ui_session.state()["compilation"]["status"] == "candidate-lowered-no-shader-runtime" and ui_session_rejected_connect == {"code": "link.socket.missing_or_direction_invalid", "severity": "error", "path": "/links/to/socketId"} and ui_session_after_reject == ui_session_before_reject and ui_session_history_after_reject == ui_session_history_before_reject and ui_session_undo_document["output"] == {"nodeId": "", "socketId": ""} and len(ui_session_undo_document["links"]) == 2 and ui_session_redo_document == ui_session_document and ui_session_saved == ui_session_document and ui_session_undo is None and ui_session_redo is None,
+            "localImageResolverRequiresAssetRevisionAndSupportedUvPath": local_image_resolved_state["validation"]["status"] == "valid" and local_image_resolved_compilation["resourceBindingStatus"] == "resolved" and local_image_expected_binding.get("assetId") == local_image_resolver_contract.get("assetId") and local_image_expected_binding.get("sourceRevision") == local_image_resolver_contract.get("sourceRevision") and local_image_expected_binding.get("uvSet") == local_image_resolver_contract.get("uvSet") and local_image_expected_binding.get("uvTransform") == {"scaleU": 1.0, "scaleV": 1.0, "rotationDegrees": 0.0, "offsetU": 0.0, "offsetV": 0.0} and local_image_catalog_only_state["compilation"]["resourceBindingStatus"] == "unresolved" and local_image_no_snapshot_state["compilation"]["resourceBindingStatus"] == "unresolved" and local_image_changed_compilation["resourceBindingStatus"] == "resolved" and local_image_changed_compilation["resourceBindingKeySha256"] != local_image_resolved_compilation["resourceBindingKeySha256"] and local_image_changed_compilation["semanticHashSha256"] == local_image_resolved_compilation["semanticHashSha256"] and local_image_changed_compilation["typedIRSemanticHashSha256"] == local_image_resolved_compilation["typedIRSemanticHashSha256"] and local_image_changed_compilation["shaderStructureHashSha256"] == local_image_resolved_compilation["shaderStructureHashSha256"] and local_image_changed_compilation["hlslBodySha256"] == local_image_resolved_compilation["hlslBodySha256"] and local_image_catalog_hash == hashlib.sha256(local_image_catalog_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("assetCatalogSha256") and local_image_source_states_hash == hashlib.sha256(local_image_source_states_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("assetSourceStatesSha256") and hashlib.sha256(local_image_document_path.read_bytes()).hexdigest().upper() == local_image_resolver_contract.get("documentSha256"),
             "operationReplacementPreservesCompatibleLinksAndHistory": replaced_graph["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replaced_graph["links"] == connected_graph["links"] and replaced_graph_validation["status"] == "valid" and " * " in replaced_graph_compile["hlslBody"] and replaced_graph_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and replacement_undo == connected_graph and replacement_redo == replaced_graph and incompatible_replacement_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/2/operationId"} and changed_unmaterialized_default_diagnostic == {"code": "node.operation.incompatible", "severity": "error", "path": "/nodes/0/parameters/value"} and sealed_replacement_compile["outputType"] == "Float" and "artifact.rd.math.add.float32@1" not in sealed_replacement["registryContractLock"] and "artifact.rd.math.multiply.float32@1" in sealed_replacement["registryContractLock"] and replacement_session_after["nodes"][2]["operationId"] == "artifact.rd.math.multiply.float32" and replacement_session_undo == connected_graph and replacement_session_redo == replacement_session_after,
             "localUiHttpRoutesHandleStateEditAndReject": ui_http_page_status == 200 and b"Shader Graph Lab" in ui_http_page_body and ui_http_state_status == 200 and ui_http_state["validation"]["status"] == "valid" and bool(ui_http_state["compilation"]["hlslBody"]) and ui_http_reject_status == 400 and not ui_http_rejected["ok"] and ui_http_rejected["diagnostics"][0]["code"] == "link.socket.missing_or_direction_invalid" and ui_http_edit_status == 200 and ui_http_edited["document"]["nodes"][0]["layout"]["x"] == 88.0 and ui_http_undo_status == 200 and ui_http_undone["document"]["nodes"][0]["layout"]["x"] == 0.0,
             "instantiatedNodeUsesDeclaredParameterDefault": created_constant_node["parameters"] == {"value": 0.0} and "= 0.0f;" in created_constant_compile["hlslBody"],
