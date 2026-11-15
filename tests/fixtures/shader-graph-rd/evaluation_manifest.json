@@ -3714,7 +3714,7 @@
   "manifestValidator": {
     "source": "tools/shader_graph_rd/validate_shader_graph_manifest.py",
     "runtimeStatus": "executed-source-only",
-    "scope": "fixture inventory/JSON/SHA-256, backend-failure collision IDs both RGB and Output-reachable, half-alpha graph wiring, out-of-range BaseColor-alpha wiring, conditional Normal/Occlusion probe values and wiring, machine-readable current-vs-promotion surface contract, declared C++ contract-test case names, image asset inventory/SHA-256/PNG pixel-golden agreement, capture source/case/output-name references and required source fragments, analyzer source paths; source-bound typed operation record shape and separated lowering identity/hash policy contracts; CPU-only proposed identity scenario oracle and change-set golden; active reachable-IR versus preserved-document change-set scenarios; stage-disposition contract for unknown operations, unsupported active lowering, ambiguous outputs, cycles, unreachable nodes, and unused inputs; legacy node-kind/parameter mapping; constructor defaults; serializer materialization; capture route; image-evaluation matrix; baseline; noise protocol",
+    "scope": "fixture inventory/JSON/SHA-256, backend-failure collision IDs both RGB and Output-reachable, half-alpha graph wiring, out-of-range BaseColor-alpha wiring, conditional Normal/Occlusion probe values and wiring, machine-readable current-vs-promotion surface contract, declared C++ contract-test case names and expected-failure lane classification, image asset inventory/SHA-256/PNG pixel-golden agreement, capture source/case/output-name references and required source fragments, analyzer source paths; source-bound typed operation record shape and separated lowering identity/hash policy contracts; CPU-only proposed identity scenario oracle and change-set golden; active reachable-IR versus preserved-document change-set scenarios; stage-disposition contract for unknown operations, unsupported active lowering, ambiguous outputs, cycles, unreachable nodes, and unused inputs; legacy node-kind/parameter mapping; constructor defaults; serializer materialization; capture route; image-evaluation matrix; baseline; noise protocol",
     "limitations": [
       "does not compile graph JSON",
       "does not run C++ tests",
@@ -3820,6 +3820,23 @@
       "identifierSanitizationCollision": "source-test-added; distinct-ids-base-color-and-base_underscore_color-sanitize-to-the-same-hlsl-prefix; unregistered-uncompiled-unrun",
       "graphBaseColorAlphaRange": "source-test-added; finite alpha 1.5 should be rejected or diagnosed/clamped; current lowering appears to preserve the out-of-range constant; unregistered-uncompiled-unrun",
       "resourceBoundsStress": "source-only 2048-node output-reachable Math chain case; intended to expose stack/resource failure, not evidence of a selected supported limit; unregistered-uncompiled-unrun"
+    },
+    "contractTestLanePlan": {
+      "status": "source-classified-not-executed",
+      "defaultLane": "unclassified-do-not-register-as-green",
+      "registrationPolicy": "expected-failure candidates and default-lane cases stay outside the green target until assigned to characterization, expected-failure, or target-acceptance lanes and reviewed after execution",
+      "expectedFailureCandidates": [
+        {"testCase": "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "sourceCoverageKey": "canonicalSerialization"},
+        {"testCase": "MultipleMaterialOutputsRequireExplicitSelection", "sourceCoverageKey": "multipleOutputSelection"},
+        {"testCase": "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph", "sourceCoverageKey": "singleWriterInput"},
+        {"testCase": "EmptyColorRampStopsAreNotSilentlyIgnored", "sourceCoverageKey": "rampEmptyAndOversizedCases"},
+        {"testCase": "ExcessColorRampStopsAreNotSilentlyTruncated", "sourceCoverageKey": "rampEmptyAndOversizedCases"},
+        {"testCase": "LinkRejectsPinsOwnedByAnotherGraph", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation"},
+        {"testCase": "LinkRejectsIncompatiblePinTypes", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation"},
+        {"testCase": "LinkRejectsMultipleWritersForOneInput", "sourceCoverageKey": "singleWriterInput"},
+        {"testCase": "SanitizedNodeIdentifiersDoNotCollide", "sourceCoverageKey": "identifierSanitizationCollision"},
+        {"testCase": "OutOfRangeGraphBaseColorAlphaIsDiagnosed", "sourceCoverageKey": "graphBaseColorAlphaRange"}
+      ]
     },
     "contractTestRegistered": false,
     "buildOrTestExecuted": false,

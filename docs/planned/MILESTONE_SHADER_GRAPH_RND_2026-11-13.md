@@ -426,7 +426,7 @@ Wave 1の独立候補golden `constant_value_canonicalization_golden.json` はFin
 
 「dynamic graph prototype」と既存C++ graphのcontract corpusは別の検査対象である。`experiments/ShaderGraphLab/dynamic_graph_prototype.py`のoperation registry、typed validation、canonical lowering、document/session編集は、`tools/shader_graph_rd/validate_shader_graph_manifest.py`がdynamic prototypeをimportして行うsource/fixture contract checksの対象であり、親repo内の`tests/ArtifactCore/ShaderGraphContractTest.cpp`を登録しても代用できない。source validatorにはlocal editor session/HTTP smokeも含まれるが、現manifestは実行状態を`not-run-no-build-or-test-authorized`としており、これらの実行証拠はまだない。
 
-`ShaderGraphContractTest.cpp`の37ケースは既存`Artifact.ShaderNode.Core`の`NodeGraph`を検査する別laneで、保存順依存、複数Outputの先頭選択、link型/多重接続の受理など、source監査で確認した現行挙動と、新しいCore候補として要求する厳格契約が同居する。したがって全件を無分類でgreen suiteへ登録してはならない。実行許可後は、現行挙動を固定するcharacterization、現行不適合を示すexpected-failure候補、dynamic Python prototypeのcontract checksを別々に報告する。GPU captureもさらに独立したlaneとし、CPU契約やsource validatorの成功からbackend/image acceptanceを推定しない。
+`ShaderGraphContractTest.cpp`の37ケースは既存`Artifact.ShaderNode.Core`の`NodeGraph`を検査する別laneで、保存順依存、複数Outputの先頭選択、link型/多重接続の受理など、source監査で確認した現行挙動と、新しいCore候補として要求する厳格契約が同居する。manifestはsource監査で現行gapが明示された10件をexpected-failure候補として列挙し、残るケースのdefault laneをunclassified/do-not-register-as-greenとして固定する。validator sourceは候補名とsource coverage keyの存在、およびtarget未登録・未実行を照合する。実行許可後は、現行挙動を固定するcharacterization、現行不適合を示すexpected-failure候補、dynamic Python prototypeのcontract checksを別々に報告する。GPU captureもさらに独立したlaneとし、CPU契約やsource validatorの成功からbackend/image acceptanceを推定しない。
 
 ## 未確認事項
 

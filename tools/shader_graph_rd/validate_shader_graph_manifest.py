@@ -5030,6 +5030,37 @@ def validate(root: Path) -> list[str]:
         errors.append("contract test source contains duplicate test case names")
     if set(found_cases) != set(test_cases):
         errors.append("contract test source case list differs from manifest; undeclared=" + ",".join(sorted(set(found_cases) - set(test_cases))) + "; missing=" + ",".join(sorted(set(test_cases) - set(found_cases))))
+    lane_plan = evidence.get("contractTestLanePlan", {})
+    if not isinstance(lane_plan, dict):
+        lane_plan = {}
+    expected_failure_cases = lane_plan.get("expectedFailureCandidates", [])
+    if not isinstance(expected_failure_cases, list):
+        expected_failure_cases = []
+    expected_failure_names = [item.get("testCase") for item in expected_failure_cases if isinstance(item, dict)]
+    required_expected_failure_cases = {
+        "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder",
+        "MultipleMaterialOutputsRequireExplicitSelection",
+        "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph",
+        "EmptyColorRampStopsAreNotSilentlyIgnored",
+        "ExcessColorRampStopsAreNotSilentlyTruncated",
+        "LinkRejectsPinsOwnedByAnotherGraph",
+        "LinkRejectsIncompatiblePinTypes",
+        "LinkRejectsMultipleWritersForOneInput",
+        "SanitizedNodeIdentifiersDoNotCollide",
+        "OutOfRangeGraphBaseColorAlphaIsDiagnosed",
+    }
+    source_coverage = evidence.get("contractTestSourceCoverage", {})
+    coverage_keys = set(source_coverage) if isinstance(source_coverage, dict) else set()
+    if (lane_plan.get("status") != "source-classified-not-executed"
+            or lane_plan.get("defaultLane") != "unclassified-do-not-register-as-green"
+            or "stay outside the green target" not in lane_plan.get("registrationPolicy", "")
+            or set(expected_failure_names) != required_expected_failure_cases
+            or len(expected_failure_names) != len(set(expected_failure_names))
+            or not required_expected_failure_cases <= set(found_cases)
+            or any(item.get("sourceCoverageKey") not in coverage_keys for item in expected_failure_cases if isinstance(item, dict))
+            or evidence.get("contractTestRegistered") is not False
+            or evidence.get("buildOrTestExecuted") is not False):
+        errors.append("legacy C++ contract test lanes must keep source-audited expected failures and unclassified cases out of the unexecuted green target")
     required_contract_tests = {"CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "LayoutRoundTripsWithoutChangingSemanticCompileHash", "FailedLoadPreservesExistingGraph"}
     if not required_contract_tests <= set(found_cases):
         errors.append("contract source lacks canonicalization/layout/atomic-load gate cases")
