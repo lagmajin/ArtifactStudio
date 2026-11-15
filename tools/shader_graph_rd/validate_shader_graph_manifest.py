@@ -382,6 +382,24 @@ def validate(root: Path) -> list[str]:
             errors.append("generated document limit corpus record semantics must match the manifest measurement schema")
         if sample_corpus.get("measurementSummarySchema") != measurement_protocol.get("measurementSummarySchema"):
             errors.append("generated document limit summary schema must match the manifest aggregation and boundary-decision contract")
+        summary_path = root / "tools/shader_graph_rd/summarize_document_limit_measurements.py"
+        summary_spec = importlib.util.spec_from_file_location("shader_graph_measurement_summary", summary_path)
+        if summary_spec is None or summary_spec.loader is None:
+            raise RuntimeError("cannot load document limit measurement summarizer")
+        summary_module = importlib.util.module_from_spec(summary_spec)
+        summary_spec.loader.exec_module(summary_module)
+        summary_schema = measurement_protocol.get("measurementSummarySchema", {})
+        expected_group_fields = summary_schema.get("groupBy", [])
+        expected_metric_fields = summary_schema.get("percentiles", {}).get("fields", [])
+        expected_stages = record_schema.get("recordSemantics", {}).get("rejectionStage", [])
+        if list(summary_module.GROUP_FIELDS) != expected_group_fields:
+            errors.append("measurement summarizer grouping keys must match the manifest summary schema")
+        if list(summary_module.PERCENTILE_FIELDS) != expected_metric_fields:
+            errors.append("measurement summarizer percentile fields must match the manifest summary schema")
+        if [*summary_module.MEASUREMENT_STAGES, "unknown"] != expected_stages:
+            errors.append("measurement summarizer rejection stages must match the measurement record schema")
+        if set(summary_module.REQUIRED_CONTEXT_FIELDS) != set(expected_group_fields) - {"runId", "caseId", "phase"}:
+            errors.append("measurement summarizer report context must match the manifest grouping keys")
         sample_case_ids = [case.get("caseId") for case in sample_corpus.get("cases", [])]
         if len(sample_case_ids) != 12 or len(sample_case_ids) != len(set(sample_case_ids)):
             errors.append("generated document limit cases must have 12 unique stable IDs for measurement records")
