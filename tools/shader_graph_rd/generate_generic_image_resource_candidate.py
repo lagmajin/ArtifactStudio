@@ -49,6 +49,20 @@ def main() -> int:
     dynamic_candidate = dynamic_module.compile_document_from_data(
         dynamic_document, dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
         resolved_resource_bindings=dynamic_bindings)
+    shared_resource_document = json.loads(json.dumps(document))
+    shared_resource_node = next(node for node in shared_resource_document["nodes"]
+                                if node["nodeId"] == "roughness_sample")
+    shared_resource_node["resourceReferences"]["image"] = "image.albedo"
+    shared_resource_projection = module.project_resource_requirements(
+        shared_resource_document, asset_catalog)
+    shared_resource_dynamic_document = module.adapt_document_to_dynamic_registry(
+        shared_resource_document, shared_resource_projection)
+    shared_resource_dynamic_bindings = module.build_dynamic_resolved_bindings(
+        shared_resource_document, shared_resource_projection, source_states)
+    shared_resource_dynamic_candidate = dynamic_module.compile_document_from_data(
+        shared_resource_dynamic_document,
+        dynamic_module.load_registry(root / dynamic_contract["registryFixture"]),
+        resolved_resource_bindings=shared_resource_dynamic_bindings)
     baseline_projection = {key: dynamic_candidate[key] for key in (
         "resourceBindingStatus", "resolvedResourceBindings", "unresolvedResourceKeys",
         "resourceBindingKeySha256")}
@@ -57,6 +71,11 @@ def main() -> int:
         "dynamicDocument": dynamic_document,
         "projection": baseline_projection,
         "compilerCandidate": dynamic_candidate,
+        "sharedResourceSelection": {
+            "dynamicDocument": shared_resource_dynamic_document,
+            "compilerCandidate": shared_resource_dynamic_candidate,
+            "contract": "two image nodes may share one resourceId while retaining node-scoped resource keys and shader symbols",
+        },
         "adapterPolicy": {
             "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
             "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",

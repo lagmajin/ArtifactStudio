@@ -1509,6 +1509,22 @@ def validate(root: Path) -> list[str]:
                 generic_image_document, generic_image_catalog, generic_image_source_states))
         generic_image_dynamic_candidate = compile_generic_image_through_dynamic_registry(
             generic_image_document, generic_image_catalog, generic_image_source_states)
+        shared_resource_generic_document = copy.deepcopy(generic_image_document)
+        shared_resource_generic_node = next(
+            node for node in shared_resource_generic_document["nodes"]
+            if node["nodeId"] == "roughness_sample")
+        shared_resource_generic_node["resourceReferences"]["image"] = "image.albedo"
+        shared_resource_generic_projection = generic_image_module.project_resource_requirements(
+            shared_resource_generic_document, generic_image_catalog)
+        shared_resource_generic_binding = generic_image_module.project_resource_bindings(
+            shared_resource_generic_document, shared_resource_generic_projection,
+            generic_image_source_states)
+        shared_resource_generic_dynamic_candidate = compile_generic_image_through_dynamic_registry(
+            shared_resource_generic_document, generic_image_catalog,
+            generic_image_source_states)
+        shared_resource_generic_dynamic_document = (
+            generic_image_module.adapt_document_to_dynamic_registry(
+                shared_resource_generic_document, shared_resource_generic_projection))
         generic_image_adapted_document = generic_image_module.adapt_document_to_dynamic_registry(
             generic_image_document, generic_image_projection)
         generic_image_resolver_projection = {
@@ -1520,6 +1536,11 @@ def validate(root: Path) -> list[str]:
             "dynamicDocument": generic_image_adapted_document,
             "projection": generic_image_resolver_projection,
             "compilerCandidate": generic_image_dynamic_candidate,
+            "sharedResourceSelection": {
+                "dynamicDocument": shared_resource_generic_dynamic_document,
+                "compilerCandidate": shared_resource_generic_dynamic_candidate,
+                "contract": "two image nodes may share one resourceId while retaining node-scoped resource keys and shader symbols",
+            },
             "adapterPolicy": {
                 "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
                 "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
@@ -1780,6 +1801,27 @@ def validate(root: Path) -> list[str]:
             return next(node["resourceReference"] for node in graph["nodes"]
                         if node.get("nodeId") == node_id)
         generic_image_persistence_contract = {
+            "sharedResourceIdKeepsPerNodeBindingAndShaderSymbols": (
+                regenerated_generic_image_candidate.get("sharedResourceSelectionProjection", {}).get(
+                    "resourceRequirements", []) ==
+                shared_resource_generic_projection.get("resourceRequirements") and
+                len({item.get("resourceKey") for item in
+                     shared_resource_generic_dynamic_candidate.get("resourceRequirements", [])}) == 2 and
+                {item.get("resourceId") for item in
+                 shared_resource_generic_dynamic_candidate.get("resourceRequirements", [])} ==
+                {"image.albedo"} and
+                len({item.get("shaderSymbol") for item in
+                     shared_resource_generic_dynamic_candidate.get("resourceRequirements", [])}) == 2 and
+                len({item.get("assetId") for item in
+                     shared_resource_generic_dynamic_candidate.get("resolvedResourceBindings", [])}) == 1 and
+                shared_resource_generic_binding.get("resourceBindingStatus") == "resolved" and
+                len(shared_resource_generic_binding.get("resolvedResourceBindings", [])) == 2 and
+                shared_resource_generic_dynamic_candidate["hlslBody"] ==
+                generic_image_dynamic_candidate["hlslBody"] and
+                shared_resource_generic_dynamic_candidate["semanticHashSha256"] !=
+                generic_image_dynamic_candidate["semanticHashSha256"] and
+                shared_resource_generic_dynamic_candidate["resourceBindingKeySha256"] !=
+                generic_image_dynamic_candidate["resourceBindingKeySha256"]),
             "resourceReferenceEditsAreAtomicAndKeepShaderSourceSeparateFromBindingState": (
                 invalid_image_edit_error is not None and
                 invalid_image_edit_error["code"] == "resource.sampler.invalid" and

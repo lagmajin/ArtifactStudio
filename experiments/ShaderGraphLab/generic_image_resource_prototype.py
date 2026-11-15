@@ -513,6 +513,24 @@ def build_candidate(document: Any, asset_catalog: dict[str, Any],
     candidate["runtimeBindingProjection"] = project_resource_bindings(
         document, candidate, asset_source_states)
 
+    shared_resource_document = copy.deepcopy(document)
+    shared_resource_node = next(node for node in shared_resource_document["nodes"]
+                                if node["nodeId"] == "roughness_sample")
+    shared_resource_node["resourceReferences"]["image"] = "image.albedo"
+    shared_resource_projection = project_resource_requirements(
+        shared_resource_document, asset_catalog)
+    shared_resource_binding = project_resource_bindings(
+        shared_resource_document, shared_resource_projection, asset_source_states)
+    candidate["sharedResourceSelectionProjection"] = {
+        "documentStatus": shared_resource_projection["documentStatus"],
+        "resourceRequirements": shared_resource_projection["resourceRequirements"],
+        "assetResolutions": shared_resource_projection["assetResolutions"],
+        "resourceRequirementIdentitySha256":
+            shared_resource_projection["resourceRequirementIdentitySha256"],
+        "runtimeBindingProjection": shared_resource_binding,
+        "contract": "two image nodes may reference one document resourceId while keeping distinct node-scoped resource keys and bindings",
+    }
+
     relinked_document = copy.deepcopy(document)
     previous_asset_id = relinked_document["resources"][0]["source"]["assetId"]
     replacement_asset_id = "22222222-2222-4222-8222-222222222222"

@@ -6398,8 +6398,8 @@
         "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
-        "prototypeSha256": "9813DB1EC72BF272BA616B1A78AF38F2AF7ED9FD91F7EC435B8C82F6DAE9E214",
-        "candidateSha256": "E49382E247E3B6B1C60BF22EDCCC3148D62911682CDB7368C36CCB93EDBA4D88",
+        "prototypeSha256": "310D47C4651791D08AC852242CA550A87446E69C9B451319601B904BAE440682",
+        "candidateSha256": "997C1E38284684C9EB34F589F9812E13A0D2D1B6BB1F966515ABDA03392EC221",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
@@ -6467,6 +6467,7 @@
             "incompleteAuthoring": "a newly instantiated Image Texture without a resource selection remains editable with a repair warning but compilation rejects it",
             "runtimeOnlyFields": "Asset UUID, asset type, source revision, resolved sampler object, and GPU handles remain outside the graph document",
             "bindingConsistency": "host-resolved samplerKey and colorInterpretation must match the node-authored sampler and color fields",
+            "sharedResourceSelection": "multiple Image Texture nodes may use one resourceId while retaining distinct node-scoped resource keys, shader symbols, and resolved binding records",
             "roundtrip": "canonical JSON save/load preserves the complete resourceReference object",
             "undoRedo": "document commands restore the old and new references exactly",
             "clipboardAndDuplicate": "copy preserves resourceId and authored sampling settings; paste/duplicate remap resourceKey to the new node ID",
