@@ -6510,6 +6510,8 @@
         "dynamicRegistrySha256": "BC665D3810167606BD336850E110835A1169F120030E490DE9F682028326781F",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
+        "mappedUvDynamicDocumentFixture": "experiments/ShaderGraphLab/dynamic_generic_image_mapping.json",
+        "mappedUvDynamicDocumentSha256": "1BD014D26B78BFE1177D99DA0ED9883F192DA67B8460E1F316FF52815E28C07B",
         "mappedUvContract": {
           "operationId": "artifact.mapping.vector2.scale_offset@1",
           "typedBehavior": "four finite Float32 parameters are preserved by the schema-v4 adapter and lowered by the closed dynamic registry implementation",

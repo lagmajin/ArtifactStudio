@@ -1440,12 +1440,14 @@ def validate(root: Path) -> list[str]:
         generic_image_catalog_path = root / generic_image_contract.get("assetCatalogFixture", "")
         generic_image_source_states_path = root / generic_image_contract.get("assetSourceStatesFixture", "")
         generic_image_mapped_uv_document_path = root / generic_image_contract.get("mappedUvDocumentFixture", "")
+        generic_image_mapped_dynamic_document_path = root / generic_image_contract.get("mappedUvDynamicDocumentFixture", "")
         generic_image_candidate_path = root / generic_image_contract.get("candidateFixture", "")
         generic_image_prototype_path = root / generic_image_contract.get("prototype", "")
         generic_image_document = json.loads(generic_image_document_path.read_text(encoding="utf-8"))
         generic_image_catalog = json.loads(generic_image_catalog_path.read_text(encoding="utf-8"))
         generic_image_source_states = json.loads(generic_image_source_states_path.read_text(encoding="utf-8"))
         generic_image_mapped_uv_document = json.loads(generic_image_mapped_uv_document_path.read_text(encoding="utf-8"))
+        generic_image_mapped_dynamic_document = json.loads(generic_image_mapped_dynamic_document_path.read_text(encoding="utf-8"))
         generic_image_candidate = json.loads(generic_image_candidate_path.read_text(encoding="utf-8"))
         generic_image_spec = importlib.util.spec_from_file_location(
             "shader_graph_generic_image_resource_prototype", generic_image_prototype_path)
@@ -3700,6 +3702,9 @@ def validate(root: Path) -> list[str]:
             mapped_generic_projection.get("activeNodeIds") == ["image_sample", "mapping", "uv"] and
             mapped_generic_dynamic_document["nodes"][1]["parameters"] ==
             generic_image_mapped_uv_document["nodes"][1]["parameters"] and
+            mapped_generic_dynamic_document == generic_image_mapped_dynamic_document and
+            hashlib.sha256(generic_image_mapped_dynamic_document_path.read_bytes()).hexdigest().upper() ==
+            generic_image_contract.get("mappedUvDynamicDocumentSha256") and
             "float2 n_mapping_vector = ((n_uv_value * float2(2.0f, 0.5f)) + float2(0.25f, -0.125f));" in
             mapped_generic_dynamic_candidate.get("hlslBody", "") and
             "g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_mapping_vector)" in

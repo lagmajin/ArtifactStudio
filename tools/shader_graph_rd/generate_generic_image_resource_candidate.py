@@ -38,6 +38,7 @@ def main() -> int:
     catalog_path = root / contract["assetCatalogFixture"]
     source_states_path = root / contract["assetSourceStatesFixture"]
     mapped_document_path = root / contract["mappedUvDocumentFixture"]
+    mapped_dynamic_document_path = root / contract["mappedUvDynamicDocumentFixture"]
     candidate_path = root / contract["candidateFixture"]
     document = json.loads(document_path.read_text(encoding="utf-8"))
     asset_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -68,6 +69,9 @@ def main() -> int:
     mapped_projection = module.project_resource_requirements(mapped_document, asset_catalog)
     mapped_dynamic_document = module.adapt_document_to_dynamic_registry(
         mapped_document, mapped_projection)
+    mapped_dynamic_document_path.write_text(
+        json.dumps(mapped_dynamic_document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n")
     mapped_dynamic_bindings = module.build_dynamic_resolved_bindings(
         mapped_document, mapped_projection, source_states)
     mapped_dynamic_candidate = dynamic_module.compile_document_from_data(
@@ -131,6 +135,8 @@ def main() -> int:
         (root / dynamic_contract["registryFixture"]).read_bytes()).hexdigest().upper()
     contract["mappedUvDocumentSha256"] = hashlib.sha256(
         mapped_document_path.read_bytes()).hexdigest().upper()
+    contract["mappedUvDynamicDocumentSha256"] = hashlib.sha256(
+        mapped_dynamic_document_path.read_bytes()).hexdigest().upper()
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
                              encoding="utf-8", newline="\n")
     print(f"Updated {contract['candidateFixture']} ({contract['candidateSha256']})")
