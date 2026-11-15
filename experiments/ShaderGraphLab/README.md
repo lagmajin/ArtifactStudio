@@ -103,9 +103,12 @@ snapshot, pass the snapshot on startup. An optional host-exported source-version
 snapshot enables the prototype's binding projection:
 
 ```powershell
-python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json --asset-catalog path/to/asset-database.json --asset-source-states path/to/asset-source-states.json
+python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json --asset-catalog tests/fixtures/shader-graph-rd/generic_image_asset_database_snapshot.json --asset-source-states tests/fixtures/shader-graph-rd/generic_image_source_states.json
 ```
 
+The checked-in catalog and revision files are synthetic snapshots for this graph's
+fixture UUIDs; they make the resolver projection reproducible without claiming
+to represent a live project. Replace them with host snapshots for project assets.
 The adapter accepts the AssetDatabase JSON array, normalizes Qt UUID braces,
 and lists only `AssetType::Image` records. It drops paths and metadata before
 serving choices to the local page and displays the snapshot hash. The optional
