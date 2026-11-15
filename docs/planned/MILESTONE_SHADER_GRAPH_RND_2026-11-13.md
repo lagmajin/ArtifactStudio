@@ -594,7 +594,7 @@ Added the closed `vector2.uv0` source operation to the dynamic registry. It emit
 
 ## Vector2 Mapping node candidate (2026-11-15)
 
-Added the closed `vector2.mapping.scale_offset` operation with a required Vector2 input/output and four Float32 parameters for per-axis scale and offset. Its UV0→Mapping fixture lowers to a typed candidate expression; the source contract checks deterministic output and that editing an offset changes semantic and emitted-source hashes. This makes coordinate transforms graph semantics in the prototype. The mapping is not yet connected to Image Texture sampling or production material slots, and does not establish rotation, wrap behavior, GPU sampling, or runtime asset binding. Candidate generation and source parsing were performed; the manifest validator and shader runtime remain unexecuted.
+Added the closed `vector2.mapping.scale_offset` operation with a required Vector2 input/output and four Float32 parameters for per-axis scale and offset. Its UV0→Mapping fixture lowers to a typed candidate expression; the source contract checks deterministic output and that editing an offset changes semantic and emitted-source hashes. A second fixture connects Mapping into the fixed Base Color texture sample: generated HLSL samples with `n_mapping_vector`, while the resource requirement remains identical to the direct-UV candidate. This makes coordinate transforms graph semantics and demonstrates composition through the texture operation. The generic per-node Image Texture adapter and production material path remain unconnected; rotation, wrap behavior, GPU sampling, and runtime asset binding are not established. Candidate generation and source parsing were performed; the manifest validator and shader runtime remain unexecuted.
 
 ## Material-slot Image Texture candidates (2026-11-15)
 
@@ -604,7 +604,7 @@ This does not establish texture loading, resource binding, sampler filtering/add
 
 ## Texture sample channel composition (2026-11-15)
 
-Added a persisted graph linking the Metallic-Roughness texture's raw Color output to `vector4.separate_channels`, selecting G as its output. The manifest contract also changes the selected output to B and expects the scalar expression to change while the same symbolic texture resource requirement remains. This demonstrates typed composition through sample → channel extraction and records the source-observed convention that fixed PBR consumes G for roughness and B for metallic. The candidate does not wire either channel into Principled or establish rendered response. The generator now covers 15 persisted candidate graphs. The manifest validator and all runtime paths remain unexecuted.
+Added a persisted graph linking the Metallic-Roughness texture's raw Color output to `vector4.separate_channels`, selecting G as its output. The manifest contract also changes the selected output to B and expects the scalar expression to change while the same symbolic texture resource requirement remains. This demonstrates typed composition through sample → channel extraction and records the source-observed convention that fixed PBR consumes G for roughness and B for metallic. The candidate does not wire either channel into Principled or establish rendered response. After adding UV Mapping and mapped Base Color samples, the generator covers 17 persisted candidate graphs. The manifest validator and all runtime paths remain unexecuted.
 
 ## Runtime resource binding identity candidate (2026-11-15)
 

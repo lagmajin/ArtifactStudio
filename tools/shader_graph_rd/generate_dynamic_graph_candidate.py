@@ -34,6 +34,8 @@ def main() -> int:
                             "vector2MappingCandidateSha256", "vector2MappingDocumentSha256"))
     candidate_specs.append(("baseColorTextureDocumentFixture", "baseColorTextureCandidateFixture",
                             "baseColorTextureCandidateSha256", "baseColorTextureDocumentSha256"))
+    candidate_specs.append(("mappedBaseColorTextureDocumentFixture", "mappedBaseColorTextureCandidateFixture",
+                            "mappedBaseColorTextureCandidateSha256", "mappedBaseColorTextureDocumentSha256"))
     candidate_specs.append(("textureChannelsDocumentFixture", "textureChannelsCandidateFixture",
                             "textureChannelsCandidateSha256", "textureChannelsDocumentSha256"))
     candidate_specs.extend((document_key, candidate_key, digest_key, input_digest_key)
@@ -61,6 +63,11 @@ def main() -> int:
         contract[digest_key] = hashlib.sha256(candidate_bytes).hexdigest().upper()
         contract[input_digest_key] = hashlib.sha256(document_bytes).hexdigest().upper()
         generated.append((contract[candidate_key], contract[digest_key]))
+    mapped_uv_evaluation = contract.get("textureSampleResourceContract", {}).get(
+        "imageEvaluationPlan", {}).get("mappedUvCandidate", {})
+    if mapped_uv_evaluation:
+        mapped_uv_evaluation["documentSha256"] = contract["mappedBaseColorTextureDocumentSha256"]
+        mapped_uv_evaluation["candidateSha256"] = contract["mappedBaseColorTextureCandidateSha256"]
     contract["registrySha256"] = hashlib.sha256((root / contract["registryFixture"]).read_bytes()).hexdigest().upper()
     manifest_path.write_bytes((json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     for candidate_path, digest in generated:

@@ -2,9 +2,9 @@
 
 ## 2026-11-15: UV mapping parameters should be graph semantics
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`dynamic_vector2_mapping.json`。
-- **確認できた事実:** 既存 Image Texture 候補は explicit Vector2 UV を受け取るが、Vector2 の変換演算はなく、host binding には compatibility 用 `uvTransform` が残る。閉じた scale/offset 演算と candidate graph を追加し、offset変更でsemantic/source hashが変わるsource contractを記述した。
-- **価値または懸念:** UV変換をノードとして接続でき、テクスチャbindingの再解決状態とグラフ編集の意味を分離しやすくなる。現時点では generic Image Texture や material slot に未接続であり、回転・wrap・GPU動作も未検証。
-- **次に確認すべきこと:** manifest validatorの実行が許可された後に新旧候補・source contractを検証し、次段階でImage TextureのUV入力へ実際に接続する。
+- **確認できた事実:** 閉じた scale/offset 演算を追加し、UV0→Mapping→Base Color sample の候補 HLSL が mapped UV を `.Sample` に渡すこと、resource requirement が直接 UV 候補と同じこと、offset変更で semantic/source hash が変わることをsource contractとcandidateで記録した。
+- **価値または懸念:** UV変換がbinding metadataでなく接続可能なグラフ演算になり、resource identityから独立したshader semanticsとして表現される。generic Image Textureとproduction material pathへの接続、回転・wrap・GPU動作は未検証。
+- **次に確認すべきこと:** manifest validatorの実行が許可された後に新旧候補・source contractを検証し、runtime評価が許可された後にchannel-probe画像で座標とsampling結果を確認する。
 
 ## 2026-11-15: Shader graph retains documents when image bindings disappear
 - **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::validate_document_for_editing`、`tools/shader_graph_rd/validate_shader_graph_manifest.py`、`tests/fixtures/shader-graph-rd/evaluation_manifest.json`。

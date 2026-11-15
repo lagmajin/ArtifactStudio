@@ -6044,8 +6044,10 @@
         "vector2UvContextLowersAsTypedHostInput",
         "vector2MappingIsGraphSemanticAndLowersDeterministically",
         "baseColorTextureHasTypedResourceAndExplicitUv",
+        "mappedUvFlowsThroughMappingNodeIntoTextureSample",
         "textureResourceBindingIdentityIsSeparateFromShaderIdentity",
         "genericImageResourceReferenceProjectsNodeScopedRequirement",
+        "genericImageResourceReferencePersistsThroughRoundtripUndoClipboardAndDuplicate",
         "genericImageResourceReferenceFailsClosedAndKeepsMissingAssetUnresolved",
         "genericImageResourceReferenceRejectsMalformedLinkEndpoints",
         "textureBindingSourceAuditPinsStableAssetAndPathBoundary",
@@ -6064,7 +6066,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
-        "candidateGeneratorIncludesAllFifteenPersistedGraphs",
+        "candidateGeneratorRegistersAllSeventeenPersistedGraphs",
         "paletteSearchFiltersRegisteredOperations",
         "paletteEntriesExposeTypedSignatures",
         "graphNodeLimitRejectsBeforeNodeIndexing",
@@ -6230,6 +6232,10 @@
       "vector2UvDocumentSha256": "058911A94DAA75E756AEAF1455564829990B137EE2F5342006F9845E449AC61F",
       "baseColorTextureDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor.json",
       "baseColorTextureCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_basecolor_candidate.json",
+      "mappedBaseColorTextureDocumentFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor.json",
+      "mappedBaseColorTextureCandidateFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor_candidate.json",
+      "mappedBaseColorTextureCandidateSha256": "AB2AFA98E07D6D89B68DF338C1040EFC0B166FDE1B05984BD1C9763165777623",
+      "mappedBaseColorTextureDocumentSha256": "30AAEFFD7FB8E70DBFA61596937BCD4F125210526947EB195DA0EB0D9833D92D",
       "baseColorTextureCandidateSha256": "B3E97F7544302328D7674670E32AB62DCDC7B1522F71F0C8EEC54027F7D420F8",
       "baseColorTextureDocumentSha256": "84CAA4D21EB1F90D61F99A7BD830592117088F544BB5305ACDA31868323E4F16",
       "textureSampleResourceContract": {
@@ -6246,14 +6252,14 @@
           "color": "raw Vector4 sample, no implicit swizzle or transfer decode",
           "alpha": "sampled color alpha"
         },
-        "uv": "required explicit Vector2 input; this candidate does not inject UV0 or apply slot transforms",
+        "uv": "the direct-UV and Mapping→Base Color candidates share one resource requirement; Mapping is explicit graph semantics and no transform is injected by the direct-UV candidate",
         "resourceIdentity": "stable symbolic material-slot key; resolved asset identity and revision remain runtime binding state",
         "sampler": "legacy g_BaseColorSampler for every slot, preserved only as source characterization; filter/addressing behavior is uncharacterized",
         "fallback": "missing or failed resource behavior is not modeled by this source-only candidate",
         "runtimeStatus": "no HLSL compiler, resource binding, image sampling, backend capture, or color-space evaluation",
         "imageEvaluationPlan": {
           "status": "planned-candidate-runtime-route-not-implemented",
-          "objective": "Verify that a typed explicit-UV material-slot sample candidate reproduces the current ImageTexture path for the same bound image, and expose channel, alpha, color-interpretation, and backend differences.",
+          "objective": "Verify direct and explicitly mapped typed material-slot samples against the current ImageTexture path for the same bound image, and expose channel, alpha, color-interpretation, and backend differences.",
           "baseline": "Existing production MaterialGraphImageTextureSamplesChannelProbe/current ImageTexture graph path with the identical channel-probe asset and material slot; baseline captures repeated at least five times before candidate comparison.",
           "asset": {
             "path": "tests/fixtures/shader-graph-rd/textures/channel_probe_4x4_rgba.png",
@@ -6262,7 +6268,7 @@
             "source": "generated deterministic RGBA8 evaluation fixture; no external asset"
           },
           "conditions": {
-            "uv": "explicit UV0 sweep across [0,1] with texel centers, boundaries, and out-of-range coordinates; record orientation rather than assuming image row origin",
+            "uv": "capture direct UV0 and the explicit UV0→Mapping(scale=(2,0.5), offset=(0.25,-0.125)) candidate across [0,1], texel centers, boundaries, and out-of-range coordinates; retain orientation evidence rather than assuming image row origin",
             "resource": "same material-slot resource and asset revision for baseline/candidate; separately exercise absent and failed resource after a runtime adapter exists",
             "sampler": "record effective filter, mip, and address state; if current path cannot expose them, mark unverified",
             "color": "capture raw resource sample and graph output; characterize Base Color sRGB sampling separately from linear slots without assuming equivalence",
@@ -6313,6 +6319,14 @@
               "sampler compatibility is not established",
               "Core resource failure policy is not established"
             ]
+          },
+          "mappedUvCandidate": {
+            "documentFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor.json",
+            "documentSha256": "30AAEFFD7FB8E70DBFA61596937BCD4F125210526947EB195DA0EB0D9833D92D",
+            "candidateFixture": "experiments/ShaderGraphLab/dynamic_texture_mapped_basecolor_candidate.json",
+            "candidateSha256": "AB2AFA98E07D6D89B68DF338C1040EFC0B166FDE1B05984BD1C9763165777623",
+            "expectedCoordinateExpression": "(UV0 * float2(2.0, 0.5)) + float2(0.25, -0.125)",
+            "contract": "the texture Sample consumes the Mapping node output; symbolic resource requirement equals the direct-UV candidate; GPU sampling remains unverified"
           }
         },
         "packedMetallicRoughnessCharacterization": {
