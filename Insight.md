@@ -2,7 +2,7 @@
 
 ## 2026-11-15: UV mapping and image resources should remain graph-authored
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`local_graph_lab.py`、`local_graph_lab.html`、`dynamic_generic_image_mapping.json`。
-- **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補がある。mapped/direct graph はresource requirementsとresolved binding keyを保ちつつ、semantic/HLSL source identityを変える。local editorで開けるschema-v1例はUV0→Mapping→Image Textureを保持するが、resourceは未解決である。Image Texture node向けの編集UIはnode参照、document resource tableのAsset UUID、sampler、色解釈を単一undoable actionで保存する。これは文字列UUIDをdocument値へ保存するだけで、AssetDatabase検索、revision解決、画像load、GPU bindingは行わない。
+- **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補がある。mapped/direct graph はresource requirementsとresolved binding keyを保ちつつ、semantic/HLSL source identityを変える。local editorで開けるschema-v1例はUV0→Mapping→Image Textureを保持するが、resourceは未解決である。Image Texture node向けの編集UIはnode参照、document resource tableのAsset UUID、sampler、色解釈を単一undoable actionで保存する。optional `AssetDatabase::toJson()` snapshot adapter はImage型だけを名前とUUIDで表示し、パスを捨ててsnapshot hashを示す。これは静的な選択肢で、live AssetDatabase接続、revision解決、画像load、GPU bindingは行わない。
 - **価値または懸念:** UV変換とtexture参照の authored state を接続可能なshader graphへ置き、resource identityとshader semanticsを分離できる。production material path、Asset picker、回転・wrap・GPU動作は未検証。
 - **次に確認すべきこと:** resource編集/clear/undo/redo/save/reloadをaction契約として検証可能になった後に確認する。production resource adapter接続後はchannel-probe direct-UV baselineを5回以上取得し、候補画像を見る前に領域別許容差を固定してからMapping・runtime/backend/性能ゲートを実施する。
 

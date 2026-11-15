@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import hashlib
 import json
 import sys
 import time
@@ -22,6 +23,9 @@ MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 HISTORY_MERGE_WINDOW_SECONDS = 0.8
 MAX_HISTORY_COMMANDS = 100
 MAX_HISTORY_PAYLOAD_BYTES = 32 * 1024 * 1024
+MAX_ASSET_CATALOG_BYTES = 16 * 1024 * 1024
+MAX_ASSET_CATALOG_RECORDS = 16384
+ASSET_TYPE_IMAGE = 1
 ACTION_FIELDS = {
     "undo": (set(), set()),
     "redo": (set(), set()),
@@ -53,12 +57,66 @@ ACTION_FIELDS = {
 }
 
 
+def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
+    """Read image choices from AssetDatabase::toJson() without retaining paths."""
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        raise graph.ContractError(f"cannot read AssetDatabase snapshot: {error}",
+                                  code="asset.catalog.read.failed", path="/assetCatalog") from error
+    if len(payload) > MAX_ASSET_CATALOG_BYTES:
+        raise graph.ContractError("AssetDatabase snapshot exceeds the size limit",
+                                  code="asset.catalog.size.invalid", path="/assetCatalog")
+    try:
+        records = json.loads(payload.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise graph.ContractError("AssetDatabase snapshot is not valid UTF-8 JSON",
+                                  code="asset.catalog.json.invalid", path="/assetCatalog") from error
+    if not isinstance(records, list) or len(records) > MAX_ASSET_CATALOG_RECORDS:
+        raise graph.ContractError("AssetDatabase snapshot must be a bounded array",
+                                  code="asset.catalog.shape.invalid", path="/assetCatalog")
+
+    seen_ids: set[str] = set()
+    images: list[dict[str, str]] = []
+    for index, record in enumerate(records):
+        record_path = f"/assetCatalog/{index}"
+        if not isinstance(record, dict):
+            raise graph.ContractError("AssetDatabase record must be an object",
+                                      code="asset.catalog.record.invalid", path=record_path)
+        asset_id = record.get("id")
+        if isinstance(asset_id, str) and asset_id.startswith("{") and asset_id.endswith("}"):
+            asset_id = asset_id[1:-1]
+        if not isinstance(asset_id, str) or not graph.ASSET_UUID.fullmatch(asset_id):
+            raise graph.ContractError("AssetDatabase record has an invalid UUID",
+                                      code="asset.catalog.asset_id.invalid", path=f"{record_path}/id")
+        asset_id = asset_id.lower()
+        if asset_id in seen_ids:
+            raise graph.ContractError("AssetDatabase snapshot contains duplicate UUIDs",
+                                      code="asset.catalog.asset_id.duplicate", path=f"{record_path}/id")
+        seen_ids.add(asset_id)
+        asset_type = record.get("type")
+        if isinstance(asset_type, bool) or not isinstance(asset_type, int) or not 0 <= asset_type <= 7:
+            raise graph.ContractError("AssetDatabase record has an unsupported type value",
+                                      code="asset.catalog.asset_type.invalid", path=f"{record_path}/type")
+        if asset_type != ASSET_TYPE_IMAGE:
+            continue
+        name = record.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise graph.ContractError("Image asset must have a display name",
+                                      code="asset.catalog.asset_name.invalid", path=f"{record_path}/name")
+        images.append({"assetId": asset_id, "name": name.strip(), "assetType": "Image"})
+    images.sort(key=lambda item: (item["name"].casefold(), item["assetId"]))
+    return images, hashlib.sha256(payload).hexdigest().upper()
+
+
 @dataclass
 class Session:
     registry: dict[tuple[str, int], graph.Operation]
     document: dict[str, Any]
     document_path: Path | None
     history: list[graph.DocumentCommand]
+    asset_catalog: list[dict[str, str]] | None = None
+    asset_catalog_sha256: str | None = None
     cursor: int = 0
     last_history_action_key: tuple[str, str] | None = None
     last_history_action_time: float = 0.0
@@ -85,6 +143,9 @@ class Session:
         return {
             "document": graph.preserve_document(self.document),
             "palette": graph.build_palette_model(self.registry),
+            "assetCatalog": self.asset_catalog or [],
+            "assetCatalogStatus": "snapshot" if self.asset_catalog is not None else "not-provided",
+            "assetCatalogSha256": self.asset_catalog_sha256,
             "validation": validation,
             "compilation": compilation,
             "history": {
@@ -272,6 +333,12 @@ class Session:
             after = graph.edit_node_parameters(before, self.registry, action.get("nodeId"), action.get("values"))
         elif kind == "imageResource":
             node_id = action.get("nodeId")
+            asset_id = action["assetId"]
+            if (self.asset_catalog is not None and
+                    (not isinstance(asset_id, str) or
+                     not any(item["assetId"] == asset_id.lower() for item in self.asset_catalog))):
+                raise graph.ContractError("Asset UUID is not an Image in the supplied snapshot",
+                                          code="resource.asset.catalog.unavailable", path="/assetId")
             nodes = before.get("nodes")
             if not isinstance(nodes, list):
                 raise graph.ContractError("document nodes must be an array",
@@ -292,7 +359,7 @@ class Session:
                 reference["sampler"] = action["sampler"]
             if "colorInterpretation" in action:
                 reference["colorInterpretation"] = action["colorInterpretation"]
-            after = graph.set_graph_resource_asset(before, action["resourceId"], action["assetId"])
+            after = graph.set_graph_resource_asset(before, action["resourceId"], asset_id)
             after = graph.edit_node_resource_reference(after, self.registry, node_id, reference)
         elif kind == "clearImageResource":
             after = graph.edit_node_resource_reference(before, self.registry, action.get("nodeId"), None)
@@ -483,15 +550,25 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--document", type=Path, help="graph JSON to edit and save")
     parser.add_argument("--registry", type=Path, default=root / "registry.json")
+    parser.add_argument("--asset-catalog", type=Path,
+                        help="optional AssetDatabase::toJson() snapshot for Image Texture selection")
     parser.add_argument("--host", default="127.0.0.1", choices=("127.0.0.1",))
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     registry = graph.load_registry(args.registry)
+    if args.asset_catalog:
+        try:
+            asset_catalog, asset_catalog_sha256 = load_asset_catalog_snapshot(args.asset_catalog.resolve())
+        except graph.ContractError as error:
+            parser.error(f"{error.code}: {error.message}")
+    else:
+        asset_catalog, asset_catalog_sha256 = None, None
     document_path = args.document.resolve() if args.document else None
     initial_path = document_path or (root / "dynamic_add.json")
     document, document_file_hash = graph.load_document_snapshot(initial_path)
     page = (root / "local_graph_lab.html").read_bytes()
-    session = Session(registry, document, document_path, [], saved_file_hash=document_file_hash)
+    session = Session(registry, document, document_path, [], asset_catalog=asset_catalog,
+                      asset_catalog_sha256=asset_catalog_sha256, saved_file_hash=document_file_hash)
     server = HTTPServer((args.host, args.port), make_handler(session, page))
     print(f"ShaderGraphLab is available at http://{args.host}:{args.port}/")
     print("Local-only R&D UI; generated HLSL is a candidate string, not a compiled shader.")
