@@ -353,6 +353,7 @@ def project_resource_bindings(document: Any, resource_projection: Any,
              isinstance(resource_projection.get("assetResolutions"), list),
              "resource projection is invalid", "resource.projection.invalid",
              "/resourceProjection")
+    _validate_resource_projection_document(document, resource_projection)
     _require(isinstance(asset_source_states, dict),
              "asset source states must map Asset UUID to source revision",
              "resource.source_states.invalid", "/assetSourceStates")
@@ -442,6 +443,124 @@ def project_resource_bindings(document: Any, resource_projection: Any,
             "bindingIdentityFields": ["resourceKey", "resourceId", "assetId", "assetType",
                                       "sourceRevision", "sampler", "colorInterpretation"],
             "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"}
+
+
+def _validate_resource_projection_document(document: Any,
+                                           resource_projection: dict[str, Any]) -> None:
+    """Reject resolver projections made from a different graph/resource-table snapshot."""
+    _require(isinstance(document, dict) and isinstance(document.get("nodes"), list) and
+             isinstance(document.get("links"), list) and
+             isinstance(document.get("resources"), list) and
+             isinstance(document.get("output"), dict),
+             "document snapshot is invalid", "resource.projection.document_invalid", "/document")
+    nodes = {node.get("nodeId"): node for node in document["nodes"]
+             if isinstance(node, dict) and isinstance(node.get("nodeId"), str)}
+    _require(len(nodes) == len(document["nodes"]),
+             "document snapshot has invalid or duplicate node IDs",
+             "resource.projection.document_invalid", "/nodes")
+    incoming: dict[str, set[str]] = {node_id: set() for node_id in nodes}
+    for index, link in enumerate(document["links"]):
+        if not isinstance(link, dict):
+            raise ContractError("document snapshot link is invalid",
+                                "resource.projection.document_invalid", f"/links/{index}")
+        source = link.get("from")
+        target = link.get("to")
+        if not isinstance(source, dict) or not isinstance(target, dict):
+            raise ContractError("document snapshot link endpoint is invalid",
+                                "resource.projection.document_invalid", f"/links/{index}")
+        source_id, target_id = source.get("nodeId"), target.get("nodeId")
+        if source_id not in nodes or target_id not in nodes:
+            raise ContractError("document snapshot link references a missing node",
+                                "resource.projection.document_invalid", f"/links/{index}")
+        incoming[target_id].add(source_id)
+
+    output = document["output"]
+    output_node = output.get("nodeId")
+    _require(output_node in nodes,
+             "document snapshot output node is missing",
+             "resource.projection.document_invalid", "/output/nodeId")
+    active: set[str] = set()
+    pending = [output_node]
+    while pending:
+        node_id = pending.pop()
+        if node_id in active:
+            continue
+        active.add(node_id)
+        pending.extend(incoming[node_id] - active)
+
+    resources = {}
+    for index, resource in enumerate(document["resources"]):
+        if not isinstance(resource, dict) or not isinstance(resource.get("resourceId"), str):
+            raise ContractError("document snapshot resource is invalid",
+                                "resource.projection.document_invalid", f"/resources/{index}")
+        resource_id = resource["resourceId"]
+        if resource_id in resources:
+            raise ContractError("document snapshot resourceId is duplicated",
+                                "resource.projection.document_invalid", f"/resources/{index}/resourceId")
+        resources[resource_id] = resource
+
+    requirements = resource_projection["resourceRequirements"]
+    resolutions = resource_projection["assetResolutions"]
+    projected_output = resource_projection.get("selectedOutput")
+    _require(isinstance(projected_output, dict) and
+             projected_output.get("nodeId") == output.get("nodeId") and
+             projected_output.get("socketId") == output.get("socketId") and
+             resource_projection.get("activeNodeIds") == sorted(active),
+             "resource projection belongs to a different graph snapshot",
+             "resource.projection.stale", "/resourceProjection")
+    expected_nodes = sorted(node_id for node_id in active
+                            if nodes[node_id].get("operationId") == "artifact.texture.sample.image2d")
+    projected_nodes = sorted(item.get("nodeId") for item in requirements
+                             if isinstance(item, dict))
+    _require(projected_nodes == expected_nodes and len(projected_nodes) == len(requirements),
+             "resource projection does not cover the active image nodes",
+             "resource.projection.stale", "/resourceProjection/resourceRequirements")
+    resolution_by_key = {item.get("resourceKey"): item for item in resolutions
+                         if isinstance(item, dict)}
+    _require(len(resolution_by_key) == len(resolutions) == len(requirements),
+             "resource projection resolution set is incomplete or duplicated",
+             "resource.projection.stale", "/resourceProjection/assetResolutions")
+    canonical_requirements = []
+    for node_id in expected_nodes:
+        node = nodes[node_id]
+        node_index = next(index for index, item in enumerate(document["nodes"])
+                          if item.get("nodeId") == node_id)
+        node_references = node.get("resourceReferences")
+        _require(isinstance(node_references, dict),
+                 "active image node reference is missing",
+                 "resource.projection.stale", f"/nodes/{node_index}/resourceReferences")
+        resource_id = node_references.get("image")
+        resource_key = f"artifact.shadergraph.image.{node_id}"
+        requirement = next((item for item in requirements
+                            if isinstance(item, dict) and item.get("resourceKey") == resource_key), None)
+        _require(isinstance(requirement, dict) and
+                 requirement == {"resourceKey": resource_key, "resourceId": resource_id,
+                                 "nodeId": node_id, "resourceKind": "sampledTexture2D"},
+                 "resource requirement differs from the current node reference",
+                 "resource.projection.stale", f"/nodes/{node_index}/resourceReferences/image")
+        resource = resources.get(resource_id)
+        _require(isinstance(resource, dict) and resource.get("resourceKind") == "sampledTexture2D" and
+                 isinstance(resource.get("source"), dict),
+                 "current resource table entry is missing or invalid",
+                 "resource.projection.stale", f"/nodes/{node_index}/resourceReferences/image")
+        asset_id = resource["source"].get("assetId")
+        resolution = resolution_by_key.get(resource_key)
+        resolved_asset_id = resolution.get("assetId") if isinstance(resolution, dict) else None
+        _require(isinstance(asset_id, str) and isinstance(resolved_asset_id, str) and
+                 isinstance(resolution, dict) and
+                 resolution.get("resourceId") == resource_id and
+                 resolved_asset_id.lower() == asset_id.lower(),
+                 "asset resolution differs from the current resource table",
+                 "resource.binding.asset_reference.mismatch",
+                 f"/resourceProjection/assetResolutions/{_pointer_segment(resource_key)}")
+        canonical_requirements.append(requirement)
+    requirement_bytes = json.dumps(canonical_requirements, sort_keys=True,
+                                   separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    _require(resource_projection.get("resourceRequirementIdentitySha256") ==
+             hashlib.sha256(requirement_bytes).hexdigest().upper(),
+             "resource requirement identity does not match its records",
+             "resource.projection.identity_mismatch",
+             "/resourceProjection/resourceRequirementIdentitySha256")
 
 
 def adapt_document_to_dynamic_registry(document: dict[str, Any],
@@ -595,6 +714,11 @@ def build_candidate(document: Any, asset_catalog: dict[str, Any],
     color_changed_binding = project_resource_bindings(
         color_changed_document, color_changed_projection, asset_source_states)
     missing_source_binding = project_resource_bindings(document, candidate, {})
+    stale_projection_error = None
+    try:
+        project_resource_bindings(relinked_document, candidate, asset_source_states)
+    except ContractError as error:
+        stale_projection_error = error.to_json()
 
     candidate["assetRelinkProjection"] = {
         "previousAssetId": previous_asset_id,
@@ -626,6 +750,9 @@ def build_candidate(document: Any, asset_catalog: dict[str, Any],
         "missingSourceRevisionProducesNoBindingKey":
             missing_source_binding["resourceBindingStatus"] == "unresolved" and
             missing_source_binding["resourceBindingKeySha256"] is None,
+        "staleAssetProjectionIsRejectedAfterResourceTableRelink":
+            stale_projection_error is not None and
+            stale_projection_error["code"] == "resource.binding.asset_reference.mismatch",
         "UVCoordinatesRemainGraphInputs": all(
             {"from": {"nodeId": "uv", "socketId": "value"},
              "to": {"nodeId": node_id, "socketId": "uv"}} in document["links"]

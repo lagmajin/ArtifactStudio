@@ -6579,8 +6579,8 @@
         "documentSha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
         "assetCatalogSha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
         "assetSourceStatesSha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
-        "prototypeSha256": "BE147823B157AB0CBE29EA3756E0498797AD41C04A99D6C95B7E55EFB7BBBE53",
-        "candidateSha256": "DB4ED0679E855840824067E74E5F0038E615A43F903F71956FB537C87D95749C",
+        "prototypeSha256": "9F110B7F72F85AE230745439A0E815F7AC6DFDE80EAC15BD0B8549FB5627B4C0",
+        "candidateSha256": "62D1A7B34992D80213679F6DC29E2748E8F313BC818DC19AEF721188146FC637",
         "supportedSubset": [
           "schemaId artifact.shadergraph.document version 4",
           "artifact.input.texcoord.uv0.vector2",
@@ -6607,9 +6607,10 @@
           "malformed sampler enums and anisotropy bounds reject with stable diagnostics",
           "boolean, zero, negative, and non-integer source revisions reject instead of becoming cache keys",
           "missing Asset UUID in the external catalog preserves the document projection as unresolved with no binding key",
-          "non-Image catalog type rejects the resource binding"
+          "non-Image catalog type rejects the resource binding",
+          "a projection retained across an Asset UUID relink rejects with resource.binding.asset_reference.mismatch"
         ],
-        "identityBoundary": "resourceRequirementIdentitySha256 covers symbolic resourceKey/resourceId/node identity; the document resource table persists resourceId-to-Asset-UUID mapping, while catalog type and source revision are host-resolved and sampler/color participate only in the separate runtimeBindingProjection key; UV remains in explicit graph links",
+        "identityBoundary": "resourceRequirementIdentitySha256 covers symbolic resourceKey/resourceId/node identity; the document resource table persists resourceId-to-Asset-UUID mapping, while catalog type and source revision are host-resolved and sampler/color participate only in the separate runtimeBindingProjection key; UV remains in explicit graph links; binding projection revalidates active node/resource references against the current document and rejects stale resource-table snapshots",
         "runtimeBindingProjectionContract": {
           "status": "logical-binding-key-candidate-no-gpu-runtime",
           "bindingIdentityFields": [
@@ -6667,8 +6668,8 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "8B22D59BE4A20A741BD00F80BB4A150018B59EEEA5A5A9ECF0288ECAA5F29F63",
-        "dynamicRegistrySha256": "BC665D3810167606BD336850E110835A1169F120030E490DE9F682028326781F",
+        "dynamicResolverPrototypeSha256": "FEB970374EF13FE79C40003735D58BB1BF35FEC4BD50C62F9438503E55E91361",
+        "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
         "mappedUvDynamicDocumentFixture": "experiments/ShaderGraphLab/dynamic_generic_image_mapping.json",
