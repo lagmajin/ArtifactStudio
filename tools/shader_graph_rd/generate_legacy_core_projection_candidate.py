@@ -52,6 +52,52 @@ def main() -> int:
     if any(fragment not in compiled["hlslBody"] for fragment in required_hlsl):
         raise RuntimeError("typed candidate does not match the source-audited Core Add expression")
 
+    base_color_math_variants = {}
+    for variant_id, legacy_op, operation_id, operator in (
+        ("subtract", 1, "artifact.rd.math.subtract.vector4.float32", "-"),
+        ("multiply", 2, "artifact.rd.math.multiply.vector4.float32", "*"),
+        ("dividePositiveFloor", 3,
+         "artifact.rd.math.divide.vector4.positive_floor.float32", "/"),
+    ):
+        variant_source = json.loads(source_json)
+        next(node for node in variant_source["nodes"]
+             if node["id"] == "math")["params"]["op"] = legacy_op
+        variant_json = json.dumps(variant_source, ensure_ascii=False,
+                                  separators=(",", ":"))
+        variant_projection = prototype.project_legacy_core_material_input(
+            variant_json, registry, target_node_id="surface",
+            target_input_socket="BaseColor")
+        variant_compiled = prototype.compile_document_from_data(
+            variant_projection["document"], registry)
+        expression = (
+            "float4 n_math_result = (n_input_a_value / max(n_input_b_value, "
+            "float4(1e-5f,1e-5f,1e-5f,1e-5f)));"
+            if legacy_op == 3 else
+            f"float4 n_math_result = (n_input_a_value {operator} n_input_b_value);"
+        )
+        if (variant_projection["document"]["nodes"][2]["operationId"] != operation_id or
+                expression not in variant_compiled["hlslBody"]):
+            raise RuntimeError(f"legacy BaseColor {variant_id} did not preserve typed Math semantics")
+        if legacy_op == 1:
+            expected = [f32(a - b) for a, b in zip(
+                (0.25, -2.0, 3.0, 0.5), (0.5, 1.0, -4.0, 0.25))]
+        elif legacy_op == 2:
+            expected = [f32(a * b) for a, b in zip(
+                (0.25, -2.0, 3.0, 0.5), (0.5, 1.0, -4.0, 0.25))]
+        else:
+            expected = [f32(a / f32(max(b, 1.0e-5))) for a, b in zip(
+                (0.25, -2.0, 3.0, 0.5), (0.5, 1.0, -4.0, 0.25))]
+        base_color_math_variants[variant_id] = {
+            "legacyOperation": legacy_op,
+            "operationId": operation_id,
+            "sourceSha256": hashlib.sha256(variant_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": variant_projection["includedNodeIds"],
+            "document": variant_projection["document"],
+            "candidateHlslBodySha256": variant_compiled["hlslBodySha256"],
+            "candidateHlslBody": variant_compiled["hlslBody"],
+            "cpuVector4Golden": expected,
+        }
+
     nested_source = json.loads(source_json)
     nested_source["nodes"].append({"id": "input_c", "type": "RGB", "params": {
         "r": -0.125, "g": 0.25, "b": 0.5, "a": -0.25,
@@ -270,7 +316,7 @@ def main() -> int:
 
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
-    math_node["params"]["op"] = 1
+    math_node["params"]["op"] = 4
     try:
         prototype.project_legacy_core_material_input(
             json.dumps(unsupported_source), registry,
@@ -301,6 +347,7 @@ def main() -> int:
         "excludedNodeIds": projection["excludedNodeIds"],
         "layoutProvenance": projection["layoutProvenance"],
         "document": projection["document"],
+        "baseColorMathVariants": base_color_math_variants,
         "candidateHlslBodySha256": compiled["hlslBodySha256"],
         "candidateHlslBody": compiled["hlslBody"],
         "cpuVector4AddGolden": expected_vector4,
@@ -362,10 +409,10 @@ def main() -> int:
         },
         "limitations": [
             "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
-            "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Subtract/Multiply/Divide Roughness lane",
+            "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and selected BaseColor/Roughness arithmetic projection lanes",
             "does not infer or perform any other legacy implicit numeric conversion",
             "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
-            "Roughness supports legacy Math Divide only as the Core positive denominator floor operation max(b, 1e-5); clamped Math is rejected",
+            "selected BaseColor and Roughness Math nodes map Add/Subtract/Multiply/Divide into the matching typed operation; Divide preserves the Core positive denominator floor max(b, 1e-5); clamped Math is rejected",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",

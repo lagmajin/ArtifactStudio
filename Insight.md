@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-16
 
+## 2026-11-16: Legacy BaseColor arithmetic can be projected without collapsing RGBA lanes
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::project_legacy_core_material_input`、`tools/shader_graph_rd/compile_legacy_core_projection_candidates.py`、Core `MathNode` material lowering。
+- **確認できた事実:** The selected BaseColor lane now projects legacy componentwise Vector4 Math Subtract, Multiply, and positive-floor Divide into distinct typed operations. DXC/HLSL and glslang/GLSL Vulkan 1.2 constant-fold outputs match all four binary32 lanes for the generated RGB-node fixture variants; the main manifest validator passes.
+- **価値または懸念:** The adapter can carry more legacy material arithmetic through a typed graph while preserving alpha and the unusual positive-floor division rule. This does not settle Color4 transfer/premultiplication policy or the product decision that graph BaseColor replaces fixed-PBR tint/factor contributions.
+- **次に確認すべきこと:** Run the authorized Core Vulkan capture, then add representative BaseColor operation runtime captures and project save/reload before considering migration support in Core.
+- **未検証:** GPU arithmetic/pixels, production application path, project persistence, and D3D12 parity.
+
 ## 2026-11-16: Vulkan graph capture source compares legacy and typed scalar lanes
 - **関連:** `tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer`、`tests/fixtures/shader-graph-rd/texcoord_math_roughness.json`、`experiments/ShaderGraphLab/core_math_add_projection_candidate.json`。
 - **確認できた事実:** 既存headless Vulkan MeshRenderer capture harnessへ、legacy JSON loweringとtyped candidate HLSL injectionを同じmesh UV・RGBA32F readbackで比較するsource caseを追加した。五つのUV0.x値とfixture/candidate/capture SHA-256を記録する設計で、数値比較はBaseColor AOV赤channelを使う。これはC++ source上の事実で、captureは未実行。

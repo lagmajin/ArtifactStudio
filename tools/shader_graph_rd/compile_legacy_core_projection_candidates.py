@@ -20,6 +20,9 @@ CASES = (
     ("nestedAddProjection", "nested_add"),
     ("scalarBaseColorConversionProbe", "scalar_conversion"),
     ("unconnectedBaseColorDefaultProbe", "base_color_default"),
+    ("baseColorMathVariants.subtract", "base_color_subtract"),
+    ("baseColorMathVariants.multiply", "base_color_multiply"),
+    ("baseColorMathVariants.dividePositiveFloor", "base_color_divide_positive_floor"),
 )
 
 
@@ -141,7 +144,10 @@ def main() -> int:
     records = []
 
     for key, label in CASES:
-        projection = candidate if key == "document" else candidate[key]
+        projection = candidate if key == "document" else candidate
+        for key_part in key.split("."):
+            if key != "document":
+                projection = projection[key_part]
         document = projection["document"]
         compiled = prototype.compile_document_from_data(document, registry)
         context_bindings = {}

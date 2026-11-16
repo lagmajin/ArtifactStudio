@@ -115,7 +115,7 @@ float t = saturate((0.5f - 0f) / 1f);
 
 ## Legacy Math projection拡張（2026-11-16、compiler-only）
 
-Roughness scalar adapterへUnclamped Add/Subtract/Multiply/Divideを加えた。DivideはCoreの正のepsilon床 `max(b,1e-5)` を維持し、負の入力を通常除算へ読み替えない。Subtractと負の分母を使うDivideをvariantとして生成し、それぞれ6個のUV0.xをDXC/HLSLとglslang/GLSLへ別々にspecializeした。2 operation × 6 sample × 2 frontendの24出力はbinary32 oracleと完全一致し、7 candidate cases全てがcompile/validation/numeric条件を通過した。manifest validatorも一致を報告する。
+Selected BaseColor Vector4 and Roughness Float adapters now map unclamped Add/Subtract/Multiply/Divide to typed operations. Divide preserves Core's positive epsilon denominator floor. BaseColor Subtract/Multiply/Divide each compile through DXC/HLSL and glslang/GLSL for Vulkan 1.2, with exact four-lane binary32 output matches. Roughness Subtract and negative-denominator Divide match the scalar oracle at six UV samples in both frontends (24 outputs). The expanded compiler summary reports 10/10 cases passed and the manifest validator passes.
 
 これはoffline compiler evidenceで、GPU capture、Core loader、production adapter、Diligent binding、project save/reloadは未検証。次のruntime gateは前節のVulkan capture sourceであり、Divideのフルruntime挙動を網羅するものではない。
 

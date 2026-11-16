@@ -5084,13 +5084,13 @@ def project_legacy_core_material_input(
                                     code="legacy.node.parameters.invalid",
                                     path=f"/nodes/{node_id}/params")
             operation = params.get("op", 0)
-            if isinstance(operation, bool) or operation != 0:
-                raise ContractError("only legacy Math Add is supported by this projection",
+            if isinstance(operation, bool) or operation not in (0, 1, 2, 3):
+                raise ContractError("legacy BaseColor Math supports Add, Subtract, Multiply, and Divide",
                                     code="legacy.node.operation.unsupported",
                                     path=f"/nodes/{node_id}/params/op")
             clamp_result = params.get("clamp", False)
             if not isinstance(clamp_result, bool) or clamp_result:
-                raise ContractError("clamped legacy Math Add has no matching typed operation",
+                raise ContractError("clamped legacy BaseColor Math has no matching typed operation",
                                     code="legacy.node.operation.unsupported",
                                     path=f"/nodes/{node_id}/params/clamp")
             return ("A", "B")
@@ -5114,7 +5114,7 @@ def project_legacy_core_material_input(
         stack[-1] = (node_id, input_index + 1, sockets)
         sources = incoming.get((node_id, socket), [])
         if len(sources) != 1:
-            raise ContractError("legacy Math Add inputs must each have exactly one source",
+            raise ContractError("legacy BaseColor Math inputs must each have exactly one source",
                                 code="legacy.link.cardinality.invalid",
                                 path=f"/nodes/{node_id}/inputs/{socket}")
         dependency_id, dependency_output = sources[0]
@@ -5127,7 +5127,7 @@ def project_legacy_core_material_input(
             (dependency.get("type") == "Math" and dependency_output == "Value")
         )
         if not supported_source:
-            raise ContractError("legacy Math Add inputs must come from RGB Color or Math Value sockets",
+            raise ContractError("legacy BaseColor Math inputs must come from RGB Color or Math Value sockets",
                                 code="legacy.link.type.incompatible",
                                 path=f"/nodes/{node_id}/inputs/{socket}")
         dependency_socket[dependency_id] = dependency_output
@@ -5191,7 +5191,12 @@ def project_legacy_core_material_input(
                               code="legacy.parameter.invalid")
             }
         else:
-            operation_id = "artifact.rd.math.add.vector4.float32"
+            operation_id = {
+                0: "artifact.rd.math.add.vector4.float32",
+                1: "artifact.rd.math.subtract.vector4.float32",
+                2: "artifact.rd.math.multiply.vector4.float32",
+                3: "artifact.rd.math.divide.vector4.positive_floor.float32",
+            }[params.get("op", 0)]
             semantic_parameters = {}
             for legacy_socket, typed_socket in (("A", "a"), ("B", "b")):
                 source_id, source_socket = incoming[(node_id, legacy_socket)][0]

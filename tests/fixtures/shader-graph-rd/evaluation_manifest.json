@@ -6450,6 +6450,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
+        "legacyBaseColorProjectionCoversVector4MathVariants",
         "legacyCoreProjectionCompilesThroughBothVulkanFrontends",
         "legacyRoughnessProjectionCoversSubtractAndPositiveFloorDivide",
         "rampNumericProbeSeparatesShaderMixFromLerpRounding",
@@ -6953,7 +6954,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "AD2BB02A52A5A66C32A10ADDD342A69292EFBF2DA688C31C2EBB9E4D51A689A1",
+        "dynamicResolverPrototypeSha256": "D3671E4769C205FB67162C13291565CB1BD956BB07849FCB988946955D90EAEC",
         "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
@@ -6992,12 +6993,15 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "67099F47F97E4CBCB18C442E5DF0DD90D03F54E694AA20ADF5A65A95E65A8110",
+          "candidateSha256": "6BCB0367AA24624B684BE4D3CC07548935ACECC2538005C54E68088A2804233C",
           "candidateCases": [
             "base_color_add",
             "nested_add",
             "scalar_conversion",
             "base_color_default",
+            "base_color_subtract",
+            "base_color_multiply",
+            "base_color_divide_positive_floor",
             "dynamic_roughness_uv0_x",
             "legacy_roughness_subtract",
             "legacy_roughness_dividePositiveFloor"
@@ -7077,6 +7081,26 @@
             "runtimeStatus": "dynamic-context-through-multiply-and-add-compiled-and-numeric-specializations-match-no-gpu-execution",
             "semanticHashSha256": "DB5DBDDD4CB88114F4DAEB36E5178DC6DCE1CC3661D43EB1BF7AB6E3F7DD8622",
             "hlslBodySha256": "264EC4FCB9E23EC87526DB2FC6E1CE70FE9545627787158DA7F2184A26073C5B"
+          },
+          "baseColorOperations": {
+            "subtract": {
+              "operationId": "artifact.rd.math.subtract.vector4.float32",
+              "legacyMathOp": 1,
+              "numericOracle": "componentwise binary32 subtract of the two RGB-node Vector4 values",
+              "status": "hlsl-glsl-vulkan-exact-binary32-no-gpu-execution"
+            },
+            "multiply": {
+              "operationId": "artifact.rd.math.multiply.vector4.float32",
+              "legacyMathOp": 2,
+              "numericOracle": "componentwise binary32 multiply of the two RGB-node Vector4 values",
+              "status": "hlsl-glsl-vulkan-exact-binary32-no-gpu-execution"
+            },
+            "dividePositiveFloor": {
+              "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+              "legacyMathOp": 3,
+              "numericOracle": "componentwise binary32 divide by max(each divisor lane, 1e-5)",
+              "status": "hlsl-glsl-vulkan-exact-binary32-no-gpu-execution"
+            }
           }
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"

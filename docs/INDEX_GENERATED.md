@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-16 15:20
+> Generated: 2026-11-16 15:27
 > Total documents: 1509
 
 ---
@@ -1232,7 +1232,7 @@
 | 616 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-08-16 | 5.1 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 617 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-08-16 | 8.0 KB | SETTINGS, SEARCH, FILTER |
 | 618 | `docs/planned/MILESTONE_SHADER_GRAPH_R2_RUNTIME_PARITY_2026-11-15.md` | Shader Graph R2 — Runtime / Backend / Performance Parity | 2026-11-16 | 契約テスト実行済み。テスト側誤り 3 件 + 実バグ 4 件を修正。Vulkan GPU capture source を追加したが未実行。残り12件は既知ギャップの expected failure | 2026-11-16 | 15.1 KB | SHADER, GRAPH, RUNTIME, PARITY |
-| 619 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 227.0 KB | SHADER, GRAPH, RND |
+| 619 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 227.2 KB | SHADER, GRAPH, RND |
 | 620 | `docs/planned/MILESTONE_SHAPE_DIFFERENTIATION_CONSIDERATIONS_2026-09-10.md` | Shape Differentiation: 検討案 (AE弱点の残り) | 2026-09-10 | --- | 2026-09-10 | 2.6 KB | SHAPE, DIFFERENTIATION, CONSIDERATIONS |
 | 621 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-08-04 | In Progress（Core生成とArtifactの型・描画・JSON・作成ツール・汎用SVG経路を接続。専用パラメータの完全分離とruntime検証は未完了） | 2026-11-10 | 13.4 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 622 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | In Progress | 2026-10-02 | 5.9 KB | SHAPE, LAYERS |
