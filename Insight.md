@@ -2,10 +2,10 @@
 
 ## 2026-11-16: Runtime capture should compare full vector lanes for material math
 - **関連:** `tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer`、`tests/fixtures/shader-graph-rd/math_add.json`、`experiments/ShaderGraphLab/core_math_add_projection_candidate.json`。
-- **確認できた事実:** 既存のRGBA32F Vulkan harnessにBaseColor Vector4 Subtract / Multiply / positive-floor Divideのlegacy-versus-typed候補source caseを追加した。候補CPU golden、Core capture、test-only HLSL injection captureを5地点・RGBA全laneで比較するsource構造とhash report項目がある。
-- **価値または懸念:** scalar Roughness probeだけでは見えないalpha lane維持やVector4演算差をCore renderer境界で評価できる。candidateはproduction graph adapter経由ではなく、C++ captureは未実行のため、このsource自体をruntime evidenceやCore昇格根拠として扱えない。
+- **確認できた事実:** 既存のRGBA32F Vulkan harnessにBaseColor Vector4 Subtract / Multiply / positive-floor Divideのlegacy-versus-typed候補source caseを追加した。さらにreport-driven analyzerがcapture file hashを検証し、5地点のRGBA値をraw captureから再取得してログ値・binary32 goldenとのlane別誤差を出すsourceを追加した。
+- **価値または懸念:** scalar Roughness probeだけでは見えないalpha lane維持やVector4演算差をCore renderer境界で評価でき、将来のcapture reportを独立に監査できる。candidateはproduction graph adapter経由ではなく、C++ capture/analyzerは未実行のため、このsource自体をruntime evidenceやCore昇格根拠として扱えない。
 - **次に確認すべきこと:** 明示許可後にVulkan captureを実行し、全variantのraw output/reportとgoldenを確認する。その後にproduction adapter、save/reload、backend parity、性能ゲートを別途評価する。
-- **未検証:** C++ source compile、GPU pixels、production path、persistence、D3D12 parity。
+- **未検証:** C++ source compile、GPU pixels、analyzer実report出力、production path、persistence、D3D12 parity。
 
 ## 2026-11-16: Legacy BaseColor arithmetic can be projected without collapsing RGBA lanes
 - **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::project_legacy_core_material_input`、`tools/shader_graph_rd/compile_legacy_core_projection_candidates.py`、Core `MathNode` material lowering。

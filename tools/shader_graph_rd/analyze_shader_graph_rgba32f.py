@@ -251,6 +251,132 @@ def _capture_inputs_from_report(path: Path) -> dict[str, object]:
         "regions": regions,
         "byteOrder": "native",
         "reportSha256": hashlib.sha256(report_bytes).hexdigest().upper(),
+        "captureReport": capture_report,
+    }
+
+
+def _sampled_capture_comparisons(capture_report: dict[str, object],
+                                 report_path: Path, width: int,
+                                 height: int) -> dict[str, object] | None:
+    raw_records = capture_report.get("baseColorMathOperationCaptures")
+    if raw_records is None:
+        return None
+    if not isinstance(raw_records, list) or not raw_records:
+        raise ValueError("baseColorMathOperationCaptures must be a non-empty array")
+    raw_coordinates = capture_report.get("samplePixelCoordinates")
+    if not isinstance(raw_coordinates, list) or not raw_coordinates:
+        raise ValueError("samplePixelCoordinates are required for BaseColor captures")
+    if len(raw_coordinates) != 5:
+        raise ValueError("BaseColor captures require exactly five sample coordinates")
+    coordinates: list[dict[str, object]] = []
+    for index, item in enumerate(raw_coordinates, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"invalid samplePixelCoordinates entry {index}")
+        try:
+            factor = float(item["factor"])
+            x = int(item["x"])
+            y = int(item["y"])
+        except (KeyError, TypeError, ValueError, OverflowError) as error:
+            raise ValueError(f"incomplete samplePixelCoordinates entry {index}") from error
+        if not math.isfinite(factor) or not (0 <= x < width and 0 <= y < height):
+            raise ValueError(f"samplePixelCoordinates entry {index} is out of bounds")
+        coordinates.append({"factor": factor, "x": x, "y": y})
+
+    def capture_path(name: object, digest: object, label: str) -> Path:
+        if not isinstance(name, str) or not name or not isinstance(digest, str):
+            raise ValueError(f"{label}: capture path or SHA-256 is missing")
+        path = Path(name)
+        if not path.is_absolute():
+            path = report_path.resolve().parent / path
+        if _sha256(path) != digest.upper():
+            raise ValueError(f"{path}: SHA-256 differs from BaseColor capture report")
+        return path
+
+    comparisons: list[dict[str, object]] = []
+    seen_variants: set[str] = set()
+    for record_index, record in enumerate(raw_records, start=1):
+        if not isinstance(record, dict):
+            raise ValueError(f"invalid BaseColor operation capture {record_index}")
+        variant = record.get("variantId")
+        if not isinstance(variant, str) or not variant or variant in seen_variants:
+            raise ValueError(f"invalid or duplicate BaseColor variant id at {record_index}")
+        seen_variants.add(variant)
+        legacy_path = capture_path(
+            record.get("legacyRawCapture"),
+            record.get("legacyRawCaptureSha256"), f"{variant} legacy")
+        projected_path = capture_path(
+            record.get("projectedRawCapture"),
+            record.get("projectedRawCaptureSha256"), f"{variant} projected")
+        legacy = _read_rgba32f(legacy_path, width, height, "native")
+        projected = _read_rgba32f(projected_path, width, height, "native")
+        raw_samples = record.get("numericSamples")
+        if not isinstance(raw_samples, list) or len(raw_samples) != len(coordinates):
+            raise ValueError(f"{variant}: numeric sample count does not match coordinates")
+        samples: list[dict[str, object]] = []
+        max_legacy_golden_error = 0.0
+        max_projected_golden_error = 0.0
+        max_legacy_projected_error = 0.0
+        for sample_index, (sample, coordinate) in enumerate(
+                zip(raw_samples, coordinates), start=1):
+            if not isinstance(sample, dict):
+                raise ValueError(f"{variant}: invalid numeric sample {sample_index}")
+            try:
+                sample_factor = float(sample["panelUv0X"])
+                expected = [float(value) for value in sample["expectedRgba"]]
+                logged_legacy = [float(value) for value in sample["legacyCoreRgba"]]
+                logged_projected = [float(value) for value in sample["projectedCandidateRgba"]]
+            except (KeyError, TypeError, ValueError, OverflowError) as error:
+                raise ValueError(f"{variant}: incomplete numeric sample {sample_index}") from error
+            if (sample_factor != coordinate["factor"] or
+                    any(len(values) != 4 for values in
+                        (expected, logged_legacy, logged_projected))):
+                raise ValueError(f"{variant}: malformed numeric sample {sample_index}")
+            pixel_index = int(coordinate["y"]) * width + int(coordinate["x"])
+            actual_legacy = list(legacy[pixel_index * 4:pixel_index * 4 + 4])
+            actual_projected = list(projected[pixel_index * 4:pixel_index * 4 + 4])
+            if not all(math.isfinite(value) for values in
+                       (expected, logged_legacy, logged_projected,
+                        actual_legacy, actual_projected) for value in values):
+                raise ValueError(f"{variant}: non-finite channel in sample {sample_index}")
+            for channel in range(4):
+                if (abs(actual_legacy[channel] - logged_legacy[channel]) > 1.0e-7 or
+                        abs(actual_projected[channel] - logged_projected[channel]) > 1.0e-7):
+                    raise ValueError(
+                        f"{variant}: report sample {sample_index} disagrees with raw capture")
+            legacy_error = [abs(actual_legacy[i] - expected[i]) for i in range(4)]
+            projected_error = [abs(actual_projected[i] - expected[i]) for i in range(4)]
+            paired_error = [abs(actual_projected[i] - actual_legacy[i]) for i in range(4)]
+            max_legacy_golden_error = max(max_legacy_golden_error, *legacy_error)
+            max_projected_golden_error = max(max_projected_golden_error, *projected_error)
+            max_legacy_projected_error = max(max_legacy_projected_error, *paired_error)
+            samples.append({
+                "factor": sample_factor,
+                "x": coordinate["x"],
+                "y": coordinate["y"],
+                "expectedRgba": expected,
+                "legacyCoreRgba": actual_legacy,
+                "projectedCandidateRgba": actual_projected,
+                "legacyAbsoluteErrorRgba": legacy_error,
+                "projectedAbsoluteErrorRgba": projected_error,
+                "legacyVsProjectedAbsoluteErrorRgba": paired_error,
+            })
+        comparisons.append({
+            "variantId": variant,
+            "operationId": record.get("operationId"),
+            "legacyRawCaptureSha256": record["legacyRawCaptureSha256"].upper(),
+            "projectedRawCaptureSha256": record["projectedRawCaptureSha256"].upper(),
+            "maxLegacyVsGoldenAbsoluteError": max_legacy_golden_error,
+            "maxProjectedVsGoldenAbsoluteError": max_projected_golden_error,
+            "maxLegacyVsProjectedAbsoluteError": max_legacy_projected_error,
+            "samples": samples,
+        })
+    if seen_variants != {"subtract", "multiply", "dividePositiveFloor"}:
+        raise ValueError("BaseColor captures must include Subtract, Multiply, and positive-floor Divide")
+    return {
+        "sampleCountPerVariant": len(coordinates),
+        "channelOrder": "RGBA",
+        "status": "sampled-values-recomputed-from-hash-verified-raw-captures-no-quality-decision",
+        "operationCaptures": comparisons,
     }
 
 
@@ -381,6 +507,11 @@ def main() -> int:
             "absoluteErrorThreshold": args.threshold,
             "regions": [],
         }
+        if capture_input is not None:
+            sampled_comparisons = _sampled_capture_comparisons(
+                capture_input["captureReport"], args.capture_report, width, height)
+            if sampled_comparisons is not None:
+                report["baseColorMathSampleAnalysis"] = sampled_comparisons
         for region in regions:
             report["regions"].append({
                 "boundsTopLeftOrigin": region,

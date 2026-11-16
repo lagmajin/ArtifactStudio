@@ -113,6 +113,8 @@ float t = saturate((0.5f - 0f) / 1f);
 
 この経路は現行Core legacy loweringとR&D候補の選択値をGPU上で並べるための試験sourceであり、製品UI・ArtifactIRenderer adapter・project save/reloadを通らない。RoughnessではBaseColor AOVの赤channelへscalar値を載せるためroughness値の応答だけを検査し、BRDF見た目、roughness clampの出力、D3D12 parity、compile failure recovery、性能は評価しない。BaseColor arithmeticはcandidate goldenおよびlegacy captureとの一致をsource上で検査するが、実測値はまだない。C++ sourceは未ビルド・未実行で、capture recordsも未生成。実行には明示許可が必要。
 
+`tools/shader_graph_rd/analyze_shader_graph_rgba32f.py --capture-report <report>` は、BaseColor capture recordsがあればrawファイルのhashを検査し、sample座標からRGBAを再読込してreport内の数値と照合したうえで、golden/legacy/projection間のlane別絶対誤差を再計算する。これはreportの内部整合性確認であり、合否閾値やCore採用判定は設定しない。新しい解析sourceも未実行。
+
 ## Legacy Math projection拡張（2026-11-16、compiler-only）
 
 Selected BaseColor Vector4 and Roughness Float adapters now map unclamped Add/Subtract/Multiply/Divide to typed operations. Divide preserves Core's positive epsilon denominator floor. BaseColor Subtract/Multiply/Divide each compile through DXC/HLSL and glslang/GLSL for Vulkan 1.2, with exact four-lane binary32 output matches. Roughness Subtract and negative-denominator Divide match the scalar oracle at six UV samples in both frontends (24 outputs). The expanded compiler summary reports 10/10 cases passed and the manifest validator passes.
