@@ -55,6 +55,8 @@ def main() -> int:
                         default=Path(shutil.which("spirv-val") or "spirv-val"))
     parser.add_argument("--spirv-dis", type=Path,
                         default=Path(shutil.which("spirv-dis") or "spirv-dis"))
+    parser.add_argument("--spirv-opt", type=Path,
+                        default=Path(shutil.which("spirv-opt") or "spirv-opt"))
     args = parser.parse_args()
 
     output_dir = args.output_dir.resolve()
@@ -62,6 +64,9 @@ def main() -> int:
     compiler = load_module(
         "shader_graph_legacy_projection_compile_helpers",
         root / "tools" / "shader_graph_rd" / "compile_glsl_vulkan_candidates.py")
+    numeric_probe = load_module(
+        "shader_graph_legacy_projection_numeric_helpers",
+        root / "tools" / "shader_graph_rd" / "probe_vulkan_ramp_numeric_parity.py")
     prototype = load_module(
         "shader_graph_legacy_projection_prototype",
         root / "experiments" / "ShaderGraphLab" / "dynamic_graph_prototype.py")
@@ -96,6 +101,8 @@ def main() -> int:
         hlsl_path = output_dir / f"{label}.hlsl"
         glsl_spirv = output_dir / f"{label}.spv"
         hlsl_spirv = output_dir / f"{label}_hlsl.spv"
+        glsl_optimized = output_dir / f"{label}_opt.spv"
+        hlsl_optimized = output_dir / f"{label}_hlsl_opt.spv"
         glsl_bytes = glsl_source.encode("utf-8")
         hlsl_bytes = hlsl_source.encode("utf-8")
         glsl_path.write_bytes(glsl_bytes)
@@ -112,20 +119,52 @@ def main() -> int:
         hlsl_validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
                               str(hlsl_spirv)]) if hlsl_compile["exitCode"] == 0
                          else {"exitCode": None, "stdout": "", "stderr": ""})
+        glsl_optimize = (run([str(args.spirv_opt), "-O", str(glsl_spirv),
+                              "-o", str(glsl_optimized)]) if glsl_validate["exitCode"] == 0
+                        else {"exitCode": None, "stdout": "", "stderr": ""})
+        hlsl_optimize = (run([str(args.spirv_opt), "-O", str(hlsl_spirv),
+                              "-o", str(hlsl_optimized)]) if hlsl_validate["exitCode"] == 0
+                        else {"exitCode": None, "stdout": "", "stderr": ""})
+        glsl_optimized_validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
+                                        str(glsl_optimized)]) if glsl_optimize["exitCode"] == 0
+                                   else {"exitCode": None, "stdout": "", "stderr": ""})
+        hlsl_optimized_validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
+                                        str(hlsl_optimized)]) if hlsl_optimize["exitCode"] == 0
+                                   else {"exitCode": None, "stdout": "", "stderr": ""})
 
         interface_match = False
+        output_match = False
+        glsl_output = hlsl_output = expected_output = None
+        output_error = None
         glsl_disassembly = hlsl_disassembly = None
-        if glsl_validate["exitCode"] == 0 and hlsl_validate["exitCode"] == 0:
-            glsl_disassembly = run([str(args.spirv_dis), str(glsl_spirv)])
-            hlsl_disassembly = run([str(args.spirv_dis), str(hlsl_spirv)])
+        if glsl_optimized_validate["exitCode"] == 0 and hlsl_optimized_validate["exitCode"] == 0:
+            glsl_disassembly = run([str(args.spirv_dis), str(glsl_optimized), "-o", "-"])
+            hlsl_disassembly = run([str(args.spirv_dis), str(hlsl_optimized), "-o", "-"])
             if glsl_disassembly["exitCode"] == 0 and hlsl_disassembly["exitCode"] == 0:
                 glsl_interface = compiler.parse_spirv_interface(glsl_disassembly["stdout"])
                 hlsl_interface = compiler.parse_spirv_interface(hlsl_disassembly["stdout"])
                 interface_match = glsl_interface == hlsl_interface
+                try:
+                    glsl_output = numeric_probe.output_vector(glsl_disassembly["stdout"])
+                    hlsl_output = numeric_probe.output_vector(hlsl_disassembly["stdout"])
+                    expected_output = (projection.get("cpuVector4AddGolden") or
+                                       projection.get("cpuVector4Golden"))
+                    if expected_output is None or len(expected_output) != 4:
+                        raise RuntimeError("projection has no four-lane CPU golden")
+                    output_match = all(
+                        numeric_probe.f32_bits(actual) == numeric_probe.f32_bits(float(expected))
+                        for actual, expected in zip(glsl_output, expected_output)
+                    ) and all(
+                        numeric_probe.f32_bits(actual) == numeric_probe.f32_bits(float(expected))
+                        for actual, expected in zip(hlsl_output, expected_output)
+                    )
+                except (RuntimeError, ValueError, KeyError) as error:
+                    output_error = str(error)
 
         passed = (glsl_compile["exitCode"] == 0 and hlsl_compile["exitCode"] == 0 and
                   glsl_validate["exitCode"] == 0 and hlsl_validate["exitCode"] == 0 and
-                  interface_match)
+                  glsl_optimized_validate["exitCode"] == 0 and
+                  hlsl_optimized_validate["exitCode"] == 0 and interface_match and output_match)
         records.append({
             "caseId": label,
             "projectionSha256": sha256(json.dumps(
@@ -143,7 +182,17 @@ def main() -> int:
             "hlslCompile": hlsl_compile,
             "glslValidation": glsl_validate,
             "hlslValidation": hlsl_validate,
+            "glslOptimize": glsl_optimize,
+            "hlslOptimize": hlsl_optimize,
+            "glslOptimizedValidation": glsl_optimized_validate,
+            "hlslOptimizedValidation": hlsl_optimized_validate,
             "interfaceMatch": interface_match,
+            "expectedOutputRGBA32F": expected_output,
+            "glslOutputRGBA32F": glsl_output,
+            "hlslOutputRGBA32F": hlsl_output,
+            "exactBinary32GoldenMatch": output_match,
+            "outputReadbackError": output_error,
+            "gpuExecution": False,
             "status": "passed" if passed else "failed",
         })
         print(f"{label}: {'PASS' if passed else 'FAIL'}")

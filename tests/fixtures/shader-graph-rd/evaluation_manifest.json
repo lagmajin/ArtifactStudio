@@ -6954,8 +6954,9 @@
             "scalar_conversion",
             "base_color_default"
           ],
+          "numericOracle": "exact binary32 output comparison against each projection CPU golden after spirv-opt -O",
           "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
-          "runtimeStatus": "compiler-and-spirv-validation-only-no-gpu-execution"
+          "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution"
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"
       }
