@@ -823,3 +823,9 @@ Extended the existing `CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnV
 This is not GPU execution evidence: C++ build and capture remain unrun, and the candidate still enters through a test-only HLSL splice rather than a production graph adapter. The source check does not prove save/reload or backend parity. Core promotion remains gated on an approved Vulkan run, production path integration, persistence, and performance review.
 
 The RGBA32F capture analyzer also has a report-driven BaseColor path: it verifies each variant file hash, reads the five declared center pixels from the raw legacy/candidate captures, checks that the JSON sample values match those pixels, and emits per-lane errors against the binary32 golden and between paths. It deliberately makes no quality decision. This makes later captures independently auditable without treating the C++ test's logged numbers alone as proof; the analyzer path is also unexecuted until capture files exist.
+
+### RGBA32F capture analyzer self-probe (2026-11-16)
+
+The manifest validator now runs a synthetic self-probe against the report-driven BaseColor capture analyzer. It writes five RGBA32F sample pixels for Add, Subtract, Multiply, and positive-floor Divide, confirms the analyzer reads and cross-checks those raw samples, and verifies that a deliberately corrupted raw-file SHA-256 is rejected. The declared absolute tolerance is `0.125`; the synthetic Subtract lane injects a `0.25` red-channel error at each sample and must report five golden and legacy-to-candidate exceedances, while the other candidate-to-golden lanes report zero. The full manifest validator passes with this check enabled.
+
+This validates analyzer mechanics only. The records are generated in a temporary directory and are not Vulkan captures, Core-versus-candidate render evidence, visual-quality results, backend parity, or Core promotion approval. The production capture case remains unbuilt and unrun.
