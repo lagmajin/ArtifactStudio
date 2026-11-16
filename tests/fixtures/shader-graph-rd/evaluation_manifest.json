@@ -3349,7 +3349,7 @@
       {
         "id": "color-ramp-duplicate-stop-numeric-contract",
         "route": "Vulkan MeshRenderer RGBA32F capture source; source added, not run",
-        "baseline": "independent binary32 formula evaluator at ramp_duplicate_stops_formula_golden.json characterizes the legacy fixture; the dynamic candidate separately proposes last-authored exact-tie selection, and neither tie rule is promoted",
+        "baseline": "ramp_duplicate_stops_formula_golden.json is an experimental stable first-authored exact-tie formula candidate for the legacy-format fixtures; it does not model Core sequential lerp lowering or unspecified std::sort tie ordering. The dynamic typed Ramp candidate uses last-authored exact-tie selection; neither policy is promoted",
         "candidate": "dynamic Vector4 Ramp candidate HLSL injected through a test-only MeshRenderer host adapter and compared with the legacy Core ColorRamp fixture at factors 0, 0.4999, 0.5, 0.5001, and 1",
         "measurement": "linear RGBA32F samples, channel-wise absolute/relative formula error, finite checks, and separately reported alpha; exact probe coordinates and output hashes",
         "review": "compare authored-order behavior at the exact tie, decide the product policy after capture review, and keep non-tie numeric tolerance separate; no Blender parity claim",
@@ -6491,6 +6491,7 @@
         "hostContextAdapterRejectsMalformedAndMissingBindings",
         "rampStopsPersistExactlyThroughFileRoundTrip",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
+        "rampDuplicateStopOraclePoliciesAndProvenanceAreDistinct",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
