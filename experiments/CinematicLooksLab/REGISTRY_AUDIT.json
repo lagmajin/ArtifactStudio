@@ -17,7 +17,10 @@
     "Artifact/src/Composition/ArtifactAbstractComposition.cpp": "eccf9da8c4c5a9b9745394973fe284a5dd26a65bcefc058ea70d7e713a8aa2d7",
     "Artifact/src/Effects/ArtifactAbstractEffect.cpp": "506d9d14ca6950fc0d9cb003ad769d133c4b6ebbc1821c8430e6e2049f58279c",
     "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp": "56aafbb19687a6a68387a82cd5e4dc3db28c001c932ec3ebf8b4fcfc123f97c7",
-    "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp": "dc7932efbc297e714f99be1fe325f9ed20ffe63f9a5966c13b659d7942ce48c8"
+    "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp": "dc7932efbc297e714f99be1fe325f9ed20ffe63f9a5966c13b659d7942ce48c8",
+    "Artifact/src/Render/ArtifactFinalPostProcess.cpp": "d0692099973d21a6284ee60476d62da9985cd19388223a2c2cb2e1845eab12ea",
+    "Artifact/src/Render/ArtifactIRenderer.cpp": "bd54e78c0d22a8000451868222236594740b5f9a522be8991e9deb990edd06c2",
+    "Artifact/include/Render/ArtifactFinalPostProcess.ixx": "702de3c5584c7cef2670aa0c85308b71708ef7651fafa846e258b34e4124bde9"
   },
   "browser_preset_count": 24,
   "browser_presets": [
@@ -246,18 +249,59 @@
     "inspector_add_path": "addSelectedEffectToCurrentTarget creates through ArtifactEffectService and adds to the selected layer or composition through ArtifactProjectService",
     "preset_property_ui": "LUTEffect exports Preset as Integer without enum-option tooltip/metadata. The shared property editor has no hard-coded Preset enum mapping, so it falls through to the generic integer spinbox rather than a named preset chooser; LUTEffect::setPreset clamps input to indices 0..9.",
     "runtime_verified": false,
-    "preset_enum": ["Custom", "Cinematic", "Vintage", "Cold", "Warm", "HighContrast", "LowContrast", "Desaturated", "Kodak2383", "Fuji3510"],
+    "preset_enum": [
+      "Custom",
+      "Cinematic",
+      "Vintage",
+      "Cold",
+      "Warm",
+      "HighContrast",
+      "LowContrast",
+      "Desaturated",
+      "Kodak2383",
+      "Fuji3510"
+    ],
     "preset_index_table": [
-      {"value": 0, "name": "Custom"},
-      {"value": 1, "name": "Cinematic"},
-      {"value": 2, "name": "Vintage"},
-      {"value": 3, "name": "Cold"},
-      {"value": 4, "name": "Warm"},
-      {"value": 5, "name": "HighContrast"},
-      {"value": 6, "name": "LowContrast"},
-      {"value": 7, "name": "Desaturated"},
-      {"value": 8, "name": "Kodak2383"},
-      {"value": 9, "name": "Fuji3510"}
+      {
+        "value": 0,
+        "name": "Custom"
+      },
+      {
+        "value": 1,
+        "name": "Cinematic"
+      },
+      {
+        "value": 2,
+        "name": "Vintage"
+      },
+      {
+        "value": 3,
+        "name": "Cold"
+      },
+      {
+        "value": 4,
+        "name": "Warm"
+      },
+      {
+        "value": 5,
+        "name": "HighContrast"
+      },
+      {
+        "value": 6,
+        "name": "LowContrast"
+      },
+      {
+        "value": 7,
+        "name": "Desaturated"
+      },
+      {
+        "value": 8,
+        "name": "Kodak2383"
+      },
+      {
+        "value": 9,
+        "name": "Fuji3510"
+      }
     ],
     "default_preset": "Cinematic",
     "default_intensity": 1.0,
@@ -265,11 +309,17 @@
     "effect_preset_persistence": {
       "available": true,
       "api": "ArtifactEffectService::saveEffectPreset/loadEffectPreset delegates to ArtifactPresetManager",
-      "serialized_fields": ["effect_id", "effect_enabled", "effect_mix", "mask state", "properties including Preset, LUT File, Intensity"],
+      "serialized_fields": [
+        "effect_id",
+        "effect_enabled",
+        "effect_mix",
+        "mask state",
+        "properties including Preset, LUT File, Intensity"
+      ],
       "load_behavior": "Applies the file to an already-created effect; rejects a non-empty mismatching effect_id and validates owned property payloads before mutation.",
       "preset_round_trip_mechanism": "Preset is serialized as an integer property and restored through LUTEffect::setPropertyValue -> setPreset, clamped to 0..9; Intensity is restored through setIntensity, clamped to 0..1 (non-finite becomes 1).",
       "application_confirmed": false,
-    "scope": "Generic per-effect preset file support; does not create a named cinematic look library, connect the Looks browser, or prove project save/reload/runtime rendering."
+      "scope": "Generic per-effect preset file support; does not create a named cinematic look library, connect the Looks browser, or prove project save/reload/runtime rendering."
     }
   },
   "integration_findings": [
@@ -279,6 +329,7 @@
     "Dialog Apply updates only appliedId_ and a badge; it does not create or apply an effect, notify a caller, or close the dialog.",
     "No browser preset ID to LUTEffect preset mapping was found in the inspected source.",
     "Generic effect-preset JSON includes the LUT effect id and its Preset / LUT File / Intensity properties, and can apply them to an existing LUTEffect. This is a file API contract from source inspection, not an executed save/load round trip.",
-    "Composition-level LUT persistence differs from layer-level persistence: composition JSON writes the LUT properties, but its local deserializer does not instantiate LUTEffect and falls back to the base ArtifactAbstractEffect. Layer deserialization uses ArtifactEffectService::createEffect and can rebuild the concrete LUTEffect. See findings.json RD0-COMPOSITION-LUT-RESTORE-01; static source path only, runtime round-trip pending."
+    "Composition-level LUT persistence differs from layer-level persistence: composition JSON writes the LUT properties, but its local deserializer does not instantiate LUTEffect and falls back to the base ArtifactAbstractEffect. Layer deserialization uses ArtifactEffectService::createEffect and can rebuild the concrete LUTEffect. See findings.json RD0-COMPOSITION-LUT-RESTORE-01; static source path only, runtime round-trip pending.",
+    "GPU final-post-process distinction (static callsite audit): ArtifactFinalPostProcess::updateFromEffectStack returns after finding an enabled LUT entry and documents that the caller must separately call updateFromColorLUT with actual LUT data. Repository search of Artifact/src and Artifact/include found no updateFromEffectStack callsite; updateFromColorLUT is called by ArtifactIRenderer viewportDisplayPostProcess_ with viewport display LUT data. This does not prove GPU application of the composition/layer Apply LUT effect. Pinned source hashes for the post-process implementation, interface, and renderer are in sources; runtime/backend behavior remains unverified."
   ]
 }
