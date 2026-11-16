@@ -22,11 +22,27 @@
       "semanticVersion": 1,
       "parameters": {},
       "layout": {"x": 220.0, "y": 60.0}
+    },
+    {
+      "nodeId": "bias",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": 0.25},
+      "layout": {"x": 220.0, "y": 180.0}
+    },
+    {
+      "nodeId": "sum",
+      "operationId": "artifact.rd.math.add.float32",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 460.0, "y": 100.0}
     }
   ],
   "links": [
     {"from": {"nodeId": "direction_a", "socketId": "value"}, "to": {"nodeId": "dot", "socketId": "a"}},
-    {"from": {"nodeId": "direction_b", "socketId": "value"}, "to": {"nodeId": "dot", "socketId": "b"}}
+    {"from": {"nodeId": "direction_b", "socketId": "value"}, "to": {"nodeId": "dot", "socketId": "b"}},
+    {"from": {"nodeId": "dot", "socketId": "value"}, "to": {"nodeId": "sum", "socketId": "a"}},
+    {"from": {"nodeId": "bias", "socketId": "value"}, "to": {"nodeId": "sum", "socketId": "b"}}
   ],
-  "output": {"nodeId": "dot", "socketId": "value"}
+  "output": {"nodeId": "sum", "socketId": "result"}
 }
