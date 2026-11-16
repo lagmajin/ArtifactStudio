@@ -6406,6 +6406,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
+        "legacyCoreProjectionCompilesThroughBothVulkanFrontends",
         "rampNumericProbeSeparatesShaderMixFromLerpRounding",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
         "candidateGeneratorRegistersAllTwentyOnePersistedGraphs",
@@ -6943,6 +6944,19 @@
         ],
         "sourceSha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
         "candidateHlslBodySha256": "ACAD1F397E52F402B4893CFE827EEA9E3B11C0FE35BC7C927009BE5F23DCA950",
+        "compilerProbe": {
+          "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
+          "targetEnvironment": "vulkan1.2",
+          "candidateSha256": "6EC2501CFF9BB6B2A3FD9F31F54C6708FFB2D258746EDEE3B3A01B6987F56A50",
+          "candidateCases": [
+            "base_color_add",
+            "nested_add",
+            "scalar_conversion",
+            "base_color_default"
+          ],
+          "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
+          "runtimeStatus": "compiler-and-spirv-validation-only-no-gpu-execution"
+        },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"
       }
     }
