@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "direction_a",
+      "operationId": "artifact.rd.constant.vector3.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": [0.5, 2.0, -1.0]},
+      "layout": {"x": 0.0, "y": 0.0}
+    },
+    {
+      "nodeId": "direction_b",
+      "operationId": "artifact.rd.constant.vector3.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": [2.0, 0.5, -3.0]},
+      "layout": {"x": 0.0, "y": 120.0}
+    },
+    {
+      "nodeId": "dot",
+      "operationId": "artifact.rd.math.dot.vector3.float32",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 220.0, "y": 60.0}
+    }
+  ],
+  "links": [
+    {"from": {"nodeId": "direction_a", "socketId": "value"}, "to": {"nodeId": "dot", "socketId": "a"}},
+    {"from": {"nodeId": "direction_b", "socketId": "value"}, "to": {"nodeId": "dot", "socketId": "b"}}
+  ],
+  "output": {"nodeId": "dot", "socketId": "value"}
+}

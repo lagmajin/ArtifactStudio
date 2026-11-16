@@ -48,7 +48,7 @@ MULTI_OUTPUT_IMPLEMENTATIONS = {"vector4.separate_channels", "vector4.ramp.linea
 
 BUILTIN_IMPLEMENTATIONS = {
     "float.constant", "vector3.constant", "vector4.constant", "float.add", "float.subtract", "float.multiply",
-    "float.divide.positive_floor_1e5", "vector3.add", "vector3.subtract", "vector3.multiply", "vector3.scale",
+    "float.divide.positive_floor_1e5", "vector3.add", "vector3.subtract", "vector3.multiply", "vector3.scale", "vector3.dot",
     "float.uv0.x", "vector2.uv0", "vector2.mapping.scale_offset",
     "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5",
     "vector4.invert.linear_factor",
@@ -988,6 +988,12 @@ def load_registry(path: Path) -> dict[tuple[str, int], Operation]:
                 operation.outputs[0].socket_id != "result" or
                 operation.outputs[0].value_type != "Vector3" or operation.parameters):
             raise ContractError(f"{path_label} vector3.scale requires Vector3 vector and Float scale inputs, a Vector3 result, and no parameters", code="operation.signature.invalid", path=path)
+        if implementation_id == "vector3.dot" and (
+                [(item.socket_id, item.value_type, item.required) for item in operation.inputs] !=
+                [("a", "Vector3", True), ("b", "Vector3", True)] or
+                operation.outputs[0].socket_id != "value" or
+                operation.outputs[0].value_type != "Float" or operation.parameters):
+            raise ContractError(f"{path_label} vector3.dot requires two Vector3 inputs a/b, one Float value output, and no parameters", code="operation.signature.invalid", path=path)
         if implementation_id in {"float.add", "float.subtract", "float.multiply", "float.divide.positive_floor_1e5", "vector3.add", "vector3.subtract", "vector3.multiply", "vector4.add", "vector4.subtract", "vector4.multiply", "vector4.divide.positive_floor_1e5"} and (
                 (operation.inputs[0].value_type if len(operation.inputs) > 0 else None) !=
                 ("Float" if implementation_id.startswith("float.") else "Vector3" if implementation_id.startswith("vector3.") else "Vector4") or
@@ -4004,6 +4010,9 @@ def emit_hlsl_from_typed_ir(
                 vector = input_expression(operation, "vector")
                 scale = input_expression(operation, "scale")
                 expression = f"({vector} * {scale})"
+            elif implementation_id == "vector3.dot":
+                a, b = input_expression(operation, "a"), input_expression(operation, "b")
+                expression = f"dot({a}, {b})"
             elif implementation_id == "float.replicate.rgb_alpha_one":
                 value = input_expression(operation, operation["inputs"][0]["socketId"])
                 expression = f"float4({value}, {value}, {value}, 1.0f)"
@@ -4244,6 +4253,9 @@ def emit_glsl_from_typed_ir(
                 vector = input_expression(operation, "vector")
                 scale = input_expression(operation, "scale")
                 expression = f"({vector} * {scale})"
+            elif implementation_id == "vector3.dot":
+                a, b = input_expression(operation, "a"), input_expression(operation, "b")
+                expression = f"dot({a}, {b})"
             elif implementation_id == "float.replicate.rgb_alpha_one":
                 value = input_expression(operation, operation["inputs"][0]["socketId"])
                 expression = f"vec4({value}, {value}, {value}, 1.0)"

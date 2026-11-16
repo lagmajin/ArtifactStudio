@@ -3,7 +3,7 @@
   "kind": "artifact-shader-graph-operation-registry-audit",
   "status": "manifest-derived-proposal-audit-no-core-registry",
   "manifest": "tests/fixtures/shader-graph-rd/evaluation_manifest.json",
-  "manifestSha256": "56B3970253A0D46735F57D44E759B03ED1FF0D73DA3BFB7E69A614A12F7225BB",
+  "manifestSha256": "09260AF33C7E5917DE0AEF0EF7D1025CBFC4CCDBEEDD586AA0418771F95DD84A",
   "operationCount": 24,
   "uniqueRegistryKeyCount": 24,
   "duplicateRegistryKeys": [],

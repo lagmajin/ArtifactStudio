@@ -303,6 +303,21 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.dot.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Dot Product",
+      "category": "Math",
+      "implementationId": "vector3.dot",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "value", "valueType": "Float"}
+      ],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.vector4.float32",
       "semanticVersion": 1,
       "displayName": "Vector4",
