@@ -108,11 +108,159 @@
   ],
   "negativeProbe": {
     "unsupportedMathOperation": "legacy.node.operation.unsupported",
-    "opaqueExtensionPreservedVerbatim": true
+    "opaqueExtensionPreservedVerbatim": true,
+    "nestedAddIncludedNodeIds": [
+      "input_a",
+      "input_b",
+      "math",
+      "input_c",
+      "math_outer"
+    ]
+  },
+  "nestedAddProjection": {
+    "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",
+    "includedNodeIds": [
+      "input_a",
+      "input_b",
+      "math",
+      "input_c",
+      "math_outer"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "input_a",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.25,
+              -2.0,
+              3.0,
+              0.5
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "input_b",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.5,
+              1.0,
+              -4.0,
+              0.25
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 120.0
+          }
+        },
+        {
+          "nodeId": "math",
+          "operationId": "artifact.rd.math.add.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "input_c",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              -0.125,
+              0.25,
+              0.5,
+              -0.25
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 240.0
+          }
+        },
+        {
+          "nodeId": "math_outer",
+          "operationId": "artifact.rd.math.add.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 440.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "input_a",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "input_b",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math",
+            "socketId": "b"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "math",
+            "socketId": "result"
+          },
+          "to": {
+            "nodeId": "math_outer",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "input_c",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math_outer",
+            "socketId": "b"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "math_outer",
+        "socketId": "result"
+      }
+    },
+    "candidateHlslBodySha256": "B1DFD13B61FC5302BA9CF71F6D00808AAD8A6D00168FEBCCB25AB50627174FB5",
+    "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_input_c_value = float4(-0.125f, 0.25f, 0.5f, -0.25f);\nfloat4 n_math_result = (n_input_a_value + n_input_b_value);\nfloat4 n_math_outer_result = (n_math_result + n_input_c_value);\nreturn n_math_outer_result;\n",
+    "cpuVector4AddGolden": [
+      0.625,
+      -0.75,
+      -0.5,
+      0.5
+    ]
   },
   "limitations": [
     "read-only projection of the explicitly selected Principled BaseColor input only",
-    "supports only linked RGB constants feeding both inputs of unclamped Math Add",
+    "supports linked RGB constants and nested unclamped Math Add nodes in the selected BaseColor input only",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

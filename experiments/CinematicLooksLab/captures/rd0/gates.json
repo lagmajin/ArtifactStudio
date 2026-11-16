@@ -4,7 +4,8 @@
   "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
   "thresholds": [],
   "open_findings": [
-    "RD0-ALPHA-ASSOCIATION-01"
+    "RD0-ALPHA-ASSOCIATION-01",
+    "RD0-COMPOSITION-LUT-RESTORE-01"
   ],
   "source_contract_matrix": {
     "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
@@ -45,7 +46,13 @@
   "rd0_machine_checks": {
     "scope": "Python source-mirror image outputs and recorded metrics; not C++ differential, product runtime, aesthetic review, or quality acceptance",
     "intensity_zero": {
-      "cases": ["chart", "neon_streets", "street_lights", "portrait", "forest"],
+      "cases": [
+        "chart",
+        "neon_streets",
+        "street_lights",
+        "portrait",
+        "forest"
+      ],
       "built_in_looks": 9,
       "look_case_combinations": 45,
       "max_code_difference": 0,
@@ -63,7 +70,7 @@
     "visual_review": "blind form remains blank; no candidate was ranked or quality gate established",
     "product_runtime": "not run; build, test, and GUI workflow were not executed"
   },
-  "next_step": "complete captures/rd0/review/BLIND_REVIEW_FORM.md without opening the key; separately run the alpha fixture protocol in EVALUATION_PLAN.md; then freeze justified thresholds before rd1 comparison",
+  "next_step": "Complete the 95-entry blind review without opening the key; separately run the alpha fixture protocol in EVALUATION_PLAN.md; reproduce a composition-level LUT save/reload and output check against a layer-level control; then freeze justified thresholds before rd1 comparison.",
   "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
   "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
   "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)"

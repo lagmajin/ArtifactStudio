@@ -4293,6 +4293,16 @@ def validate(root: Path) -> list[str]:
             "registryFileRejectsNestedValuesBeyondLimit": deep_registry_diagnostic is not None and deep_registry_diagnostic["code"] == dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("code") and deep_registry_diagnostic["path"].startswith(dynamic_contract.get("sourceGuardGoldens", {}).get("registryDepthDiagnostic", {}).get("pathPrefix", "/unconfigured")),
             "malformedOperationVersionsStaySafeAtEditBoundary": malformed_version_edit_diagnostics == [dynamic_contract.get("sourceGuardGoldens", {}).get("malformedOperationVersionEditDiagnostic")] * 3 and malformed_version_validation_codes == [["node.operation.version.invalid"]] * 3 and malformed_version_documents[0]["nodes"][0]["semanticVersion"] is True and malformed_version_documents[1]["nodes"][0]["semanticVersion"] == [] and malformed_version_documents[2]["nodes"][0]["semanticVersion"] == {} and all(document["nodes"][0]["parameters"] == {"value": 0.25} for document in malformed_version_documents),
         }
+        nested_legacy_projection = legacy_projection_candidate.get("nestedAddProjection", {})
+        nested_legacy_compiled = dynamic_module.compile_document_from_data(
+            nested_legacy_projection.get("document", {}), dynamic_registry)
+        checks["legacyNestedMathAddChainProjectsDeterministically"] = (
+            nested_legacy_projection.get("candidateHlslBody") == nested_legacy_compiled.get("hlslBody") and
+            nested_legacy_projection.get("candidateHlslBodySha256") == nested_legacy_compiled.get("hlslBodySha256") and
+            nested_legacy_projection.get("includedNodeIds") == ["input_a", "input_b", "math", "input_c", "math_outer"] and
+            nested_legacy_projection.get("cpuVector4AddGolden") == [0.625, -0.75, -0.5, 0.5] and
+            "float4 n_math_outer_result = (n_math_result + n_input_c_value);" in nested_legacy_compiled.get("hlslBody", "")
+        )
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or
                 dynamic_subtract_candidate != regenerated_subtract_candidate or

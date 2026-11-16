@@ -52,6 +52,36 @@ def main() -> int:
     if any(fragment not in compiled["hlslBody"] for fragment in required_hlsl):
         raise RuntimeError("typed candidate does not match the source-audited Core Add expression")
 
+    nested_source = json.loads(source_json)
+    nested_source["nodes"].append({"id": "input_c", "type": "RGB", "params": {
+        "r": -0.125, "g": 0.25, "b": 0.5, "a": -0.25,
+    }})
+    nested_source["nodes"].append({"id": "math_outer", "type": "Math", "params": {
+        "op": 0, "clamp": False,
+    }})
+    nested_source["links"] = [
+        link for link in nested_source["links"]
+        if not (link["to"] == "surface" and link["in"] == "BaseColor")
+    ]
+    nested_source["links"].extend((
+        {"from": "math", "out": "Value", "to": "math_outer", "in": "A"},
+        {"from": "input_c", "out": "Color", "to": "math_outer", "in": "B"},
+        {"from": "math_outer", "out": "Value", "to": "surface", "in": "BaseColor"},
+    ))
+    nested_json = json.dumps(nested_source, ensure_ascii=False, separators=(",", ":"))
+    nested_projection = prototype.project_legacy_core_material_input(
+        nested_json, registry, target_node_id="surface", target_input_socket="BaseColor")
+    nested_compiled = prototype.compile_document_from_data(nested_projection["document"], registry)
+    nested_golden = [
+        f32(f32(0.25 + 0.5) - 0.125),
+        f32(f32(-2.0 + 1.0) + 0.25),
+        f32(f32(3.0 + -4.0) + 0.5),
+        f32(f32(0.5 + 0.25) - 0.25),
+    ]
+    if (nested_projection["includedNodeIds"] != ["input_a", "input_b", "math", "input_c", "math_outer"] or
+            "float4 n_math_outer_result = (n_math_result + n_input_c_value);" not in nested_compiled["hlslBody"]):
+        raise RuntimeError("nested legacy Add chain did not project in deterministic dependency order")
+
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
     math_node["params"]["op"] = 1
@@ -91,10 +121,19 @@ def main() -> int:
         "negativeProbe": {
             "unsupportedMathOperation": "legacy.node.operation.unsupported",
             "opaqueExtensionPreservedVerbatim": True,
+            "nestedAddIncludedNodeIds": nested_projection["includedNodeIds"],
+        },
+        "nestedAddProjection": {
+            "sourceSha256": hashlib.sha256(nested_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": nested_projection["includedNodeIds"],
+            "document": nested_projection["document"],
+            "candidateHlslBodySha256": nested_compiled["hlslBodySha256"],
+            "candidateHlslBody": nested_compiled["hlslBody"],
+            "cpuVector4AddGolden": nested_golden,
         },
         "limitations": [
             "read-only projection of the explicitly selected Principled BaseColor input only",
-            "supports only linked RGB constants feeding both inputs of unclamped Math Add",
+            "supports linked RGB constants and nested unclamped Math Add nodes in the selected BaseColor input only",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",

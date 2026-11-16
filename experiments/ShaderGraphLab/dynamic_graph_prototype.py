@@ -4942,8 +4942,12 @@ def project_legacy_core_material_input(
         if dependency is None:
             raise ContractError("legacy link references a missing node",
                                 code="legacy.link.endpoint.missing", path="/links")
-        if dependency.get("type") != "RGB" or dependency_output != "Color":
-            raise ContractError("legacy Math Add inputs must come from RGB Color sockets",
+        supported_source = (
+            (dependency.get("type") == "RGB" and dependency_output == "Color") or
+            (dependency.get("type") == "Math" and dependency_output == "Value")
+        )
+        if not supported_source:
+            raise ContractError("legacy Math Add inputs must come from RGB Color or Math Value sockets",
                                 code="legacy.link.type.incompatible",
                                 path=f"/nodes/{node_id}/inputs/{socket}")
         dependency_socket[dependency_id] = dependency_output
@@ -5003,9 +5007,10 @@ def project_legacy_core_material_input(
             operation_id = "artifact.rd.math.add.vector4.float32"
             semantic_parameters = {}
             for legacy_socket, typed_socket in (("A", "a"), ("B", "b")):
-                source_id, _ = incoming[(node_id, legacy_socket)][0]
+                source_id, source_socket = incoming[(node_id, legacy_socket)][0]
                 projected_links.append({
-                    "from": {"nodeId": source_id, "socketId": "value"},
+                    "from": {"nodeId": source_id,
+                             "socketId": "value" if source_socket == "Color" else "result"},
                     "to": {"nodeId": node_id, "socketId": typed_socket},
                 })
         projected_node: dict[str, Any] = {
