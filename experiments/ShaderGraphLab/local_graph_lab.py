@@ -26,6 +26,7 @@ MAX_HISTORY_PAYLOAD_BYTES = 32 * 1024 * 1024
 MAX_ASSET_CATALOG_BYTES = 16 * 1024 * 1024
 MAX_ASSET_CATALOG_RECORDS = 16384
 MAX_ASSET_SOURCE_STATES_BYTES = 4 * 1024 * 1024
+MAX_ASSET_SNAPSHOT_JSON_NESTING = graph.MAX_JSON_NESTING
 ASSET_TYPE_IMAGE = 1
 ACTION_FIELDS = {
     "undo": (set(), set()),
@@ -58,6 +59,20 @@ ACTION_FIELDS = {
 }
 
 
+def _asset_snapshot_exceeds_json_nesting(value: Any) -> bool:
+    """Bound parsed snapshot nesting without using Python recursion."""
+    pending = [(value, 0)]
+    while pending:
+        current, depth = pending.pop()
+        if not isinstance(current, (list, dict)):
+            continue
+        if depth >= MAX_ASSET_SNAPSHOT_JSON_NESTING:
+            return True
+        children = current.values() if isinstance(current, dict) else current
+        pending.extend((child, depth + 1) for child in children)
+    return False
+
+
 def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
     """Read image choices from AssetDatabase::toJson() without retaining paths."""
     try:
@@ -74,6 +89,9 @@ def load_asset_catalog_snapshot(path: Path) -> tuple[list[dict[str, str]], str]:
     except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
         raise graph.ContractError("AssetDatabase snapshot is not valid UTF-8 JSON",
                                   code="asset.catalog.json.invalid", path="/assetCatalog") from error
+    if _asset_snapshot_exceeds_json_nesting(records):
+        raise graph.ContractError("AssetDatabase snapshot exceeds the JSON nesting limit",
+                                  code="asset.catalog.json.invalid", path="/assetCatalog")
     if not isinstance(records, list) or len(records) > MAX_ASSET_CATALOG_RECORDS:
         raise graph.ContractError("AssetDatabase snapshot must be a bounded array",
                                   code="asset.catalog.shape.invalid", path="/assetCatalog")
@@ -130,6 +148,10 @@ def load_asset_source_states(path: Path) -> tuple[dict[str, dict[str, int]], str
         raise graph.ContractError("AssetManager source state is not valid UTF-8 JSON",
                                   code="asset.source_states.json.invalid",
                                   path="/assetSourceStates") from error
+    if _asset_snapshot_exceeds_json_nesting(raw_states):
+        raise graph.ContractError("AssetManager source state exceeds the JSON nesting limit",
+                                  code="asset.source_states.json.invalid",
+                                  path="/assetSourceStates")
     if not isinstance(raw_states, dict) or len(raw_states) > MAX_ASSET_CATALOG_RECORDS:
         raise graph.ContractError("AssetManager source state must be a bounded object",
                                   code="asset.source_states.shape.invalid",

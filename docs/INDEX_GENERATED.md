@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-16 11:42
+> Generated: 2026-11-16 13:09
 > Total documents: 1507
 
 ---
@@ -810,7 +810,7 @@
 | 194 | `docs/planned/MILESTONE_CAMERA_SHAKE_2026-07-09.md` | M-CS-1: Camera Shake System - 設計マイルストーン | 2026-08-04 | In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手） | 2026-10-23 | 9.8 KB | CAMERA, SHAKE |
 | 195 | `docs/planned/MILESTONE_CAPTION_SUBTITLE_2026-06-16.md` | M-CAPTION-1 Caption / Subtitle Milestone (SRT / WebVTT) | 2026-06-16 | --- | 2026-08-16 | 15.3 KB | CAPTION, SUBTITLE |
 | 196 | `docs/planned/MILESTONE_CHANNEL_BOX_2026-07-07.md` | M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone | 2026-07-07 | --- | 2026-08-20 | 10.7 KB | CHANNEL, BOX |
-| 197 | `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md` | Cinematic Looks 画像補正 R&D プロジェクト | 2026-11-16 | In Progress（評価計画・Python source mirror・4実写ケースの rd0 応答測定・ブラインド接触シート・float 契約プローブを作成。人手視覚判定・品質 gate・製品 runtime 検証は未実施） | 2026-11-16 | 6.4 KB | CINEMATIC, LOOKS, RND |
+| 197 | `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md` | Cinematic Looks 画像補正 R&D プロジェクト | 2026-11-16 | In Progress（評価計画・Python source mirror・4実写ケースの rd0 応答測定・ブラインド接触シート・float 契約プローブを作成。人手視覚判定・品質 gate・製品 runtime 検証は未実施） | 2026-11-16 | 16.2 KB | CINEMATIC, LOOKS, RND |
 | 198 | `docs/planned/MILESTONE_CLAP_HOST_COMPLETION_2026-07-25.md` | MILESTONE_CLAP_HOST_COMPLETION_2026-07-25 | 2026-07-25 | In Progress — loader、params、GUI、state stream API、複数バス／sidechain音声処理、thread-check host extension、要求元別host request callbackとmain-thread callback dispatch、AudioMixer結合スモークを実装。restart/process要求の実サービス処理と実プラグイン互換を含むruntime受入が残る。 | 2026-10-23 | 11.8 KB | CLAP, HOST, COMPLETION |
 | 199 | `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md` | M-CLI-1: CLI・Python 対話実行・自動化の統合 | 2026-09-23 | In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了） | 2026-09-23 | 16.8 KB | CLI, PYTHON, AUTOMATION |
 | 200 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-10-12 | 42.2 KB | CLONER, UNIFICATION |
@@ -891,7 +891,7 @@
 | 275 | `docs/planned/MILESTONE_DEEP_COMPOSITE_2026-08-01.md` | Deepコンポジット 実装マイルストーン | 2026-09-12 | --- | 2026-09-14 | 13.2 KB | DEEP, COMPOSITE |
 | 276 | `docs/planned/MILESTONE_DEEP_COMPOSITING_2026-03-31.md` | マイルストーン: Deep Compositing Support | 2026-08-04 | --- | 2026-11-10 | 3.9 KB | DEEP, COMPOSITING |
 | 277 | `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md` | Deferred UI Initialization / Lazy Load (2026-03-27) | 2026-03-27 | --- | 2026-08-16 | 6.8 KB | DEFERRED, INITIALIZATION |
-| 278 | `docs/planned/MILESTONE_DEPTH_MAP_AI_RD_2026-11-16.md` | AI 深度マップ R&D マイルストン (2026-11-16) | 2026-11-16 | --- | --- | 4.4 KB | DEPTH, MAP |
+| 278 | `docs/planned/MILESTONE_DEPTH_MAP_AI_RD_2026-11-16.md` | AI 深度マップ R&D マイルストン (2026-11-16) | 2026-11-16 | --- | 2026-11-16 | 4.4 KB | DEPTH, MAP |
 | 279 | `docs/planned/MILESTONE_DESIGN_WORKSPACE_FIGMA_2026-08-08.md` | Design Workspace — Figma-style UI Design Features (2026-08-08) | 2026-08-08 | ** Design／Animate と Auto Layout の基盤、既存 export は実装済み。Figma固有の Constraints／Components／Slice 等は未完了。 | 2026-08-16 | 13.2 KB | DESIGN, WORKSPACE, FIGMA |
 | 280 | `docs/planned/MILESTONE_DETACHED_TASK_2026-09-20.md` | MILESTONE: Detached Task / Detached Session | 2026-09-20 | Not Started | 2026-09-21 | 27.8 KB | DETACHED, TASK |
 | 281 | `docs/planned/MILESTONE_DETAIL_SHARPENING_LAB_2026-11-14.md` | Detail Sharpening R&D Lab | 2026-11-14 | rd1 / rd2 / rd3b 実行済み（luma ガード候補がソフトエッジと CC0 実写 2 枚で事前登録ゲートを通過。適応しきい値は k=3 で部分達成） | 2026-11-15 | 7.7 KB | DETAIL, SHARPENING, LAB |
@@ -1230,7 +1230,7 @@
 | 614 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-08-16 | 5.1 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 615 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-08-16 | 8.0 KB | SETTINGS, SEARCH, FILTER |
 | 616 | `docs/planned/MILESTONE_SHADER_GRAPH_R2_RUNTIME_PARITY_2026-11-15.md` | Shader Graph R2 — Runtime / Backend / Performance Parity | 2026-11-15 | 契約テスト実行済み。テスト側誤り 3 件 + 実バグ 4 件を修正（matFloatLit / FailedLoad / SanitizedNodeIdentifiers / ColorRamp 2 件）。残り 12 件は既知ギャップの expected failure | 2026-11-16 | 12.7 KB | SHADER, GRAPH, RUNTIME, PARITY |
-| 617 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 207.9 KB | SHADER, GRAPH, RND |
+| 617 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 214.6 KB | SHADER, GRAPH, RND |
 | 618 | `docs/planned/MILESTONE_SHAPE_DIFFERENTIATION_CONSIDERATIONS_2026-09-10.md` | Shape Differentiation: 検討案 (AE弱点の残り) | 2026-09-10 | --- | 2026-09-10 | 2.6 KB | SHAPE, DIFFERENTIATION, CONSIDERATIONS |
 | 619 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-08-04 | In Progress（Core生成とArtifactの型・描画・JSON・作成ツール・汎用SVG経路を接続。専用パラメータの完全分離とruntime検証は未完了） | 2026-11-10 | 13.4 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 620 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | In Progress | 2026-10-02 | 5.9 KB | SHAPE, LAYERS |

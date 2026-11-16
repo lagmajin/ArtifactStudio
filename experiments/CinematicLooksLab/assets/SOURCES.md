@@ -21,3 +21,9 @@ Photographic plates used by the lab are kept with this project. Source pages ide
 - Evaluation role: green foliage, deep shadows, fine branches, and sunlit highlights.
 
 The output look is not a ground-truth reference for either photograph. CC0 licensing describes the image copyright license stated on the source page; the lab does not infer photographic or colorimetric ground truth from it.
+
+## Synthetic alpha-association chart
+
+- `alpha-association-chart.png` is generated locally by `make_alpha_association_fixture.py`; it has no external source or license dependency.
+- The 1280 × 768 RGBA PNG stores straight/unassociated RGB and contains eight constant-color rows with six fixed alpha patches plus a horizontal 0–255 alpha ramp. Color values, byte levels, and SHA-256 are in `alpha-association-chart.json`.
+- This is a diagnostic input for future Composition / Render Queue captures, not a reference output or ground truth. No Artifact runtime capture has been made from it yet.

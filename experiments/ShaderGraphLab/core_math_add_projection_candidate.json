@@ -1,0 +1,120 @@
+{
+  "schemaId": "artifact.shadergraph.legacy-core-read-only-projection-candidate",
+  "schemaVersion": 1,
+  "status": "python-prototype-source-audited-not-core-runtime",
+  "sourceFixture": "tests/fixtures/shader-graph-rd/math_add.json",
+  "sourceSha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
+  "selectedLegacyInput": {
+    "nodeId": "surface",
+    "socketId": "BaseColor"
+  },
+  "includedNodeIds": [
+    "input_a",
+    "input_b",
+    "math"
+  ],
+  "excludedNodeIds": [
+    "surface",
+    "output"
+  ],
+  "layoutProvenance": {
+    "input_a": "deterministic-rd-canvas-projection",
+    "input_b": "deterministic-rd-canvas-projection",
+    "math": "deterministic-rd-canvas-projection"
+  },
+  "document": {
+    "schemaVersion": 1,
+    "kind": "artifact-shader-graph-rd-document",
+    "nodes": [
+      {
+        "nodeId": "input_a",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {
+          "value": [
+            0.25,
+            -2.0,
+            3.0,
+            0.5
+          ]
+        },
+        "layout": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "nodeId": "input_b",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {
+          "value": [
+            0.5,
+            1.0,
+            -4.0,
+            0.25
+          ]
+        },
+        "layout": {
+          "x": 0.0,
+          "y": 120.0
+        }
+      },
+      {
+        "nodeId": "math",
+        "operationId": "artifact.rd.math.add.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {},
+        "layout": {
+          "x": 220.0,
+          "y": 0.0
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": {
+          "nodeId": "input_a",
+          "socketId": "value"
+        },
+        "to": {
+          "nodeId": "math",
+          "socketId": "a"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "input_b",
+          "socketId": "value"
+        },
+        "to": {
+          "nodeId": "math",
+          "socketId": "b"
+        }
+      }
+    ],
+    "output": {
+      "nodeId": "math",
+      "socketId": "result"
+    }
+  },
+  "candidateHlslBodySha256": "ACAD1F397E52F402B4893CFE827EEA9E3B11C0FE35BC7C927009BE5F23DCA950",
+  "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value + n_input_b_value);\nreturn n_math_result;\n",
+  "cpuVector4AddGolden": [
+    0.75,
+    -1.0,
+    -1.0,
+    0.75
+  ],
+  "negativeProbe": {
+    "unsupportedMathOperation": "legacy.node.operation.unsupported",
+    "opaqueExtensionPreservedVerbatim": true
+  },
+  "limitations": [
+    "read-only projection of the explicitly selected Principled BaseColor input only",
+    "supports only linked RGB constants feeding both inputs of unclamped Math Add",
+    "Principled/MaterialOutput remain outside the projected document",
+    "source JSON text is retained by the adapter result and is never rewritten",
+    "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"
+  ]
+}

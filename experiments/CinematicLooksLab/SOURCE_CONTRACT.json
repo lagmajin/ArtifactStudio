@@ -1,16 +1,23 @@
 {
-  "mirror_revision": 2,
+  "mirror_revision": 3,
   "purpose": "Pinned source boundary for the hand-transcribed Python LUT and LUTEffect contract mirrors.",
   "source_files": {
     "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e",
-    "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821"
+    "ArtifactCore/include/Image/ImageSurfaceView.ixx": "9dd2482a4a7883e6d677c36c83f92ee0cd41b02f3cf9bb03723762b8aac561c7",
+    "ArtifactCore/include/Image/SurfacePixelConversion.ixx": "f563e0b6814be0a33f84c5775cc26bba25d530656ba29f01ed7fc247992f2ecb",
+    "ArtifactCore/src/Image/ImageF32x4_RGBA.cpp": "9c25b5f82419aff3f993e93ecdfb62395e2bead4189b3fbe3d62d951dd4e6169",
+    "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821",
+    "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp": "dc7932efbc297e714f99be1fe325f9ed20ffe63f9a5966c13b659d7942ce48c8"
   },
   "reviewed_contract": [
     "Builtin LUTs are generated on a 17^3 grid.",
     "ColorLUT::setValue clamps each stored RGB grid value to [0,1].",
     "ColorLUT lookup uses trilinear interpolation and clamps finite-sanitized RGB input and output to [0,1].",
     "LUTEffect CPU intensity 0 leaves RGB unchanged, intensity in (0.0001,0.9999) linearly blends original and mapped RGB, and intensity >=0.9999 writes mapped RGB.",
-    "LUTEffect CPU implementation copies the input RGBA image and writes only RGB components."
+    "LUTEffect CPU implementation copies the input RGBA image and writes only RGB components.",
+    "Mutable ColorFloat4Row indexing returns a ColorFloat4Channels proxy whose members are references into the backing buffer; copying the proxy with auto preserves write-through behavior for RGB assignments.",
+    "Composition image-effect boundary can preserve sRGB premultiplied alpha association into the float buffer, while LUTEffect does not branch on the descriptor.",
+    "ImageF32x4_RGBA::toQImage converts the premultiplied float buffer to an sRGB straight-alpha QImage, unpremultiplying RGB during conversion."
   ],
   "refresh_rule": "If either pinned source hash changes, inspect the changed source contract, update the mirrors and evidence, then update this file. Do not only replace hashes to bypass the guard."
 }

@@ -31,6 +31,10 @@ LOOKS = ("baseline", "cinematic", "vintage", "cold", "warm", "high_contrast",
 
 LOOK_SOURCE = REPO / "ArtifactCore" / "src" / "Color" / "ColorLUT.cpp"
 EFFECT_SOURCE = REPO / "Artifact" / "src" / "Effects" / "ColorCorrection" / "LUTEffect.cpp"
+COMPOSITION_SOURCE = REPO / "Artifact" / "src" / "Render" / "ArtifactCompositionViewDrawing.cpp"
+IMAGE_CONVERSION_SOURCE = REPO / "ArtifactCore" / "src" / "Image" / "ImageF32x4_RGBA.cpp"
+PIXEL_CONVERSION_SOURCE = REPO / "ArtifactCore" / "include" / "Image" / "SurfacePixelConversion.ixx"
+IMAGE_SURFACE_VIEW_SOURCE = REPO / "ArtifactCore" / "include" / "Image" / "ImageSurfaceView.ixx"
 SOURCE_CONTRACT = ROOT / "SOURCE_CONTRACT.json"
 LOOK_SOURCE_IDS = {
     "cinematic": "cinematic", "vintage": "vintage", "cold": "cold", "warm": "warm",
@@ -43,6 +47,10 @@ def look_source_fingerprint() -> str:
     actual = {
         LOOK_SOURCE.relative_to(REPO).as_posix(): sha256(LOOK_SOURCE),
         EFFECT_SOURCE.relative_to(REPO).as_posix(): sha256(EFFECT_SOURCE),
+        COMPOSITION_SOURCE.relative_to(REPO).as_posix(): sha256(COMPOSITION_SOURCE),
+        IMAGE_CONVERSION_SOURCE.relative_to(REPO).as_posix(): sha256(IMAGE_CONVERSION_SOURCE),
+        PIXEL_CONVERSION_SOURCE.relative_to(REPO).as_posix(): sha256(PIXEL_CONVERSION_SOURCE),
+        IMAGE_SURFACE_VIEW_SOURCE.relative_to(REPO).as_posix(): sha256(IMAGE_SURFACE_VIEW_SOURCE),
     }
     if actual != expected:
         raise RuntimeError(
@@ -226,6 +234,83 @@ def roi_stats(rgb: np.ndarray, roi: list[int] | None) -> dict:
             "clipped_1_rate": float(np.mean(np.any(crop >= 1, axis=-1))),
             "non_finite_values": int(np.size(crop) - np.count_nonzero(np.isfinite(crop)))}
 
+def chart_roi_diagnostics(roi_name: str, crop8: np.ndarray) -> dict | None:
+    """Record chart-specific response diagnostics; these are not quality gates."""
+    crop = crop8.astype(np.float32) / 255.0
+    if roi_name == "color_patches":
+        patch_specs = (
+            ("red", (220, 30, 35)),
+            ("green", (20, 190, 65)),
+            ("blue", (35, 75, 220)),
+            ("yellow", (220, 190, 25)),
+            ("cyan", (30, 200, 205)),
+            ("magenta", (195, 35, 195)),
+            ("white", (235, 235, 235)),
+            ("black", (40, 40, 40)),
+        )
+        patch_responses = {}
+        for index, (name, source_rgb) in enumerate(patch_specs):
+            # ROI origin is chart (1024, 32); source patches are 44x124 px
+            # and begin at (1038 + 57*i, 54). Sample their exact centers.
+            sample = crop8[84, 36 + index * 57].reshape(1, 1, 3)
+            input_pixel = np.asarray([[source_rgb]], dtype=np.uint8)
+            input_hsv = cv2.cvtColor(input_pixel, cv2.COLOR_RGB2HSV)[0, 0]
+            output_hsv = cv2.cvtColor(sample, cv2.COLOR_RGB2HSV)[0, 0]
+            input_hue = float(input_hsv[0]) * 2.0
+            output_hue = float(output_hsv[0]) * 2.0
+            hue_delta = ((output_hue - input_hue + 180.0) % 360.0) - 180.0
+            patch_responses[name] = {
+                "source_rgb8": list(source_rgb),
+                "output_rgb8": [int(value) for value in sample[0, 0]],
+                "rgb_delta_code": [int(out_value) - in_value
+                                   for out_value, in_value in zip(sample[0, 0], source_rgb)],
+                "input_hue_degrees": input_hue if int(input_hsv[1]) > 0 else None,
+                "output_hue_degrees": output_hue if int(output_hsv[1]) > 0 else None,
+                "hue_delta_degrees": hue_delta if int(input_hsv[1]) > 0 and int(output_hsv[1]) > 0 else None,
+                "input_saturation": float(input_hsv[1]) / 255.0,
+                "output_saturation": float(output_hsv[1]) / 255.0,
+                "saturation_delta": (int(output_hsv[1]) - int(input_hsv[1])) / 255.0,
+            }
+        return {
+            "region": "center pixel from each known flat color patch",
+            "metric_domain": "RGB code deltas and OpenCV HSV derived from 8-bit sRGB code values; not perceptual color difference",
+            "patches": patch_responses,
+            "interpretation": "descriptive response metrics only; no standalone quality verdict or gate",
+        }
+    if roi_name == "gray_ramp":
+        # Exclude the panel border and background; the known ramp is vertical
+        # stripes over x=[40,488), y=[50,182) in chart coordinates.
+        ramp = crop[18:150, 8:456]
+        luma = ramp @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+        horizontal_delta = np.diff(luma, axis=1)
+        return {
+            "region": "known achromatic ramp, excluding panel border/background",
+            "mean_rgb_channel_spread": float(np.mean(np.max(ramp, axis=-1) - np.min(ramp, axis=-1))),
+            "p95_rgb_channel_spread": float(np.quantile(np.max(ramp, axis=-1) - np.min(ramp, axis=-1), 0.95)),
+            "horizontal_luma_reversal_rate": float(np.mean(horizontal_delta < -1e-7)),
+            "horizontal_luma_flat_rate": float(np.mean(np.abs(horizontal_delta) <= 1e-7)),
+        }
+    if roi_name in ("smooth_gradient", "color_gradient"):
+        # The chart gradients are analytic and spatially smooth. Sample a
+        # central row/column to expose quantized steps and non-monotonicity.
+        row = crop[crop.shape[0] // 2, 8:-8]
+        col = crop[8:-8, crop.shape[1] // 2]
+        profiles = {}
+        for axis, profile in (("horizontal", row), ("vertical", col)):
+            delta = np.diff(profile, axis=0)
+            profiles[axis] = {
+                "unique_rgb_triplets": int(np.unique(profile, axis=0).shape[0]),
+                "channel_unique_levels": [int(np.unique(profile[:, c]).size) for c in range(3)],
+                "channel_flat_step_rate": [float(np.mean(np.diff(profile[:, c]) == 0)) for c in range(3)],
+                "channel_reversal_rate": [float(np.mean(np.diff(profile[:, c]) < 0)) for c in range(3)],
+                "channel_max_abs_step_code": [int(np.max(np.abs(np.diff(profile[:, c]) * 255.0))) for c in range(3)],
+            }
+        return {
+            "region": "analytic chart gradient; central row and column; 8-bit output codes",
+            "profiles": profiles,
+        }
+    return None
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--rd", default="rd0")
@@ -242,7 +327,10 @@ def main() -> None:
     metrics: dict = {}
     runtime_samples: dict[str, list[float]] = {}
     blind_review_key: dict[str, dict[str, dict[str, str]]] = {}
+    manifest_review_materials: dict[str, dict] = {}
     manifest = {"rd": args.rd, "seed": SEED, "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "harness": {"path": "experiments/CinematicLooksLab/cinematic_looks_lab.py",
+                            "sha256": sha256(Path(__file__).resolve())},
                 "environment": {"python": platform.python_version(), "numpy": np.__version__,
                                 "opencv": cv2.__version__, "pillow": Image.__version__},
                 "image_contract": {"storage": "RGB uint8", "analysis": "8-bit sRGB encoded code values normalized to [0,1]",
@@ -250,15 +338,22 @@ def main() -> None:
                                    "candidate_outputs": "chart and chart ROI: PNG; photographic full frames: JPEG quality 90, 4:4:4; metrics are computed before encoding",
                                    "alpha": "not represented in current fixtures; not evaluated"},
                 "candidate_model": "17^3 BuiltinLUTs generation and trilinear sampler mirrored from ArtifactCore ColorLUT.cpp",
+                "auxiliary_chart_diagnostics": {
+                    "version": 1,
+                    "color_patches": "center sample of eight known flat RGB patches; per-channel code delta and OpenCV 8-bit HSV hue/saturation response",
+                    "gray_ramp": "mean/p95 RGB channel spread and horizontal luma reversal/flat-step rates on known ramp interior",
+                    "smooth_and_color_gradients": "unique RGB triplets, per-channel unique levels, flat-step/reversal rates, and maximum absolute adjacent step in 8-bit codes on central row and column",
+                    "interpretation": "descriptive response metrics only; no standalone quality verdict or gate",
+                },
                 "lut_source": {"path": "ArtifactCore/src/Color/ColorLUT.cpp", "sha256": look_source_fingerprint(),
                                "names": LOOK_SOURCE_IDS},
                 "source_contract": {"path": "experiments/CinematicLooksLab/SOURCE_CONTRACT.json",
                                     "sha256": sha256(SOURCE_CONTRACT)},
                 "cases": provenance, "looks": list(LOOKS), "intensities": args.intensities}
     for case_name, src in cases.items():
-        # Chart ROIs are defined in chart coordinates and must never be reused
-        # on differently sized photographic plates.
-        rois = provenance[case_name].get("rois", {}) if case_name == "chart" else {}
+        # Each case owns ROI coordinates in its provenance record; use them for
+        # both image statistics and reviewer crops, never borrow chart geometry.
+        rois = provenance[case_name].get("rois", {})
         metrics[case_name] = {}
         panels = []
         blind_panels = []
@@ -281,7 +376,12 @@ def main() -> None:
                 for roi_name, roi in rois.items():
                     roi_result[roi_name] = roi_stats(result, roi)
                     x, y, w, h = roi
-                    Image.fromarray(result[y:y+h, x:x+w]).save(images_dir / f"{safe}__roi_{roi_name}.png")
+                    roi_crop = result[y:y+h, x:x+w]
+                    if case_name == "chart":
+                        diagnostics = chart_roi_diagnostics(roi_name, roi_crop)
+                        if diagnostics is not None:
+                            roi_result[roi_name]["chart_response_diagnostics"] = diagnostics
+                    Image.fromarray(roi_crop).save(images_dir / f"{safe}__roi_{roi_name}.png")
                 delta = np.abs(result.astype(np.int16) - src.astype(np.int16))
                 metrics[case_name][label] = {"elapsed_ms": elapsed, "regions": roi_result,
                     "response_delta": {"mae_code": float(delta.mean()),
@@ -307,19 +407,69 @@ def main() -> None:
         blind_sheet = Image.new("RGB", (720, ((len(blind_panels)+1)//2)*280), (24, 26, 30))
         blind_draw = ImageDraw.Draw(blind_sheet)
         code_map: dict[str, dict[str, str]] = {}
+        candidate_codes: dict[str, str] = {}
         for i, (candidate, thumb) in enumerate(blind_panels, start=1):
             x, y = ((i-1) % 2) * 360, ((i-1) // 2) * 280
             code = f"{case_name[:2].upper()}-{i:02d}"
             blind_sheet.paste(thumb, (x, y+28))
             blind_draw.text((x+6, y+6), code, fill=(245, 245, 245))
             code_map[code] = {"candidate": candidate, "case": case_name}
+            candidate_codes[candidate] = code
         blind_dir = review_dir / "blind"
         blind_dir.mkdir(parents=True, exist_ok=True)
-        blind_sheet.save(blind_dir / f"{case_name}_contact_sheet.png")
+        full_sheet_path = blind_dir / f"{case_name}_contact_sheet.png"
+        blind_sheet.save(full_sheet_path)
+        blind_crop_dir = blind_dir / "crops"
+        blind_crop_dir.mkdir(parents=True, exist_ok=True)
+        blind_roi_sheets: dict[str, str] = {}
+        for roi_name in rois:
+            roi_sheet = Image.new(
+                "RGB", (720, ((len(blind_panels)+1)//2)*280), (24, 26, 30)
+            )
+            roi_draw = ImageDraw.Draw(roi_sheet)
+            for i, (candidate, _) in enumerate(blind_panels, start=1):
+                code = candidate_codes[candidate]
+                source_crop = images_dir / f"{case_name}__{candidate}__roi_{roi_name}.png"
+                blind_crop_path = blind_crop_dir / f"{case_name}__{roi_name}__{code}.png"
+                with Image.open(source_crop) as crop_image:
+                    crop_image.convert("RGB").save(blind_crop_path)
+                    crop_thumb = crop_image.convert("RGB")
+                crop_thumb.thumbnail((360, 240))
+                x, y = ((i-1) % 2) * 360, ((i-1) // 2) * 280
+                roi_sheet.paste(crop_thumb, (x, y+28))
+                roi_draw.text((x+6, y+6), code, fill=(245, 245, 245))
+            roi_sheet_path = blind_dir / f"{case_name}__roi_{roi_name}_contact_sheet.png"
+            roi_sheet.save(roi_sheet_path)
+            blind_roi_sheets[roi_name] = roi_sheet_path.relative_to(out).as_posix()
         blind_review_key[case_name] = code_map
+        manifest_review_materials[case_name] = {
+            "shuffle_seed": blind_seed,
+            "shuffle_method": "random.Random(seed).shuffle; seed = global_seed XOR crc32(case_name UTF-8)",
+            "blind_full_contact_sheet": full_sheet_path.relative_to(out).as_posix(),
+            "blind_roi_contact_sheets": blind_roi_sheets,
+            "blind_full_resolution_roi_crops": (
+                blind_crop_dir.relative_to(out).as_posix() if rois else None
+            ),
+            "blind_ids_shared_across_full_and_roi_sheets": True,
+        }
     gates = {"status": "unlocked", "rd0_purpose": "baseline and response characterization only",
              "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
-             "thresholds": [], "next_step": "human review, then freeze justified thresholds before rd1 comparison"}
+             "thresholds": [], "open_findings": ["RD0-ALPHA-ASSOCIATION-01"],
+             "source_contract_matrix": {
+                 "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
+                 "contracts": [
+                     {"id": "LUT-INTENSITY-ZERO", "expected": "Finite source RGB is preserved exactly at intensity 0.", "evidence": "LUTEffect::applyCPU leaves RGB unwritten at intensity <= 0.0001; float_contract_probe intensity_0 mirrors this rule.", "runtime_verified": False},
+                     {"id": "LUT-ALPHA-PRESERVATION", "expected": "LUTEffect changes RGB and preserves the copied alpha channel.", "evidence": "Inspected CPU loop writes only r/g/b; float_contract_probe records alpha for each probe.", "runtime_verified": False},
+                     {"id": "LUT-FULL-LOOKUP-DOMAIN", "expected": "For finite built-in table values, full-strength lookup output is finite and clamped to [0,1].", "evidence": "ColorLUT::apply sanitizes/clamps RGB; source mirror probes out-of-range and non-finite inputs.", "runtime_verified": False},
+                     {"id": "LUT-PRESET-INDEX-RANGE", "expected": "Preset index is clamped to 0..9 (Custom through Fuji3510).", "evidence": "LUTEffect::setPreset clamps the integer; registry audit lists the enum values.", "runtime_verified": False}
+                 ],
+                 "excluded_from_this_matrix": ["aesthetic quality", "HDR working-space quality", "alpha association through Composition", "preview/final/backend parity", "product performance"]
+             },
+             "next_step": "complete captures/rd0/review/BLIND_REVIEW_FORM.md without opening the key; separately run the alpha fixture protocol in EVALUATION_PLAN.md; then freeze justified thresholds before rd1 comparison",
+             "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
+             "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
+             "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)"}
+    manifest["review_materials"] = manifest_review_materials
     write_json_lf(out / "manifest.json", manifest)
     write_json_lf(out / "metrics.json", metrics)
     write_json_lf(out / "gates.json", gates)

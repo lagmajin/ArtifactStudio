@@ -1,0 +1,124 @@
+{
+  "rd": "rd0",
+  "scope": "source-derived candidates; no runtime image verdicts",
+  "findings": [
+    {
+      "id": "RD0-ALPHA-ASSOCIATION-01",
+      "status": "candidate_pending_runtime_visual_confirmation",
+      "severity": "undetermined",
+      "summary": "The inspected Composition QImage path can pass premultiplied RGB into LUTEffect, which transforms RGB without consulting the alpha-association descriptor; offset/nonlinear looks may therefore depend on alpha.",
+      "reproduction": {
+        "straight_rgb": [0.8, 0.2, 0.1],
+        "alpha_values": [0.0, 0.1, 0.25, 0.5, 1.0],
+        "example_straight_rgba_at_alpha_0_25": [0.8, 0.2, 0.1, 0.25],
+        "example_premultiplied_input_at_alpha_0_25": [0.2, 0.05, 0.025, 0.25],
+        "look_ids": ["vintage", "lowContrast"],
+        "intensity": 1.0,
+        "probe": "experiments/CinematicLooksLab/captures/rd0/float_contract_probe.json"
+      },
+      "evidence": [
+        {
+          "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
+          "lines": [150, 175, 2030],
+          "fact": "ARGB32_Premultiplied input is tagged sRGB/Premultiplied and that descriptor is attached to the float buffer before composition effects."
+        },
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp",
+          "lines": [51, 78],
+          "fact": "The CPU LUT loop reads and transforms RGB directly and writes RGB only; it does not inspect the surface alpha-mode descriptor or unpremultiply/re-premultiply."
+        },
+        {
+          "path": "ArtifactCore/src/Image/ImageF32x4_RGBA.cpp",
+          "lines": [405, 407],
+          "fact": "ImageF32x4_RGBA::toQImage converts the effect result to an sRGB straight-alpha output target."
+        },
+        {
+          "path": "ArtifactCore/include/Image/SurfacePixelConversion.ixx",
+          "lines": [345, 365],
+          "fact": "Premultiplied source RGB is divided by alpha during conversion to straight alpha."
+        }
+      ],
+      "measured_source_mirror": {
+        "vintage_straight_result": [0.5428, 0.419, 0.2952, 0.25],
+        "vintage_premultiplied_then_unpremultiplied": [0.8428, 0.569, 0.2952, 0.25],
+        "low_contrast_straight_result": [0.71, 0.29, 0.22, 0.25],
+        "low_contrast_premultiplied_then_unpremultiplied_before_8bit_clip": [1.16, 0.74, 0.67, 0.25],
+        "cinematic_linear_scaling_in_this_sample": "commutes with premultiplication within the non-clipping range",
+        "fixture_patch_sweep": {
+          "scope": "8 synthetic RGB rows × alpha bytes 0,26,64,128,192,255 × all nine LUTs × intensity 0,0.5,1; source-equation mirror only",
+          "visible_alpha_max_error_excludes_alpha_byte_zero": true,
+          "vintage_skin_alpha_byte_026_max_abs_rgb_error_before_clip": 0.880769,
+          "vintage_skin_alpha_byte_026_max_abs_rgb_error_after_clip": 0.395216,
+          "low_contrast_amber_alpha_byte_026_max_abs_rgb_error_before_clip": 1.321154,
+          "low_contrast_amber_alpha_byte_026_max_abs_rgb_error_after_clip": 0.745686,
+          "per_look_worst_case": {
+            "cinematic": {"before_clip": 0.043922, "after_clip": 0.000000007, "case": "amber / alpha 128 / intensity 1"},
+            "vintage": {"before_clip": 0.880769, "after_clip": 0.395216, "case": "skin_approximation / alpha 026 / intensity 1"},
+            "cold": {"before_clip": 0.040196, "after_clip": 0.004902, "case": "blue / alpha 192 / intensity 1"},
+            "warm": {"before_clip": 0.138824, "after_clip": 0.000000045, "case": "amber / alpha 026 / intensity 1"},
+            "highContrast": {"before_clip": 1.000000, "after_clip": 1.000000, "case": "amber / alpha 026 / intensity 1"},
+            "lowContrast": {"before_clip": 1.321154, "after_clip": 0.745686, "case": "amber / alpha 026 / intensity 1"},
+            "desaturated": {"before_clip": 0.000000115, "after_clip": 0.000000115, "case": "skin_approximation / alpha 064 / intensity 1"},
+            "kodak2383": {"before_clip": 0.238881, "after_clip": 0.079738, "case": "amber / alpha 026 / intensity 1"},
+            "fuji3510": {"before_clip": 0.145529, "after_clip": 0.145529, "case": "green / alpha 026 / intensity 1"}
+          },
+          "metric_note": "per-channel RGB difference after output unpremultiplication; after_clip applies only [0,1] clamping, not transfer-function encoding or 8-bit quantization",
+          "probe": "experiments/CinematicLooksLab/captures/rd0/float_contract_probe.json"
+        }
+      },
+      "impact": "The fixture source-equation mirror predicts alpha-dependent output for several nonlinear looks. The largest sampled post-[0,1]-clip differences occur for highContrast (1.0), lowContrast (0.745686), vintage (0.395216), fuji3510 (0.145529), and kodak2383 (0.079738). This is prioritization evidence only, not a runtime defect verdict or quality gate.",
+      "limitations": [
+        "The numeric values are from the Python source-equation mirror, not direct C++ execution.",
+        "Actual severity depends on the image format and render path reaching this premultiplied boundary.",
+        "A synthetic straight-alpha runtime fixture now exists, but no visual review over multiple backgrounds or runtime image capture has been performed."
+      ],
+      "runtime_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
+      "runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)",
+      "next_evidence": "Use the five-alpha source-equation sweep as a diagnostic only. Apply the synthetic straight-alpha fixture through Composition and available Render Queue paths for all nine built-in LUTs at intensity 0/0.5/1, capture lossless outputs, and compare over black, white, 50% gray, and saturated magenta backgrounds. Prioritize highContrast, lowContrast, vintage, fuji3510, and kodak2383 based on the source mirror, while retaining the other looks as controls. Then determine the alpha contract and pass/fail gate."
+    },
+    {
+      "id": "RD0-COMPOSITION-LUT-RESTORE-01",
+      "status": "source_path_complete_runtime_roundtrip_pending",
+      "severity": "high",
+      "summary": "Composition-level Apply LUT effects are serialized with their properties, but the Composition JSON deserializer does not instantiate LUTEffect. It falls back to a base ArtifactAbstractEffect, so the restored object has no LUT CPU implementation and does not expose or restore Preset, LUT File, or Intensity.",
+      "scope": "Composition effect stack only. Layer effect persistence uses a separate factory-backed loader and is not implicated by this source finding.",
+      "evidence": [
+        {
+          "path": "Artifact/src/Widgets/ArtifactInspectorWidget.cpp",
+          "lines": [4998, 5019, 5098, 5100],
+          "fact": "Inspector can add an effect through ArtifactEffectService and route it to the composition stack when composition effects are being edited."
+        },
+        {
+          "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
+          "lines": [1999, 2073, 7582, 7588],
+          "fact": "Composition JSON serializes each composition effect, including effect id and property name/type/value arrays."
+        },
+        {
+          "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
+          "lines": [2081, 2103, 2163, 7783, 7788],
+          "fact": "The local restore factory handles SurfaceFX and several keying types, but the fallback is ArtifactAbstractEffect; serialized properties are then sent to that object. LUTEffect is not instantiated here."
+        },
+        {
+          "path": "Artifact/src/Effects/ArtifactAbstractEffect.cpp",
+          "lines": [771, 793, 827, 876],
+          "fact": "The base effect exposes only common mask properties, ignores unknown common-property names, and deep-copies input when no CPU/GPU implementation exists."
+        },
+        {
+          "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
+          "lines": [1961, 1985, 2002],
+          "fact": "Composition final-effect rendering iterates the composition effect stack and invokes applyToCpuSurface for enabled rasterizer effects; the restored base object therefore reaches its no-implementation copy path rather than LUT processing."
+        },
+        {
+          "path": "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp",
+          "lines": [61, 95, 104, 149],
+          "fact": "Layer effect restore instead creates the concrete effect through ArtifactEffectService and then restores its properties."
+        }
+      ],
+      "limitations": [
+        "This is a static source-path finding; a project save/reload and rendered image comparison have not been executed.",
+        "The finding is limited to effects stored in the composition-level effects array; it does not claim that layer-level LUT effects fail persistence."
+      ],
+      "next_evidence": "After explicit authorization for the relevant project runtime/test workflow, create a composition-level Apply LUT effect with a non-default preset and intensity, save and reload the project, then confirm concrete effect type, restored properties, and rendered output. Compare with an equivalent layer-level effect."
+    }
+  ]
+}

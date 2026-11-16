@@ -1,0 +1,88 @@
+{
+  "kind": "synthetic evaluation fixture; not a ground-truth look image",
+  "alpha_association": "straight/unassociated RGB values encoded in PNG",
+  "color_interpretation": "RGB byte code values intended as sRGB; no embedded ICC profile",
+  "size": [
+    1280,
+    768
+  ],
+  "sha256": "7b3ec6cfda0414d68b4c059e44ea0718e0627820c16b578d40d0e3fc97630f21",
+  "fixed_alpha_bytes": [
+    0,
+    26,
+    64,
+    128,
+    192,
+    255
+  ],
+  "fixed_patch_width": 72,
+  "ramp_start_x": 464,
+  "ramp": "each row uses a monotonic horizontal 0..255 alpha ramp with constant RGB",
+  "rows_top_to_bottom": [
+    {
+      "id": "neutral_mid",
+      "rgb8": [
+        128,
+        128,
+        128
+      ]
+    },
+    {
+      "id": "skin_approximation",
+      "rgb8": [
+        199,
+        122,
+        89
+      ]
+    },
+    {
+      "id": "red",
+      "rgb8": [
+        220,
+        32,
+        28
+      ]
+    },
+    {
+      "id": "green",
+      "rgb8": [
+        24,
+        184,
+        58
+      ]
+    },
+    {
+      "id": "blue",
+      "rgb8": [
+        32,
+        72,
+        220
+      ]
+    },
+    {
+      "id": "teal",
+      "rgb8": [
+        20,
+        176,
+        180
+      ]
+    },
+    {
+      "id": "amber",
+      "rgb8": [
+        242,
+        166,
+        38
+      ]
+    },
+    {
+      "id": "dark_neutral",
+      "rgb8": [
+        26,
+        26,
+        26
+      ]
+    }
+  ],
+  "generation_script": "experiments/CinematicLooksLab/make_alpha_association_fixture.py"
+}

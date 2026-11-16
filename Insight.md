@@ -14976,3 +14976,18 @@
 - **価値または懸念:** コンパイラ間の数値一貫性は小さなfixtureで確認できたが、CPU式との厳密一致は示せず、さらにcandidateと現行Coreのstop選択・補間手順が同一とも言えない。許容誤差を事後に導入すると差を隠すため、今はstrict failureとして記録する。
 - **次に確認すべきこと:** `ArtifactCore/RayTracingAcceptanceTest.cpp` の既存Vulkan capture caseで、同一入力の現行Core ColorRampとcandidate HLSLをRGBA32Fで比較し、stop境界・alphaを別々に解析する。結果に基づき、Coreへ昇格するoperation semanticsとCPU goldenの役割を決める。
 - **未検証:** GPU/runtime値、Core capture case、D3D12/Vulkan実描画、linear/display変換、alpha association、Blender実挙動。今回のコンパイラ constant-fold probeはこれらの代替ではない。
+
+
+## 2026-11-16: R&D validator の先行例外が後続契約検査を隠す
+- **関連:** `tools/shader_graph_rd/validate_shader_graph_manifest.py`、`experiments/ShaderGraphLab/dynamic_graph_prototype.py`。
+- **確認できた事実:** dynamic graph の全検査を包む try ブロックで、最初の編集スナップショットが tuple を厳格 JSON として拒否し、その時点で検査を中断していた。JSON 値境界へ tuple→array 変換を入れた後に全検査が進み、node-scoped resource ID 欠落、asset snapshot JSON 深さ制限漏れ、複数の古い manifest assertion も見つかった。修正後の manifest validator は一致を報告した。
+- **価値または懸念:** 一括 validator が例外で終了すると、後続に並ぶ独立契約の状態は観測されない。最初の例外を直した後に必ず全 validator を再実行し、summary message が「failed checksなし」でも追加の外側条件があることを確認する必要がある。
+- **次に確認すべきこと:** 大きな validation block を契約単位で実行・報告できる構造へ分割する設計を検討する。ただし今回は validator 構造自体のリファクタリングは行わない。GPU capture と Core promotion gates は別の実証として残す。
+- **未検証:** 失敗を複数収集する validator 方式が現行 R&D の実行時間・診断品質を改善するか。
+
+## 2026-11-16: Ramp の1 ULP差は線形補間の演算順で再現できる
+- **関連:** `tools/shader_graph_rd/probe_vulkan_ramp_numeric_parity.py`、`dynamic_ramp_formula_golden.json`、HLSL `lerp` / GLSL `mix` candidate。
+- **確認できた事実:** CPU golden の `left + (right-left)*t` は factor `0.4999` のalphaを `0.2001599669456482` とし、各演算をbinary32丸めする `left*(1-t)+right*t` は `0.2001599818468094` を得る。DXCとglslangの最適化済みSPIR-V定数出力は後者とRGBA全成分で5/5一致し、互いにも5/5で一致する。
+- **価値または懸念:** 1 ULPはコンパイラ間の不一致やランダムノイズではなく、代数的に同じ補間式の評価順による差と説明できる。候補に対する参照式を一つに固定し、別の数学的等価式を誤差と混ぜない検査が必要。ただしCore ColorRampの逐次合成は別アルゴリズムで、GPU実行値や製品許容差は未確定。
+- **次に確認すべきこと:** Core captureで現行ColorRamp、dynamic shader-mix candidate、両CPU式を同じRGBA32F座標で比較し、厳密参照と実用許容差を事前登録する。
+- **未検証:** 実GPUのFMA/精度、Diligent runtime、Coreとの画素差、D3D12 parity、Blender parity。

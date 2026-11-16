@@ -3,5 +3,68 @@
   "rd0_purpose": "baseline and response characterization only",
   "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
   "thresholds": [],
-  "next_step": "human review, then freeze justified thresholds before rd1 comparison"
+  "open_findings": [
+    "RD0-ALPHA-ASSOCIATION-01"
+  ],
+  "source_contract_matrix": {
+    "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
+    "contracts": [
+      {
+        "id": "LUT-INTENSITY-ZERO",
+        "expected": "Finite source RGB is preserved exactly at intensity 0.",
+        "evidence": "LUTEffect::applyCPU leaves RGB unwritten at intensity <= 0.0001; float_contract_probe intensity_0 mirrors this rule. The rd0 8-bit source-mirror outputs also have max_code difference 0 for baseline and every built-in look at intensity 0 across the chart and four photographic cases (45 output/case combinations).",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-ALPHA-PRESERVATION",
+        "expected": "LUTEffect changes RGB and preserves the copied alpha channel.",
+        "evidence": "Inspected CPU loop writes only r/g/b; float_contract_probe records alpha for each probe.",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-FULL-LOOKUP-DOMAIN",
+        "expected": "For finite built-in table values, full-strength lookup output is finite and clamped to [0,1].",
+        "evidence": "ColorLUT::apply sanitizes/clamps RGB; source mirror probes out-of-range and non-finite inputs.",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-PRESET-INDEX-RANGE",
+        "expected": "Preset index is clamped to 0..9 (Custom through Fuji3510).",
+        "evidence": "LUTEffect::setPreset clamps the integer; registry audit lists the enum values.",
+        "runtime_verified": false
+      }
+    ],
+    "excluded_from_this_matrix": [
+      "aesthetic quality",
+      "HDR working-space quality",
+      "alpha association through Composition",
+      "preview/final/backend parity",
+      "product performance"
+    ]
+  },
+  "rd0_machine_checks": {
+    "scope": "Python source-mirror image outputs and recorded metrics; not C++ differential, product runtime, aesthetic review, or quality acceptance",
+    "intensity_zero": {
+      "cases": ["chart", "neon_streets", "street_lights", "portrait", "forest"],
+      "built_in_looks": 9,
+      "look_case_combinations": 45,
+      "max_code_difference": 0,
+      "result": "pass"
+    },
+    "non_finite_output_values": {
+      "candidate_case_sets": 95,
+      "count": 0,
+      "result": "pass"
+    },
+    "source_asset_hashes": {
+      "manifest_hashes_match": true,
+      "result": "pass"
+    },
+    "visual_review": "blind form remains blank; no candidate was ranked or quality gate established",
+    "product_runtime": "not run; build, test, and GUI workflow were not executed"
+  },
+  "next_step": "complete captures/rd0/review/BLIND_REVIEW_FORM.md without opening the key; separately run the alpha fixture protocol in EVALUATION_PLAN.md; then freeze justified thresholds before rd1 comparison",
+  "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
+  "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
+  "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)"
 }

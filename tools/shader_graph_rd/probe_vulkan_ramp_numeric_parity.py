@@ -76,6 +76,10 @@ def output_vector(disassembly: str) -> list[float]:
     return [scalar_constants[item] for item in components]
 
 
+def f32(value: float) -> float:
+    return struct.unpack("<f", struct.pack("<f", value))[0]
+
+
 def f32_bits(value: float) -> bytes:
     return struct.pack("<f", value)
 
@@ -85,6 +89,14 @@ def f32_ulp_distance(left: float, right: float) -> int:
         bits = struct.unpack("<I", f32_bits(value))[0]
         return (~bits & 0xFFFFFFFF) if bits & 0x80000000 else bits | 0x80000000
     return abs(ordered(left) - ordered(right))
+
+
+def shader_mix_f32(left: float, right: float, factor: float) -> float:
+    """Evaluate x*(1-a)+y*a with binary32 rounding after each operation."""
+    inverse = f32(1.0 - factor)
+    left_term = f32(left * inverse)
+    right_term = f32(right * factor)
+    return f32(left_term + right_term)
 
 
 def main() -> int:
@@ -119,6 +131,10 @@ def main() -> int:
                             "dynamic_graph_prototype.py", "shader_graph_ramp_numeric_probe")
     registry = prototype.load_registry(registry_path)
     compiled = prototype.compile_document_from_data(json.loads(document_bytes), registry)
+    source_document = json.loads(document_bytes)
+    ramp_node = next(node for node in source_document["nodes"]
+                     if node.get("nodeId") == "ramp")
+    authored_stops = ramp_node["parameters"]["stops"]
     cases: list[dict[str, Any]] = []
 
     if args.keep_artifacts:
@@ -168,6 +184,28 @@ def main() -> int:
             glsl_value = output_vector(glsl_dis)
             hlsl_value = output_vector(hlsl_dis)
             expected_value = [float(component) for component in expected["color"]]
+            selection = expected["selection"]
+            if selection["kind"] == "segment":
+                left_stop = authored_stops[selection["leftAuthoredIndex"]]
+                right_stop = authored_stops[selection["rightAuthoredIndex"]]
+                left_position = min(max(f32(float(left_stop["position"])), 0.0), 1.0)
+                right_position = min(max(f32(float(right_stop["position"])), 0.0), 1.0)
+                span = max(f32(right_position - left_position), f32(1e-5))
+                local_factor = min(max(
+                    f32(f32(f32(factor) - left_position) / span), 0.0), 1.0)
+                shader_mix_value = [
+                    shader_mix_f32(f32(float(left_lane)), f32(float(right_lane)), local_factor)
+                    for left_lane, right_lane in zip(left_stop["color"], right_stop["color"])
+                ]
+            else:
+                endpoint = authored_stops[selection["authoredIndex"]]
+                shader_mix_value = [f32(float(lane)) for lane in endpoint["color"]]
+            shader_mix_matches_glsl = all(
+                f32_bits(a) == f32_bits(b)
+                for a, b in zip(glsl_value, shader_mix_value))
+            shader_mix_matches_hlsl = all(
+                f32_bits(a) == f32_bits(b)
+                for a, b in zip(hlsl_value, shader_mix_value))
             glsl_matches_hlsl = all(f32_bits(a) == f32_bits(b)
                                     for a, b in zip(glsl_value, hlsl_value))
             glsl_matches_golden = all(f32_bits(a) == f32_bits(b)
@@ -183,7 +221,10 @@ def main() -> int:
                 "expectedRGBA32F": expected_value,
                 "glslRGBA32F": glsl_value,
                 "hlslRGBA32F": hlsl_value,
+                "cpuShaderMixRGBA32F": shader_mix_value,
                 "glslHlslExactBinary32": glsl_matches_hlsl,
+                "glslShaderMixExactBinary32": shader_mix_matches_glsl,
+                "hlslShaderMixExactBinary32": shader_mix_matches_hlsl,
                 "glslGoldenExactBinary32": glsl_matches_golden,
                 "hlslGoldenExactBinary32": hlsl_matches_golden,
                 "glslGoldenUlpDistanceRGBA": glsl_ulp,
@@ -224,6 +265,10 @@ def main() -> int:
         ],
         "caseCount": len(cases),
         "glslHlslExactBinary32Count": sum(item["glslHlslExactBinary32"] for item in cases),
+        "glslShaderMixExactBinary32Count": sum(
+            item["glslShaderMixExactBinary32"] for item in cases),
+        "hlslShaderMixExactBinary32Count": sum(
+            item["hlslShaderMixExactBinary32"] for item in cases),
         "glslGoldenExactBinary32Count": sum(item["glslGoldenExactBinary32"] for item in cases),
         "hlslGoldenExactBinary32Count": sum(item["hlslGoldenExactBinary32"] for item in cases),
         "maximumGoldenUlpDistance": max(
@@ -235,6 +280,8 @@ def main() -> int:
                            encoding="utf-8", newline="\n")
     print(f"status={report['status']} cases={len(cases)} "
           f"glsl-hlsl={report['glslHlslExactBinary32Count']}/{len(cases)} "
+          f"shader-mix-glsl/hlsl={report['glslShaderMixExactBinary32Count']}/"
+          f"{report['hlslShaderMixExactBinary32Count']}/{len(cases)} "
           f"glsl-golden={report['glslGoldenExactBinary32Count']}/{len(cases)} "
           f"hlsl-golden={report['hlslGoldenExactBinary32Count']}/{len(cases)} "
           f"max-golden-ulp={report['maximumGoldenUlpDistance']}")

@@ -1121,8 +1121,11 @@ def instantiate_node(operation: Operation, node_id: str, *, x: float = 0.0, y: f
     """Create editable node state from a registered operation's defaults."""
     if not isinstance(node_id, str) or not IDENTIFIER.fullmatch(node_id):
         raise ContractError("nodeId is invalid", code="node.id.invalid", path="/nodeId")
-    parameters = {item.parameter_id: copy.deepcopy(item.default)
-                  for item in operation.parameters if item.default is not None}
+    parameters = {
+        item.parameter_id: (list(item.default) if isinstance(item.default, tuple)
+                            else copy.deepcopy(item.default))
+        for item in operation.parameters if item.default is not None
+    }
     node = {
         "nodeId": node_id,
         "operationId": operation.operation_id,
@@ -4626,6 +4629,7 @@ def compile_document_from_data(
             ir_operation["resourceDependencies"] = [{
                 "resourceKey": reference["resourceKey"],
                 "resourceId": reference["resourceId"],
+                "nodeId": node_id,
                 "resourceKind": "sampledTexture2D",
                 "shaderSymbol": f"g_GraphTexture_{symbol[2:]}",
                 "samplerSymbol": f"g_GraphSampler_{symbol[2:]}",
@@ -4816,6 +4820,222 @@ def compile_document_from_data(
             "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
             "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence",
         ],
+    }
+
+
+def project_legacy_core_material_input(
+    source_json: str,
+    registry: dict[tuple[str, int], Operation],
+    *,
+    target_node_id: str,
+    target_input_socket: str,
+) -> dict[str, Any]:
+    """Project one supported legacy material input without rewriting its source."""
+    if not isinstance(source_json, str):
+        raise ContractError("legacy source must be the original JSON string",
+                            code="legacy.document.invalid", path="/")
+    try:
+        source = json.loads(source_json)
+    except (json.JSONDecodeError, RecursionError) as error:
+        raise ContractError("legacy material graph JSON is invalid",
+                            code="legacy.document.invalid", path="/") from error
+    if not isinstance(source, dict):
+        raise ContractError("legacy material graph must be an object",
+                            code="legacy.document.invalid", path="/")
+    if (isinstance(source.get("version"), bool) or source.get("version") != 1 or
+            source.get("kind") not in (None, "artifact-material-graph")):
+        raise ContractError("legacy material graph identity is unsupported",
+                            code="legacy.document.unsupported", path="/version")
+    source_nodes, source_links = source.get("nodes"), source.get("links")
+    if not isinstance(source_nodes, list) or not isinstance(source_links, list):
+        raise ContractError("legacy nodes and links arrays are required",
+                            code="legacy.document.invalid", path="/")
+
+    node_by_id: dict[str, dict[str, Any]] = {}
+    for index, node in enumerate(source_nodes):
+        if not isinstance(node, dict):
+            raise ContractError("legacy node must be an object",
+                                code="legacy.node.invalid", path=f"/nodes/{index}")
+        node_id, node_type = node.get("id"), node.get("type")
+        if not isinstance(node_id, str) or not node_id or not isinstance(node_type, str):
+            raise ContractError("legacy node id and type are required",
+                                code="legacy.node.invalid", path=f"/nodes/{index}")
+        if node_id in node_by_id:
+            raise ContractError("legacy node ids must be unique",
+                                code="legacy.node.id.duplicate", path=f"/nodes/{index}/id")
+        node_by_id[node_id] = node
+
+    incoming: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for index, link in enumerate(source_links):
+        if not isinstance(link, dict):
+            raise ContractError("legacy link must be an object",
+                                code="legacy.link.invalid", path=f"/links/{index}")
+        endpoints = (link.get("from"), link.get("out"), link.get("to"), link.get("in"))
+        if not all(isinstance(item, str) and item for item in endpoints):
+            raise ContractError("legacy link endpoints must be non-empty strings",
+                                code="legacy.link.invalid", path=f"/links/{index}")
+        source_id, source_socket, target_id, target_socket = endpoints
+        incoming.setdefault((target_id, target_socket), []).append((source_id, source_socket))
+
+    target = node_by_id.get(target_node_id)
+    if target is None or target.get("type") != "Principled" or target_input_socket != "BaseColor":
+        raise ContractError("projection target must be a Principled BaseColor input",
+                            code="legacy.projection.target.unsupported", path="/target")
+    target_sources = incoming.get((target_node_id, target_input_socket), [])
+    if len(target_sources) != 1:
+        raise ContractError("selected legacy material input must have exactly one source",
+                            code="legacy.link.cardinality.invalid",
+                            path=f"/nodes/{target_node_id}/inputs/{target_input_socket}")
+    root_id, root_socket = target_sources[0]
+    dependency_socket: dict[str, str] = {root_id: root_socket}
+
+    def input_sockets(node_id: str) -> tuple[str, ...]:
+        node = node_by_id.get(node_id)
+        socket = dependency_socket[node_id]
+        if node is None:
+            raise ContractError("legacy link references a missing node",
+                                code="legacy.link.endpoint.missing", path="/links")
+        if node.get("type") == "RGB" and socket == "Color":
+            return ()
+        if node.get("type") == "Math" and socket == "Value":
+            params = node.get("params", {})
+            if not isinstance(params, dict):
+                raise ContractError("legacy node params must be an object",
+                                    code="legacy.node.parameters.invalid",
+                                    path=f"/nodes/{node_id}/params")
+            operation = params.get("op", 0)
+            if isinstance(operation, bool) or operation != 0:
+                raise ContractError("only legacy Math Add is supported by this projection",
+                                    code="legacy.node.operation.unsupported",
+                                    path=f"/nodes/{node_id}/params/op")
+            clamp_result = params.get("clamp", False)
+            if not isinstance(clamp_result, bool) or clamp_result:
+                raise ContractError("clamped legacy Math Add has no matching typed operation",
+                                    code="legacy.node.operation.unsupported",
+                                    path=f"/nodes/{node_id}/params/clamp")
+            return ("A", "B")
+        raise ContractError("legacy node/socket is outside the supported projection lane",
+                            code="legacy.node.operation.unsupported",
+                            path=f"/nodes/{node_id}")
+
+    ordered_ids: list[str] = []
+    visited: set[str] = set()
+    visiting: set[str] = {root_id}
+    stack: list[tuple[str, int, tuple[str, ...]]] = [(root_id, 0, input_sockets(root_id))]
+    while stack:
+        node_id, input_index, sockets = stack[-1]
+        if input_index == len(sockets):
+            stack.pop()
+            visiting.remove(node_id)
+            visited.add(node_id)
+            ordered_ids.append(node_id)
+            continue
+        socket = sockets[input_index]
+        stack[-1] = (node_id, input_index + 1, sockets)
+        sources = incoming.get((node_id, socket), [])
+        if len(sources) != 1:
+            raise ContractError("legacy Math Add inputs must each have exactly one source",
+                                code="legacy.link.cardinality.invalid",
+                                path=f"/nodes/{node_id}/inputs/{socket}")
+        dependency_id, dependency_output = sources[0]
+        dependency = node_by_id.get(dependency_id)
+        if dependency is None:
+            raise ContractError("legacy link references a missing node",
+                                code="legacy.link.endpoint.missing", path="/links")
+        if dependency.get("type") != "RGB" or dependency_output != "Color":
+            raise ContractError("legacy Math Add inputs must come from RGB Color sockets",
+                                code="legacy.link.type.incompatible",
+                                path=f"/nodes/{node_id}/inputs/{socket}")
+        dependency_socket[dependency_id] = dependency_output
+        if dependency_id in visiting:
+            raise ContractError("legacy projection subgraph contains a cycle",
+                                code="legacy.graph.cycle", path=f"/nodes/{dependency_id}")
+        if dependency_id not in visited:
+            visiting.add(dependency_id)
+            stack.append((dependency_id, 0, input_sockets(dependency_id)))
+
+    depth_by_id: dict[str, int] = {}
+    for node_id in ordered_ids:
+        dependencies = [source_id for socket in input_sockets(node_id)
+                       for source_id, _ in incoming[(node_id, socket)]]
+        depth_by_id[node_id] = 1 + max(
+            (depth_by_id[dependency_id] for dependency_id in dependencies),
+            default=-1)
+    ids_by_depth: dict[int, list[str]] = {}
+    for node_id in ordered_ids:
+        ids_by_depth.setdefault(depth_by_id[node_id], []).append(node_id)
+
+    projected_nodes: list[dict[str, Any]] = []
+    projected_links: list[dict[str, dict[str, str]]] = []
+    layout_provenance: dict[str, str] = {}
+    for node_id in ordered_ids:
+        source_node = node_by_id[node_id]
+        params = source_node.get("params", {})
+        if not isinstance(params, dict):
+            raise ContractError("legacy node params must be an object",
+                                code="legacy.node.parameters.invalid",
+                                path=f"/nodes/{node_id}/params")
+        layout = {}
+        if "x" in source_node and "y" in source_node:
+            layout = {
+                "x": _f32(source_node["x"], "legacy layout x",
+                          path=f"/nodes/{node_id}/x", code="legacy.layout.invalid"),
+                "y": _f32(source_node["y"], "legacy layout y",
+                          path=f"/nodes/{node_id}/y", code="legacy.layout.invalid"),
+            }
+            layout_provenance[node_id] = "legacy"
+        else:
+            layout = {
+                "x": float(depth_by_id[node_id] * 220),
+                "y": float(sorted(ids_by_depth[depth_by_id[node_id]]).index(node_id) * 120),
+            }
+            layout_provenance[node_id] = "deterministic-rd-canvas-projection"
+        if source_node["type"] == "RGB":
+            values = [
+                _f32(params.get(channel, default), f"legacy RGB {channel}",
+                     path=f"/nodes/{node_id}/params/{channel}", code="legacy.parameter.invalid")
+                for channel, default in (("r", 0.5), ("g", 0.5),
+                                         ("b", 0.5), ("a", 1.0))
+            ]
+            operation_id = "artifact.rd.constant.vector4.float32"
+            semantic_parameters = {"value": values}
+        else:
+            operation_id = "artifact.rd.math.add.vector4.float32"
+            semantic_parameters = {}
+            for legacy_socket, typed_socket in (("A", "a"), ("B", "b")):
+                source_id, _ = incoming[(node_id, legacy_socket)][0]
+                projected_links.append({
+                    "from": {"nodeId": source_id, "socketId": "value"},
+                    "to": {"nodeId": node_id, "socketId": typed_socket},
+                })
+        projected_node: dict[str, Any] = {
+            "nodeId": node_id,
+            "operationId": operation_id,
+            "semanticVersion": 1,
+            "parameters": semantic_parameters,
+        }
+        if layout:
+            projected_node["layout"] = layout
+        projected_nodes.append(projected_node)
+
+    projected_document = {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": projected_nodes,
+        "links": projected_links,
+        "output": {"nodeId": root_id, "socketId": "result"},
+    }
+    compile_document_from_data(projected_document, registry)
+    return {
+        "status": "read-only-projection",
+        "sourceSha256": hashlib.sha256(source_json.encode("utf-8")).hexdigest().upper(),
+        "opaqueSourceJson": source_json,
+        "selectedLegacyInput": {"nodeId": target_node_id,
+                                 "socketId": target_input_socket},
+        "includedNodeIds": ordered_ids,
+        "excludedNodeIds": [node_id for node_id in node_by_id if node_id not in visited],
+        "layoutProvenance": layout_provenance,
+        "document": projected_document,
     }
 
 

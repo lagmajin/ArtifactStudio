@@ -4,7 +4,20 @@
   "sources": {
     "Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp": "a6a09bad96073eef9102ecbda784d23d518c9852bc372308257020654c4393d3",
     "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821",
-    "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e"
+    "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e",
+    "Artifact/src/Service/ArtifactEffectService.cpp": "ff5bd978a62c8cbfa7e1cdafc97af882e479a60b7b8ef6e99da0323f6586cc8c",
+    "Artifact/src/Widgets/InspectorEffectCatalog.cpp": "f6079abd6cefa388363fcc1d4263f07d2ccf7fffac0733b2775d6ec1dfce11f4",
+    "Artifact/include/Effects/ColorCorrection/LUTEffect.ixx": "53704b424dd57a888860068a92a5047c027bd228bc4b95949cef1a7b5d8cfcff",
+    "Artifact/src/Widgets/ArtifactInspectorWidget.cpp": "2f2a4ef78ea92b33a613f4e3a16a18775d798126aa65d06956b2757b983b20cc",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorShared.cpp": "7a0ecbc18fa93d31fb0e841d9309f13ecc66fd7f1e2a854be91d18e9ea0bdb61",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorTextAnimatorColor.cpp": "acf965b550c34e52a06511dec165f3d9582030c1921fac4ded3de5acb5b6f911",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorNumeric.cpp": "8da398aceecd5562705485e34141edba66d3a96d4229455f639fa21e9af5cc68",
+    "Artifact/src/Widgets/ArtifactPropertyWidgetShared.cpp": "1ab9c80ce437b9ae877e24e627c56ba56872b5a92a7a41bd93e538ea36eed8a8",
+    "Artifact/src/Project/ArtifactPresetManager.cpp": "5436b26411fb60ddab07cd99c16ff06112e0681e3761b35f690360c68eb29cd7",
+    "Artifact/src/Composition/ArtifactAbstractComposition.cpp": "eccf9da8c4c5a9b9745394973fe284a5dd26a65bcefc058ea70d7e713a8aa2d7",
+    "Artifact/src/Effects/ArtifactAbstractEffect.cpp": "506d9d14ca6950fc0d9cb003ad769d133c4b6ebbc1821c8430e6e2049f58279c",
+    "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp": "56aafbb19687a6a68387a82cd5e4dc3db28c001c932ec3ebf8b4fcfc123f97c7",
+    "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp": "dc7932efbc297e714f99be1fe325f9ed20ffe63f9a5966c13b659d7942ce48c8"
   },
   "browser_preset_count": 24,
   "browser_presets": [
@@ -225,9 +238,47 @@
     "fuji3510"
   ],
   "mapping_contract": "No browser preset is treated as mapped without an explicit implementation and an observed apply path.",
+  "existing_effect_availability": {
+    "effect_id": "effect.colorcorrection.lut",
+    "display_name": "Apply LUT",
+    "inspector_catalog_entry": true,
+    "effect_service_factory": true,
+    "inspector_add_path": "addSelectedEffectToCurrentTarget creates through ArtifactEffectService and adds to the selected layer or composition through ArtifactProjectService",
+    "preset_property_ui": "LUTEffect exports Preset as Integer without enum-option tooltip/metadata. The shared property editor has no hard-coded Preset enum mapping, so it falls through to the generic integer spinbox rather than a named preset chooser; LUTEffect::setPreset clamps input to indices 0..9.",
+    "runtime_verified": false,
+    "preset_enum": ["Custom", "Cinematic", "Vintage", "Cold", "Warm", "HighContrast", "LowContrast", "Desaturated", "Kodak2383", "Fuji3510"],
+    "preset_index_table": [
+      {"value": 0, "name": "Custom"},
+      {"value": 1, "name": "Cinematic"},
+      {"value": 2, "name": "Vintage"},
+      {"value": 3, "name": "Cold"},
+      {"value": 4, "name": "Warm"},
+      {"value": 5, "name": "HighContrast"},
+      {"value": 6, "name": "LowContrast"},
+      {"value": 7, "name": "Desaturated"},
+      {"value": 8, "name": "Kodak2383"},
+      {"value": 9, "name": "Fuji3510"}
+    ],
+    "default_preset": "Cinematic",
+    "default_intensity": 1.0,
+    "scope": "Static source evidence for the general LUT effect path; not evidence that the separate Looks browser is connected or that image quality is accepted.",
+    "effect_preset_persistence": {
+      "available": true,
+      "api": "ArtifactEffectService::saveEffectPreset/loadEffectPreset delegates to ArtifactPresetManager",
+      "serialized_fields": ["effect_id", "effect_enabled", "effect_mix", "mask state", "properties including Preset, LUT File, Intensity"],
+      "load_behavior": "Applies the file to an already-created effect; rejects a non-empty mismatching effect_id and validates owned property payloads before mutation.",
+      "preset_round_trip_mechanism": "Preset is serialized as an integer property and restored through LUTEffect::setPropertyValue -> setPreset, clamped to 0..9; Intensity is restored through setIntensity, clamped to 0..1 (non-finite becomes 1).",
+      "application_confirmed": false,
+    "scope": "Generic per-effect preset file support; does not create a named cinematic look library, connect the Looks browser, or prove project save/reload/runtime rendering."
+    }
+  },
   "integration_findings": [
+    "The general Apply LUT effect is registered in InspectorEffectCatalog and ArtifactEffectService; ArtifactInspectorWidget::addSelectedEffectToCurrentTarget creates and adds it to a selected layer or composition stack. Its LUTEffect has nine built-in presets plus Custom. This is static source evidence, not a runtime click-through.",
+    "The Preset property is currently a generic integer field, not a named chooser. The code-level built-in enum exists, but Inspector property metadata does not expose those labels.",
     "No LooksPresetBrowserDialog construction callsite was found under Artifact/src or Artifact/include.",
     "Dialog Apply updates only appliedId_ and a badge; it does not create or apply an effect, notify a caller, or close the dialog.",
-    "No browser preset ID to LUTEffect preset mapping was found in the inspected source."
+    "No browser preset ID to LUTEffect preset mapping was found in the inspected source.",
+    "Generic effect-preset JSON includes the LUT effect id and its Preset / LUT File / Intensity properties, and can apply them to an existing LUTEffect. This is a file API contract from source inspection, not an executed save/load round trip.",
+    "Composition-level LUT persistence differs from layer-level persistence: composition JSON writes the LUT properties, but its local deserializer does not instantiate LUTEffect and falls back to the base ArtifactAbstractEffect. Layer deserialization uses ArtifactEffectService::createEffect and can rebuild the concrete LUTEffect. See findings.json RD0-COMPOSITION-LUT-RESTORE-01; static source path only, runtime round-trip pending."
   ]
 }

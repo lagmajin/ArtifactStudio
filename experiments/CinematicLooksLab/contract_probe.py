@@ -12,12 +12,19 @@ import math
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 LUT_SOURCE = REPO / "ArtifactCore/src/Color/ColorLUT.cpp"
 EFFECT_SOURCE = REPO / "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp"
+COMPOSITION_SOURCE = REPO / "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp"
+IMAGE_CONVERSION_SOURCE = REPO / "ArtifactCore/src/Image/ImageF32x4_RGBA.cpp"
+PIXEL_CONVERSION_SOURCE = REPO / "ArtifactCore/include/Image/SurfacePixelConversion.ixx"
+IMAGE_SURFACE_VIEW_SOURCE = REPO / "ArtifactCore/include/Image/ImageSurfaceView.ixx"
 SOURCE_CONTRACT = ROOT / "SOURCE_CONTRACT.json"
+ALPHA_FIXTURE = ROOT / "assets/alpha-association-chart.png"
+ALPHA_FIXTURE_MANIFEST = ROOT / "assets/alpha-association-chart.json"
 OUT = ROOT / "captures/rd0/float_contract_probe.json"
 
 LOOKS = (
@@ -103,12 +110,34 @@ def main() -> None:
     actual_hashes = {
         LUT_SOURCE.relative_to(REPO).as_posix(): sha256(LUT_SOURCE),
         EFFECT_SOURCE.relative_to(REPO).as_posix(): sha256(EFFECT_SOURCE),
+        COMPOSITION_SOURCE.relative_to(REPO).as_posix(): sha256(COMPOSITION_SOURCE),
+        IMAGE_CONVERSION_SOURCE.relative_to(REPO).as_posix(): sha256(IMAGE_CONVERSION_SOURCE),
+        PIXEL_CONVERSION_SOURCE.relative_to(REPO).as_posix(): sha256(PIXEL_CONVERSION_SOURCE),
+        IMAGE_SURFACE_VIEW_SOURCE.relative_to(REPO).as_posix(): sha256(IMAGE_SURFACE_VIEW_SOURCE),
     }
     if actual_hashes != source_contract["source_files"]:
         raise SystemExit(
             "LUT source changed since mirror review; inspect the source, update the "
             "Python mirror/evidence, then refresh SOURCE_CONTRACT.json."
         )
+    fixture_manifest = json.loads(ALPHA_FIXTURE_MANIFEST.read_text(encoding="utf-8"))
+    fixture_sha256 = sha256(ALPHA_FIXTURE)
+    if fixture_sha256 != fixture_manifest["sha256"]:
+        raise SystemExit("Alpha fixture hash differs from its manifest; regenerate or review the fixture before probing.")
+    with Image.open(ALPHA_FIXTURE) as fixture_image:
+        fixture_pixels = np.asarray(fixture_image.convert("RGBA"))
+    expected_size = tuple(fixture_manifest["size"])
+    if fixture_pixels.shape[1::-1] != expected_size:
+        raise SystemExit("Alpha fixture dimensions differ from its manifest.")
+    row_height = fixture_pixels.shape[0] // len(fixture_manifest["rows_top_to_bottom"])
+    patch_width = fixture_manifest["fixed_patch_width"]
+    for row_index, color_row in enumerate(fixture_manifest["rows_top_to_bottom"]):
+        y = row_index * row_height + row_height // 2
+        for patch_index, alpha_byte in enumerate(fixture_manifest["fixed_alpha_bytes"]):
+            x = patch_index * patch_width + patch_width // 2
+            expected_rgba = [*color_row["rgb8"], alpha_byte]
+            if fixture_pixels[y, x].tolist() != expected_rgba:
+                raise SystemExit("Alpha fixture patch pixel differs from its manifest.")
     probes = {
         "black": (0.0, 0.0, 0.0, 0.0),
         "neutral_18_percent": (0.18, 0.18, 0.18, 0.5),
@@ -131,6 +160,21 @@ def main() -> None:
             "HDR RGB is not preserved at full intensity. Intermediate intensity mixes HDR source values with the clamped LUT output.",
         ],
         "probes": {},
+        "alpha_association_probe": {
+            "source_format": "QImage::Format_ARGB32_Premultiplied is tagged sRGB/Premultiplied at the composition image-effect boundary",
+            "conversion_back": "ImageF32x4_RGBA::toQImage targets sRGB straight alpha and unpremultiplies source RGB",
+            "straight_rgb": [0.8, 0.2, 0.1],
+            "alpha_values": [0.0, 0.1, 0.25, 0.5, 1.0],
+            "purpose": "Sweep identical straight RGB through straight and premultiplied source-equation paths; unpremultiply the latter for display comparison.",
+            "looks": {},
+        },
+        "alpha_fixture_patch_probe": {
+            "fixture": ALPHA_FIXTURE.relative_to(REPO).as_posix(),
+            "fixture_sha256": fixture_sha256,
+            "scope": "source-equation mirror at the fixture's constant-color fixed-alpha patches; not a PNG decoder, C++ differential test, or product render",
+            "alpha_bytes": fixture_manifest["fixed_alpha_bytes"],
+            "colors": {},
+        },
     }
     for look in LOOKS:
         table = make_lut(look)
@@ -143,11 +187,97 @@ def main() -> None:
             }
             for name, rgba in probes.items()
         }
+        straight_rgb = (0.8, 0.2, 0.1)
+        alpha_results = {}
+        for alpha in output["alpha_association_probe"]["alpha_values"]:
+            straight = (*straight_rgb, alpha)
+            premultiplied = tuple(v * alpha for v in straight_rgb) + (alpha,)
+            intensity_results = {}
+            for intensity in (0.0, 0.5, 1.0):
+                straight_result = apply_effect(table, straight, intensity)
+                premul_result = apply_effect(table, premultiplied, intensity)
+                unpremultiplied = ([v / alpha for v in premul_result[:3]] if alpha > 1e-6 else [0.0, 0.0, 0.0])
+                expected_premultiplied = [v * alpha for v in straight_result[:3]]
+                intensity_results[f"intensity_{intensity:g}"] = {
+                    "straight_input_rgba": json_numbers(list(straight)),
+                    "premultiplied_input_rgba": json_numbers(list(premultiplied)),
+                    "straight_input_result": json_numbers(straight_result),
+                    "premultiplied_input_after_effect": json_numbers(premul_result),
+                    "premultiplied_input_after_output_unpremultiply": json_numbers(unpremultiplied + [alpha]),
+                    "premultiplied_input_after_output_unpremultiply_and_srgb8_clip": json_numbers(
+                        [min(max(v, 0.0), 1.0) for v in unpremultiplied] + [alpha]
+                    ),
+                    "expected_premultiplied_rgb_if_straight_color_were_graded": json_numbers(expected_premultiplied),
+                    "premultiplied_rgb_error": json_numbers([p - e for p, e in zip(premul_result[:3], expected_premultiplied)]),
+                }
+            alpha_results[f"alpha_{alpha:.2f}"] = intensity_results
+        output["alpha_association_probe"]["looks"][look] = alpha_results
+        fixture_look_results = {}
+        for color_row in fixture_manifest["rows_top_to_bottom"]:
+            color_name = color_row["id"]
+            straight_rgb = tuple(float(v) / 255.0 for v in color_row["rgb8"])
+            alpha_results_for_color = {}
+            for alpha_byte in fixture_manifest["fixed_alpha_bytes"]:
+                alpha = float(alpha_byte) / 255.0
+                straight = (*straight_rgb, alpha)
+                premultiplied = tuple(v * alpha for v in straight_rgb) + (alpha,)
+                intensity_results = {}
+                for intensity in (0.0, 0.5, 1.0):
+                    straight_result = apply_effect(table, straight, intensity)
+                    premul_result = apply_effect(table, premultiplied, intensity)
+                    unpremultiplied = ([v / alpha for v in premul_result[:3]] if alpha > 1e-6 else [0.0, 0.0, 0.0])
+                    intensity_results[f"intensity_{intensity:g}"] = {
+                        "straight_input_rgba": json_numbers(list(straight)),
+                        "premultiplied_input_rgba": json_numbers(list(premultiplied)),
+                        "straight_input_result": json_numbers(straight_result),
+                        "premultiplied_input_after_output_unpremultiply": json_numbers(unpremultiplied + [alpha]),
+                        "display_rgb_error_before_output_clip": json_numbers(
+                            [a - b for a, b in zip(unpremultiplied, straight_result[:3])]
+                        ),
+                        "display_rgb_error_after_srgb8_clip": json_numbers([
+                            min(max(a, 0.0), 1.0) - min(max(b, 0.0), 1.0)
+                            for a, b in zip(unpremultiplied, straight_result[:3])
+                        ]),
+                    }
+                alpha_results_for_color[f"alpha_byte_{alpha_byte:03d}"] = intensity_results
+            fixture_look_results[color_name] = alpha_results_for_color
+        output["alpha_fixture_patch_probe"]["colors"][look] = fixture_look_results
+    fixture_error_summary = {}
+    for look, color_results in output["alpha_fixture_patch_probe"]["colors"].items():
+        candidates = []
+        for color_name, alpha_results_for_color in color_results.items():
+            for alpha_key, intensity_results in alpha_results_for_color.items():
+                if alpha_key == "alpha_byte_000":
+                    continue  # RGB at zero alpha is unobservable after output unpremultiplication.
+                for intensity_key, values in intensity_results.items():
+                    error = [float(v) for v in values["display_rgb_error_before_output_clip"]]
+                    candidates.append({
+                        "max_abs_rgb_error_before_output_clip": max(abs(v) for v in error),
+                        "color": color_name,
+                        "alpha_patch": alpha_key,
+                        "intensity": intensity_key,
+                        "error_rgb": error,
+                        "max_abs_rgb_error_after_srgb8_clip_at_same_case": max(
+                            abs(float(v)) for v in values["display_rgb_error_after_srgb8_clip"]
+                        ),
+                    })
+        fixture_error_summary[look] = max(
+            candidates, key=lambda item: item["max_abs_rgb_error_before_output_clip"]
+        )
+    output["alpha_fixture_patch_probe"]["max_visible_alpha_error_by_look"] = {
+        "metric": "worst per-channel RGB difference after output unpremultiplication, before and after [0,1] output clipping; alpha-byte-0 pixels excluded",
+        "scope": "source-equation mirror summary only; not a quality gate or C++/runtime result",
+        "values": fixture_error_summary,
+    }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="utf-8", newline="\n") as stream:
         json.dump(output, stream, ensure_ascii=False, indent=2, allow_nan=False)
         stream.write("\n")
-    print(f"Wrote {len(LOOKS)} LUTs × {len(probes)} RGBA probes to {OUT}")
+    print(
+        f"Wrote {len(LOOKS)} LUTs × {len(probes)} RGBA probes plus "
+        f"{len(LOOKS)} × {len(fixture_manifest['rows_top_to_bottom'])} colors × "
+        f"{len(fixture_manifest['fixed_alpha_bytes'])} alpha patches × 3 intensities to {OUT}"
+    )
 
 
 if __name__ == "__main__":
