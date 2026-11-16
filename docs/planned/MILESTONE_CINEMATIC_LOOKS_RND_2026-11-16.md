@@ -12,6 +12,7 @@
 ## 暫定結論（rd0・画質採否前）
 
 - LUT 補正の基本 effect 自体は存在し、Inspector の effect catalog から選択中 layer または composition の stack へ追加するソース経路がある。`Preset` / `LUT File` / `Intensity` property があるが、`Preset` は選択肢未設定の integer index なので現在は数値入力。共通 Integer enum chooser を起動する tooltip-option 経路は既存だが、LUT は未接続で、別の Looks browser とも未接続。
+- `ColorBalanceEffect` (`effect.colorcorrection.colorbalance`) は Inspector catalog / Effect Service に登録された CPU/GPU effect で、`Custom / Neutral / CoolShadows / WarmHighlights / Cinematic` を持ち、初期値は Cinematic。`TritoneEffect` (`effect.colorcorrection.tritone`) も登録済み CPU/GPU effect で、`Custom / Cinematic / TealAndOrange / WarmGold / ColdBlue` を持ち、初期値は Cinematic。どちらの Preset も選択肢 tooltip のない Integer property で、名前付き chooser にはなっていない。設定式・ソース hash は `REGISTRY_AUDIT.json` に記録した。
 - LUT 関連は三つの別機能として扱う。`LUTEffect` の内蔵9 preset は effect property として存在する。外部 `.cube/.3dl` library/browser は Color Science Panel 側に別途あり、旧 `MILESTONE_LUT_BROWSER_2026-06-16.md` の2026-07監査では一覧・選択 preview・Load/Clear・drop入口が部分実装（同 milestone は OCIO integration に superseded）とされる。24件の `ArtifactLooksPresetBrowser` はさらに別 inventory で、callsite・effect適用・builtin LUT との ID mapping が確認されていない。従って外部 LUT browser の存在や Film / Cinematic 等の表示名から内蔵 Look への割当を推定してはならない。
 - `ColorBalanceEffect` に `Cinematic` preset（shadow/midtone/highlight balance）、`TritoneEffect` に `Cinematic` と `TealAndOrange` preset（tonal color mix）、`LUTEffect` に9個の内蔵 LUT preset があり、いずれも Inspector catalog / service factory から追加可能。従ってシネマティックな画像補正部品・effect preset は既に部分導入されている。ただし各 `Preset` は現状名前付き chooser でなく整数入力で、統合 Looks browser / ID mapping は未接続。画質検証も未完了である。
 - product / visual acceptance は保留。ブラインドレビュー、LUT / Color Balance / Tritone の実アプリ画像測定、alpha runtime capture、Composition save/reload、Render Queue 適用確認、品質 gate が残っている。LUT と Tritone は source-level alpha association 候補、Color Balance は CPU / GPU の premultiplied handling 一致を確認する必要がある。いずれも runtime 判定ではない。
@@ -40,7 +41,7 @@
 
 必須の事前登録済み計画は [`../../experiments/CinematicLooksLab/EVALUATION_PLAN.md`](../../experiments/CinematicLooksLab/EVALUATION_PLAN.md) に置く。評価計画ルールは [`../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`](../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md)。
 
-評価素材は deterministic chart と CC0 実写4点（夜景2、人物1、森林1）を確保し、人物／肌・屋外緑・夜景／点光源の3カテゴリを含む。全体画像と細部・肌・階調・高輝度・alpha の領域を統計とブラインド視覚レビューで評価する計画だが、現 rd0 の画像応答統計は 8-bit RGB とブラインド接触シートまでであり、HDR/alpha の画像評価・人手判定・品質 gate は未実施。CPU Rasterizer のソース呼び出し経路は追跡済み、GPU/final の runtime parity は未検証。
+評価素材は deterministic chart と CC0 実写4点（夜景2、人物1、森林1）を確保し、人物／肌・屋外緑・夜景／点光源の3カテゴリを含む。全体画像と細部・肌・階調・高輝度・alpha の領域を統計とブラインド視覚レビューで評価する計画だが、現 rd0 の画像応答統計とブラインド接触シートは LUTEffect の9 preset lane のみであり、Color Balance / Tritone の画像測定、HDR/alpha の runtime 画像評価・人手判定・品質 gate は未実施。CPU Rasterizer のソース呼び出し経路は追跡済み、GPU/final の runtime parity は未検証。
 
 chart の灰色 ramp ROI では RGB channel spread と水平 luma の reversal / flat-step 率を、smooth / color gradient では中央行・列の unique code level、flat-step / reversal 率、最大隣接 step を候補別に記録する。加えて8色の既知 flat patch 中心で RGB code delta と8-bit sRGB code 値由来の OpenCV HSV hue / saturation 応答を記録する。hue は低彩度時に未定義とする。rd0 baseline の灰色 ramp は mean / p95 channel spread 0、luma reversal 率0、flat-step 率約0.430。smooth gradient の中央水平線は211 unique RGB triplet、最大隣接 step 1 code。これらは説明指標であり、知覚色差、banding の合否閾値や美的品質の証明ではない。定義と制約は `experiments/CinematicLooksLab/EVALUATION_PLAN.md` に記録した。
 
@@ -56,9 +57,9 @@ chart の灰色 ramp ROI では RGB channel spread と水平 luma の reversal /
 
 | 必須項目 | 現在の証拠 | 判定状態 / 次の確認 |
 |---|---|---|
-| 効果の正しさ | Python source mirror、float probe、source hash pin | 応答式の参考確認のみ。C++ differential 契約確認は未実施 |
+| 効果の正しさ | LUTEffect の Python source mirror、float probe、source hash pin。Color Balance / Tritone は source audit のみ | LUT lane の応答式を参考確認。追加2 effect の画像 mirror と全 effect の C++ differential は未実施 |
 | プロジェクト保存・再読込 | Effect Preset file API のソース監査、Composition / Layer の別個の serializer・restore factory 経路 | Composition-level LUT restore の source-level failure candidate を検出。実 project round-trip と output capture は未実施 |
-| 画質・細部 | deterministic chart、CC0 写真4点、ROI、通常／ブラインド sheet、95 ID の空欄レビュー票 | 人手の等倍・拡大レビューは未実施。欠陥と好みを分けた票が必要 |
+| 画質・細部 | deterministic chart、CC0 写真4点、ROI、LUT lane の通常／ブラインド sheet、95 ID の空欄レビュー票 | LUT の人手レビューも未実施。Color Balance / Tritone は未測定で、追加候補の画像・blind key を要する |
 | 色・階調 | sRGB 8-bit 画像応答、全体／ROI の分布・差分統計、chart 灰色軸・グラデーション診断と既知8色 patch の RGB code delta・HSV hue / saturation 応答 | 応答測定済み。補助指標は候補応答の説明に限る。目標画像がないため品質 gate・ランキングは未確定 |
 | HDR・alpha | float source-equation probe、alpha 0/0.1/0.25/0.5/1 sweep、source-level alpha path finding、synthetic runtime fixture | fixture は準備済み。C++/runtime画像、HDR画質、黒・白・中間色背景への合成確認は未実施 |
 | 時間安定性 | LUT が時間不変である実装構造 | 同一静止入力の処理決定性は説明可能。内容変化時の見た目安定性は対象外・未検証 |
@@ -69,7 +70,7 @@ chart の灰色 ramp ROI では RGB channel spread と水平 luma の reversal /
 この表の「準備済み」は画像品質の合格を示さない。全必須項目に判定根拠が揃うまでは R&D を In Progress とする。
 
 1. **RD0 — harness と baseline:** deterministic chart と4点の CC0 実写素材（夜景2、人物1、森林1）で response characterization を取得済み。manifest/source hash、ROI、統計、通常シート、固定 seed のブラインド接触シートと別管理の対応表あり。人手判定、float HDR/alpha、C++ differential check、性能ゲートは残課題。候補ランキングは行っていない。
-2. **RD1 — 既存 LUT 比較:** 人手 baseline review 後に threshold を固定し、cinematic を含む全候補を同条件で適用して、強度応答、色・階調、HDR/alpha、細部、処理時間を測る。ゲートと目視票を保存する。
+2. **RD1 — 既存 effect preset 比較:** 追加の Color Balance / Tritone source mirror と source pin を整えて rd0 response capture を拡張し、人手 baseline review 後に threshold を固定する。LUT intensity、Color Balance Strength、Tritone Master Strength は各 native control として測り、同一 effect と別 effect family の比較を分けて記録する。色・階調、HDR/alpha、細部、処理時間を測り、ゲートと目視票を保存する。
 3. **RD2 — 製品経路の追跡:** source-level CPU call chain は `EVALUATION_PLAN.md` に記録済み。Composition preview／final、Render Queue CPU／GPU variants の実画像到達・適用順・backend parity を実行証拠と区別して確認する。実行できなかった経路は未検証とする。
 4. **RD3 — Look mapping recommendation:** ブラウザーの Look ID ごとに実在 LUT/effect、補正 recipe、未定義状態を対応表にし、採用候補・保留・不採用と根拠をまとめる。R&D 完了は製品機能追加の承認ではない。
 
