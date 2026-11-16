@@ -6313,6 +6313,7 @@
           "sampledCaptureAnalysis": {
             "reportField": "baseColorMathSampleAnalysis",
             "sourceFunction": "_sampled_capture_comparisons",
+            "sourceValidationCheck": "baseColorCaptureAnalyzerVerifiesToleranceCounts",
             "measurement": "recompute five RGBA center samples from SHA-256-verified raw files, compare them with report values and binary32 golden, and report per-lane exceedance counts against the predeclared numeric tolerance",
             "qualityDecision": "none; report errors for review",
             "status": "analysis-source-added-not-run"
@@ -6495,6 +6496,7 @@
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
         "rampGpuCaptureComparesBaseColorTypedMathVariants",
         "rampAnalyzerRecomputesBaseColorMathSamplesFromRawCapture",
+        "baseColorCaptureAnalyzerVerifiesToleranceCounts",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
         "legacyBaseColorProjectionCoversVector4MathVariants",

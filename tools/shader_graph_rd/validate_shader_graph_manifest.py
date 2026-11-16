@@ -90,6 +90,91 @@ def decode_rgba8(data: bytes, width: int, height: int) -> bytes:
     return bytes(result)
 
 
+def probe_base_color_capture_analyzer(root: Path) -> bool:
+    analyzer_path = root / "tools/shader_graph_rd/analyze_shader_graph_rgba32f.py"
+    spec = importlib.util.spec_from_file_location(
+        "shader_graph_rgba32f_capture_analyzer_probe", analyzer_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load RGBA32F capture analyzer")
+    analyzer = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = analyzer
+    spec.loader.exec_module(analyzer)
+
+    factors = [0.0, 0.25, 0.5, 0.75, 1.0]
+    coordinates = [
+        {"factor": factor, "x": index, "y": 0}
+        for index, factor in enumerate(factors)
+    ]
+    expected = [1.0, 2.0, 3.0, 4.0]
+    tolerance = 0.125
+    operation_ids = {
+        "add": "artifact.rd.math.add.vector4.float32",
+        "subtract": "artifact.rd.math.subtract.vector4.float32",
+        "multiply": "artifact.rd.math.multiply.vector4.float32",
+        "dividePositiveFloor": "artifact.rd.math.divide.vector4.positive_floor.float32",
+    }
+    with tempfile.TemporaryDirectory(prefix="shader-graph-rgba32f-analyzer-") as directory:
+        capture_directory = Path(directory)
+        capture_records = []
+        for variant, operation_id in operation_ids.items():
+            legacy_values = expected * len(factors)
+            projected_values = []
+            samples = []
+            for factor in factors:
+                projected_sample = expected.copy()
+                if variant == "subtract":
+                    projected_sample[0] += 0.25
+                projected_values.extend(projected_sample)
+                samples.append({
+                    "panelUv0X": factor,
+                    "expectedRgba": expected,
+                    "legacyCoreRgba": expected,
+                    "projectedCandidateRgba": projected_sample,
+                })
+            legacy_path = capture_directory / f"{variant}-legacy.rgba32f"
+            projected_path = capture_directory / f"{variant}-projected.rgba32f"
+            legacy_path.write_bytes(struct.pack("=" + "f" * len(legacy_values), *legacy_values))
+            projected_path.write_bytes(
+                struct.pack("=" + "f" * len(projected_values), *projected_values))
+            capture_records.append({
+                "variantId": variant,
+                "operationId": operation_id,
+                "legacyRawCapture": legacy_path.name,
+                "legacyRawCaptureSha256": hashlib.sha256(legacy_path.read_bytes()).hexdigest().upper(),
+                "projectedRawCapture": projected_path.name,
+                "projectedRawCaptureSha256": hashlib.sha256(projected_path.read_bytes()).hexdigest().upper(),
+                "numericSamples": samples,
+            })
+        report = {
+            "samplePixelCoordinates": coordinates,
+            "baseColorMathOperationCaptures": capture_records,
+            "dynamicBaseColorMath": {
+                "numericToleranceAbsolute": tolerance,
+                "numericToleranceUnit": "linear RGBA32F channel value",
+            },
+        }
+        analysis = analyzer._sampled_capture_comparisons(
+            report, capture_directory / "report.json", len(factors), 1)
+        if (analysis is None or analysis.get("sampleCountPerVariant") != 5 or
+                analysis.get("absoluteTolerance") != tolerance or
+                analysis.get("toleranceUnit") != "linear RGBA32F channel value"):
+            return False
+        by_variant = {item["variantId"]: item for item in analysis["operationCaptures"]}
+        if (set(by_variant) != set(operation_ids) or
+                by_variant["subtract"].get("projectedVsGoldenToleranceExceedanceCount") != 5 or
+                by_variant["subtract"].get("legacyVsProjectedToleranceExceedanceCount") != 5 or
+                any(by_variant[name].get("projectedVsGoldenToleranceExceedanceCount") != 0
+                    for name in ("add", "multiply", "dividePositiveFloor"))):
+            return False
+        capture_records[0]["legacyRawCaptureSha256"] = "0" * 64
+        try:
+            analyzer._sampled_capture_comparisons(
+                report, capture_directory / "report.json", len(factors), 1)
+        except ValueError as error:
+            return "SHA-256 differs" in str(error)
+        return False
+
+
 def canonical_legacy_document(payload: dict) -> bytes:
     nodes = sorted(payload["nodes"], key=lambda node: node["id"].encode("utf-8"))
     links = sorted(payload["links"], key=lambda link: tuple(
@@ -4210,6 +4295,7 @@ def validate(root: Path) -> list[str]:
         base_color_capture_contract = dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("baseColorMathCapture", {})
         base_color_capture_source = (root / dynamic_ramp_image_plan.get(
             "gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8")
+        base_color_capture_analyzer_probe = probe_base_color_capture_analyzer(root)
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
             "implementationSelectionChangesSemanticIdentity": alternate_implementation_compile["semanticHashSha256"] != connected_graph_compile["semanticHashSha256"] and alternate_implementation_compile["hlslBody"] != connected_graph_compile["hlslBody"],
@@ -4376,7 +4462,8 @@ def validate(root: Path) -> list[str]:
                 "baseColorLegacyOperations{" + ", ".join(str(value) for value in
                     base_color_capture_contract.get("legacyMathOps", [])) + "}"
                     in base_color_capture_source),
-            "rampAnalyzerRecomputesBaseColorMathSamplesFromRawCapture": dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("sampledCaptureAnalysis", {}).get("reportField") == "baseColorMathSampleAnalysis" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("sampledCaptureAnalysis", {}).get("status") == "analysis-source-added-not-run" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "") and all(fragment in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") for fragment in ("def _sampled_capture_comparisons(", "baseColorMathOperationCaptures", "samplePixelCoordinates", "legacyVsProjectedAbsoluteErrorRgba", "legacyVsGoldenToleranceExceedanceCount", "projectedVsGoldenToleranceExceedanceCount", "numericToleranceAbsolute", "raw capture")),
+            "rampAnalyzerRecomputesBaseColorMathSamplesFromRawCapture": dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("sampledCaptureAnalysis", {}).get("reportField") == "baseColorMathSampleAnalysis" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("sampledCaptureAnalysis", {}).get("status") == "analysis-source-added-not-run" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("sampledCaptureAnalysis", {}).get("sourceValidationCheck") == "baseColorCaptureAnalyzerVerifiesToleranceCounts" and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "") and all(fragment in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") for fragment in ("def _sampled_capture_comparisons(", "baseColorMathOperationCaptures", "samplePixelCoordinates", "legacyVsProjectedAbsoluteErrorRgba", "legacyVsGoldenToleranceExceedanceCount", "projectedVsGoldenToleranceExceedanceCount", "numericToleranceAbsolute", "raw capture")),
+            "baseColorCaptureAnalyzerVerifiesToleranceCounts": base_color_capture_analyzer_probe,
             "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden": "instance.timeOffset = 1.0f" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("reportEvidence", {}).get("renderOutputModeField") in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("formulaGoldenFixture", "").split("/")[-1] in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and "candidateVsFormulaGoldenAbsoluteError" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("testSource", "")).read_text(encoding="utf-8") and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("formulaGoldenFixture", "")).is_file() and (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).is_file() and "--capture-report" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "capture-source-executed-on-test-run" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "rawCaptureLayout" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "captureReportSha256" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "baselineRepeatNoiseRange" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "candidateVsBaselineMeanError" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8") and "outsideUnitRangeCount" in (root / dynamic_ramp_image_plan.get("gpuCaptureSource", {}).get("analysisTool", "")).read_text(encoding="utf-8"),
             "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource": legacy_projection_contract.get("status") == "read-only-projection-source-audited-python-only" and legacy_projection.get("status") == "read-only-projection" and legacy_projection.get("opaqueSourceJson") == legacy_projection_source_json and legacy_projection.get("sourceSha256") == legacy_projection_contract.get("sourceSha256") and legacy_projection.get("includedNodeIds") == legacy_projection_contract.get("includedNodeIds") and legacy_projection.get("excludedNodeIds") == legacy_projection_contract.get("excludedNodeIds") and legacy_projection_candidate.get("document") == legacy_projection["document"] and legacy_projection_candidate.get("candidateHlslBody") == legacy_projection_compile.get("hlslBody") and legacy_projection_candidate.get("candidateHlslBodySha256") == legacy_projection_contract.get("candidateHlslBodySha256") == legacy_projection_compile.get("hlslBodySha256") and legacy_projection_candidate.get("cpuVector4AddGolden") == [0.75, -1.0, -1.0, 0.75] and legacy_projection_candidate.get("negativeProbe", {}).get("unsupportedMathOperation") == "legacy.node.operation.unsupported" and legacy_projection_candidate.get("negativeProbe", {}).get("opaqueExtensionPreservedVerbatim") is True and "case MathNode::Op::Add:" in legacy_core_shader_node_source and 'expr = std::format("({0} + {1})"' in legacy_core_shader_node_source and 'float2 {0}_UV = In.UV;' in legacy_core_shader_node_source and 'return v + ".x";' in legacy_core_shader_node_source and 'Out.UV = In.uv;' in legacy_mesh_renderer_source and all(fragment in legacy_projection_generator_source for fragment in ("unsupported legacy Math operation was not rejected", "opaque source extension was lost or changed projected semantics", "source JSON text is retained by the adapter result")),
             "legacyBaseColorProjectionCoversVector4MathVariants": (
