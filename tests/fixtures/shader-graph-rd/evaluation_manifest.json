@@ -6220,7 +6220,7 @@
           "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
           "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
           "formulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
-          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; repeated legacy Ramp baseline and candidate; legacy/projected Roughness math; BaseColor Vector4 Subtract, Multiply, and positive-floor Divide pairs",
+          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; repeated legacy Ramp baseline and candidate; legacy/projected Roughness math; BaseColor Vector4 Add, Subtract, Multiply, and positive-floor Divide pairs",
           "reportEvidence": {
             "inputSha256Fields": [
               "legacyFixtureSha256",
@@ -6279,11 +6279,13 @@
             "legacyFixture": "tests/fixtures/shader-graph-rd/math_add.json",
             "projectionCandidate": "experiments/ShaderGraphLab/core_math_add_projection_candidate.json",
             "variants": [
+              "add",
               "subtract",
               "multiply",
               "dividePositiveFloor"
             ],
             "legacyMathOps": [
+              0,
               1,
               2,
               3
@@ -7025,7 +7027,7 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "6BCB0367AA24624B684BE4D3CC07548935ACECC2538005C54E68088A2804233C",
+          "candidateSha256": "BF371E5613CFE782427897BE0A6CCC77599002D64782823130F2CBBEFDE949A9",
           "candidateCases": [
             "base_color_add",
             "nested_add",
@@ -7131,6 +7133,12 @@
               "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
               "legacyMathOp": 3,
               "numericOracle": "componentwise binary32 divide by max(each divisor lane, 1e-5)",
+              "status": "hlsl-glsl-vulkan-exact-binary32-no-gpu-execution"
+            },
+            "add": {
+              "operationId": "artifact.rd.math.add.vector4.float32",
+              "legacyMathOp": 0,
+              "numericOracle": "componentwise binary32 add of the two RGB-node Vector4 values",
               "status": "hlsl-glsl-vulkan-exact-binary32-no-gpu-execution"
             }
           }

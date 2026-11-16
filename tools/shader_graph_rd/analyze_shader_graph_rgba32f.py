@@ -370,8 +370,8 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
             "maxLegacyVsProjectedAbsoluteError": max_legacy_projected_error,
             "samples": samples,
         })
-    if seen_variants != {"subtract", "multiply", "dividePositiveFloor"}:
-        raise ValueError("BaseColor captures must include Subtract, Multiply, and positive-floor Divide")
+    if seen_variants != {"add", "subtract", "multiply", "dividePositiveFloor"}:
+        raise ValueError("BaseColor captures must include Add, Subtract, Multiply, and positive-floor Divide")
     return {
         "sampleCountPerVariant": len(coordinates),
         "channelOrder": "RGBA",

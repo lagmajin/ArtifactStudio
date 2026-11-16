@@ -52,7 +52,18 @@ def main() -> int:
     if any(fragment not in compiled["hlslBody"] for fragment in required_hlsl):
         raise RuntimeError("typed candidate does not match the source-audited Core Add expression")
 
-    base_color_math_variants = {}
+    base_color_math_variants = {
+        "add": {
+            "legacyOperation": 0,
+            "operationId": "artifact.rd.math.add.vector4.float32",
+            "sourceSha256": hashlib.sha256(source_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": projection["includedNodeIds"],
+            "document": projection["document"],
+            "candidateHlslBodySha256": compiled["hlslBodySha256"],
+            "candidateHlslBody": compiled["hlslBody"],
+            "cpuVector4Golden": expected_vector4,
+        },
+    }
     for variant_id, legacy_op, operation_id, operator in (
         ("subtract", 1, "artifact.rd.math.subtract.vector4.float32", "-"),
         ("multiply", 2, "artifact.rd.math.multiply.vector4.float32", "*"),

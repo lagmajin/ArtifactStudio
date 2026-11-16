@@ -2,7 +2,7 @@
 
 ## 2026-11-16: Runtime capture should compare full vector lanes for material math
 - **関連:** `tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer`、`tests/fixtures/shader-graph-rd/math_add.json`、`experiments/ShaderGraphLab/core_math_add_projection_candidate.json`。
-- **確認できた事実:** 既存のRGBA32F Vulkan harnessにBaseColor Vector4 Subtract / Multiply / positive-floor Divideのlegacy-versus-typed候補source caseを追加した。さらにreport-driven analyzerがcapture file hashを検証し、5地点のRGBA値をraw captureから再取得してログ値・binary32 goldenとのlane別誤差を出すsourceを追加した。
+- **確認できた事実:** 既存のRGBA32F Vulkan harnessにBaseColor Vector4 Add / Subtract / Multiply / positive-floor Divideのlegacy-versus-typed候補source caseを追加した。candidate generatorは全variantのtyped document / HLSL / goldenを出力する。さらにreport-driven analyzerがcapture file hashを検証し、5地点のRGBA値をraw captureから再取得してログ値・binary32 goldenとのlane別誤差を出すsourceを追加した。
 - **価値または懸念:** scalar Roughness probeだけでは見えないalpha lane維持やVector4演算差をCore renderer境界で評価でき、将来のcapture reportを独立に監査できる。candidateはproduction graph adapter経由ではなく、C++ capture/analyzerは未実行のため、このsource自体をruntime evidenceやCore昇格根拠として扱えない。
 - **次に確認すべきこと:** 明示許可後にVulkan captureを実行し、全variantのraw output/reportとgoldenを確認する。その後にproduction adapter、save/reload、backend parity、性能ゲートを別途評価する。
 - **未検証:** C++ source compile、GPU pixels、analyzer実report出力、production path、persistence、D3D12 parity。

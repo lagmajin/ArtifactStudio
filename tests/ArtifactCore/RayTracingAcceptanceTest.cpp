@@ -16471,12 +16471,13 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         QString legacyFilename;
         QString projectedFilename;
     };
-    std::array<BaseColorMathCaptureRecord, 3> baseColorMathCaptures{{
+    std::array<BaseColorMathCaptureRecord, 4> baseColorMathCaptures{{
+        {QStringLiteral("add")},
         {QStringLiteral("subtract")},
         {QStringLiteral("multiply")},
         {QStringLiteral("dividePositiveFloor")},
     }};
-    const std::array<int, 3> baseColorLegacyOperations{1, 2, 3};
+    const std::array<int, 4> baseColorLegacyOperations{0, 1, 2, 3};
     constexpr char baseColorReturnStatement[] = "return n_math_result;\n";
     for (size_t variantIndex = 0; variantIndex < baseColorMathCaptures.size();
          ++variantIndex) {
