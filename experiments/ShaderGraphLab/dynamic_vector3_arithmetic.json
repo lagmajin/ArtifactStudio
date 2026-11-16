@@ -36,6 +36,20 @@
       "semanticVersion": 1,
       "parameters": {},
       "layout": {"x": 660.0, "y": 40.0}
+    },
+    {
+      "nodeId": "scale_factor",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": -2.0},
+      "layout": {"x": 660.0, "y": 180.0}
+    },
+    {
+      "nodeId": "rescale",
+      "operationId": "artifact.rd.math.scale.vector3.float32",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 900.0, "y": 40.0}
     }
   ],
   "links": [
@@ -44,7 +58,9 @@
     {"from": {"nodeId": "sum", "socketId": "result"}, "to": {"nodeId": "difference", "socketId": "a"}},
     {"from": {"nodeId": "right", "socketId": "value"}, "to": {"nodeId": "difference", "socketId": "b"}},
     {"from": {"nodeId": "difference", "socketId": "result"}, "to": {"nodeId": "product", "socketId": "a"}},
-    {"from": {"nodeId": "right", "socketId": "value"}, "to": {"nodeId": "product", "socketId": "b"}}
+    {"from": {"nodeId": "right", "socketId": "value"}, "to": {"nodeId": "product", "socketId": "b"}},
+    {"from": {"nodeId": "product", "socketId": "result"}, "to": {"nodeId": "rescale", "socketId": "vector"}},
+    {"from": {"nodeId": "scale_factor", "socketId": "value"}, "to": {"nodeId": "rescale", "socketId": "scale"}}
   ],
-  "output": {"nodeId": "product", "socketId": "result"}
+  "output": {"nodeId": "rescale", "socketId": "result"}
 }

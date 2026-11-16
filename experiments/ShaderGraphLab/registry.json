@@ -288,6 +288,21 @@
       "parameters": []
     },
     {
+      "operationId": "artifact.rd.math.scale.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Scale",
+      "category": "Math",
+      "implementationId": "vector3.scale",
+      "inputs": [
+        {"socketId": "vector", "valueType": "Vector3", "required": true},
+        {"socketId": "scale", "valueType": "Float", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "result", "valueType": "Vector3"}
+      ],
+      "parameters": []
+    },
+    {
       "operationId": "artifact.rd.constant.vector4.float32",
       "semanticVersion": 1,
       "displayName": "Vector4",
