@@ -777,3 +777,9 @@ Added a fixture with legacy `TexCoord.UV` wired directly to `Principled.Roughnes
 This establishes shader frontend and interface evidence for one dynamic context input. It does not execute SPIR-V on a GPU, compare rendered pixels, exercise the Core loader/renderer or Diligent binding path, or prove project save/reload. The manifest contract records the fixture, candidate, compiler lane, and runtime limitation. The full manifest validator currently reports two unrelated Generic Image source-contract failures alongside this new lane; the dynamic UV lane itself compiles and passes its focused compiler probe.
 
 The validator's Core source audit also pins the bridge under test: the Core TexCoord lowering reads `In.UV`, `matConvert(Vector2, Float)` selects `.x`, and the MeshRenderer vertex shader assigns vertex `In.uv` to `Out.UV`. This confirms the candidate host input names correspond to the current source path; it does not establish runtime vertex data, backend binding, or rendered response.
+
+### Dynamic UV scalar compiler samples (2026-11-16)
+
+Extended the legacy projection compiler probe to specialize UV0.x at `-0.25`, `0`, `0.125`, `0.5`, `1`, and `1.75`. For every sample it compiles HLSL/DXC and GLSL/glslang separately, runs `spirv-opt -O`, validates each optimized module, extracts the scalar output store from SPIR-V disassembly, and compares the result with the fixture's binary32 golden. All 12 frontend/sample outputs match exactly (6/6 per frontend). The dynamic shader is independently compiled without specialization and retains both HLSL/GLSL host input expressions with matching interfaces.
+
+This increases confidence in the dynamic input adapter and scalar lowering for UV0.x, but remains compiler constant-fold and interface evidence; no GPU execution or Core rendering occurred. The manifest validator recognizes this probe but still exits with two Generic Image resource-reference contract failures unrelated to the UV lane.

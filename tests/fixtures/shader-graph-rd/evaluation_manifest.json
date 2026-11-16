@@ -6979,7 +6979,16 @@
             "targetInputSocket": "Roughness",
             "sourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
             "candidateProperty": "dynamicRoughnessUvProjection",
-            "runtimeStatus": "dynamic-hlsl-and-glsl-input-compiled-and-interface-matched-no-gpu-execution"
+            "runtimeStatus": "dynamic-hlsl-and-glsl-input-compiled-and-interface-matched-no-gpu-execution",
+            "numericOracle": "six UV0.x values specialized in both frontends, spirv-opt -O, and exact binary32 scalar output comparison against candidate numericCases",
+            "sampleUv0X": [
+              -0.25,
+              0.0,
+              0.125,
+              0.5,
+              1.0,
+              1.75
+            ]
           }
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"

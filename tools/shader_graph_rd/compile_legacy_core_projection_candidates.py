@@ -23,47 +23,67 @@ CASES = (
 )
 
 
-def compile_scalar(source: str, stem: str, output_dir: Path, args: Any,
-                  compiler: Any) -> dict[str, Any]:
-    source_path = output_dir / f"{stem}.frag"
-    spirv_path = output_dir / f"{stem}.spv"
-    optimized_path = output_dir / f"{stem}_opt.spv"
+def extract_output_scalar(disassembly: str) -> float:
+    location_zero: set[str] = set()
+    output_variables: set[str] = set()
+    constants: dict[str, float] = {}
+    stores: list[tuple[str, str]] = []
+    for line in disassembly.splitlines():
+        match = re.match(r"\s*OpDecorate\s+(%\S+)\s+Location\s+0\b", line)
+        if match:
+            location_zero.add(match.group(1))
+        match = re.match(r"\s*(%\S+)\s*=\s*OpVariable\s+%\S+\s+Output\b", line)
+        if match:
+            output_variables.add(match.group(1))
+        match = re.match(r"\s*(%\S+)\s*=\s*OpConstant\s+%\S+\s+([^\s]+)", line)
+        if match:
+            constants[match.group(1)] = float(match.group(2))
+        match = re.match(r"\s*OpStore\s+(%\S+)\s+(%\S+)", line)
+        if match:
+            stores.append((match.group(1), match.group(2)))
+    for target, value_id in stores:
+        if target in output_variables | location_zero and value_id in constants:
+            return constants[value_id]
+    raise RuntimeError("optimized SPIR-V output is not a constant scalar store")
+
+
+def compile_scalar_frontend(source: str, stem: str, frontend: str,
+                            output_dir: Path, args: Any) -> dict[str, Any]:
+    extension = ".frag" if frontend == "glsl" else ".hlsl"
+    source_path = output_dir / f"{stem}{extension}"
+    spirv_path = output_dir / f"{stem}_{frontend}.spv"
+    optimized_path = output_dir / f"{stem}_{frontend}_opt.spv"
     source_path.write_text(source, encoding="utf-8", newline="\n")
-    glsl = run([str(args.glslang), "-V", "--target-env", "vulkan1.2", "-S", "frag",
-                "-o", str(spirv_path), str(source_path)])
-    validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2", str(spirv_path)])
-                if glsl["exitCode"] == 0 else {"exitCode": None})
+    if frontend == "glsl":
+        compile_result = run([str(args.glslang), "-V", "--target-env", "vulkan1.2", "-S", "frag",
+                              "-o", str(spirv_path), str(source_path)])
+    else:
+        compile_result = run([str(args.dxc), "-spirv", "-T", "ps_6_0", "-E", "main",
+                              "-fspv-target-env=vulkan1.2", "-Fo", str(spirv_path), str(source_path)])
+    validation = (run([str(args.spirv_val), "--target-env", "vulkan1.2", str(spirv_path)])
+                  if compile_result["exitCode"] == 0 else {"exitCode": None})
     optimize = (run([str(args.spirv_opt), "-O", str(spirv_path), "-o", str(optimized_path)])
-                if validate["exitCode"] == 0 else {"exitCode": None})
-    optimized_validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
-                               str(optimized_path)]) if optimize["exitCode"] == 0
-                          else {"exitCode": None})
+                if validation["exitCode"] == 0 else {"exitCode": None})
+    optimized_validation = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
+                                 str(optimized_path)]) if optimize["exitCode"] == 0
+                            else {"exitCode": None})
     disassembly = (run([str(args.spirv_dis), str(optimized_path), "-o", "-"])
-                   if optimized_validate["exitCode"] == 0 else {"exitCode": None, "stdout": ""})
+                   if optimized_validation["exitCode"] == 0 else {"exitCode": None, "stdout": ""})
     value = None
+    error = None
     if disassembly["exitCode"] == 0:
-        location_zero: set[str] = set()
-        output_variables: set[str] = set()
-        constants: dict[str, float] = {}
-        for line in disassembly["stdout"].splitlines():
-            match = re.match(r"\s*OpDecorate\s+(%\S+)\s+Location\s+0\b", line)
-            if match:
-                location_zero.add(match.group(1))
-            match = re.match(r"\s*(%\S+)\s*=\s*OpVariable\s+%\S+\s+Output\b", line)
-            if match:
-                output_variables.add(match.group(1))
-            match = re.match(r"\s*(%\S+)\s*=\s*OpConstant\s+%\S+\s+([^\s]+)", line)
-            if match:
-                constants[match.group(1)] = float(match.group(2))
-            match = re.match(r"\s*OpStore\s+(%\S+)\s+(%\S+)", line)
-            if match and match.group(1) in output_variables | location_zero:
-                value = constants.get(match.group(2))
-    return {"compile": glsl, "validation": validate, "optimize": optimize,
-            "optimizedValidation": optimized_validate, "disassembly": disassembly,
-            "output": value, "sourceSha256": sha256(source.encode("utf-8")),
-            "status": "passed" if glsl["exitCode"] == 0 and
-            optimized_validate["exitCode"] == 0 and disassembly["exitCode"] == 0 and
-            value is not None else "failed"}
+        try:
+            value = extract_output_scalar(disassembly["stdout"])
+        except RuntimeError as exception:
+            error = str(exception)
+    passed = (compile_result["exitCode"] == 0 and validation["exitCode"] == 0 and
+              optimize["exitCode"] == 0 and optimized_validation["exitCode"] == 0 and
+              disassembly["exitCode"] == 0 and value is not None)
+    return {"compile": compile_result, "validation": validation, "optimize": optimize,
+            "optimizedValidation": optimized_validation, "disassembly": disassembly,
+            "output": value, "outputError": error,
+            "sourceSha256": sha256(source.encode("utf-8")),
+            "status": "passed" if passed else "failed"}
 
 
 def load_module(name: str, path: Path) -> Any:
@@ -285,6 +305,41 @@ def main() -> int:
         "glslOptimizedValidation": uv_glsl_final, "hlslOptimizedValidation": uv_hlsl_final,
         "interfaceMatch": uv_interfaces_match, "dynamicInputRetained": "In.UV.x" in hlsl_uv and "artifactHostUV.x" in glsl_uv,
         "gpuExecution": False, "status": "passed" if uv_passed else "failed"})
+    uv_numeric_cases = []
+    for index, sample in enumerate(uv_projection["numericCases"]):
+        value = float(sample["uv0X"])
+        literal = format(value, ".9g")
+        if "." not in literal and "e" not in literal.lower():
+            literal += ".0"
+        glsl_literal = literal
+        hlsl_literal = literal + "f"
+        glsl_specialized = glsl_uv.replace("artifactHostUV.x", glsl_literal)
+        hlsl_specialized = hlsl_uv.replace("In.UV.x", hlsl_literal)
+        case_stem = f"{uv_stem}_sample_{index:02d}"
+        glsl_sample = compile_scalar_frontend(
+            glsl_specialized, case_stem, "glsl", output_dir, args)
+        hlsl_sample = compile_scalar_frontend(
+            hlsl_specialized, case_stem, "hlsl", output_dir, args)
+        expected = float(sample["expectedBinary32"])
+        exact_match = (
+            glsl_sample["output"] is not None and hlsl_sample["output"] is not None and
+            numeric_probe.f32_bits(glsl_sample["output"]) == numeric_probe.f32_bits(expected) and
+            numeric_probe.f32_bits(hlsl_sample["output"]) == numeric_probe.f32_bits(expected))
+        sample_passed = (glsl_sample["status"] == "passed" and
+                         hlsl_sample["status"] == "passed" and exact_match)
+        uv_numeric_cases.append({
+            "uv0X": value,
+            "expectedBinary32": expected,
+            "glsl": glsl_sample,
+            "hlsl": hlsl_sample,
+            "exactBinary32GoldenMatch": exact_match,
+            "status": "passed" if sample_passed else "failed",
+        })
+        print(f"{uv_stem} sample[{value}]: {'PASS' if sample_passed else 'FAIL'}")
+    records[-1]["numericSpecializations"] = uv_numeric_cases
+    records[-1]["status"] = ("passed" if uv_passed and
+                              all(item["status"] == "passed" for item in uv_numeric_cases)
+                              else "failed")
     print(f"{uv_stem}: {'PASS' if uv_passed else 'FAIL'}")
 
     result = {
