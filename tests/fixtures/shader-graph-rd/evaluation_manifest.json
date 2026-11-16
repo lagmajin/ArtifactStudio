@@ -6924,7 +6924,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "8DDC317D8A3593CF2EB51DA14745EE016B806CD63E01ADB0A09E0BBA994755FE",
+        "dynamicResolverPrototypeSha256": "F525764CBB5B331848FFA52AAC1E6785C31B15501FBDA49199CB369A914B0156",
         "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
