@@ -39,12 +39,12 @@
 - **価値または懸念:** prototypeのpalette/loweringに基本scalar arithmeticをひとつ増やし、registry-selected operationとtrusted native implementationの境界を保つ。shader runtime/finite arithmetic結果、Subtract専用graphの実行証拠はまだない。
 - **次に確認すべきこと:** manifest verifierにfocused subtract candidateの再生成・payload・digest照合を追加した。許可された検証時にregistry lock/negative signature、将来HLSL compiler/runtimeとbinary32 edge behaviorを評価する。
 
-## 2026-11-15: Legacy Shader Graph divide floors negative denominators to a positive epsilon
+## 2026-11-16: Legacy Shader Graph divide floors negative denominators to a positive epsilon
 - **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::MathNode::Op::Divide`、`experiments/ShaderGraphLab/registry.json`、`dynamic_divide.json`。
 - **確認できた事実:** legacy HLSL emits `a / max(b, float4(1e-5f,...))`. This floors each denominator to a positive epsilon; a negative input is not divided by its signed value and is not handled by `abs(b)` epsilon. The R&D registry now exposes the scalar projection under the explicitly named `float.divide.positive_floor_1e5` implementation and uses a negative divisor in its focused document.
 - **価値または懸念:** Naming the operation after its actual denominator policy prevents a conventional divide node from silently inheriting asymmetric legacy behavior. The difference is visible around negative and near-zero denominators and must remain in semantic versioning if a future operation changes it.
-- **次に確認すべきこと:** The manifest now ties the focused negative-divisor input to lane 1 of the source-bound CPU binary32 golden (expected 100000). Compare actual HLSL compiler/runtime output before considering Core promotion; NaN/Inf and GPU `max` edge behavior are still unverified.
-- **未検証:** The focused document has not been passed through the manifest validator, HLSL compiler, or GPU runtime in this turn.
+- **次に確認すべきこと:** The read-only Roughness adapter now maps legacy op=3 to that named typed operation. Six UV samples with denominator `-0.5` compile through both Vulkan shader frontends and match the binary32 oracle exactly. Compare actual Core renderer/GPU output before considering broader migration; NaN/Inf and backend `max` edge behavior remain unverified.
+- **未検証:** GPU/runtime values, Core Math Divide behavior in the actual material path, NaN/Inf handling, and D3D12 parity.
 
 ## 2026-11-15: Shader graph state guard must accept successful compilation warnings
 - **関連:** `experiments/ShaderGraphLab/local_graph_lab.html::isStateEnvelope`、`dynamic_graph_prototype.py::compile_document_from_data`。

@@ -499,6 +499,302 @@
         "socketId": "result"
       }
     },
+    "mathOperationVariants": {
+      "subtract": {
+        "legacyOperation": 1,
+        "operationId": "artifact.rd.math.subtract.float32",
+        "sourceSha256": "7B28FCADAE2D290A40479DAD0D9117D64EDDE235935D694000F7E81F60513BAF",
+        "includedNodeIds": [
+          "uv",
+          "gain",
+          "scale",
+          "bias",
+          "roughness"
+        ],
+        "document": {
+          "schemaVersion": 1,
+          "kind": "artifact-shader-graph-rd-document",
+          "nodes": [
+            {
+              "nodeId": "uv",
+              "operationId": "artifact.input.texcoord.uv0.x",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "gain",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.5
+              },
+              "layout": {
+                "x": 220.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "scale",
+              "operationId": "artifact.rd.math.subtract.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 440.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "bias",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.125
+              },
+              "layout": {
+                "x": 660.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "roughness",
+              "operationId": "artifact.rd.math.add.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 880.0,
+                "y": 0.0
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": {
+                "nodeId": "uv",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "gain",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "b"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "scale",
+                "socketId": "result"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "bias",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "b"
+              }
+            }
+          ],
+          "output": {
+            "nodeId": "roughness",
+            "socketId": "result"
+          }
+        },
+        "candidateHlslBodySha256": "0F27A5E0852E6E6028E288276A242BD0C3EF9ED10B9A3774CF1F55566C63F866",
+        "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = 0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value - n_gain_value);\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
+        "gain": 0.5,
+        "numericCases": [
+          {
+            "uv0X": -0.25,
+            "expectedBinary32": -0.625
+          },
+          {
+            "uv0X": 0.0,
+            "expectedBinary32": -0.375
+          },
+          {
+            "uv0X": 0.125,
+            "expectedBinary32": -0.25
+          },
+          {
+            "uv0X": 0.5,
+            "expectedBinary32": 0.125
+          },
+          {
+            "uv0X": 1.0,
+            "expectedBinary32": 0.625
+          },
+          {
+            "uv0X": 1.75,
+            "expectedBinary32": 1.375
+          }
+        ]
+      },
+      "dividePositiveFloor": {
+        "legacyOperation": 3,
+        "operationId": "artifact.rd.math.divide.positive_floor.float32",
+        "sourceSha256": "25F7EAF432E965DDD9474608B7D9BE5D66E14BB19E9ED3ECA0F89DD2EEEE7476",
+        "includedNodeIds": [
+          "uv",
+          "gain",
+          "scale",
+          "bias",
+          "roughness"
+        ],
+        "document": {
+          "schemaVersion": 1,
+          "kind": "artifact-shader-graph-rd-document",
+          "nodes": [
+            {
+              "nodeId": "uv",
+              "operationId": "artifact.input.texcoord.uv0.x",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "gain",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": -0.5
+              },
+              "layout": {
+                "x": 220.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "scale",
+              "operationId": "artifact.rd.math.divide.positive_floor.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 440.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "bias",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.125
+              },
+              "layout": {
+                "x": 660.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "roughness",
+              "operationId": "artifact.rd.math.add.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 880.0,
+                "y": 0.0
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": {
+                "nodeId": "uv",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "gain",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "b"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "scale",
+                "socketId": "result"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "bias",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "b"
+              }
+            }
+          ],
+          "output": {
+            "nodeId": "roughness",
+            "socketId": "result"
+          }
+        },
+        "candidateHlslBodySha256": "63DBBD36507FB1FDD98037AC305512B86E3969287671B75210474254D4DCDD07",
+        "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = -0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value / max(n_gain_value, 1e-5f));\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
+        "gain": -0.5,
+        "numericCases": [
+          {
+            "uv0X": -0.25,
+            "expectedBinary32": -24999.875
+          },
+          {
+            "uv0X": 0.0,
+            "expectedBinary32": 0.125
+          },
+          {
+            "uv0X": 0.125,
+            "expectedBinary32": 12500.125
+          },
+          {
+            "uv0X": 0.5,
+            "expectedBinary32": 50000.125
+          },
+          {
+            "uv0X": 1.0,
+            "expectedBinary32": 100000.125
+          },
+          {
+            "uv0X": 1.75,
+            "expectedBinary32": 175000.125
+          }
+        ]
+      }
+    },
     "candidateHlslBodySha256": "264EC4FCB9E23EC87526DB2FC6E1CE70FE9545627787158DA7F2184A26073C5B",
     "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = 0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value * n_gain_value);\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
     "outputType": "Float",
@@ -544,10 +840,10 @@
   },
   "limitations": [
     "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
-    "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Multiply Roughness lane",
+    "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Subtract/Multiply/Divide Roughness lane",
     "does not infer or perform any other legacy implicit numeric conversion",
     "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
-    "Roughness accepts only TexCoord.UV, Value, and unclamped legacy Math Add/Multiply in the selected Float lane",
+    "Roughness supports legacy Math Divide only as the Core positive denominator floor operation max(b, 1e-5); clamped Math is rejected",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

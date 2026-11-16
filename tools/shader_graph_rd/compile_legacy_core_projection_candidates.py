@@ -388,6 +388,60 @@ def main() -> int:
                               else "failed")
     print(f"{uv_stem}: {'PASS' if records[-1]['status'] == 'passed' else 'FAIL'}")
 
+    for variant_id, variant in uv_projection.get("mathOperationVariants", {}).items():
+        variant_compiled = prototype.compile_document_from_data(
+            variant["document"], registry,
+            hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+        variant_glsl, variant_interface = prototype.emit_glsl_from_typed_ir(
+            variant_compiled["typedIR"], variant_compiled["parameterBlock"],
+            context_bindings={("artifact.material.surface.uv0", "x"): "artifactHostUV.x"})
+        variant_glsl = variant_glsl.replace(
+            "#version 450\n",
+            "#version 450\nlayout(location = 0) in vec2 artifactHostUV;\n", 1)
+        variant_hlsl = compiler.build_hlsl_fragment(variant_compiled, variant_interface)
+        variant_samples = []
+        for index, sample in enumerate(variant["numericCases"]):
+            value = float(sample["uv0X"])
+            literal = format(value, ".9g")
+            if "." not in literal and "e" not in literal.lower():
+                literal += ".0"
+            stem = f"legacy_roughness_{variant_id}_{index:02d}"
+            glsl_sample = compile_scalar_frontend(
+                variant_glsl.replace("artifactHostUV.x", literal),
+                stem, "glsl", output_dir, args)
+            hlsl_sample = compile_scalar_frontend(
+                variant_hlsl.replace("In.UV.x", literal + "f"),
+                stem, "hlsl", output_dir, args)
+            expected = float(sample["expectedBinary32"])
+            exact_match = (
+                glsl_sample["output"] is not None and hlsl_sample["output"] is not None and
+                numeric_probe.f32_bits(glsl_sample["output"]) == numeric_probe.f32_bits(expected) and
+                numeric_probe.f32_bits(hlsl_sample["output"]) == numeric_probe.f32_bits(expected))
+            passed = (glsl_sample["status"] == "passed" and
+                      hlsl_sample["status"] == "passed" and exact_match)
+            variant_samples.append({
+                "uv0X": value,
+                "expectedBinary32": expected,
+                "glslOutput": glsl_sample["output"],
+                "hlslOutput": hlsl_sample["output"],
+                "exactBinary32GoldenMatch": exact_match,
+                "status": "passed" if passed else "failed",
+            })
+        variant_passed = all(item["status"] == "passed" for item in variant_samples)
+        records.append({
+            "caseId": f"legacy_roughness_{variant_id}",
+            "operationId": variant["operationId"],
+            "candidateSha256": sha256(json.dumps(
+                variant, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")),
+            "hlslBodySha256": variant_compiled["hlslBodySha256"],
+            "contextBindings": variant_compiled["contextBindings"],
+            "numericSpecializations": variant_samples,
+            "gpuExecution": False,
+            "status": "passed" if variant_passed else "failed",
+        })
+        print(f"legacy Roughness {variant_id}: {'PASS' if variant_passed else 'FAIL'}")
+
     result = {
         "schemaId": "artifact.shadergraph.legacy-core-projection-compiler-evidence",
         "schemaVersion": 1,

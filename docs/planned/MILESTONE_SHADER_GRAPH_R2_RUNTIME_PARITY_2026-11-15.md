@@ -113,6 +113,12 @@ float t = saturate((0.5f - 0f) / 1f);
 
 この経路は現行Core legacy loweringとR&D候補の選択scalar結果をGPU上で並べるための試験sourceであり、製品UI・ArtifactIRenderer adapter・project save/reloadを通らない。BaseColor AOVの赤channelへscalar値を載せるためroughness値の応答だけを検査し、BRDF見た目、roughness clampの出力、D3D12 parity、compile failure recovery、性能は評価しない。C++ sourceは未ビルド・未実行で、capture recordsも未生成。実行には明示許可が必要。
 
+## Legacy Math projection拡張（2026-11-16、compiler-only）
+
+Roughness scalar adapterへUnclamped Add/Subtract/Multiply/Divideを加えた。DivideはCoreの正のepsilon床 `max(b,1e-5)` を維持し、負の入力を通常除算へ読み替えない。Subtractと負の分母を使うDivideをvariantとして生成し、それぞれ6個のUV0.xをDXC/HLSLとglslang/GLSLへ別々にspecializeした。2 operation × 6 sample × 2 frontendの24出力はbinary32 oracleと完全一致し、7 candidate cases全てがcompile/validation/numeric条件を通過した。manifest validatorも一致を報告する。
+
+これはoffline compiler evidenceで、GPU capture、Core loader、production adapter、Diligent binding、project save/reloadは未検証。次のruntime gateは前節のVulkan capture sourceであり、Divideのフルruntime挙動を網羅するものではない。
+
 ## 非対象
 
 - ArtifactCore / Artifact / ArtifactWidgets の実装変更（分類・記録のみ。テスト側の誤り 3 件以外は未変更）

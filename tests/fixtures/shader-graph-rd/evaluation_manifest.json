@@ -6451,6 +6451,7 @@
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
         "legacyCoreProjectionCompilesThroughBothVulkanFrontends",
+        "legacyRoughnessProjectionCoversSubtractAndPositiveFloorDivide",
         "rampNumericProbeSeparatesShaderMixFromLerpRounding",
         "rampCaptureAnalyzerConsumesNamedReportRegions",
         "candidateGeneratorRegistersAllTwentyOnePersistedGraphs",
@@ -6952,7 +6953,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "411C19E531D98281DC69FAC9F4B8EA81F209B3B99555CB2632FED93CAFDA4E0D",
+        "dynamicResolverPrototypeSha256": "AD2BB02A52A5A66C32A10ADDD342A69292EFBF2DA688C31C2EBB9E4D51A689A1",
         "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
@@ -6991,13 +6992,15 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "1DD073667920036F7500C9115F25AEADCB1E460EB9DD790FA1C3403939DE02A8",
+          "candidateSha256": "67099F47F97E4CBCB18C442E5DF0DD90D03F54E694AA20ADF5A65A95E65A8110",
           "candidateCases": [
             "base_color_add",
             "nested_add",
             "scalar_conversion",
             "base_color_default",
-            "dynamic_roughness_uv0_x"
+            "dynamic_roughness_uv0_x",
+            "legacy_roughness_subtract",
+            "legacy_roughness_dividePositiveFloor"
           ],
           "numericOracle": "exact binary32 output comparison against each projection CPU golden after spirv-opt -O",
           "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
@@ -7005,7 +7008,7 @@
           "dynamicInput": {
             "fixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
             "targetInputSocket": "Roughness",
-            "sourceAdapter": "Core componentwise Math(Add,Multiply); Vector2/Value conversion preserves x for Roughness",
+            "sourceAdapter": "Core componentwise Math(Add,Subtract,Multiply,Divide); Divide uses positive denominator floor max(b,1e-5); Vector2/Value conversion preserves x for Roughness",
             "candidateProperty": "dynamicRoughnessUvProjection",
             "runtimeStatus": "dynamic-hlsl-and-glsl-input-compiled-and-interface-matched-no-gpu-execution",
             "numericOracle": "six UV0.x values specialized in both frontends, spirv-opt -O, and exact binary32 scalar output comparison against f32(f32(UV0.x * 0.5) + 0.125)",
@@ -7039,7 +7042,22 @@
               "cycle": "legacy.graph.cycle"
             },
             "nodeLinkStorageOrderInvariant": true,
-            "fixtureSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437"
+            "fixtureSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437",
+            "operationVariants": {
+              "subtract": {
+                "operationId": "artifact.rd.math.subtract.float32",
+                "legacyMathOp": 1,
+                "numericOracle": "f32(f32(UV0.x - 0.5) + 0.125)",
+                "status": "hlsl-glsl-vulkan-frontends-exact-binary32-no-gpu-execution"
+              },
+              "dividePositiveFloor": {
+                "operationId": "artifact.rd.math.divide.positive_floor.float32",
+                "legacyMathOp": 3,
+                "denominator": -0.5,
+                "numericOracle": "f32(f32(UV0.x / max(-0.5, 1e-5)) + 0.125)",
+                "status": "hlsl-glsl-vulkan-frontends-exact-binary32-no-gpu-execution"
+              }
+            }
           },
           "dynamicInputMath": {
             "tool": "tools/shader_graph_rd/probe_legacy_uv_math_projection.py",

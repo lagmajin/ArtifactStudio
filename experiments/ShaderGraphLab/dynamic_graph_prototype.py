@@ -4908,8 +4908,8 @@ def project_legacy_core_material_input(
                 return ()
             if node.get("type") == "Math" and socket == "Value":
                 operation = params.get("op", 0)
-                if isinstance(operation, bool) or operation not in (0, 2):
-                    raise ContractError("Roughness projection supports only legacy Math Add and Multiply",
+                if isinstance(operation, bool) or operation not in (0, 1, 2, 3):
+                    raise ContractError("Roughness projection supports legacy Math Add, Subtract, Multiply, and Divide",
                                         code="legacy.node.operation.unsupported",
                                         path=f"/nodes/{node_id}/params/op")
                 clamp_result = params.get("clamp", False)
@@ -4971,8 +4971,12 @@ def project_legacy_core_material_input(
                                   path=f"/nodes/{node_id}/params/value",
                                   code="legacy.parameter.invalid")}
             else:
-                operation_id = ("artifact.rd.math.add.float32" if params.get("op", 0) == 0
-                                else "artifact.rd.math.multiply.float32")
+                operation_id = {
+                    0: "artifact.rd.math.add.float32",
+                    1: "artifact.rd.math.subtract.float32",
+                    2: "artifact.rd.math.multiply.float32",
+                    3: "artifact.rd.math.divide.positive_floor.float32",
+                }[params.get("op", 0)]
                 semantic_parameters = {}
                 for old_socket, new_socket in (("A", "a"), ("B", "b")):
                     source_id, source_socket = incoming[(node_id, old_socket)][0]

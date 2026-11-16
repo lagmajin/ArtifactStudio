@@ -186,10 +186,57 @@ def main() -> int:
         raise RuntimeError("legacy Roughness projection changed with source node/link storage order")
     uv_sample_values = (-0.25, 0.0, 0.125, 0.5, 1.0, 1.75)
 
+    roughness_math_variants = {}
+    for variant_id, legacy_op, gain, operation_id, expression in (
+        ("subtract", 1, 0.5, "artifact.rd.math.subtract.float32",
+         "float n_scale_result = (n_uv_value - n_gain_value);"),
+        ("dividePositiveFloor", 3, -0.5,
+         "artifact.rd.math.divide.positive_floor.float32",
+         "float n_scale_result = (n_uv_value / max(n_gain_value, 1e-5f));"),
+    ):
+        variant_source = json.loads(uv_source_json)
+        next(node for node in variant_source["nodes"]
+             if node["id"] == "scale")["params"]["op"] = legacy_op
+        next(node for node in variant_source["nodes"]
+             if node["id"] == "gain")["params"]["value"] = gain
+        variant_json = json.dumps(variant_source, ensure_ascii=False,
+                                  separators=(",", ":"))
+        variant_projection = prototype.project_legacy_core_material_input(
+            variant_json, registry, target_node_id="surface",
+            target_input_socket="Roughness")
+        variant_compiled = prototype.compile_document_from_data(
+            variant_projection["document"], registry,
+            hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+        if (variant_projection["document"]["nodes"][2]["operationId"] != operation_id or
+                expression not in variant_compiled["hlslBody"]):
+            raise RuntimeError(f"legacy Roughness {variant_id} did not retain exact typed Math semantics")
+        expected_values = []
+        for value in uv_sample_values:
+            uv = f32(value)
+            if variant_id == "subtract":
+                intermediate = f32(uv - f32(gain))
+            else:
+                intermediate = f32(uv / f32(max(gain, 1.0e-5)))
+            expected_values.append(f32(intermediate + f32(0.125)))
+        roughness_math_variants[variant_id] = {
+            "legacyOperation": legacy_op,
+            "operationId": operation_id,
+            "sourceSha256": hashlib.sha256(variant_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": variant_projection["includedNodeIds"],
+            "document": variant_projection["document"],
+            "candidateHlslBodySha256": variant_compiled["hlslBodySha256"],
+            "candidateHlslBody": variant_compiled["hlslBody"],
+            "gain": gain,
+            "numericCases": [
+                {"uv0X": value, "expectedBinary32": expected}
+                for value, expected in zip(uv_sample_values, expected_values)
+            ],
+        }
+
     roughness_rejection_cases = {}
     unsupported_roughness_source = json.loads(uv_source_json)
     next(node for node in unsupported_roughness_source["nodes"]
-         if node["id"] == "scale")["params"]["op"] = 1
+         if node["id"] == "scale")["params"]["op"] = 4
     roughness_rejection_cases["unsupportedRoughnessMathOperation"] = (
         unsupported_roughness_source, "legacy.node.operation.unsupported")
     clamped_roughness_source = json.loads(uv_source_json)
@@ -300,6 +347,7 @@ def main() -> int:
             "excludedNodeIds": uv_projection["excludedNodeIds"],
             "layoutProvenance": uv_projection["layoutProvenance"],
             "document": uv_projection["document"],
+            "mathOperationVariants": roughness_math_variants,
             "candidateHlslBodySha256": uv_compiled["hlslBodySha256"],
             "candidateHlslBody": uv_compiled["hlslBody"],
             "outputType": uv_compiled["outputType"],
@@ -314,10 +362,10 @@ def main() -> int:
         },
         "limitations": [
             "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
-            "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Multiply Roughness lane",
+            "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Subtract/Multiply/Divide Roughness lane",
             "does not infer or perform any other legacy implicit numeric conversion",
             "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
-            "Roughness accepts only TexCoord.UV, Value, and unclamped legacy Math Add/Multiply in the selected Float lane",
+            "Roughness supports legacy Math Divide only as the Core positive denominator floor operation max(b, 1e-5); clamped Math is rejected",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",
