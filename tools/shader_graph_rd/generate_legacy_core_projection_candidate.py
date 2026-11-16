@@ -118,6 +118,38 @@ def main() -> int:
     else:
         raise RuntimeError("legacy generated conversion-node ID collision was not rejected")
 
+    default_source = {
+        "version": 1,
+        "kind": "artifact-material-graph",
+        "nodes": [
+            {"id": "surface", "type": "Principled", "params": {}},
+            {"id": "output", "type": "MaterialOutput", "params": {}},
+        ],
+        "links": [{"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}],
+    }
+    default_json = json.dumps(default_source, ensure_ascii=False, separators=(",", ":"))
+    default_projection = prototype.project_legacy_core_material_input(
+        default_json, registry, target_node_id="surface", target_input_socket="BaseColor")
+    default_compiled = prototype.compile_document_from_data(default_projection["document"], registry)
+    if (default_projection["includedNodeIds"] or
+            default_projection["document"]["nodes"][0]["parameters"].get("value") != [0.8, 0.8, 0.8, 1.0] or
+            "float4 n_legacy_BaseColor_default_value = float4(0.800000012f, 0.800000012f, 0.800000012f, 1.0f);" not in
+            default_compiled["hlslBody"]):
+        raise RuntimeError("unconnected legacy BaseColor default did not project explicitly")
+    default_collision_source = json.loads(default_json)
+    default_collision_source["nodes"].append({
+        "id": "legacy_BaseColor_default", "type": "RGB", "params": {},
+    })
+    try:
+        prototype.project_legacy_core_material_input(
+            json.dumps(default_collision_source), registry,
+            target_node_id="surface", target_input_socket="BaseColor")
+    except prototype.ContractError as error:
+        if error.code != "legacy.projection.generated_id.collision":
+            raise RuntimeError(f"generated default-node collision returned wrong diagnostic: {error.code}")
+    else:
+        raise RuntimeError("legacy generated default-node ID collision was not rejected")
+
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
     math_node["params"]["op"] = 1
@@ -159,6 +191,7 @@ def main() -> int:
             "opaqueExtensionPreservedVerbatim": True,
             "nestedAddIncludedNodeIds": nested_projection["includedNodeIds"],
             "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
+            "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
         },
         "nestedAddProjection": {
             "sourceSha256": hashlib.sha256(nested_json.encode("utf-8")).hexdigest().upper(),
@@ -177,10 +210,20 @@ def main() -> int:
             "cpuVector4Golden": [0.375, 0.375, 0.375, 1.0],
             "conversionOperationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
         },
+        "unconnectedBaseColorDefaultProbe": {
+            "sourceSha256": hashlib.sha256(default_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": default_projection["includedNodeIds"],
+            "excludedNodeIds": default_projection["excludedNodeIds"],
+            "document": default_projection["document"],
+            "candidateHlslBodySha256": default_compiled["hlslBodySha256"],
+            "candidateHlslBody": default_compiled["hlslBody"],
+            "cpuVector4Golden": [0.8, 0.8, 0.8, 1.0],
+        },
         "limitations": [
             "read-only projection of the explicitly selected Principled BaseColor input only",
             "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
             "does not infer or perform any other legacy implicit numeric conversion",
+            "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",

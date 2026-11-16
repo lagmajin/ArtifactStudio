@@ -116,7 +116,8 @@
       "input_c",
       "math_outer"
     ],
-    "generatedConversionNodeCollision": "legacy.projection.generated_id.collision"
+    "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
+    "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision"
   },
   "nestedAddProjection": {
     "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",
@@ -318,10 +319,55 @@
     ],
     "conversionOperationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one"
   },
+  "unconnectedBaseColorDefaultProbe": {
+    "sourceSha256": "A0BE0F2D36F5C7333CDB9A63A5478C0535366BECF7B8B076350773D1F59CB673",
+    "includedNodeIds": [],
+    "excludedNodeIds": [
+      "surface",
+      "output"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "legacy_BaseColor_default",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.8,
+              0.8,
+              0.8,
+              1.0
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [],
+      "output": {
+        "nodeId": "legacy_BaseColor_default",
+        "socketId": "value"
+      }
+    },
+    "candidateHlslBodySha256": "B1ACF82CE86A2578E449FB8C9E784FEA5E0B487BB428F0653141FAD629401342",
+    "candidateHlslBody": "float4 n_legacy_BaseColor_default_value = float4(0.800000012f, 0.800000012f, 0.800000012f, 1.0f);\nreturn n_legacy_BaseColor_default_value;\n",
+    "cpuVector4Golden": [
+      0.8,
+      0.8,
+      0.8,
+      1.0
+    ]
+  },
   "limitations": [
     "read-only projection of the explicitly selected Principled BaseColor input only",
     "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
     "does not infer or perform any other legacy implicit numeric conversion",
+    "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

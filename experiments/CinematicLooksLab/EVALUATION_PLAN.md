@@ -1,7 +1,7 @@
 # Cinematic Looks Lab — 事前登録済み画像評価計画
 
 **最終更新:** 2026-11-16
-**ステータス:** rd0 は9種 LUT のみを測定済み。追加静的監査で Color Balance / Tritone の Cinematic preset も見つかったため、画像応答・alpha・Composition復元の評価範囲を拡張中。ブラインド判定・数値 gate・実アプリ確認は未実施。
+**ステータス:** rd0 LUT lane と Color Balance / Tritone の source-mirror 画像応答を記録済み。新しい effect lane のブラインド票も生成済み。人手判定・品質 gate・C++ differential・HDR/alpha runtime・Composition復元は未実施。
 
 本計画は `docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md` に従う。目的は既存のカラー補正部品と、未接続の Looks プリセットブラウザー案を評価することであり、製品 UI の実装・採用を承認するものではない。
 
@@ -24,9 +24,9 @@
 ### 対象
 
 - 取得済み `rd0` LUT lane: 無処理 baseline、builtin cinematic、vintage、cold、warm、high contrast、low contrast、desaturated、Kodak 2383、Fuji 3510。各 LUT の intensity 0 / 0.5 / 1.0 は同じ入力に対して測定済み。
-- 追加する Color Balance lane: baseline と Cinematic preset を同じ素材へ適用し、native `Strength` 0 / 0.5 / 1.0 を評価。これは LUT intensity と同じアルゴリズム・保証とはみなさない。
-- 追加する Tritone lane: baseline と Cinematic preset を同じ素材へ適用し、native `Master Strength` 0 / 0.5 / 1.0 を評価。`Color Mix` は既定値を固定し、別途感度として記録する。TealAndOrange は比較対照候補。追加2 lane は現在未測定で、先に source mirror / source hash pin を作成してから rd0 extension として記録する。
-- 既存の95-ID blind form と接触シートは9種 LUT lane のみを対象とする。Color Balance / Tritone は別ID・別キーのブラインド素材を生成し、人手レビューへ合流する前に評価計画を更新する。
+- Color Balance lane: baseline と Cinematic preset の Strength 0 / 0.5 / 1.0 を同一素材で評価する。0 は baseline を兼ね、CPU effect の no-op branch を別の float probe で確認する。0.5 / 1.0 の5素材画像と統計を `captures/rd0_effect_extension/` に生成済み。
+- Tritone lane: baseline と Cinematic preset の Master Strength 0 / 0.5 / 1.0 を評価し、Color Mix は Cinematic 既定値に固定する。TealAndOrange を比較対照として Master Strength 1.0 も追加。5素材の画像・統計・alpha / float probe を同じ extension に生成済み。0.5 / 1.0 は LUT intensity と同じアルゴリズム・保証とはみなさない。
+- 追加 lane は effect ID 別に source equation mirror / source hash pin を用意した。結果は独立したブラインド接触シートと空欄票に含めたが、人手レビューと Look 対応キーの照合は未実施。
 - オプション候補: Looks ブラウザーの「Teal & Orange」「Amber Dusk」「Muted Indie」などは、実体が既存 LUT と重複するかを調べるための名前上の候補に留める。コードにない補正式や見た目を既存機能とみなさない。
 - 資材: 決定論チャート、`experiments/GlowLab/assets/SOURCES.md` の CC0 夜景写真2点、および `assets/SOURCES.md` の CC0 人物・森林写真を使用する。人物／肌、屋外緑・枝葉、夜景／点光源の3カテゴリを満たす。入力写真は見た目の ground truth ではない。
 - 評価対象は静止画の全体および ROI。連番画像は今回対象外（時間変化を持たない LUT でも、フレームごとに内容が変わると見た目が揺れる素材依存性は別途残る）。
@@ -51,11 +51,11 @@
 
 ## 3. 固定画像条件
 
-- 取得済みの LUT 応答は ArtifactCore `ColorLUT.cpp` の 17³ table generation / trilinear sampler を mirror した Python harness で測定し、source SHA-256 を manifest に記録する。追加 Color Balance / Tritone mirror はまだなく、現在の harness からは生成されない。これは C++ 実行結果の直接測定ではなく、source mirror の differential contract が未実装のため数値一致の証明ではない。
-- 画像 harness は sRGB 8-bit RGB のみ。別の float source-equation probe は >1.0 RGB と alpha 0 / 0.1 / 0.25 / 0.5 / 1 を扱うが、C++ differential test、実画像 fixture、実アプリでの HDR 画質・透明エッジ評価は未実施。
+- LUT 応答は ArtifactCore `ColorLUT.cpp` の 17³ table generation / trilinear sampler を mirror した Python harness で測定し、source SHA-256 を manifest に記録する。Color Balance / Tritone は `cinematic_effects_extension.py` が core processor 式と effect preset 値を別途 mirror し、6 source file の hash pin に記録する。いずれも C++ 実行結果の直接測定ではなく、数値一致の証明ではない。
+- 写真／チャート画像は sRGB 8-bit RGB のみで、source processor が入力値に対して transfer conversion を行わないため、そのまま正規化値を式へ渡す。extension の float probe は unit-range／negative／HDR／NaN／Inf 入力、strength 0 / 0.5 / 1 と alpha association を source equation で調べる。これは HDR 実画像、C++ differential test、実アプリの透明エッジ評価ではない。
 - 表示用画像は固定した sRGB 変換で生成する。統計は可能な限り LUT 入出力の作業値で取り、表示変換後の統計と混同しない。
 - 乱数を使う場合は seed を固定。LUT 適用自体は決定論的であることを記録する。
-- 全候補で同一入力、解像度、ROI、alpha、色条件を使う。候補順は固定 seed で並べ替えた `review/blind/` の接触シートで隠し、対応表 `blind_review_key.json` は分離する。判定者と日付は人手レビュー後に記録する。
+- 全候補で同一入力、解像度、ROI、alpha、色条件を使う。候補順は固定 seed で並べ替えた blind contact sheet で隠し、対応表 `blind_review_key.json` は分離する。判定者と日付は人手レビュー後に記録する。LUT 95 ID の票に加え、Color Balance / Tritone extension の35 ID（5素材 × baselineを含む7候補）を生成済み。
 - レビュー手順・採点定義・全95ブラインド ID の空欄票を [`captures/rd0/review/BLIND_REVIEW_FORM.md`](captures/rd0/review/BLIND_REVIEW_FORM.md) に用意した。票の保存前に `blind_review_key.json` を開かず、技術欠陥と美的好みを分けて記録する。これはレビュー実施や品質 gate 確定の証拠ではない。
 
 ## 4. 必須評価・測定
@@ -109,5 +109,5 @@ rd0 は素材・入力条件・baseline 測定のみを作成し、候補の視�
 
 - 初期研究はオフライン・CPU の決定論的 fixture と既存 `ColorLUT` 実装の評価を第一段階とする。GPU／Composition 経路は別の統合検証段階として明記し、未実施のまま製品 parity を主張しない。
 - Python 画像統計 harness を用いる場合、依存（numpy、OpenCV、Pillow 等）と version を requirements / manifest に記録する。Artifact のテストやビルドを実行する場合は、別途明示依頼を得る。
-- **現時点:** `captures/rd0/` に deterministic chart と CC0 実写4点（夜景2、人物1、森林1）の LUT 応答、分布統計、通常／ブラインド接触シート、source hash を記録済み。float source-equation probe も記録した。これは baseline/response characterization であり品質比較ではない。ブラインド人手判定、実画像での HDR/alpha と複数背景確認、事前 gate、1080p/4K 性能条件、実アプリ経路は未実施。
+- **現時点:** `captures/rd0/` の LUT 9種と `captures/rd0_effect_extension/` の Color Balance / Tritone Cinematic lane について、deterministic chart と CC0 実写4点の source-mirror 応答・ROI 統計・blind contact sheets を記録済み。6 source files の hash pin、float domain / zero-strength / alpha association probe も保存した。これは応答 characterization であり品質比較や C++ differential ではない。ブラインド人手判定、HDR fixture/runtime、複数背景合成、Composition save/reload、preview/final/backend parity、1080p/4K 性能、根拠付き品質 gate は未実施。
 - R&D 完了には全必須評価の結果、採否判断、制限、後続実装の受入条件が必要。R&D 完了は製品 UI 導入や新規 LUT 実装を意味しない。

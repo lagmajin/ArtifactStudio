@@ -1,7 +1,7 @@
 # Cinematic Looks 画像補正 R&D プロジェクト
 
 **最終更新:** 2026-11-16
-**ステータス:** In Progress（評価計画・Python source mirror・4実写ケースの rd0 応答測定・ブラインド接触シート・float 契約プローブを作成。人手視覚判定・品質 gate・製品 runtime 検証は未実施）
+**ステータス:** In Progress（LUT 9種の rd0 応答測定のみ完了。Color Balance / Tritone lane は未測定で評価計画を拡張中。人手視覚判定・品質 gate・製品 runtime 検証は未実施）
 
 ## 目的
 
@@ -16,7 +16,7 @@
 - LUT 関連は三つの別機能として扱う。`LUTEffect` の内蔵9 preset は effect property として存在する。外部 `.cube/.3dl` library/browser は Color Science Panel 側に別途あり、旧 `MILESTONE_LUT_BROWSER_2026-06-16.md` の2026-07監査では一覧・選択 preview・Load/Clear・drop入口が部分実装（同 milestone は OCIO integration に superseded）とされる。24件の `ArtifactLooksPresetBrowser` はさらに別 inventory で、callsite・effect適用・builtin LUT との ID mapping が確認されていない。従って外部 LUT browser の存在や Film / Cinematic 等の表示名から内蔵 Look への割当を推定してはならない。
 - `ColorBalanceEffect` に `Cinematic` preset（shadow/midtone/highlight balance）、`TritoneEffect` に `Cinematic` と `TealAndOrange` preset（tonal color mix）、`LUTEffect` に9個の内蔵 LUT preset があり、いずれも Inspector catalog / service factory から追加可能。従ってシネマティックな画像補正部品・effect preset は既に部分導入されている。ただし各 `Preset` は現状名前付き chooser でなく整数入力で、統合 Looks browser / ID mapping は未接続。画質検証も未完了である。
 - product / visual acceptance は保留。ブラインドレビュー、LUT / Color Balance / Tritone の実アプリ画像測定、alpha runtime capture、Composition save/reload、Render Queue 適用確認、品質 gate が残っている。LUT と Tritone は source-level alpha association 候補、Color Balance は CPU / GPU の premultiplied handling 一致を確認する必要がある。いずれも runtime 判定ではない。
-- 追加の静的監査で、Composition effect stack の LUT は JSON に保存される一方、Composition deserializer が LUTEffect を生成せず base ArtifactAbstractEffect に落とす経路を確認した。base effect は LUT implementation と LUT 固有 property を持たない。従って Composition に追加した LUT が project reload 後に無効化される可能性が高い。layer 側は Effect Service factory で concrete effect を再生成する別経路。差は `captures/rd0/findings.json` の `RD0-COMPOSITION-LUT-RESTORE-01` に source evidence 付きで記録したが、project round-trip/render は未実行。
+- 追加の静的監査で、Composition effect stack の LUT / Color Balance / Tritone は JSON に保存される一方、Composition deserializer が各 concrete effect を生成せず base ArtifactAbstractEffect に落とす経路を確認した。base effect は LUT implementation と LUT 固有 property を持たない。従って Composition に追加した LUT が project reload 後に無効化される可能性が高い。layer 側は Effect Service factory で concrete effect を再生成する別経路。差は `captures/rd0/findings.json` の `RD0-COMPOSITION-LUT-RESTORE-01` と `RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01` に source evidence 付きで記録したが、project round-trip/render は未実行。
 
 この結論はソース監査と Python source mirror に基づく暫定整理であり、実アプリの画面確認や画質受入を代替しない。
 

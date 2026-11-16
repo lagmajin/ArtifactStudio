@@ -4882,6 +4882,37 @@ def project_legacy_core_material_input(
         raise ContractError("projection target must be a Principled BaseColor input",
                             code="legacy.projection.target.unsupported", path="/target")
     target_sources = incoming.get((target_node_id, target_input_socket), [])
+    if not target_sources:
+        default_id = "legacy_BaseColor_default"
+        if default_id in node_by_id:
+            raise ContractError("generated BaseColor default node id collides with source",
+                                code="legacy.projection.generated_id.collision",
+                                path=f"/nodes/{default_id}")
+        projected_document = {
+            "schemaVersion": 1,
+            "kind": "artifact-shader-graph-rd-document",
+            "nodes": [{
+                "nodeId": default_id,
+                "operationId": "artifact.rd.constant.vector4.float32",
+                "semanticVersion": 1,
+                "parameters": {"value": [0.8, 0.8, 0.8, 1.0]},
+                "layout": {"x": 0.0, "y": 0.0},
+            }],
+            "links": [],
+            "output": {"nodeId": default_id, "socketId": "value"},
+        }
+        compile_document_from_data(projected_document, registry)
+        return {
+            "status": "read-only-projection",
+            "sourceSha256": hashlib.sha256(source_json.encode("utf-8")).hexdigest().upper(),
+            "opaqueSourceJson": source_json,
+            "selectedLegacyInput": {"nodeId": target_node_id,
+                                     "socketId": target_input_socket},
+            "includedNodeIds": [],
+            "excludedNodeIds": list(node_by_id),
+            "layoutProvenance": {default_id: "deterministic-rd-core-input-default"},
+            "document": projected_document,
+        }
     if len(target_sources) != 1:
         raise ContractError("selected legacy material input must have exactly one source",
                             code="legacy.link.cardinality.invalid",

@@ -528,7 +528,7 @@
       "class": "negative",
       "purpose": "version-1 graph payload omits nodes and links arrays",
       "expectedValidation": "reject-with-diagnostic-and-preserve-previous-graph",
-      "observedImplementation": "missing arrays convert to empty arrays and load succeeds",
+      "observedImplementation": "missing nodes array is rejected before graph replacement; links alone are read through toArray() and default to empty",
       "runtimeStatus": "not-run"
     },
     {
@@ -537,7 +537,7 @@
       "class": "negative",
       "purpose": "Float Value output is linked to Vector4 Principled BaseColor",
       "expectedValidation": "reject-with-diagnostic-and-preserve-previous-graph",
-      "observedImplementation": "incompatible link is skipped, load returns ok=true with warning",
+      "observedImplementation": "incompatible link increments skippedLinks, sets an error, and returns with ok=false before staged nodes/links replace the current graph",
       "runtimeStatus": "not-run"
     },
     {
@@ -1326,7 +1326,10 @@
         "MaterialOutputNode* root = outputs.front();",
         "std::function<void(ShaderNodeBase*)> visit =",
         "visit(root);",
-        "if (skippedLinks > 0)"
+        "if (skippedLinks > 0)",
+        "result.error = \"skipped \" + std::to_string(skippedLinks) + \" link(s)\";",
+        "return result;",
+        "nodes = std::move(staged.nodes);"
       ],
       "scope": "static source-shape check; intended promotion behavior is specified separately and may differ"
     },
@@ -1398,7 +1401,7 @@
       "promotionContract": "reject duplicate writers before lowering; never select by insertion order"
     },
     "invalidJsonLinks": {
-      "currentSourceBehavior": "missing nodes/pins and type mismatches are skipped; load can commit with ok=true and warning",
+      "currentSourceBehavior": "missing nodes/pins and type mismatches are counted; any skipped link makes fromJson return ok=false before staged graph commit, preserving the current graph",
       "promotionContract": "reject invalid document atomically with stable diagnostic and preserve prior document"
     },
     "unreachableNodes": {
@@ -1422,8 +1425,8 @@
     "currentImplementation": {
       "resultShape": "boolean plus human-readable string",
       "documentKind": "writer emits artifact-material-graph but reader does not validate kind",
-      "missingNodeOrLinkArrays": "coerced to empty arrays",
-      "invalidLink": "skipped while the staged graph is committed; result remains ok=true with a warning string",
+      "missingNodeOrLinkArrays": "nodes must exist and be an array; links are not required and missing or non-array links become an empty QJsonArray through toArray()",
+      "invalidLink": "unresolved endpoints, pins, or type mismatches are counted; any skipped link sets a human-readable error and returns with ok=false before staged graph commit",
       "diagnosticCodeAndPath": "not available in current API",
       "runtimeStatus": "source-audited-runtime-unverified"
     },
@@ -3017,14 +3020,14 @@
     },
     {
       "fixture": "missing_arrays_negative.json",
-      "sourceBehavior": "missing nodes and links are coerced to empty arrays",
+      "sourceBehavior": "missing nodes array rejects the load; missing links array alone would coerce to empty",
       "adapterPolicy": "reject with both required-field diagnostics",
       "lossPrevention": "leave source payload and prior active document untouched",
       "expected": "reject-and-retain-source"
     },
     {
       "fixture": "skipped_type_mismatch_link_negative.json",
-      "sourceBehavior": "type-incompatible link is skipped and the remaining staged graph is committed with ok=true",
+      "sourceBehavior": "type-incompatible link is counted and causes an early ok=false return before staged graph commit",
       "adapterPolicy": "reject entire conversion with link.type.incompatible",
       "lossPrevention": "retain original bytes; never canonical-write a graph with the invalid link omitted",
       "expected": "reject-and-retain-source"
@@ -6417,7 +6420,7 @@
         "registryRejectsScalarTypeConfusion",
         "registryFileRejectsNestedValuesBeyondLimit",
         "malformedOperationVersionsStaySafeAtEditBoundary",
-        "legacyProjectionAddsNestedMathAndExplicitScalarConversion"
+        "legacyProjectionCoversNestedAddScalarConversionAndDefault"
       ],
       "sourceGuardGoldens": {
         "graphLimitDiagnostics": [
@@ -6904,7 +6907,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "7ACF169E03CF4CB06273CDE31CFC3E08F81D2AA0362760051D30E8BE00601A59",
+        "dynamicResolverPrototypeSha256": "8DDC317D8A3593CF2EB51DA14745EE016B806CD63E01ADB0A09E0BBA994755FE",
         "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",

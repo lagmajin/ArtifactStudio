@@ -1,0 +1,47 @@
+{
+  "chart": {
+    "CHX-01": "tritone_cinematic_s1",
+    "CHX-02": "color_balance_cinematic_s0.5",
+    "CHX-03": "color_balance_cinematic_s1",
+    "CHX-04": "tritone_cinematic_s0.5",
+    "CHX-05": "tritone_teal_orange_s1",
+    "CHX-06": "baseline",
+    "CHX-07": "lut_cinematic_s1"
+  },
+  "neon_streets": {
+    "NEX-01": "lut_cinematic_s1",
+    "NEX-02": "tritone_teal_orange_s1",
+    "NEX-03": "tritone_cinematic_s1",
+    "NEX-04": "color_balance_cinematic_s0.5",
+    "NEX-05": "color_balance_cinematic_s1",
+    "NEX-06": "tritone_cinematic_s0.5",
+    "NEX-07": "baseline"
+  },
+  "street_lights": {
+    "STX-01": "tritone_teal_orange_s1",
+    "STX-02": "color_balance_cinematic_s1",
+    "STX-03": "lut_cinematic_s1",
+    "STX-04": "baseline",
+    "STX-05": "tritone_cinematic_s0.5",
+    "STX-06": "tritone_cinematic_s1",
+    "STX-07": "color_balance_cinematic_s0.5"
+  },
+  "portrait": {
+    "POX-01": "tritone_teal_orange_s1",
+    "POX-02": "color_balance_cinematic_s0.5",
+    "POX-03": "tritone_cinematic_s0.5",
+    "POX-04": "color_balance_cinematic_s1",
+    "POX-05": "tritone_cinematic_s1",
+    "POX-06": "lut_cinematic_s1",
+    "POX-07": "baseline"
+  },
+  "forest": {
+    "FOX-01": "lut_cinematic_s1",
+    "FOX-02": "tritone_teal_orange_s1",
+    "FOX-03": "color_balance_cinematic_s1",
+    "FOX-04": "tritone_cinematic_s1",
+    "FOX-05": "color_balance_cinematic_s0.5",
+    "FOX-06": "tritone_cinematic_s0.5",
+    "FOX-07": "baseline"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "rd": "rd0",
+  "purpose": "deterministic fixture generation and integrity record; no candidate processing or quality verdict",
+  "seed": 20261116,
+  "dimensions": [
+    512,
+    320
+  ],
+  "color_contract": "linear RGB float32 in [0,1]; PNG previews use a fixed approximate gamma 2.2 encoding",
+  "generator_sha256": "03c733199720d183d55f83cd4cdba7dcc3a34dac61b8764d927ad7d8bb32a566",
+  "cases": [
+    {
+      "id": "gradient_patch",
+      "width": 512,
+      "height": 320,
+      "channels": "linear RGB float32; mask is binary 0/255",
+      "mask_pixels": 3584,
+      "files": {
+        "clean": {
+          "path": "captures\\rd0\\gradient_patch__clean.npy",
+          "sha256": "59ae8d5d30dffa17aa8c77c2e9cb222c3cca7575fa1cd9f1ea969af2040d855b"
+        },
+        "input": {
+          "path": "captures\\rd0\\gradient_patch__input.npy",
+          "sha256": "325fcf17a5614ddf12218e2f4377974265936a57d24726524fc17cef61f94de0"
+        },
+        "mask": {
+          "path": "captures\\rd0\\gradient_patch__mask.png",
+          "sha256": "8c57938986e8326481c0e718454ee8bb4d0421be7f2f82eb4b70c705566f5336"
+        },
+        "clean_preview": {
+          "path": "captures\\rd0\\gradient_patch__clean.png",
+          "sha256": "b65ad52ba4fd2d4371d0e61658c8ffa00622e34d224b496ea9c3aff52235c674"
+        },
+        "input_preview": {
+          "path": "captures\\rd0\\gradient_patch__input.png",
+          "sha256": "25bbe163855f7ec43bffd312bc6eb320d2049646f66d393bb786e57a32dc01d1"
+        }
+      }
+    },
+    {
+      "id": "periodic_patch",
+      "width": 512,
+      "height": 320,
+      "channels": "linear RGB float32; mask is binary 0/255",
+      "mask_pixels": 3584,
+      "files": {
+        "clean": {
+          "path": "captures\\rd0\\periodic_patch__clean.npy",
+          "sha256": "f8a23a112f1c1f2a6636d3e046d0bd7c6fcb4ab203234314c489a2b3108c2ed7"
+        },
+        "input": {
+          "path": "captures\\rd0\\periodic_patch__input.npy",
+          "sha256": "95661db8cc8bbccec89151f53e418e6480e6402483e4854c9034128a004d8466"
+        },
+        "mask": {
+          "path": "captures\\rd0\\periodic_patch__mask.png",
+          "sha256": "8c57938986e8326481c0e718454ee8bb4d0421be7f2f82eb4b70c705566f5336"
+        },
+        "clean_preview": {
+          "path": "captures\\rd0\\periodic_patch__clean.png",
+          "sha256": "d1500d1fd487f8d862582922e5238f0a8191c47091ebbc2a4b424707e14872c9"
+        },
+        "input_preview": {
+          "path": "captures\\rd0\\periodic_patch__input.png",
+          "sha256": "f2ebf4e5fbab8565a22dcc5558770096c66b93ee6aac10cabbc45b8c148db13d"
+        }
+      }
+    },
+    {
+      "id": "fine_lines",
+      "width": 512,
+      "height": 320,
+      "channels": "linear RGB float32; mask is binary 0/255",
+      "mask_pixels": 1517,
+      "files": {
+        "clean": {
+          "path": "captures\\rd0\\fine_lines__clean.npy",
+          "sha256": "afdd3281577b9d9894fc6feeaf8a410316795b91ecd2126599bfbcc5b7e4ab6e"
+        },
+        "input": {
+          "path": "captures\\rd0\\fine_lines__input.npy",
+          "sha256": "70c5143e6195b8b8e86b979bbc3c0307986e52b97d60830b3a9b90fb41428701"
+        },
+        "mask": {
+          "path": "captures\\rd0\\fine_lines__mask.png",
+          "sha256": "1204f39c302001f039b9084cf287178aa47389f85b9829a9885f576793476d2e"
+        },
+        "clean_preview": {
+          "path": "captures\\rd0\\fine_lines__clean.png",
+          "sha256": "4a459d5a18fd5c1b709bcf8945aa717ad6a7a3fa17e8ab7a2f96a102196d1283"
+        },
+        "input_preview": {
+          "path": "captures\\rd0\\fine_lines__input.png",
+          "sha256": "9a206d8c421973952524885fad631f28347dff409a2414e80c8bfce14b7e3d46"
+        }
+      }
+    },
+    {
+      "id": "textured_wire",
+      "width": 512,
+      "height": 320,
+      "channels": "linear RGB float32; mask is binary 0/255",
+      "mask_pixels": 2282,
+      "files": {
+        "clean": {
+          "path": "captures\\rd0\\textured_wire__clean.npy",
+          "sha256": "7e1b7f8f3b12c6dae6ba9e665fa6376568e207194147a18bb20dd242727fbeae"
+        },
+        "input": {
+          "path": "captures\\rd0\\textured_wire__input.npy",
+          "sha256": "c62ef9ce9e769c129c178cc08206daf671e2c40401a50830ffc723612443c82c"
+        },
+        "mask": {
+          "path": "captures\\rd0\\textured_wire__mask.png",
+          "sha256": "714ab3dc6e379603b37e5a916f5282b5447b0b0337324784bb28e9dd6a23725a"
+        },
+        "clean_preview": {
+          "path": "captures\\rd0\\textured_wire__clean.png",
+          "sha256": "101887a46c87cc8d4d0094034b339d86e320be3273609d9f464434097be1bffc"
+        },
+        "input_preview": {
+          "path": "captures\\rd0\\textured_wire__input.png",
+          "sha256": "448ca9fa440688459bb1ef3fc092d1cdbddac813176ffafb90a1002c68c6b73f"
+        }
+      }
+    }
+  ]
+}

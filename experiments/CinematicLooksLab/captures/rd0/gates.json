@@ -7,7 +7,8 @@
     "RD0-ALPHA-ASSOCIATION-01",
     "RD0-COMPOSITION-LUT-RESTORE-01",
     "RD0-TRITONE-ALPHA-ASSOCIATION-01",
-    "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01"
+    "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01",
+    "RD0-TRITONE-HDR-CLAMP-01"
   ],
   "source_contract_matrix": {
     "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
@@ -75,5 +76,53 @@
   "next_step": "Complete the existing 95-entry blind review for the nine-LUT lane without opening its key; characterize the newly discovered Color Balance and Tritone Cinematic effect presets separately before quality gates; run alpha and Composition save/reload/runtime protocols for all three executable preset effect families; only then freeze justified thresholds and run the expanded comparison.",
   "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
   "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
-  "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)"
+  "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)",
+  "assistant_visual_triage": {
+    "status": "contact_sheet_triage_only_no_scores_no_gate",
+    "cases_opened": [
+      "chart",
+      "neon_streets",
+      "street_lights",
+      "portrait",
+      "forest"
+    ],
+    "blind_key_opened": false,
+    "observations": [
+      "Contact sheets show clearly distinct contrast, saturation, warm/cool, and monochrome responses across IDs.",
+      "Some dark and highlight regions appear strongly compressed or lifted in individual candidates at contact-sheet scale; full-resolution crops and matched display review are required before calling these defects.",
+      "No aesthetic ranking, technical-quality score, candidate-to-look mapping, or threshold was assigned."
+    ],
+    "limitation": "This is an assistant visual triage at contact-sheet scale, not the planned human blind review or product runtime evaluation."
+  },
+  "source_mirror_extension": {
+    "report": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+    "source_contract": "experiments/CinematicLooksLab/EFFECT_SOURCE_CONTRACT.json",
+    "status": "source_equation_mirror_characterization_only_no_C++_differential_or_product_runtime",
+    "cases": 5,
+    "blind_candidate_count_per_case": 7,
+    "zero_strength_observation": "ColorBalanceEffect short-circuits at master strength <= 0. Tritone applies the processor; it is an exact no-op for tested finite unit-range values but clamps out-of-range values.",
+    "alpha_association_probe_max_rgb_delta": {
+      "ColorBalance_Cinematic": 2.384185791015625e-07,
+      "Tritone_Cinematic": 0.348541796207428,
+      "Tritone_TealAndOrange": 0.5174334049224854
+    },
+    "quality_gates": "unlocked; no visual or runtime threshold assigned"
+  },
+  "assistant_visual_triage_effect_extension": {
+    "status": "contact_sheet_triage_only_no_scores_no_gate",
+    "cases_opened": [
+      "chart",
+      "neon_streets",
+      "street_lights",
+      "portrait",
+      "forest"
+    ],
+    "blind_key_opened": false,
+    "observations": [
+      "The effects produce visibly distinct tonal/color responses across the materials; the TealAndOrange control is especially strong on some sources, while ColorBalance is more restrained.",
+      "Contact-sheet scale is insufficient to judge skin-tone fidelity, highlight detail, clipping severity, or fine foliage/branch preservation.",
+      "No aesthetic ranking, technical-quality score, candidate-to-effect mapping, or threshold was assigned."
+    ],
+    "limitation": "Assistant triage only; the planned human blind review and product runtime evaluation remain open."
+  }
 }

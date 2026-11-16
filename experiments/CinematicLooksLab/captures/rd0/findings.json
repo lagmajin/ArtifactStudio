@@ -368,6 +368,45 @@
         "The finding is limited to Composition-level effects."
       ],
       "next_evidence": "Save non-default Color Balance and Tritone effects at Composition level and as Layer controls, reload the project, verify concrete dynamic types and every preset/parameter, then compare rendered output."
+    },
+    {
+      "id": "RD0-TRITONE-HDR-CLAMP-01",
+      "status": "source_mirror_candidate_pending_runtime_contract_review",
+      "severity": "undetermined",
+      "summary": "TritoneEffect runs its RGB processor even at Master Strength 0; the processor clamps the resulting RGB to [0,1]. Thus zero strength is an exact no-op for finite in-range RGB, but clips finite HDR/negative RGB and does not sanitize non-finite input.",
+      "scope": {
+        "effect_id": "effect.colorcorrection.tritone",
+        "preset": "Cinematic",
+        "input_domain": "finite unit-range, negative, HDR, and non-finite float RGB"
+      },
+      "evidence": [
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+          "lines": [
+            36,
+            52
+          ],
+          "fact": "CPU apply copies the source and invokes TritoneProcessor::applyPixel for each pixel without a Master Strength <= 0 bypass."
+        },
+        {
+          "path": "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp",
+          "lines": [
+            55,
+            105
+          ],
+          "fact": "applyPixel mixes according to masterStrength, then unconditionally clamps all RGB channels to [0,1]."
+        },
+        {
+          "path": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+          "fact": "Pinned Python source-equation probe: at strength 0, HDR sample (1.5,0.5,0.1) becomes (1.0,0.5,0.1); sample (-0.2,0.4,1.4) becomes (0,0.4,1). NaN/Inf inputs propagate to non-finite output."
+        }
+      ],
+      "impact": "Potentially changes highlight/negative-domain values even when the effect strength is zero. Whether this is a defect depends on the accepted working-space contract; current photographic fixtures are SDR and do not prove HDR runtime behavior.",
+      "limitations": [
+        "The Python probe is transcribed from pinned source and is not a C++ differential test or product runtime capture.",
+        "No HDR source fixture or Composition render has been captured."
+      ],
+      "next_evidence": "Define the expected Master Strength 0 contract for HDR-capable surfaces, then compare C++/runtime outputs using a float HDR fixture through preview and final paths."
     }
   ]
 }

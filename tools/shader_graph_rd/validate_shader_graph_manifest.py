@@ -604,6 +604,11 @@ def validate(root: Path) -> list[str]:
     current_impl = diagnostic.get("currentImplementation", {})
     if not all(current_impl.get(field) for field in ("resultShape", "documentKind", "missingNodeOrLinkArrays", "invalidLink", "diagnosticCodeAndPath")):
         errors.append("current document-loader characterization is incomplete")
+    if (current_impl.get("missingNodeOrLinkArrays") !=
+            "nodes must exist and be an array; links are not required and missing or non-array links become an empty QJsonArray through toArray()" or
+            current_impl.get("invalidLink") !=
+            "unresolved endpoints, pins, or type mismatches are counted; any skipped link sets a human-readable error and returns with ok=false before staged graph commit"):
+        errors.append("current JSON loader characterization must distinguish required nodes from optional links and reject skipped-link loads atomically")
     if not promotion.get("rejectPartialDocument") or not promotion.get("preservePreviouslyLoadedGraphOnFailure"):
         errors.append("document promotion contract must require atomic reject and preservation")
 
@@ -4109,6 +4114,22 @@ def validate(root: Path) -> list[str]:
             target_node_id="surface", target_input_socket="BaseColor")
         scalar_legacy_compiled_from_source = dynamic_module.compile_document_from_data(
             scalar_legacy_projection_from_source["document"], dynamic_registry)
+        default_legacy_source = {
+            "version": 1,
+            "kind": "artifact-material-graph",
+            "nodes": [
+                {"id": "surface", "type": "Principled", "params": {}},
+                {"id": "output", "type": "MaterialOutput", "params": {}},
+            ],
+            "links": [{"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}],
+        }
+        default_legacy_source_json = json.dumps(
+            default_legacy_source, ensure_ascii=False, separators=(",", ":"))
+        default_legacy_projection_from_source = dynamic_module.project_legacy_core_material_input(
+            default_legacy_source_json, dynamic_registry,
+            target_node_id="surface", target_input_socket="BaseColor")
+        default_legacy_compiled_from_source = dynamic_module.compile_document_from_data(
+            default_legacy_projection_from_source["document"], dynamic_registry)
 
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
@@ -4320,7 +4341,10 @@ def validate(root: Path) -> list[str]:
         scalar_legacy_projection = legacy_projection_candidate.get("scalarBaseColorConversionProbe", {})
         scalar_legacy_compiled = dynamic_module.compile_document_from_data(
             scalar_legacy_projection.get("document", {}), dynamic_registry)
-        checks["legacyProjectionAddsNestedMathAndExplicitScalarConversion"] = (
+        default_legacy_projection = legacy_projection_candidate.get("unconnectedBaseColorDefaultProbe", {})
+        default_legacy_compiled = dynamic_module.compile_document_from_data(
+            default_legacy_projection.get("document", {}), dynamic_registry)
+        checks["legacyProjectionCoversNestedAddScalarConversionAndDefault"] = (
             nested_legacy_projection.get("candidateHlslBody") == nested_legacy_compiled.get("hlslBody") and
             nested_legacy_projection.get("candidateHlslBodySha256") == nested_legacy_compiled.get("hlslBodySha256") and
             nested_legacy_projection.get("includedNodeIds") == ["input_a", "input_b", "math", "input_c", "math_outer"] and
@@ -4329,13 +4353,22 @@ def validate(root: Path) -> list[str]:
             scalar_legacy_projection.get("candidateHlslBody") == scalar_legacy_compiled.get("hlslBody") and
             scalar_legacy_projection.get("candidateHlslBodySha256") == scalar_legacy_compiled.get("hlslBodySha256") and
             scalar_legacy_projection.get("conversionOperationId") == "artifact.convert.scalar.replicate.vector4.rgb_alpha_one" and
+            legacy_projection_candidate.get("negativeProbe", {}).get("generatedConversionNodeCollision") == "legacy.projection.generated_id.collision" and
             scalar_legacy_projection.get("document") == scalar_legacy_projection_from_source.get("document") and
             scalar_legacy_projection.get("sourceSha256") == scalar_legacy_projection_from_source.get("sourceSha256") and
             scalar_legacy_compiled.get("hlslBody") == scalar_legacy_compiled_from_source.get("hlslBody") and
             scalar_legacy_projection.get("cpuVector4Golden") == [0.375, 0.375, 0.375, 1.0] and
             "float4 n_legacy_BaseColor_replicate_vector = float4(n_scalar_value, n_scalar_value, n_scalar_value, 1.0f);" in scalar_legacy_compiled.get("hlslBody", "") and
             'return std::format("float4({0},{0},{0},1.0f)", v);' in legacy_core_shader_node_source and
-            "expression = f\"float4({value}, {value}, {value}, 1.0f)\"" in dynamic_module_source
+            "expression = f\"float4({value}, {value}, {value}, 1.0f)\"" in dynamic_module_source and
+            default_legacy_projection.get("document") == default_legacy_projection_from_source.get("document") and
+            default_legacy_projection.get("sourceSha256") == default_legacy_projection_from_source.get("sourceSha256") and
+            default_legacy_compiled.get("hlslBody") == default_legacy_compiled_from_source.get("hlslBody") and
+            default_legacy_projection.get("includedNodeIds") == [] and
+            legacy_projection_candidate.get("negativeProbe", {}).get("generatedDefaultNodeCollision") == "legacy.projection.generated_id.collision" and
+            default_legacy_projection.get("cpuVector4Golden") == [0.8, 0.8, 0.8, 1.0] and
+            '"float4(0.8f,0.8f,0.8f,1.0f)"' in legacy_core_shader_node_source and
+            "float4 n_legacy_BaseColor_default_value = float4(0.800000012f, 0.800000012f, 0.800000012f, 1.0f);" in default_legacy_compiled.get("hlslBody", "")
         )
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or
