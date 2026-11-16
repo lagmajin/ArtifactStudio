@@ -1,6 +1,6 @@
 # M-VP-DCC-1: ビューポート DCC パリティ導入（C4D / Houdini / Maya）
 
-**最終更新:** 2026-09-26
+**最終更新:** 2026-11-15
 
 **ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-10 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-4 / P1-6 の readback 反映 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手（分析完了）。
 C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
@@ -172,6 +172,31 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 - 16:9 / 1.85:1 等の表示専用マスクを既存 safe-area overlay の派生として追加する。
   最終出力・合成結果には影響しない。
 
+### P1-15 Fly / Walk navigation（実験実装・ビューポート専用）
+
+**実装済み（コード変更のみ、ビルド・実機未確認、2026-11-15）**
+
+- `CompositionRenderController` に viewport-only の free camera を追加した。Fly は 6DoF、Walk は
+  床面に沿った移動で、どちらも WASD（Fly のみ Q/E で昇降）と **LMB/RMB/MMB ドラッグのマウスルック**で
+  操作する。Y 上向きの斜め視点ではワールド Y 平面、見下ろし／見上げのときは Z 軸を床法線に採るため、
+  XY 平面のコンポジションを真上から「床として」歩ける。通常のホバーはルックに消費せず、ギズモ／
+  オーバーレイのヒットテストを維持する。
+  Shift 併用で移動速度を 4 倍、ホイールで基準速度を 0.1〜8 倍に調整し、モードと現在速度は
+  ビューポート下部の navigation feedback チップに `FLY x1.25 | ...` として表示する。
+- カメラは開始時のパン／ズーム／オリエンテーションから導出するため、開始時に絵が飛ばない。
+  終了時は開始時のパン／ズーム／オリエンテーションへ戻る。Composition やカメラレイヤーへは書き込まない。
+- 進入はコマンドパレットの `View: Fly Navigation` / `View: Walk Navigation`、終了はビューポートに
+  フォーカスがある状態の `Escape` または `View: Exit Fly / Walk Navigation`。既存ショートカットとの
+  競合を避けるためキーバインドは追加していない。パレットから開始した場合はパレットのクローズ後に
+  ビューポートヘフォーカスを戻す。
+- モード中は view-cube／オービット／パン／ズームによるビュー変更要求（`setViewportOrientation*`、
+  `panBy`、`zoomAtFactor`）を無視し、View Undo 履歴にも積まない。`Reset View` はモードを終了してから
+  実行する。終了時は進入時のパン／ズーム／オリエンテーションへ戻る。
+- 移動は GUI render tick 上で delta time を積分してフレームレート非依存にした。押下キーはビットで保持し、
+  1 フレームあたりの新規確保はない。Fly 中の front 直交表示と 2D 専用オーバーレイは無効になる。
+- 変更対象: `ArtifactCompositionRenderController`（`.ixx` / `.cpp`）と `ArtifactCompositionEditor`。
+- 未確認: 実機での操作感、D3D12 / Vulkan の表示一致、ギズモ／ピッキングとの整合、マルチペイン挙動。
+
 ### P2 以降
 
 - P2-1 は既存 modal gizmo 入力とドラッグ HUD を再利用する。P2-2 は Diligent パス追加のため
@@ -184,9 +209,10 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   （World / Screen の2方式、Ridge / Valley の強度）。
 - P2-8 View Regions は IRR（部分レンダー）と違い表示のみをクリップする。ROI の
   描画スキップ機構を表示クリップにも流用できるかを P0-3 で確認する。
-- 未確認候補: Fly / Walk navigation、Annotations（VP 注釈）、Measurement overlay、
+- 未確認候補: Annotations（VP 注釈）、Measurement overlay、
   View Lock（Lock to Object / Camera to View）、SteeringWheels、Sample Points、
   Dope Sheet in Viewer、Show Flags。
+- Fly / Walk navigation は **P1-15** として実験実装済み（下記）。
   着手前に現行コードでの有無を再確認する。
 
 ## 受入条件

@@ -1,6 +1,12 @@
 # Milestones Backlog
 
-**最終更新:** 2026-11-15
+**最終更新:** 2026-11-16
+
+### Cinematic Looks 画像補正 R&D
+- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: 計画登録・Python reference harness・rd0 baseline capture 作成。製品経路未検証）
+  - 既存 BuiltinLUTs と未接続の Looks browser preset 定義を区別し、決定論 chart と provenance 済み CC0 photo で応答・色/階調・細部・強度・性能を比較する
+  - 未確定ゲートを人の baseline review 後に固定し、候補比較と実アプリ経路の証拠を分けて記録する。R&D は UI・新規 LUT・既定値の実装承認ではない
+  - 詳細: `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md`
 
 ### Offline UI 操作・キャプチャ
 - **M-UI-OFFLINE-1** オフライン・不可視 UI 操作／キャプチャ基盤（In Progress: hidden launcher、widget / GPU frame capture入口。runtime未検証）
@@ -78,6 +84,47 @@
   - 既存の画像バッファ、LayerMask、RotoBrush／AI基盤、GPU cutout、保存／再読込経路を再利用し、推定画素と元画像由来の画素を区別する
   - 動画・連番・時間伝播・完全な隠し領域復元は対象外とする
   - 詳細: `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md`
+
+### Still Image / Super Resolution R&D
+
+- **M-IMG-UP-RD-1** 静止画アップスケーラ（超解像）の方式比較（In Progress: rd0 実行済みで classical control とゲート baseline を実測。学習モデル比較は重み未入手で未着手）
+  - 現行リサンプル（bilinear / bicubic / Lanczos4）と「bicubic + シャープ」を control とし、学習型超解像がディテール・エッジ・色・時間安定性・コストを改善するか、何を壊すかを決定論 fixture で比較する
+  - 対象は静止画 1 枚・連番 5 フレーム・×2 / ×4・straight alpha の縁。製品 GPU 経路、OCIO、HDR、動画、DirectML、VRAM 計測は対象外（未検証として記録）
+  - R0: fixture 生成と control 計測、ゲート確定、証跡整備（rd0, 実行済み）→ R1: 学習モデル比較（rd1）→ R2: 連番・alpha・解像度・性能（rd2）→ R3: 採用／不採用判断と後続実装の受入条件（rd3）
+  - **画像評価計画:** `experiments/UpscaleLab/EVALUATION_PLAN.md` に登録済み。baseline 計測後に相対ゲートを確定し、学習モデル実行前に固定する。捏造ディテールは数値判定不能のため、人間の視覚レビュー未実施の候補は合格扱いにしない
+  - rd0 実測: chart ×2 で bicubic PSNR 28.92 / SSIM 0.9976 / OKLab ΔE 0.0099、step edge rise 0.60→1.24、リンギング 0.0、noise_fine σ 比 0.38。Lanczos4 はリンギング 5.8%（×2）/ 9.0%（×4）、bicubic+unsharp は rise 0.78 まで改善するがノイズ σ 比 0.61
+  - **ゲート改訂（承認済み）:** alpha 合成誤差の絶対ゲート（2/255）は bicubic baseline 自体が max 60.5（×2）で超過し識別力が無いため、同一倍率の `baseline_bicubic` 比（band mean +1.0 code、band max 1.25 倍）へ変更。前後値は `captures/rd0/gates.json` の `gate_revision`
+  - 製品コードは変更しない。モデル重みはリポジトリに含めず、出所・ライセンス・SHA-256 を `MODELS.md` と manifest に記録する
+  - 詳細: `docs/planned/MILESTONE_UPSCALER_SUPER_RESOLUTION_RD_2026-11-15.md`
+
+### AI Matte / Still Image R&D
+
+- **M-IMG-MATTE-RD-1** AI マット抽出（静止画レイヤー化）の方式比較（In Progress: rd0〜rd5 実行済み。学習モデル 3 本 + 併用経路 2 種 + refinement 3 種、ゲート合格 0/8）
+  - GT alpha が既知の合成 8 fixture（AA 円・髪状細線・ガラス・細ワイヤ・獣毛境界・ソフトシャドウ・グリーンスクリーン・CC0 実写合成）で、二値マスクが破綻する境界と半透明を測る
+  - classical baseline は GrabCut（矩形）/ GrabCut（GT trimap oracle）/ chroma key / Otsu luma。oracle は合格判定に使わない
+  - 指標は SAD / MSE / Gradient / Connectivity、境界帯 MAE、半透明 MAE、軟らかさ、複数背景合成誤差、color spill、runtime
+  - R0: fixture と baseline 計測、ゲート確定（rd0, 実行済み）→ R1: 学習モデル比較（rd1）→ R2: 実写合成・境界・spill・性能（rd2）→ R3: 採用／不採用判断と後続実装の受入条件（rd3）
+  - rd0 実測: 二値マスク系は部分 α 率 0.000。境界帯 MAE は `hair_strands` 0.672 / `soft_shadow` 0.459、GT trimap oracle でも 0.091 / 0.130 でゲート 0.05 に届かない。半透明 MAE は baseline 0.29〜0.64。chroma key は `green_screen` のみ有効（SAD 4.17）
+  - **ゲート改訂（承認済み）:** 軟らかさ比は baseline が 0 で比が定義できず、GT 部分 α の回収率 0.50 以上（±0.1）へ変更。合成誤差は `grabcut_rect` 比（band mean +1.0 code、band max 1.25 倍）へ変更。前後値は `captures/rd0/gates.json` の `gate_revision`
+  - rd1 実測（U2Net・320×320・CPU 1 スレッド、`captures/rd1/`）: ゲート合格 0/8。境界帯 MAE 8/8 不合格（0.079〜0.568）、半透明 MAE 8/8 不合格（0.23〜0.61）、部分 α 回収は `hair_strands` 0.290 / `fur_edge` 0.206 で 0.50 未達。SAD は 5/8 で 40% 改善するが、`hair_strands` 予測 α 平均 0.015・`photo_composite` 0.013 とほぼ空マスクのため改善は見かけ。`soft_shadow` は実際に改善（0.459 → 0.140、灰色背景合成 mean 27.6 → 8.4）
+  - rd2 実測（`--derive-trimap`、`captures/rd2/`）: U2Net の α を trimap にして GrabCut へ渡す経路は、モデルが前景を出している画（`disc_aa` / `fur_edge`）で退行を戻す（SAD 0.94 → 0.34、境界帯 0.079 → 0.029 / SAD 1.26 → 0.92）。ただし確実前景率が 0 の `hair_strands`・`photo_composite` では空マスクをそのまま継承し、改善しない。未知帯は全画素の 0.8〜1.9% しかなく「未知帯だけ軟らかさを残す」効果はほぼ無い。3 候補ともゲート合格 0/8、半透明 MAE は依然 8/8 不合格
+  - rd3 実測（MODNet 追加、`captures/rd3/`）: `disc_aa` で境界帯 MAE 0.017・半透明 MAE 0.075・部分 α 回収 0.693 と、事前登録ゲートのうち 2 つを初めて満たした（SAD は 27% 改善で未達、connectivity も未達）。ただし MODNet は人物 matting 用で `hair_strands` / `soft_shadow` の予測 α 平均は 0.000、`fur_edge` / `green_screen` は GrabCut より悪化。3 モデルともゲート合格 0/8
+  - rd4 実測（BiRefNet 512 追加、`captures/rd4/`）: SAD は 7/8 で `grabcut_rect` 比 40% 以上改善し、境界帯 MAE ゲート 0.05 を `disc_aa`（0.011）と `fur_edge`（0.0496）で満たした。部分 α 回収は 0.546 / 0.358 / 0.345 で 0.50 未達、半透明 MAE は `glass_panel` 0.552 で全モデル不合格。3 モデルとも fixture 合格 0/8
+  - rd5 実測（guided filter refinement、`captures/rd5/`）: U2Net（320 入力）は `disc_aa` で SAD 0.94 → 0.34、境界帯 0.079 → 0.027 と大きく回復し、raw の劣化が拡大ぼけ由来だったことを示す。BiRefNet は `hair_strands` で SAD 9.69 → 7.46・部分 α 回収 0.345 → 0.464 だが、`disc_aa` 0.13 → 0.19、`fur_edge` 0.68 → 0.78 と既に良い境界を壊す。eps は 0〜1 スケールで無効、radius は 2 が最良。6 候補とも合格 0/8
+  - **画像評価計画:** `experiments/MatteLab/EVALUATION_PLAN.md` に登録済み
+  - 製品コードは変更しない。モデル重みはリポジトリに含めず、出所・ライセンス・SHA-256 を `MODELS.md` と manifest に記録する
+  - 詳細: `docs/planned/MILESTONE_AI_MATTE_EXTRACTION_RD_2026-11-15.md`
+
+### Spatial Denoise R&D
+
+- **M-IMG-DENOISE-RD-1** 静止画・連番の空間デノイズ方式比較（In Progress: rd0 実行済み。古典 6 候補 × 3 ノイズモデル、判定 0/15、ゲート 2 件の不備を検出して承認待ち）
+  - 製品には `Artifact/src/Effects/Rasterizer/TemporalDenoiseEffect.cpp`（フレーム履歴型）だけがあり、1 枚の絵を空間フィルタで整える経路が無い。高 ISO 静止画・低照度素材・未収束 CG ノイズを対象に、既知 clean への再構成誤差とディテール保持を同時に測る
+  - R0: fixture（合成チャート 1536×1024、CC0 実写 1 枚）と 3 ノイズモデル、古典 6 候補、ゲート確定（rd0, 実行済み）→ R1: 適応 h・luma/chroma 分離・guided 系の比較（rd1）→ R2: 実写追加・解像度・連番安定性・GPU コスト（rd2）→ R3: 採用／不採用判断と受入条件（rd3）
+  - **画像評価計画:** `experiments/DenoiseLab/EVALUATION_PLAN.md` に登録済み。ゲートは `baseline_raw` 比で事前登録した
+  - rd0 実測: チャート PSNR（fine/strong/lowlight）は raw 33.35 / 24.63 / 18.69 に対し `nlm_light` 42.36、`bilateral` 39.42、`nlm_strong` 35.32。ただし固定 h の NLM は `flat_dark`（値 26）で σ 比 0.998 と暗部でほぼ無効（`flat_mid`/`flat_light` は 0.14）。`median3` / `gaussian_s1` は 1px 細線のコントラストを 26〜29% まで破壊し、エッジ保存系は 0.99〜1.01 を維持。連番の平坦平均 luma 標準偏差は fine で raw 0.032 に対し `nlm_strong` 0.091（2.84 倍）
+  - **ゲート改訂（承認待ち、未適用）:** `ramp_max_adjacent_step_codes`（≤2 code）は control 自身が 3.6/5.8/11.3 で超過し識別力が無い。`delta_e_improvement_min`（≥0.5）はスケール誤り（control の ΔE は 0.017〜0.109）。前後案は `captures/rd0/gates.json` の `gate_review`
+  - 製品コードは変更しない。人間の独立した視覚レビューは未実施
+  - 詳細: `docs/planned/MILESTONE_SPATIAL_DENOISE_RD_2026-11-15.md`
 
 ## Next Walk TODO: Still Image and Production Workflow
 

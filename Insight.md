@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-15
 
+## 2026-11-16: Looks browser presets and executable LUT presets are separate inventories
+- **関連:** `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`ArtifactCore/src/Color/ColorLUT.cpp`、`experiments/CinematicLooksLab/`。
+- **確認できた事実:** Looks browser owns a static name/category/pack list and generated placeholder thumbnails. Independently, LUTEffect selects built-in cinematic / vintage / cold / warm / contrast / desaturated / film-stock LUT implementations and exposes intensity. No adapter between the two registries was observed in the inspected source paths.
+- **価値または懸念:** Preset identity can drift from actual effect behavior if both inventories evolve independently. The lab mirrors the existing 17³ table generation and trilinear sampling equations, but is not a direct C++ differential test or product render path.
+- **次に確認すべきこと:** During R&D integration tracing, verify effect-service serialization and Composition/final-render application, then propose a single authoritative preset mapping contract if product browser integration is pursued.
+- **未検証:** Full runtime registration, per-preset visual quality, and exact relationship between browser names and LUT candidates.
+
 ## 2026-11-15: UV mapping and image resources should remain graph-authored
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`local_graph_lab.py`、`local_graph_lab.html`、`dynamic_generic_image_mapping.json`。
 - **確認できた事実:** 閉じた scale/offset 演算を固定 Base Color sample と schema-v4 generic Image Texture adapter の両方に接続する候補がある。mapped/direct graph はresource requirementsとresolved binding keyを保ちつつ、semantic/HLSL source identityを変える。local editorで開けるschema-v1例はUV0→Mapping→Image Textureを保持するが、resourceは未解決である。Image Texture node向けの編集UIはnode参照、document resource tableのAsset UUID、sampler、色解釈を単一undoable actionで保存する。optional `AssetDatabase::toJson()` snapshot adapter はImage型だけを名前とUUIDで表示し、パスを捨ててsnapshot hashを示す。これは静的な選択肢で、live AssetDatabase接続、revision解決、画像load、GPU bindingは行わない。
@@ -14827,9 +14834,16 @@
 ## 2026-11-15: Vector3 graph-parameter local editor path was still node-only
 - **関連:** `experiments/ShaderGraphLab/local_graph_lab.html`, `tools/shader_graph_rd/validate_shader_graph_manifest.py`, `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`.
 - **確認できた事実:** Graph parameter schema, lowering, Vector3 candidate ABI, and three-lane graph-parameter value editor existed, but the node row rendered Vector3 as a permanent node-only label. The existing-parameter picker also validated every non-Vector4 parameter as a scalar, so it rejected Vector3 records.
-- **変更した事実:** Vector3 node rows now use the standard Expose/Unexpose control, and the picker validates a three-lane finite value for Vector3. The source contract now checks those editor conditions.
-- **価値または懸念:** The editor surface now matches the source candidate contract and permits sharing a Vector3 value across nodes. Event-level behavior remains unverified until the manifest contract and browser session are run.
-- **次に確認すべきこと:** Under the authorized validation workflow, exercise create/reuse/edit/unexpose plus undo/redo for a shared Vector3 parameter, then verify cbuffer reflection and host upload before considering Core promotion.
+- **変更した事実:** Vector3 node rows now use the standard Expose/Unexpose control, and the picker validates a three-lane finite value for Vector3. The validator source contract now declares the UI conditions plus a Graph Lab session sequence covering shared bindings, three-lane edits, detach, final-binding cleanup, and undo/redo. A stale validator expectation that Vector3 exposure must fail was replaced with the now-supported behavior.
+- **価値または懸念:** The editor surface and declared session coverage now match the source candidate contract. The declared session sequence has not been executed; browser behavior, cbuffer reflection, and host upload remain unverified.
+- **次に確認すべきこと:** Under the authorized validation workflow, run the manifest contract and browser interaction, then verify cbuffer reflection and host upload before considering Core promotion.
+
+
+## 2026-11-16: Typed IR now feeds the prototype HLSL emitter
+- **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py` (`compile_document_from_data`), `experiments/ShaderGraphLab/README.md`, `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`, `libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineVulkan/src/ShaderVkImpl.cpp`.
+- **確認できた事実:** The prototype has independent HLSL and Vulkan GLSL 4.5 verbatim emitters consuming the same typed IR. All 21 GLSL fragments compiled with glslang, all 21 HLSL wrappers compiled with DXC, and all 42 SPIR-V modules passed `spirv-val` for Vulkan 1.2. `spirv-dis` interface parsing found matching descriptor names/set/bindings, parameter member offsets, and stage input/output locations/types for 21/21 pairs. The compile tool reproduces this and records hashes under `temp/shader-graph-glsl450-compile/summary.json`. Diligent's Vulkan source path accepts `SHADER_SOURCE_LANGUAGE_GLSL_VERBATIM`, but the application path was not run. The HLSL path still matches all 21 saved HLSL bodies and typed-IR hashes. A post-projection Document mutation probe re-emitted identical HLSL from saved IR/layout/context. The full manifest validator was not run.
+- **価値または懸念:** Compiler acceptance and shader-interface agreement are now evidenced, but arithmetic equivalence and rendered parity remain unproven. Descriptor/register assignments are still a candidate proposal, and host inputs are supplied by compile wrappers.
+- **次に確認すべきこと:** Compare numeric outputs for shared deterministic operation cases, then run application binding/resource and GPU image checks before resolving failure/fallback behavior or considering Core promotion.
 
 
 ## 2026-11-15: Vector3 socket-default UI needed an explicit persistence/undo gate
@@ -14906,3 +14920,52 @@
 - **価値または懸念:** 未実装のpromotion要件を通常のgreen suiteへ混ぜて誤った失敗/成功シグナルを作るのを防ぐ。これはsource分類であり、実際のpass/fail結果ではない。
 - **次に確認すべきこと:** 各caseをcharacterization・expected-failure・target-acceptanceに精密分類し、明示的な実行許可後にlane別に実行する。期待との差分からCore側対応とpromotion gateを更新する。
 - **未検証:** C++ test targetは未登録・未実行。manifest validator、build、test、GPU captureはいずれも今回未実行。
+
+## 2026-11-15: GrabCut 矩形初期化は細線主体の素材で前景を膨張させる
+- **関連:** `experiments/MatteLab/`（rd0）、`ArtifactCore/src/ImageProcessing/OpenCV/OpenCVRotoBrushEngine.cpp`。
+- **確認できた事実:** 合成 8 fixture の rd0 で、`cv2.grabCut`（矩形 = 全画面 2% 内側、5 iteration）は `hair_strands` で予測 α 平均 0.480（GT 0.043、SAD 118.38）、`glass_panel` で 0.576（GT 0.105、SAD 123.67）と矩形内を広く前景化した。一方 `disc_aa` / `fur_edge` は SAD 0.28 / 1.16 と良好で、破綻は素材依存。GT trimap を与えても境界帯 MAE は 0.09〜0.33 に留まる。
+- **価値または懸念:** 現行 Roto Brush の GrabCut 初期化は「塊状の被写体」を暗黙の前提にしている可能性がある。髪・細線・半透明では初期マスクが膨張し、後段の optical flow 伝播にも誤りが乗る。ただしこれはオフライン合成 fixture の結果で、製品の入力解像度・前処理・ユーザーストロークとは条件が違う。
+- **次に確認すべきこと:** 実素材（髪・ガラス・煙）での `grabcut_rect` 再現と、初期化を trimap 入力または学習マットへ置き換えた場合の境界帯 MAE の比較。
+- **未検証:** 製品経路（Composition Render Controller 経由）での再現、動画伝播、実素材の GT matte。
+
+## 2026-11-15: 1px alpha ランプは拡大で復元できず、alpha 合成の絶対ゲートが成立しない
+- **関連:** `experiments/UpscaleLab/`（rd0）、`experiments/UpscaleLab/gates.json`。
+- **確認できた事実:** straight alpha の 1px ランプを持つ fixture を ×2 拡大しただけの bicubic baseline でも、3 背景合成誤差は黒背景 max 60.5 / mean 4.5、×4 では max 83.9 / mean 13.9。事前登録した 2/255 の絶対ゲートは baseline 自身が超過し、候補の識別に使えない。
+- **価値または懸念:** alpha を別解像度で拡大する限り、α の幾何精度が合成誤差を支配する。超解像の良否を alpha 合成誤差で測るなら、baseline 比の相対ゲートにするか、α を同じ手法で拡大する前提を明示する必要がある。
+- **次に確認すべきこと:** rd1 前に相対ゲート（baseline 比）へ変更するか、α 拡大を候補側の責務から外すかを決める。
+- **未検証:** 学習モデルが α を同時に扱う場合の挙動、製品の α 拡大経路。
+
+## 2026-11-15: saliency モデルの SAD 改善は「空マスク」で達成できてしまう
+- **関連:** `experiments/MatteLab/`（rd1）、`captures/rd1/metrics.json`、`captures/rd1/gates.json`。
+- **確認できた事実:** U2Net（320×320 固定入力、CPU）を 8 fixture で測ると、SAD は 5/8 で `grabcut_rect` 比 40% 以上改善したが、予測 α 平均は `hair_strands` 0.015（GT 0.043）、`thin_wire` 0.011（GT 0.078）、`photo_composite` 0.013（GT 0.346）。前景を取り逃して 0 に寄った結果で、境界帯 MAE は 0.101 / 0.216 / 0.376 に留まり、部分 α 回収は 0.290 / 0.206（ゲート 0.50）。GT の α 平均が小さい fixture ほど「何も出さない」が SAD で有利になる。
+- **価値または懸念:** SAD 単独のゲートは saliency/segmentation モデルに対して退化した解（空マスク）を許す。合否は SAD ではなく、境界帯 MAE・部分 α 回収・合成誤差の同時成立で見る必要がある。今回のゲート表はそれを満たしていたため 0/8 と正しく落ちたが、SAD だけを見る要約は誤読を招く。
+- **次に確認すべきこと:** レポートや比較表で SAD を出す場合は、予測 α 平均と部分 α 回収率を必ず併記する。可能なら SAD を GT の前景量で正規化する。
+- **未検証:** matte 専用モデル（MODNet / BiRefNet / RMBG）で同じ退化が起きるか、製品の Roto Brush で同種の失敗が起きるか。
+
+## 2026-11-15: saliency→trimap→GrabCut 併用はモデルの失敗を継承する
+- **関連:** `experiments/MatteLab/`（rd2）、`captures/rd2/metrics.json` の `trimap_stats`。
+- **確認できた事実:** U2Net の α から trimap（α≥0.90 を収縮 = 確実前景、α≤0.10 を膨張 = 確実背景）を作って GrabCut に渡すと、確実前景率が十分ある `disc_aa` は SAD 0.94 → 0.34、境界帯 MAE 0.079 → 0.029 と回復し、`fur_edge` も SAD 1.26 → 0.92 になった。一方、確実前景率が 0 / 0.0001 / 0.003 の `hair_strands` / `thin_wire` / `photo_composite` では GrabCut に前景シードが無く、出力はモデル単体とほぼ同じ空マスク（SAD 11.22 / 20.29 / 137.94）。
+- **価値または懸念:** 「学習モデル → trimap → 既存 GrabCut」の併用は退行の安全弁にはなるが、モデルが失敗している素材を救わない。確実前景率（または前景面積）が閾値未満なら併用をやめる／矩形初期化へ落とす等のガードが無いと、空マスクをそのまま信頼することになる。
+- **次に確認すべきこと:** 前景面積ガードの閾値と、ガード発動時に何を返すか（矩形 GrabCut / 失敗として返す / 手動 trimap 要求）。製品の Roto Brush に学習マットを組み込む場合も同じ分岐が要る。
+- **未検証:** matte 専用モデル（MODNet / BiRefNet / RMBG）で確実前景率が同様に 0 になるか、実素材での前景面積分布。
+
+## 2026-11-15: matte 専用モデルは輪郭が閉じた形状で初めて軟らかい α を出した
+- **関連:** `experiments/MatteLab/`（rd3）、`captures/rd3/metrics.json`、`captures/rd3/review/disc_aa/modnet.png`。
+- **確認できた事実:** MODNet（512×512 動的入力、0.30〜0.33 s/枚）は `disc_aa` で境界帯 MAE 0.017、半透明 MAE 0.075、部分 α 回収 0.693 を出し、事前登録ゲートのうち境界帯 0.05 と半透明 0.08 を初めて満たした。U2Net の同 fixture は境界帯 0.079、半透明 0.234、部分 α 回収 0.276。ただし MODNet は SAD が 0.28 → 0.21（27% 改善）で 40% 改善ゲートに届かず、connectivity は 0.022 → 0.050 と悪化した。
+- **価値または懸念:** 「学習型では軟らかい α が出ない」のではなく「saliency モデルでは出ない」が正しい。モデル選択で結果が質的に変わる。一方 MODNet は人物 matting 用で、`hair_strands` / `soft_shadow` の予測 α 平均は 0.000、`fur_edge` は SAD 1.16 → 6.90 と GrabCut より悪化した。ドメイン外で無条件に使うと退行する。
+- **次に確認すべきこと:** 人物・実写 fixture を追加して MODNet 本来のドメインで測る。BiRefNet / RMBG 系の高精度モデルで、`disc_aa` 型の成功が複雑な輪郭へ広がるかを見る。
+- **未検証:** 実写人物での品質、モデルの学習データと本ラボ fixture のドメイン距離、解像度依存（512 固定への縮小が境界に与える影響）。
+
+## 2026-11-15: 半透明 α のゲートはどのモデルでも満たせず、oracle も届かない
+- **関連:** `experiments/MatteLab/`（rd1〜rd4）、`captures/rd4/metrics.json`、`captures/rd4/gates.json`。
+- **確認できた事実:** 半透明 MAE ゲート（0.05<α<0.95 で 0.08 以下）は 3 モデルすべてで全 fixture 不合格だった。`glass_panel` は U2Net 0.607 / MODNet 0.614 / BiRefNet 0.552 で、最も良い BiRefNet でも 6.9 倍。GT trimap を与えた GrabCut oracle でも 0.331 で、事前登録ゲートを満たさない。一方 BiRefNet は同じ fixture で境界帯 MAE を 2 つ（`disc_aa` 0.011、`fur_edge` 0.0496）ゲート以下にできた。
+- **価値または懸念:** 「α の連続値」と「境界の位置精度」は別物で、ゲートを分けた設計は正しかった。しかし半透明 α を扱う手法（半透明専用のマットモデル、層分離、複数露出の合成）が候補に入っていないため、このゲートは現状の手法集合では到達不能に近い。ゲート値か fixture の α 分布を設計判断で見直す必要がある。
+- **次に確認すべきこと:** 半透明 α を扱える手法を 1 つ候補に入れる（例: 半透明専用モデル、または `glass_panel` 型の fixture を半透明ゲートの対象から外す）。fixture の α 分布（0.05〜0.95 の画素割合）とゲート値の対応を再設計する。
+- **未検証:** 半透明専用モデルでの挙動、`glass_panel` 型の α 分布が実素材を代表するか、1024 入力版 BiRefNet での変化。
+
+## 2026-11-15: guided filter は「解像度不足のぼけ」を直すが「構造の取り違え」は直さない
+- **関連:** `experiments/MatteLab/`（rd5）、`captures/rd5/metrics.json`。
+- **確認できた事実:** 入力画像をガイドにした guided filter（radius 2）でモデルの α を refinement すると、U2Net（320 入力）の `disc_aa` は SAD 0.94 → 0.34、境界帯 MAE 0.079 → 0.027 まで回復した。一方 BiRefNet（512 入力）は `hair_strands` で SAD 9.69 → 7.46・部分 α 回収 0.345 → 0.464 と改善する一方、`disc_aa`（0.13 → 0.19）と `fur_edge`（0.68 → 0.78）で既に正しい境界を壊した。SAD ゲート不合格は 1 → 3 に増加した。
+- **価値または懸念:** refinement の効果は「モデルの出力解像度 < 入力解像度」かどうかで符号が変わる。低解像度モデルには必須級、高解像度モデルには有害な場合がある。raw / refined を選ぶ分岐（またはエッジ活動量による選択）無しに一律適用すると、良い画を壊す。
+- **次に確認すべきこと:** 選択基準（エッジ活動量、raw と refined の差の大きさ、局所的な α の勾配）で raw / refined を出し分ける実装。半径依存の再確認（実写・高解像度素材）。
+- **未検証:** 1024 入力版 BiRefNet、実写素材での半径依存、選択基準の精度。

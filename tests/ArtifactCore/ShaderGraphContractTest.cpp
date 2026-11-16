@@ -233,7 +233,11 @@ TEST(ShaderGraphContractTest, CompileHashTracksHelperAndBlockSource)
     const auto constant = withoutNoise.compileMaterialGraph();
     ASSERT_TRUE(procedural.ok) << procedural.error;
     ASSERT_TRUE(constant.ok) << constant.error;
-    EXPECT_NE(procedural.helperHlsl, constant.helperHlsl);
+    // The procedural helper library is emitted in full for every graph, so it is
+    // identical here; only the lowered block differs. The hash covers both
+    // helper and block source, so the two graphs must still hash differently.
+    EXPECT_FALSE(procedural.helperHlsl.empty());
+    EXPECT_EQ(procedural.helperHlsl, constant.helperHlsl);
     EXPECT_NE(procedural.hashHex, constant.hashHex)
         << "The compile hash must include helper source as well as block source";
 }
@@ -350,7 +354,7 @@ TEST(ShaderGraphContractTest, ColorRampDuplicateStopOrderRemainsSemanticInDocume
     ASSERT_TRUE(forwardCompiled.ok) << forwardCompiled.error;
     ASSERT_TRUE(reversedCompiled.ok) << reversedCompiled.error;
 
-    EXPECT_NE(forwardGraph.toJson(), reversedGraph.toJson());
+    EXPECT_NE(forwardGraph.toJson({}), reversedGraph.toJson({}));
     // Legacy std::sort tie ordering is unspecified; the candidate Core rule is covered by the CPU formula golden.
 }
 
@@ -453,10 +457,12 @@ TEST(ShaderGraphContractTest, AllLegacySocketConversionsHaveExplicitExpressions)
     const auto compiled = graph.compileMaterialGraph();
     ASSERT_TRUE(compiled.ok) << compiled.error;
     const auto& block = compiled.blockHlsl;
+    // matConvert() emits a bare swizzle for vector-to-Vector2 narrowing; it is
+    // already a float2 expression, so no float2(...) cast wrapper is expected.
     for (const std::string_view expression : {
              "float2(scalar_Value,scalar_Value)",
-             "float2(geometry_Position.xy)",
-             "float2(color_Color.xy)",
+             "geometry_Position.xy",
+             "color_Color.xy",
              "uv_UV.x", "geometry_Position.x", "color_Color.x",
              "float3(scalar_Value,scalar_Value,scalar_Value)",
              "float4(uv_UV.xy,0.0f,1.0f)",
@@ -806,9 +812,12 @@ TEST(ShaderGraphContractTest, VoronoiFixtureConnectsCellColorAndDistance)
               std::string::npos);
     EXPECT_NE(compiled.blockHlsl.find("float voronoi_Distance = 0.0f"),
               std::string::npos);
+    // The square root happens inside the shared helper, which receives the
+    // Distance output as an out parameter; the block only passes it through.
     EXPECT_NE(compiled.blockHlsl.find(
-                  "voronoi_Distance = sqrt(voronoi_Distance)"),
+                  "artMatGraph_voronoi(voronoi_p, voronoi_Distance, voronoi_cell)"),
               std::string::npos);
+    EXPECT_NE(compiled.helperHlsl.find("dist = sqrt(dist)"), std::string::npos);
     EXPECT_NE(compiled.blockHlsl.find("surface_roughness = saturate(voronoi_Distance)"),
               std::string::npos);
 }

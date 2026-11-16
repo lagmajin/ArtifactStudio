@@ -1,0 +1,116 @@
+{
+  "thresholds": {
+    "fidelity_psnr_gain_db": 0.5,
+    "fidelity_ssim_gain": 0.005,
+    "edge_rise_reduction": 0.1,
+    "ringing_out_of_range_frac": 0.02,
+    "ringing_mean_excess_codes": 1.5,
+    "flat_noise_sigma_ratio": 1.25,
+    "delta_e_mean_worse_than_bicubic": 0.004,
+    "alpha_composite_mean_delta_vs_bicubic_codes": 1.0,
+    "alpha_composite_max_ratio_vs_bicubic": 1.25,
+    "temporal_std_ratio": 1.5
+  },
+  "reference_case": "chart",
+  "reference_factor": 2,
+  "reference_candidate": "baseline_bicubic",
+  "reference_values": {
+    "psnr": 28.92142287751571,
+    "ssim": 0.9975666403770447,
+    "delta_e": {
+      "mean": 0.009891105815768242,
+      "p95": 0.07790225744247437,
+      "max": 0.5659554600715637
+    }
+  },
+  "rd0_baseline": {
+    "2": {
+      "psnr": 28.92142287751571,
+      "ssim": 0.9975666403770447,
+      "edge_rise_model": 1.2359969871177157,
+      "edge_rise_source": 0.5999999999999943,
+      "ringing_out_of_range_frac": 0.0,
+      "noise_sigma_ratio_noise_fine": 0.38493814672719134,
+      "hf_energy_ratio_step_edge": 0.31136581996696283
+    },
+    "4": {
+      "psnr": 26.0691985656036,
+      "ssim": 0.9948366284370422,
+      "edge_rise_model": 2.253651976176357,
+      "edge_rise_source": 0.5999999999999943,
+      "ringing_out_of_range_frac": 0.0,
+      "noise_sigma_ratio_noise_fine": 0.1496965470750237,
+      "hf_energy_ratio_step_edge": 0.2215305005061828
+    },
+    "alpha_composite": {
+      "2": {
+        "alpha_max_diff_vs_gt": 83,
+        "black_max": 60.482357025146484,
+        "black_mean": 4.511899948120117,
+        "mid_max": 35.63922119140625,
+        "mid_mean": 3.1011464595794678,
+        "white_max": 66.85491943359375,
+        "white_mean": 6.532689571380615
+      },
+      "4": {
+        "alpha_max_diff_vs_gt": 114,
+        "black_max": 83.8705825805664,
+        "black_mean": 13.869226455688477,
+        "mid_max": 44.772544860839844,
+        "mid_mean": 8.619772911071777,
+        "white_max": 94.83139038085938,
+        "white_mean": 16.728979110717773
+      }
+    },
+    "sequence": {
+      "flat_mean_std": 0.0,
+      "flat_hf_std": 0.0,
+      "zone_mean_std": 0.006134570273805277,
+      "zone_hf_std": 10.382096727541763,
+      "zone_frame_diff_mean": 1.9603812396526337,
+      "frames": 5
+    }
+  },
+  "gate_revision": [
+    {
+      "gate": "alpha_composite",
+      "previous": {
+        "name": "alpha_composite_error_codes",
+        "threshold": 2.0
+      },
+      "replaced_by": {
+        "name": "alpha_composite_mean_delta_vs_bicubic_codes",
+        "threshold": 1.0,
+        "secondary": {
+          "name": "alpha_composite_max_ratio_vs_bicubic",
+          "threshold": 1.25
+        },
+        "definition": "band composite error per background (black/mid/white). Candidate band mean may be at most +1.0 code vs baseline_bicubic at the same factor, and band max at most 1.25x. Alpha is resized identically for every candidate, so this compares RGB accuracy under the same alpha."
+      },
+      "measured_baseline": {
+        "2": {
+          "alpha_max_diff_vs_gt": 83,
+          "black_max": 60.482357025146484,
+          "black_mean": 4.511899948120117,
+          "mid_max": 35.63922119140625,
+          "mid_mean": 3.1011464595794678,
+          "white_max": 66.85491943359375,
+          "white_mean": 6.532689571380615
+        },
+        "4": {
+          "alpha_max_diff_vs_gt": 114,
+          "black_max": 83.8705825805664,
+          "black_mean": 13.869226455688477,
+          "mid_max": 44.772544860839844,
+          "mid_mean": 8.619772911071777,
+          "white_max": 94.83139038085938,
+          "white_mean": 16.728979110717773
+        }
+      },
+      "reason": "a 1 px source alpha ramp cannot be reproduced by any upscaler; the absolute 2/255 gate is exceeded by baseline_bicubic itself (x2 black max 60.5, mean 4.5), so it cannot discriminate candidates.",
+      "decided": "2026-11-15",
+      "decided_by": "user approval (relative/absolute gate revision)"
+    }
+  ],
+  "note": "thresholds fixed before rd1; baseline recorded for comparison only"
+}

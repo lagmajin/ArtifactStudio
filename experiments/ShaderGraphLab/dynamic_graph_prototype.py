@@ -3812,6 +3812,493 @@ def _project_resolved_resource_bindings(
             "resourceBindingKeySha256": hashlib.sha256(encoded).hexdigest().upper()}
 
 
+def emit_hlsl_from_typed_ir(
+    typed_ir: dict[str, Any],
+    parameter_block: dict[str, Any] | None,
+    *,
+    context_bindings: dict[tuple[str, str], str] | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Emit the prototype HLSL body from the typed IR and explicit host bindings."""
+    if (not isinstance(typed_ir, dict) or
+            typed_ir.get("schemaId") != "artifact.shadergraph.typed-ir" or
+            typed_ir.get("schemaVersion") != 1 or
+            not isinstance(typed_ir.get("operations"), list) or
+            not isinstance(typed_ir.get("output"), dict)):
+        raise ContractError("typed IR schema is unsupported", code="shader.typed_ir.invalid", path="/typedIR")
+    bindings = {} if context_bindings is None else context_bindings
+    if not isinstance(bindings, dict):
+        raise ContractError("context bindings must be an object", code="shader.context.binding.invalid", path="/contextBindings")
+
+    operations = typed_ir["operations"]
+    by_node = {item.get("nodeId"): item for item in operations if isinstance(item, dict)}
+    if len(by_node) != len(operations) or None in by_node:
+        raise ContractError("typed IR operation IDs must be unique", code="shader.typed_ir.operation.invalid", path="/typedIR/operations")
+    expressions: dict[tuple[str, str], str] = {}
+    lines: list[str] = []
+    context_records: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def node_symbol(node_id: str) -> str:
+        return "n_" + re.sub(r"[^A-Za-z0-9_]", "_", node_id)
+
+    def input_expression(operation: dict[str, Any], socket_id: str) -> str:
+        item = next((value for value in operation.get("inputs", [])
+                     if value.get("socketId") == socket_id), None)
+        if item is None:
+            raise ContractError("typed IR input socket is missing", code="shader.typed_ir.input.missing",
+                                path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}")
+        producer = item.get("producer")
+        if producer is not None:
+            key = (producer.get("nodeId"), producer.get("socketId"))
+            if key not in expressions:
+                raise ContractError("typed IR producer has not been emitted", code="shader.typed_ir.producer.invalid",
+                                    path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}/producer")
+            return expressions[key]
+        value = item.get("defaultValue")
+        if item.get("required") or value is None:
+            raise ContractError("typed IR required input has no operand", code="shader.typed_ir.input.missing",
+                                path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}")
+        value_type = item.get("valueType")
+        if value_type == "Float":
+            return _hlsl_float(value)
+        if value_type in {"Vector2", "Vector3", "Vector4"}:
+            lane_count = {"Vector2": 2, "Vector3": 3, "Vector4": 4}[value_type]
+            hlsl_type = {"Vector2": "float2", "Vector3": "float3", "Vector4": "float4"}[value_type]
+            if not isinstance(value, list) or len(value) != lane_count:
+                raise ContractError("typed IR vector default has invalid lanes", code="shader.typed_ir.default.invalid",
+                                    path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}/defaultValue")
+            return hlsl_type + "(" + ", ".join(_hlsl_float(lane) for lane in value) + ")"
+        raise ContractError("typed IR default type is unsupported", code="shader.typed_ir.default.invalid",
+                            path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}/defaultValue")
+
+    if parameter_block is not None:
+        if not isinstance(parameter_block, dict) or not isinstance(parameter_block.get("fields"), list):
+            raise ContractError("parameter block layout is invalid", code="shader.parameter_block.invalid", path="/parameterBlock")
+        lines.append("cbuffer ArtifactGraphParameters {")
+        for field in parameter_block["fields"]:
+            value_type = field.get("valueType")
+            hlsl_type = {"Float32": "float", "Vector3F32": "float3", "Vector4F32": "float4"}.get(value_type)
+            if hlsl_type is None:
+                raise ContractError("parameter block field type is unsupported", code="shader.parameter_block.invalid", path="/parameterBlock/fields")
+            lines.append(f"    {hlsl_type} {field['hlslSymbol']} : packoffset({field['hlslPackOffset']});")
+        lines.append("};")
+
+    for operation in operations:
+        node_id = operation["nodeId"]
+        implementation_id = operation["implementationId"]
+        symbol = node_symbol(node_id)
+        parameters = {item["parameterId"]: item for item in operation.get("parameters", [])}
+        outputs = operation.get("outputs", [])
+        if not outputs:
+            raise ContractError("typed IR operation has no outputs", code="shader.typed_ir.output.missing",
+                                path=f"/typedIR/operations/{node_id}/outputs")
+
+        if "sourceContext" in operation:
+            context = operation["sourceContext"]
+            context_key = (context.get("contextId"), context.get("component"))
+            expression = bindings.get(context_key)
+            if not isinstance(expression, str) or not expression.strip():
+                raise ContractError(f"source context {context_key} has no backend binding",
+                                    code="shader.context.binding.unsupported", path=f"/typedIR/operations/{node_id}/sourceContext")
+            record = context_records.setdefault(context_key, {
+                "contextId": context_key[0], "component": context_key[1],
+                "valueType": context["valueType"], "hlslExpression": expression, "nodeIds": [],
+            })
+            record["nodeIds"].append(node_id)
+            if len(outputs) != 1:
+                raise ContractError("source context typed IR must have one output", code="shader.typed_ir.output.invalid",
+                                    path=f"/typedIR/operations/{node_id}/outputs")
+            hlsl_type = {"Float": "float", "Vector2": "float2"}.get(outputs[0].get("valueType"))
+            if hlsl_type is None:
+                raise ContractError("source context output type is unsupported", code="shader.typed_ir.output.invalid",
+                                    path=f"/typedIR/operations/{node_id}/outputs/0/valueType")
+            variable = f"{symbol}_{re.sub(r'[^A-Za-z0-9_]', '_', outputs[0]['socketId'])}"
+            lines.append(f"{hlsl_type} {variable} = {expression};")
+            expression_by_output = {outputs[0]["socketId"]: variable}
+        elif implementation_id in {"float.constant", "vector3.constant", "vector4.constant"}:
+            parameter = parameters.get("value")
+            if parameter is None:
+                raise ContractError("constant typed IR parameter is missing", code="shader.typed_ir.parameter.missing",
+                                    path=f"/typedIR/operations/{node_id}/parameters/value")
+            graph_parameter_id = parameter.get("graphParameterId")
+            value = parameter.get("value")
+            if graph_parameter_id is not None:
+                expression = "P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)
+            elif implementation_id == "float.constant":
+                expression = _hlsl_float(value)
+            else:
+                hlsl_type = "float3" if implementation_id == "vector3.constant" else "float4"
+                expected = 3 if implementation_id == "vector3.constant" else 4
+                if not isinstance(value, list) or len(value) != expected:
+                    raise ContractError("constant typed IR parameter has invalid lanes", code="shader.typed_ir.parameter.invalid",
+                                        path=f"/typedIR/operations/{node_id}/parameters/value")
+                expression = hlsl_type + "(" + ", ".join(_hlsl_float(lane) for lane in value) + ")"
+            hlsl_type = {"Float": "float", "Vector3": "float3", "Vector4": "float4"}.get(outputs[0].get("valueType"))
+            if hlsl_type is None or len(outputs) != 1:
+                raise ContractError("constant typed IR output is unsupported", code="shader.typed_ir.output.invalid",
+                                    path=f"/typedIR/operations/{node_id}/outputs")
+            variable = f"{symbol}_{re.sub(r'[^A-Za-z0-9_]', '_', outputs[0]['socketId'])}"
+            lines.append(f"{hlsl_type} {variable} = {expression};")
+            expression_by_output = {outputs[0]["socketId"]: variable}
+        elif implementation_id in TEXTURE_SAMPLE_SLOTS or implementation_id == GENERIC_TEXTURE_SAMPLE:
+            dependency = next((item for item in operation.get("resourceDependencies", [])
+                               if item.get("resourceKind") == "sampledTexture2D"), None)
+            if dependency is None:
+                raise ContractError("texture typed IR resource is missing", code="shader.typed_ir.resource.missing",
+                                    path=f"/typedIR/operations/{node_id}/resourceDependencies")
+            uv = input_expression(operation, "uv")
+            color_symbol, alpha_symbol = f"{symbol}_color", f"{symbol}_alpha"
+            lines.extend([
+                f"float4 {color_symbol} = {dependency['shaderSymbol']}.Sample({dependency['samplerSymbol']}, {uv});",
+                f"float {alpha_symbol} = {color_symbol}.a;",
+            ])
+            expression_by_output = {"color": color_symbol, "alpha": alpha_symbol}
+        elif implementation_id == "vector4.ramp.linear_stops":
+            factor = input_expression(operation, "factor")
+            parameter = parameters.get("stops")
+            stops = parameter.get("value") if parameter else None
+            if not isinstance(stops, list) or not stops:
+                raise ContractError("ramp typed IR stops are missing", code="shader.typed_ir.parameter.invalid",
+                                    path=f"/typedIR/operations/{node_id}/parameters/stops")
+            ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
+            lines.append(f"float {symbol}_factor = saturate({factor});")
+            for stop_index, (_, stop) in enumerate(ordered):
+                lines.append(f"float {symbol}_stop_{stop_index} = saturate({_hlsl_float(stop['position'])});")
+                lines.append(f"float4 {symbol}_stop_color_{stop_index} = float4({', '.join(_hlsl_float(lane) for lane in stop['color'])});")
+            lines.append(f"float4 {symbol}_color = {symbol}_stop_color_0;")
+            for stop_index in range(1, len(ordered)):
+                previous_position, current_position = f"{symbol}_stop_{stop_index - 1}", f"{symbol}_stop_{stop_index}"
+                previous_color, current_color = f"{symbol}_stop_color_{stop_index - 1}", f"{symbol}_stop_color_{stop_index}"
+                local_t = f"{symbol}_t_{stop_index}"
+                lines.extend([
+                    f"float {local_t} = saturate(({symbol}_factor - {previous_position}) / max({current_position} - {previous_position}, 1e-5f));",
+                    f"if ({symbol}_factor >= {previous_position} && {symbol}_factor < {current_position}) {symbol}_color = lerp({previous_color}, {current_color}, {local_t});",
+                ])
+            lines.append(f"if ({symbol}_factor >= {symbol}_stop_{len(ordered) - 1}) {symbol}_color = {symbol}_stop_color_{len(ordered) - 1};")
+            lines.append(f"float {symbol}_alpha = {symbol}_color.a;")
+            expression_by_output = {"color": f"{symbol}_color", "alpha": f"{symbol}_alpha"}
+        elif implementation_id == "vector4.separate_channels":
+            vector = input_expression(operation, "vector")
+            expression_by_output = {}
+            for output in outputs:
+                socket_id = output["socketId"]
+                variable = f"{symbol}_{re.sub(r'[^A-Za-z0-9_]', '_', socket_id)}"
+                lines.append(f"float {variable} = ({vector}).{socket_id};")
+                expression_by_output[socket_id] = variable
+        else:
+            if implementation_id == "vector2.mapping.scale_offset":
+                value = input_expression(operation, "vector")
+                by_id = {key: item.get("value") for key, item in parameters.items()}
+                scale = f"float2({_hlsl_float(by_id['scaleX'])}, {_hlsl_float(by_id['scaleY'])})"
+                offset = f"float2({_hlsl_float(by_id['offsetX'])}, {_hlsl_float(by_id['offsetY'])})"
+                expression = f"(({value} * {scale}) + {offset})"
+            elif implementation_id == "float.replicate.rgb_alpha_one":
+                value = input_expression(operation, operation["inputs"][0]["socketId"])
+                expression = f"float4({value}, {value}, {value}, 1.0f)"
+            elif implementation_id == "vector4.extract_x":
+                expression = f"({input_expression(operation, operation['inputs'][0]['socketId'])}).x"
+            elif implementation_id == "vector4.invert.linear_factor":
+                color = input_expression(operation, "color")
+                factor = input_expression(operation, "factor")
+                expression = f"lerp({color}, (float4(1.0f, 1.0f, 1.0f, 1.0f) - {color}), saturate({factor}))"
+            elif implementation_id == "float.clamp.sorted_bounds":
+                value, minimum, maximum = (input_expression(operation, key) for key in ("value", "minimum", "maximum"))
+                expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
+            elif implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION:
+                factor = input_expression(operation, "factor")
+                color1, color2 = input_expression(operation, "color1"), input_expression(operation, "color2")
+                color1_rgb, color2_rgb = f"({color1}).rgb", f"({color2}).rgb"
+                mode = VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION[implementation_id]
+                blend = {
+                    "mix": color2_rgb,
+                    "add": f"({color1_rgb} + {color2_rgb})",
+                    "multiply": f"({color1_rgb} * {color2_rgb})",
+                    "screen": f"(1.0f - (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}))",
+                    "overlay": (f"lerp(2.0f * {color1_rgb} * {color2_rgb}, "
+                                f"1.0f - 2.0f * (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}), "
+                                f"step(0.5f, {color1_rgb}))"),
+                    "darken": f"min({color1_rgb}, {color2_rgb})",
+                    "lighten": f"max({color1_rgb}, {color2_rgb})",
+                    "difference": f"abs({color1_rgb} - {color2_rgb})",
+                }[mode]
+                expression = (f"float4(lerp({color1_rgb}, {blend}, saturate({factor})), "
+                              f"lerp(({color1}).a, ({color2}).a, saturate({factor})))")
+            else:
+                a, b = input_expression(operation, operation["inputs"][0]["socketId"]), input_expression(operation, operation["inputs"][1]["socketId"])
+                if implementation_id == "float.divide.positive_floor_1e5":
+                    expression = f"({a} / max({b}, 1e-5f))"
+                elif implementation_id == "vector4.divide.positive_floor_1e5":
+                    expression = f"({a} / max({b}, float4(1e-5f,1e-5f,1e-5f,1e-5f)))"
+                else:
+                    operator = {
+                        "float.add": "+", "float.subtract": "-", "float.multiply": "*",
+                        "vector3.add": "+", "vector3.subtract": "-", "vector3.multiply": "*",
+                        "vector4.add": "+", "vector4.subtract": "-", "vector4.multiply": "*",
+                    }.get(implementation_id)
+                    if operator is None:
+                        raise ContractError(f"typed IR implementation is unsupported: {implementation_id}",
+                                            code="lowering.operation.unsupported", path=f"/typedIR/operations/{node_id}/implementationId")
+                    expression = f"({a} {operator} {b})"
+            if len(outputs) != 1:
+                raise ContractError("typed IR operation output arity is unsupported", code="shader.typed_ir.output.invalid",
+                                    path=f"/typedIR/operations/{node_id}/outputs")
+            hlsl_type = {"Float": "float", "Vector2": "float2", "Vector3": "float3", "Vector4": "float4"}.get(outputs[0].get("valueType"))
+            if hlsl_type is None:
+                raise ContractError("typed IR output type is unsupported", code="shader.typed_ir.output.invalid",
+                                    path=f"/typedIR/operations/{node_id}/outputs/0/valueType")
+            output_symbol = re.sub(r"[^A-Za-z0-9_]", "_", outputs[0]["socketId"])
+            variable = f"{symbol}_{output_symbol}"
+            lines.append(f"{hlsl_type} {variable} = {expression};")
+            expression_by_output = {outputs[0]["socketId"]: variable}
+
+        for socket_id, expression in expression_by_output.items():
+            expressions[(node_id, socket_id)] = expression
+
+    for record in context_records.values():
+        record["nodeIds"].sort()
+    output = typed_ir["output"]
+    root_key = (output.get("nodeId"), output.get("socketId"))
+    if root_key not in expressions:
+        raise ContractError("typed IR selected output is unavailable", code="shader.typed_ir.output.invalid", path="/typedIR/output")
+    return "\n".join(lines) + f"\nreturn {expressions[root_key]};\n", [context_records[key] for key in sorted(context_records)]
+
+
+def emit_glsl_from_typed_ir(
+    typed_ir: dict[str, Any],
+    parameter_block: dict[str, Any] | None,
+    *,
+    context_bindings: dict[tuple[str, str], str] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Emit a standalone Vulkan GLSL 4.5 fragment candidate from the shared typed IR."""
+    if (not isinstance(typed_ir, dict) or
+            typed_ir.get("schemaId") != "artifact.shadergraph.typed-ir" or
+            typed_ir.get("schemaVersion") != 1 or
+            not isinstance(typed_ir.get("operations"), list) or
+            not isinstance(typed_ir.get("output"), dict)):
+        raise ContractError("typed IR schema is unsupported", code="shader.typed_ir.invalid", path="/typedIR")
+    bindings = {} if context_bindings is None else context_bindings
+    if not isinstance(bindings, dict):
+        raise ContractError("context bindings must be an object", code="shader.context.binding.invalid", path="/contextBindings")
+    glsl_types = {"Float": "float", "Vector2": "vec2", "Vector3": "vec3", "Vector4": "vec4"}
+    operations = typed_ir["operations"]
+    by_node = {item.get("nodeId"): item for item in operations if isinstance(item, dict)}
+    if len(by_node) != len(operations) or None in by_node:
+        raise ContractError("typed IR operation IDs must be unique", code="shader.typed_ir.operation.invalid", path="/typedIR/operations")
+
+    if parameter_block is not None and not isinstance(parameter_block, dict):
+        raise ContractError("parameter block layout is invalid", code="shader.parameter_block.invalid", path="/parameterBlock")
+    fields = [] if parameter_block is None else parameter_block.get("fields")
+    if not isinstance(fields, list):
+        raise ContractError("parameter block layout is invalid", code="shader.parameter_block.invalid", path="/parameterBlock")
+    parameter_expressions = {}
+    global_lines = ["#version 450"]
+    if fields:
+        global_lines.append("layout(std140, set = 1, binding = 0) uniform ArtifactGraphParameters {")
+        for field in fields:
+            value_type = {"Float32": "float", "Vector3F32": "vec3", "Vector4F32": "vec4"}.get(field.get("valueType"))
+            if value_type is None or not isinstance(field.get("byteOffset"), int):
+                raise ContractError("parameter block field is unsupported", code="shader.parameter_block.invalid", path="/parameterBlock/fields")
+            symbol = field.get("hlslSymbol")
+            if not isinstance(symbol, str) or not IDENTIFIER.fullmatch(symbol):
+                raise ContractError("parameter block symbol is invalid", code="shader.parameter_block.invalid", path="/parameterBlock/fields")
+            global_lines.append(f"    layout(offset = {field['byteOffset']}) {value_type} {symbol};")
+            parameter_expressions[symbol] = f"artifactGraphParameters.{symbol}"
+        global_lines.append("} artifactGraphParameters;")
+
+    resource_dependencies = {}
+    for operation in operations:
+        for dependency in operation.get("resourceDependencies", []):
+            if dependency.get("resourceKind") == "sampledTexture2D":
+                key = dependency.get("resourceKey")
+                if not isinstance(key, str) or not key:
+                    raise ContractError("typed IR resource key is invalid", code="shader.typed_ir.resource.invalid", path=f"/typedIR/operations/{operation.get('nodeId')}/resourceDependencies")
+                resource_dependencies[key] = dependency
+    resource_bindings = []
+    for index, key in enumerate(sorted(resource_dependencies)):
+        dependency = resource_dependencies[key]
+        texture_symbol, sampler_symbol = dependency.get("shaderSymbol"), dependency.get("samplerSymbol")
+        if not all(isinstance(item, str) and IDENTIFIER.fullmatch(item) for item in (texture_symbol, sampler_symbol)):
+            raise ContractError("typed IR resource symbols are invalid", code="shader.typed_ir.resource.invalid", path=f"/typedIR/resources/{_pointer_segment(key)}")
+        texture_binding = 1 + index * 2
+        sampler_binding = texture_binding + 1
+        global_lines.extend([
+            f"layout(set = 1, binding = {texture_binding}) uniform texture2D {texture_symbol};",
+            f"layout(set = 1, binding = {sampler_binding}) uniform sampler {sampler_symbol};",
+        ])
+        resource_bindings.append({"resourceKey": key, "descriptorSet": 1,
+                                  "textureSymbol": texture_symbol, "textureBinding": texture_binding,
+                                  "samplerSymbol": sampler_symbol, "samplerBinding": sampler_binding})
+
+    output = typed_ir["output"]
+    root_operation = by_node.get(output.get("nodeId"))
+    root_output = next((item for item in root_operation.get("outputs", [])
+                        if item.get("socketId") == output.get("socketId")), None) if root_operation else None
+    output_type = glsl_types.get(root_output.get("valueType")) if root_output else None
+    if output_type is None:
+        raise ContractError("typed IR selected output is unavailable", code="shader.typed_ir.output.invalid", path="/typedIR/output")
+    global_lines.append(f"layout(location = 0) out {output_type} artifactGraphOutput;")
+
+    body = ["void main() {"]
+    expressions: dict[tuple[str, str], str] = {}
+    context_records = {}
+
+    def node_symbol(node_id: str) -> str:
+        return "n_" + re.sub(r"[^A-Za-z0-9_]", "_", node_id)
+
+    def input_expression(operation: dict[str, Any], socket_id: str) -> str:
+        item = next((value for value in operation.get("inputs", []) if value.get("socketId") == socket_id), None)
+        if item is None:
+            raise ContractError("typed IR input socket is missing", code="shader.typed_ir.input.missing", path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}")
+        producer = item.get("producer")
+        if producer is not None:
+            key = (producer.get("nodeId"), producer.get("socketId"))
+            if key not in expressions:
+                raise ContractError("typed IR producer has not been emitted", code="shader.typed_ir.producer.invalid", path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}/producer")
+            return expressions[key]
+        value_type, value = item.get("valueType"), item.get("defaultValue")
+        if item.get("required") or value is None:
+            raise ContractError("typed IR required input has no operand", code="shader.typed_ir.input.missing", path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}")
+        if value_type == "Float":
+            return _hlsl_float(value)
+        glsl_type = glsl_types.get(value_type)
+        lane_count = {"Vector2": 2, "Vector3": 3, "Vector4": 4}.get(value_type)
+        if glsl_type is None or not isinstance(value, list) or len(value) != lane_count:
+            raise ContractError("typed IR vector default has invalid lanes", code="shader.typed_ir.default.invalid", path=f"/typedIR/operations/{operation.get('nodeId')}/inputs/{socket_id}/defaultValue")
+        return glsl_type + "(" + ", ".join(_hlsl_float(lane) for lane in value) + ")"
+
+    def output_name(operation: dict[str, Any], output_socket: str) -> str:
+        return f"{node_symbol(operation['nodeId'])}_{re.sub(r'[^A-Za-z0-9_]', '_', output_socket)}"
+
+    for operation in operations:
+        node_id, implementation_id = operation["nodeId"], operation["implementationId"]
+        parameters = {item["parameterId"]: item for item in operation.get("parameters", [])}
+        outputs = operation.get("outputs", [])
+        symbol = node_symbol(node_id)
+        result_by_output = {}
+        if "sourceContext" in operation:
+            context = operation["sourceContext"]
+            context_key = (context.get("contextId"), context.get("component"))
+            expression = bindings.get(context_key)
+            if not isinstance(expression, str) or not expression.strip() or len(outputs) != 1:
+                raise ContractError("typed IR source context has no GLSL binding", code="shader.context.binding.unsupported", path=f"/typedIR/operations/{node_id}/sourceContext")
+            record = context_records.setdefault(context_key, {"contextId": context_key[0], "component": context_key[1], "valueType": context.get("valueType"), "glslExpression": expression, "nodeIds": []})
+            record["nodeIds"].append(node_id)
+            name = output_name(operation, outputs[0]["socketId"])
+            body.append(f"    {glsl_types[outputs[0]['valueType']]} {name} = {expression};")
+            result_by_output[outputs[0]["socketId"]] = name
+        elif implementation_id in {"float.constant", "vector3.constant", "vector4.constant"}:
+            parameter = parameters.get("value")
+            if parameter is None or len(outputs) != 1:
+                raise ContractError("typed IR constant parameter is missing", code="shader.typed_ir.parameter.missing", path=f"/typedIR/operations/{node_id}/parameters/value")
+            graph_parameter_id = parameter.get("graphParameterId")
+            if graph_parameter_id is not None:
+                match = next((field for field in fields if field.get("parameterId") == graph_parameter_id), None)
+                expression = parameter_expressions.get(match.get("hlslSymbol")) if match else None
+                if expression is None:
+                    raise ContractError("graph parameter is absent from the backend layout", code="shader.parameter_block.binding.missing", path=f"/typedIR/operations/{node_id}/parameters/value")
+            elif implementation_id == "float.constant":
+                expression = _hlsl_float(parameter.get("value"))
+            else:
+                expected = 3 if implementation_id == "vector3.constant" else 4
+                value = parameter.get("value")
+                if not isinstance(value, list) or len(value) != expected:
+                    raise ContractError("typed IR constant lanes are invalid", code="shader.typed_ir.parameter.invalid", path=f"/typedIR/operations/{node_id}/parameters/value")
+                expression = glsl_types[outputs[0]["valueType"]] + "(" + ", ".join(_hlsl_float(lane) for lane in value) + ")"
+            name = output_name(operation, outputs[0]["socketId"])
+            body.append(f"    {glsl_types[outputs[0]['valueType']]} {name} = {expression};")
+            result_by_output[outputs[0]["socketId"]] = name
+        elif implementation_id in TEXTURE_SAMPLE_SLOTS or implementation_id == GENERIC_TEXTURE_SAMPLE:
+            dependency = next((item for item in operation.get("resourceDependencies", []) if item.get("resourceKind") == "sampledTexture2D"), None)
+            if dependency is None:
+                raise ContractError("typed IR texture dependency is missing", code="shader.typed_ir.resource.missing", path=f"/typedIR/operations/{node_id}/resourceDependencies")
+            uv = input_expression(operation, "uv")
+            color_name, alpha_name = f"{symbol}_color", f"{symbol}_alpha"
+            body.extend([f"    vec4 {color_name} = texture(sampler2D({dependency['shaderSymbol']}, {dependency['samplerSymbol']}), {uv});", f"    float {alpha_name} = {color_name}.a;"])
+            result_by_output = {"color": color_name, "alpha": alpha_name}
+        elif implementation_id == "vector4.separate_channels":
+            value = input_expression(operation, "vector")
+            for item in outputs:
+                name = output_name(operation, item["socketId"])
+                body.append(f"    float {name} = ({value}).{item['socketId']};")
+                result_by_output[item["socketId"]] = name
+        else:
+            if implementation_id == "vector2.mapping.scale_offset":
+                value = input_expression(operation, "vector")
+                by_id = {key: item.get("value") for key, item in parameters.items()}
+                scale = f"vec2({_hlsl_float(by_id['scaleX'])}, {_hlsl_float(by_id['scaleY'])})"
+                offset = f"vec2({_hlsl_float(by_id['offsetX'])}, {_hlsl_float(by_id['offsetY'])})"
+                expression = f"(({value} * {scale}) + {offset})"
+            elif implementation_id == "float.replicate.rgb_alpha_one":
+                value = input_expression(operation, operation["inputs"][0]["socketId"])
+                expression = f"vec4({value}, {value}, {value}, 1.0)"
+            elif implementation_id == "vector4.extract_x":
+                expression = f"({input_expression(operation, operation['inputs'][0]['socketId'])}).x"
+            elif implementation_id == "vector4.invert.linear_factor":
+                color, factor = input_expression(operation, "color"), input_expression(operation, "factor")
+                expression = f"mix({color}, (vec4(1.0, 1.0, 1.0, 1.0) - {color}), clamp({factor}, 0.0, 1.0))"
+            elif implementation_id == "float.clamp.sorted_bounds":
+                value, minimum, maximum = (input_expression(operation, key) for key in ("value", "minimum", "maximum"))
+                expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
+            elif implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION:
+                factor = input_expression(operation, "factor")
+                color1, color2 = input_expression(operation, "color1"), input_expression(operation, "color2")
+                c1, c2 = f"({color1}).rgb", f"({color2}).rgb"
+                mode = VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION[implementation_id]
+                blend = {"mix": c2, "add": f"({c1} + {c2})", "multiply": f"({c1} * {c2})", "screen": f"(1.0 - (1.0 - {c1}) * (1.0 - {c2}))", "overlay": f"mix(2.0 * {c1} * {c2}, 1.0 - 2.0 * (1.0 - {c1}) * (1.0 - {c2}), step(vec3(0.5), {c1}))", "darken": f"min({c1}, {c2})", "lighten": f"max({c1}, {c2})", "difference": f"abs({c1} - {c2})"}[mode]
+                amount = f"clamp({factor}, 0.0, 1.0)"
+                expression = f"vec4(mix({c1}, {blend}, {amount}), mix(({color1}).a, ({color2}).a, {amount}))"
+            elif implementation_id == "vector4.ramp.linear_stops":
+                factor = input_expression(operation, "factor")
+                stop_parameter = parameters.get("stops")
+                stops = stop_parameter.get("value") if stop_parameter else None
+                if not isinstance(stops, list) or not stops:
+                    raise ContractError("typed IR ramp stops are missing", code="shader.typed_ir.parameter.invalid", path=f"/typedIR/operations/{node_id}/parameters/stops")
+                ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
+                body.append(f"    float {symbol}_factor = clamp({factor}, 0.0, 1.0);")
+                for index, (_, stop) in enumerate(ordered):
+                    body.append(f"    float {symbol}_stop_{index} = clamp({_hlsl_float(stop['position'])}, 0.0, 1.0);")
+                    body.append(f"    vec4 {symbol}_stop_color_{index} = vec4({', '.join(_hlsl_float(lane) for lane in stop['color'])});")
+                body.append(f"    vec4 {symbol}_color = {symbol}_stop_color_0;")
+                for index in range(1, len(ordered)):
+                    prev, current = f"{symbol}_stop_{index - 1}", f"{symbol}_stop_{index}"
+                    body.append(f"    float {symbol}_t_{index} = clamp(({symbol}_factor - {prev}) / max({current} - {prev}, 1e-5), 0.0, 1.0);")
+                    body.append(f"    if ({symbol}_factor >= {prev} && {symbol}_factor < {current}) {symbol}_color = mix({symbol}_stop_color_{index - 1}, {symbol}_stop_color_{index}, {symbol}_t_{index});")
+                body.append(f"    if ({symbol}_factor >= {symbol}_stop_{len(ordered) - 1}) {symbol}_color = {symbol}_stop_color_{len(ordered) - 1};")
+                alpha_name = f"{symbol}_alpha"
+                body.append(f"    float {alpha_name} = {symbol}_color.a;")
+                result_by_output = {"color": f"{symbol}_color", "alpha": alpha_name}
+                for socket_id, expression in result_by_output.items():
+                    expressions[(node_id, socket_id)] = expression
+                continue
+            else:
+                a, b = (input_expression(operation, operation["inputs"][index]["socketId"]) for index in range(2))
+                if implementation_id in {"float.divide.positive_floor_1e5", "vector4.divide.positive_floor_1e5"}:
+                    epsilon = "1e-5" if implementation_id.startswith("float.") else "vec4(1e-5, 1e-5, 1e-5, 1e-5)"
+                    expression = f"({a} / max({b}, {epsilon}))"
+                else:
+                    operator = {"float.add": "+", "float.subtract": "-", "float.multiply": "*", "vector3.add": "+", "vector3.subtract": "-", "vector3.multiply": "*", "vector4.add": "+", "vector4.subtract": "-", "vector4.multiply": "*"}.get(implementation_id)
+                    if operator is None:
+                        raise ContractError(f"GLSL typed IR implementation is unsupported: {implementation_id}", code="lowering.operation.unsupported", path=f"/typedIR/operations/{node_id}/implementationId")
+                    expression = f"({a} {operator} {b})"
+            if len(outputs) != 1 or outputs[0].get("valueType") not in glsl_types:
+                raise ContractError("typed IR operation output is unsupported", code="shader.typed_ir.output.invalid", path=f"/typedIR/operations/{node_id}/outputs")
+            name = output_name(operation, outputs[0]["socketId"])
+            body.append(f"    {glsl_types[outputs[0]['valueType']]} {name} = {expression};")
+            result_by_output[outputs[0]["socketId"]] = name
+        expressions.update({(node_id, socket_id): expression for socket_id, expression in result_by_output.items()})
+
+    root_key = (output.get("nodeId"), output.get("socketId"))
+    if root_key not in expressions:
+        raise ContractError("typed IR selected output is unavailable", code="shader.typed_ir.output.invalid", path="/typedIR/output")
+    body.extend([f"    artifactGraphOutput = {expressions[root_key]};", "}"])
+    for record in context_records.values():
+        record["nodeIds"].sort()
+    source = "\n".join(global_lines + body) + "\n"
+    return source, {"backendId": "vulkan-glsl450-verbatim",
+                    "parameterBlockBinding": {"descriptorSet": 1, "binding": 0} if fields else None,
+                    "resourceBindings": resource_bindings,
+                    "contextBindings": [context_records[key] for key in sorted(context_records)]}
+
+
 def compile_document_from_data(
     document: Any,
     registry: dict[tuple[str, int], Operation],
@@ -4081,38 +4568,7 @@ def compile_document_from_data(
             "byteSize": (parameter_cursor + 15) // 16 * 16,
             "fields": parameter_fields,
         }
-    expressions: dict[tuple[str, str], str] = {}
-    context_bindings_by_key: dict[tuple[str, str], dict[str, Any]] = {}
     typed_ir_operations: list[dict[str, Any]] = []
-    hlsl_lines = []
-    def input_expression(node_id: str, socket_id: str) -> str:
-        producer = writers.get((node_id, socket_id))
-        if producer is not None:
-            return expressions[producer]
-        operation = nodes[node_id]["operation"]
-        socket = next(item for item in operation.inputs if item.socket_id == socket_id)
-        default_value = nodes[node_id]["socketDefaults"].get(socket_id)
-        if socket.required or default_value is None:
-            raise ContractError(
-                f"input {node_id}.{socket_id} has no linked producer or typed default",
-                code="node.input.default_missing", path=f"/nodes/{node_indices[node_id]}/inputs/{_pointer_segment(socket_id)}")
-        if socket.value_type == "Float":
-            return _hlsl_float(default_value)
-        if socket.value_type == "Vector3":
-            return "float3(" + ", ".join(_hlsl_float(value) for value in default_value) + ")"
-        if socket.value_type == "Vector2":
-            raise ContractError(f"input {node_id}.{socket_id} has no Vector2 default contract",
-                                code="socket.default.type.unsupported",
-                                path=f"/nodes/{node_indices[node_id]}/socketDefaults/{_pointer_segment(socket_id)}")
-        return "float4(" + ", ".join(_hlsl_float(value) for value in default_value) + ")"
-
-    if parameter_block is not None:
-        hlsl_lines.append("cbuffer ArtifactGraphParameters {")
-        hlsl_lines.extend(
-            f"    { {'Float32': 'float', 'Vector3F32': 'float3', 'Vector4F32': 'float4'}[field['valueType']] } {field['hlslSymbol']} : packoffset({field['hlslPackOffset']});"
-            for field in parameter_fields
-        )
-        hlsl_lines.append("};")
     for node_id in active_order:
         data = nodes[node_id]
         operation = data["operation"]
@@ -4185,169 +4641,6 @@ def compile_document_from_data(
                 "valueType": context["valueType"],
             }
         typed_ir_operations.append(ir_operation)
-        output_id = operation.outputs[0].socket_id
-        if implementation_id in SOURCE_CONTEXTS:
-            context = SOURCE_CONTEXTS[implementation_id]
-            context_key = (context["contextId"], context["component"])
-            hlsl_expression = context_binding_expressions.get(context_key)
-            if hlsl_expression is None:
-                raise ContractError(f"source context {context_key} has no HLSL adapter binding",
-                                    code="shader.context.binding.unsupported", path=f"/nodes/{node_id}")
-            binding = context_bindings_by_key.setdefault(context_key, {
-                "contextId": context["contextId"],
-                "component": context["component"],
-                "valueType": context["valueType"],
-                "hlslExpression": hlsl_expression,
-                "nodeIds": [],
-            })
-            binding["nodeIds"].append(node_id)
-            expression = hlsl_expression
-        elif implementation_id == "float.constant":
-            parameter_id = operation.parameters[0].parameter_id
-            graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
-            expression = ("P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)
-                          if graph_parameter_id is not None else
-                          _hlsl_float(data["parameters"][parameter_id]))
-        elif implementation_id == "vector4.constant":
-            parameter_id = operation.parameters[0].parameter_id
-            graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
-            if graph_parameter_id is not None:
-                expression = "P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)
-            else:
-                values = data["parameters"][parameter_id]
-                expression = "float4(" + ", ".join(_hlsl_float(value) for value in values) + ")"
-        elif implementation_id == "vector3.constant":
-            parameter_id = operation.parameters[0].parameter_id
-            graph_parameter_id = data["graphParameterBindings"].get(parameter_id)
-            if graph_parameter_id is not None:
-                expression = "P_" + re.sub(r"[^A-Za-z0-9_]", "_", graph_parameter_id)
-            else:
-                values = data["parameters"][parameter_id]
-                expression = "float3(" + ", ".join(_hlsl_float(value) for value in values) + ")"
-        elif implementation_id == "vector2.mapping.scale_offset":
-            value = input_expression(node_id, "vector")
-            parameters = data["parameters"]
-            scale = f"float2({_hlsl_float(parameters['scaleX'])}, {_hlsl_float(parameters['scaleY'])})"
-            offset = f"float2({_hlsl_float(parameters['offsetX'])}, {_hlsl_float(parameters['offsetY'])})"
-            expression = f"(({value} * {scale}) + {offset})"
-        elif implementation_id == "float.replicate.rgb_alpha_one":
-            value = input_expression(node_id, operation.inputs[0].socket_id)
-            expression = f"float4({value}, {value}, {value}, 1.0f)"
-        elif implementation_id == "vector4.extract_x":
-            expression = f"({input_expression(node_id, operation.inputs[0].socket_id)}).x"
-        elif implementation_id == "vector4.separate_channels":
-            vector = input_expression(node_id, operation.inputs[0].socket_id)
-            for channel in operation.outputs:
-                channel_symbol = re.sub(r"[^A-Za-z0-9_]", "_", channel.socket_id)
-                variable = f"{symbol}_{channel_symbol}"
-                hlsl_lines.append(f"float {variable} = ({vector}).{channel.socket_id};")
-                expressions[(node_id, channel.socket_id)] = variable
-            continue
-        elif implementation_id in TEXTURE_SAMPLE_SLOTS:
-            uv = input_expression(node_id, "uv")
-            slot_name, shader_symbol = TEXTURE_SAMPLE_SLOTS[implementation_id]
-            color_symbol = f"{symbol}_color"
-            alpha_symbol = f"{symbol}_alpha"
-            hlsl_lines.extend([
-                f"float4 {color_symbol} = {shader_symbol}.Sample(g_BaseColorSampler, {uv});",
-                f"float {alpha_symbol} = {color_symbol}.a;",
-            ])
-            expressions[(node_id, "color")] = color_symbol
-            expressions[(node_id, "alpha")] = alpha_symbol
-            continue
-        elif implementation_id == GENERIC_TEXTURE_SAMPLE:
-            uv = input_expression(node_id, "uv")
-            resource = canonical_node_resource_references[node_id]
-            resource_suffix = re.sub(r"[^A-Za-z0-9_]", "_", node_id)
-            shader_symbol = f"g_GraphTexture_{resource_suffix}"
-            sampler_symbol = f"g_GraphSampler_{resource_suffix}"
-            color_symbol = f"{symbol}_color"
-            alpha_symbol = f"{symbol}_alpha"
-            hlsl_lines.extend([
-                f"float4 {color_symbol} = {shader_symbol}.Sample({sampler_symbol}, {uv});",
-                f"float {alpha_symbol} = {color_symbol}.a;",
-            ])
-            expressions[(node_id, "color")] = color_symbol
-            expressions[(node_id, "alpha")] = alpha_symbol
-            continue
-        elif implementation_id == "vector4.ramp.linear_stops":
-            factor = input_expression(node_id, "factor")
-            stops = data["parameters"]["stops"]
-            ordered = sorted(enumerate(stops), key=lambda item: (item[1]["position"], item[0]))
-            hlsl_lines.append(f"float {symbol}_factor = saturate({factor});")
-            for stop_index, (_, stop) in enumerate(ordered):
-                hlsl_lines.append(f"float {symbol}_stop_{stop_index} = saturate({_hlsl_float(stop['position'])});")
-                hlsl_lines.append(f"float4 {symbol}_stop_color_{stop_index} = float4({', '.join(_hlsl_float(lane) for lane in stop['color'])});")
-            hlsl_lines.append(f"float4 {symbol}_color = {symbol}_stop_color_0;")
-            for stop_index in range(1, len(ordered)):
-                previous_position = f"{symbol}_stop_{stop_index - 1}"
-                current_position = f"{symbol}_stop_{stop_index}"
-                previous_color = f"{symbol}_stop_color_{stop_index - 1}"
-                current_color = f"{symbol}_stop_color_{stop_index}"
-                local_t = f"{symbol}_t_{stop_index}"
-                hlsl_lines.extend([
-                    f"float {local_t} = saturate(({symbol}_factor - {previous_position}) / max({current_position} - {previous_position}, 1e-5f));",
-                    f"if ({symbol}_factor >= {previous_position} && {symbol}_factor < {current_position}) {symbol}_color = lerp({previous_color}, {current_color}, {local_t});",
-                ])
-            hlsl_lines.append(f"if ({symbol}_factor >= {symbol}_stop_{len(ordered) - 1}) {symbol}_color = {symbol}_stop_color_{len(ordered) - 1};")
-            hlsl_lines.append(f"float {symbol}_alpha = {symbol}_color.a;")
-            expressions[(node_id, "color")] = f"{symbol}_color"
-            expressions[(node_id, "alpha")] = f"{symbol}_alpha"
-            continue
-        elif implementation_id == "vector4.invert.linear_factor":
-            color_value = input_expression(node_id, "color")
-            factor_value = input_expression(node_id, "factor")
-            expression = f"lerp({color_value}, (float4(1.0f, 1.0f, 1.0f, 1.0f) - {color_value}), saturate({factor_value}))"
-        elif implementation_id == "float.clamp.sorted_bounds":
-            value = input_expression(node_id, "value")
-            minimum = input_expression(node_id, "minimum")
-            maximum = input_expression(node_id, "maximum")
-            expression = f"clamp({value}, min({minimum}, {maximum}), max({minimum}, {maximum}))"
-        elif implementation_id in VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION:
-            factor = input_expression(node_id, "factor")
-            color1 = input_expression(node_id, "color1")
-            color2 = input_expression(node_id, "color2")
-            color1_rgb, color2_rgb = f"({color1}).rgb", f"({color2}).rgb"
-            mode = VECTOR4_MIXRGB_MODE_BY_IMPLEMENTATION[implementation_id]
-            blend = {
-                "mix": color2_rgb,
-                "add": f"({color1_rgb} + {color2_rgb})",
-                "multiply": f"({color1_rgb} * {color2_rgb})",
-                "screen": f"(1.0f - (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}))",
-                "overlay": (f"lerp(2.0f * {color1_rgb} * {color2_rgb}, "
-                            f"1.0f - 2.0f * (1.0f - {color1_rgb}) * (1.0f - {color2_rgb}), "
-                            f"step(0.5f, {color1_rgb}))"),
-                "darken": f"min({color1_rgb}, {color2_rgb})",
-                "lighten": f"max({color1_rgb}, {color2_rgb})",
-                "difference": f"abs({color1_rgb} - {color2_rgb})",
-            }[mode]
-            expression = (f"float4(lerp({color1_rgb}, {blend}, saturate({factor})), "
-                          f"lerp(({color1}).a, ({color2}).a, saturate({factor})))")
-        else:
-            a = input_expression(node_id, operation.inputs[0].socket_id)
-            b = input_expression(node_id, operation.inputs[1].socket_id)
-            if implementation_id == "float.divide.positive_floor_1e5":
-                expression = f"({a} / max({b}, 1e-5f))"
-            elif implementation_id == "vector4.divide.positive_floor_1e5":
-                expression = f"({a} / max({b}, float4(1e-5f,1e-5f,1e-5f,1e-5f)))"
-            else:
-                operator = {
-                    "float.add": "+", "float.subtract": "-", "float.multiply": "*",
-                    "vector3.add": "+", "vector3.subtract": "-", "vector3.multiply": "*",
-                    "vector4.add": "+", "vector4.subtract": "-", "vector4.multiply": "*",
-                }[implementation_id]
-                expression = f"({a} {operator} {b})"
-        output_symbol = re.sub(r"[^A-Za-z0-9_]", "_", output_id)
-        variable = f"{symbol}_{output_symbol}"
-        output_type = operation.outputs[0].value_type
-        hlsl_type = {"Float": "float", "Vector2": "float2", "Vector3": "float3", "Vector4": "float4"}[output_type]
-        hlsl_lines.append(f"{hlsl_type} {variable} = {expression};")
-        expressions[(node_id, output_id)] = variable
-
-    for binding in context_bindings_by_key.values():
-        binding["nodeIds"].sort()
-    root_expression = expressions[(output_node, output_socket)]
-    hlsl = "\n".join(hlsl_lines) + f"\nreturn {root_expression};\n"
     active_node_records = []
     for node_id in sorted(active):
         data = nodes[node_id]
@@ -4408,6 +4701,15 @@ def compile_document_from_data(
             }
             for item in sorted(active_graph_parameters, key=lambda item: item["parameterId"])
         ],
+    }
+    hlsl, emitted_context_bindings = emit_hlsl_from_typed_ir(
+        typed_ir,
+        parameter_block,
+        context_bindings=context_binding_expressions,
+    )
+    context_bindings_by_key = {
+        (binding["contextId"], binding["component"]): binding
+        for binding in emitted_context_bindings
     }
     resource_requirements_by_key = {}
     for operation in typed_ir_operations:

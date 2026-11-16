@@ -1,0 +1,29 @@
+{
+  "input": "J:\\dev\\ArtifactStudio\\tests\\ArtifactCore\\fixtures\\walkway-orbit-cc0.mp4",
+  "frames": 24,
+  "models": {
+    "da2s": {
+      "per_frame_normalization": {
+        "frames": 24,
+        "temporal_mean_abs_delta": 0.04393513954204062,
+        "temporal_flow_warped_mean_abs_delta": 0.05289310597531174,
+        "temporal_static_region_mean_abs_delta": 0.005604755447205642,
+        "frame_mean_depth_std": 0.018242767608723096,
+        "frame_mean_depth_range": 0.07314512133598328
+      },
+      "clip_wide_normalization": {
+        "frames": 24,
+        "temporal_mean_abs_delta": 0.04456713811858841,
+        "temporal_flow_warped_mean_abs_delta": 0.05334496773455454,
+        "temporal_static_region_mean_abs_delta": 0.006072314893928073,
+        "frame_mean_depth_std": 0.02024192792596818,
+        "frame_mean_depth_range": 0.08120712637901306
+      },
+      "inference_seconds_median": 1.1242072000022745,
+      "clip_percentiles": {
+        "low": 0.0,
+        "high": 3.0237278556823735
+      }
+    }
+  }
+}

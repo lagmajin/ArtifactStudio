@@ -1,0 +1,165 @@
+{
+  "rd": "rd1",
+  "seed": 20261115,
+  "created": "2026-11-15T18:26:01",
+  "fixtures": {
+    "disc_aa": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "e60b618a9417cf8c16eb68f509059b0b6bbcf3bc7801a817c2a962154e40fc87",
+        "alpha": "a92b29e386e03806e3182d22c168f8f570fac958ee2fc92063aaa2171198ec49",
+        "fg": "c065adc6497df20426eeea0535f954ed4aed289d37da4e971faa15a7d6ac3f0d",
+        "bg": "10632dbf9c9fada62e03bdf2960b0e85cebd72c1ec97526bcb11adcdd554ce0f"
+      }
+    },
+    "hair_strands": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "6f7ea961d17dd842c7a68cde5655f0ba414b47864a2b488d1738c3ef426a0575",
+        "alpha": "600666af99e4d0f85ebf409c56c3803be02648171d6c8336aa6db1a10a0ae7bb",
+        "fg": "54a2b9f22d1794cfd13fa2eb092cc759de0bb947c7dc4cadf7d5ec640a106af0",
+        "bg": "e88817a0d20b0f62ef5079fc20b43f49237c72c0c862def67fcaf61847132f41"
+      }
+    },
+    "glass_panel": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "bf7f72dcbfc7d193fc74cc651d2081ced16205558d9b069a0d452439ff522cf1",
+        "alpha": "5ce1389639ded30ccbab4352c8c0597df012fc6e9a7414507e4d1bfa291b9e43",
+        "fg": "8fa5bc7bd47cbf6c1f2078fa7b2077527dcac3e113949906c221d5bedd0c8f7d",
+        "bg": "413e4d173b9823c553cb7318248e1022edcb6c6d2a0686622936aa32e8e07529"
+      }
+    },
+    "thin_wire": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "4a6d2a4791ff3d05abc4a48905ed4fd3b6ffc2704bcf00ad8e531f0360ff9d76",
+        "alpha": "e8d36eded5b207073d9a872b9fca092e2590fc1f89889dda3da9ae80c0da539f",
+        "fg": "64ecaa45350abf8b3bae425e5f5d6818c9881e88198606acbcb505aa5f1b43a3",
+        "bg": "7f682a5b3f4dd0ce1cd991f1f3b492563ec00f0a8fb2bc3bea7f2f70d08d7001"
+      }
+    },
+    "fur_edge": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "98153ae0848fb7c632887bbf4c609d0f2b15d2171ed88788722d33d34f0490b2",
+        "alpha": "d415b1a4b2ffc266ebdbff890ba443b1048d92dee738384846729f8f08f1776d",
+        "fg": "2bf2d0b36e78f1e60a9c91f81547a4638115aaf82859868b3aafbba52e033199",
+        "bg": "54f71e76367e7722c49c5ff923adb7f7d0f28a7ab183ffd6b6a88a4b4eae7923"
+      }
+    },
+    "soft_shadow": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "03c72f3dcd5a0861d500930a1ded23a4f656f121eb3a9cb0f9e41afe83206063",
+        "alpha": "ec186390f7f632e8b92746629dd4fc7b3e9797928c9407e8a6cbda4947b74294",
+        "fg": "14d6e315e44487d6b3b56e2c3fb8481bbad6db5a75e30cf00e7ee9d265fa9313",
+        "bg": "f0543b729539b13e0193fb5e75d9c4cc770b3684438e0bdf71fc0584dad97eaa"
+      }
+    },
+    "green_screen": {
+      "size": [
+        512,
+        512
+      ],
+      "files": {
+        "image": "aad3f26ae0239e583c1da71327f1008e713fac6d899735cc8fbe484307cc13ad",
+        "alpha": "bb327b811abf8c3e69b0f3652eeff2c06f0db43b0ef3d1014c7b919cc13255d6",
+        "fg": "db71af27c99b680b152485704dbeda06a8a8a85bd196c44df84606948e29cfed",
+        "bg": "47fff8d43a845bd173c75c74b9e846e184c7f016b43353a917ac590095ee6ba9"
+      }
+    },
+    "photo_composite": {
+      "size": [
+        640,
+        640
+      ],
+      "files": {
+        "image": "573718004f28c69cad37cca656675413e2ba9308ce7b7b1f43e0777f6a552282",
+        "alpha": "2ec2c3c5e865c28d981f4a4d94e94db5f2ce06ad23e74f88bcf2cd5c110cefb1",
+        "fg": "e88114c4be8455ded8dfa34cf75eaf444c5fc53ca9694a48f5f3fdfd98cc3be7",
+        "bg": "e18dc38daf95399dedd40a6dd1959b5f23aa66277efbc818f4fae6dbba740f74"
+      }
+    }
+  },
+  "candidates": [
+    "chroma_key",
+    "grabcut_gt_trimap",
+    "grabcut_rect",
+    "otsu_luma",
+    "u2net"
+  ],
+  "onnx_models": {
+    "u2net": {
+      "path": "models\\u2net.onnx",
+      "bytes": 175997641,
+      "sha256": "8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491",
+      "preset": "u2net",
+      "input_name": "input.1",
+      "input_shape": [
+        1,
+        3,
+        320,
+        320
+      ],
+      "output_name": "1959",
+      "output_shape": [
+        1,
+        1,
+        320,
+        320
+      ]
+    }
+  },
+  "settings": {
+    "grabcut_iterations": 5,
+    "grabcut_rect_inset_frac": 0.02,
+    "grabcut_trimap_radius_px": 3,
+    "chroma_key_border_px": 8,
+    "band_radius_px": 5,
+    "alpha_space": "straight (unassociated), 0..1 float32, 8-bit sRGB composite",
+    "timing_runs": 3,
+    "source_photo_assets": [
+      "cc0-neon-streets-1536.jpg",
+      "cc0-street-light-night.jpg"
+    ]
+  },
+  "metric_definitions": {
+    "sad": "sum(|pred-gt|)/1000",
+    "mse": "mean((pred-gt)^2)*1000",
+    "gradient": "sum(|grad(pred)-grad(gt)|)/1000, Scharr/32",
+    "connectivity": "sum over 4-neighbour of |d_alpha| * min(1, 1/(|d_colour|+1e-3)) /1000",
+    "band_mae": "mean |pred-gt| over dilate(0<gt<1, 5px)",
+    "translucent_mae": "mean |pred-gt| over 0.05<gt<0.95",
+    "softness": "fraction of pixels with 0.05<pred<0.95",
+    "partial_recall_0p1": "fraction of GT partial pixels (1/255<gt<254/255) with |pred-gt|<=0.1",
+    "composite": "max/mean per-channel error of fg_pred vs fg_gt over gray/green/white, in 8-bit codes"
+  },
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "pillow": "12.2.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "reviewer": "AI agent; independent human visual review not performed",
+  "elapsed_s": 136.94973802566528
+}

@@ -37,10 +37,30 @@ shared parameter values and bindings, typed outputs, and source-context
 identities. The IR contains no HLSL adapter expressions; changing the alternate
 UV host binding changes emitted HLSL without changing this typed record. This
 is an R&D sidecar, not a complete backend-neutral Core contract: resource
-operands, diagnostics,
-provenance separation, and runtime consumers remain open. Its manifest checks
-cover typed producer resolution and type agreement, but are source-defined and
-have not been executed.
+operands, diagnostics, provenance separation, and runtime consumers remain
+open. The prototype now passes this record, parameter-block layout, and explicit
+host context bindings to `emit_hlsl_from_typed_ir`; that function does not accept
+the editable Document, registry, node map, or writer map. Direct candidate
+differential checks found byte-identical HLSL for all 21 persisted fixtures.
+The old inline HLSL lowering has been removed from `compile_document_from_data`,
+leaving typed IR as the only source-generation input in this prototype path. A
+direct mutation probe clears and invalidates the source Document after
+compilation, then re-emits from the saved typed IR, parameter block, and host
+bindings; output remains byte-identical. A separate Vulkan GLSL 4.5 verbatim fragment emitter
+also consumes the same typed IR directly; it generated source for all 21
+persisted candidate graphs without calling the HLSL emitter. All 21 fragments
+compiled with Vulkan 1.2 using `glslangValidator`, and all resulting SPIR-V
+modules passed `spirv-val`. Reproduce the run with
+`python tools/shader_graph_rd/compile_glsl_vulkan_candidates.py`. The compile
+harness injected a host UV input declaration. It also wraps the HLSL body and
+compiles it through DXC to Vulkan SPIR-V. All 21 HLSL/GLSL pairs compiled and
+passed `spirv-val`; disassembled descriptor bindings, parameter offsets, and
+stage interface locations/types match across every pair. This is interface
+agreement, not arithmetic or image parity. Per-file hashes and interface
+details are in `temp/shader-graph-glsl450-compile/summary.json`. Its
+descriptor/register map is still a candidate proposal. Diligent integration
+and GPU validation remain open; the full manifest validator has not been
+executed.
 
 Optional typed input defaults are declared by operation versions, while
 document schema v3 stores an editable Float or Vector4 default per node. Adding

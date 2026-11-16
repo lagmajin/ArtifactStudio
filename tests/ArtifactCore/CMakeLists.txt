@@ -12,6 +12,17 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 30
     )
 
+    artifact_add_test(ArtifactCoreShaderGraphContractTest
+        SOURCES
+            ShaderGraphContractTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreShaderGraphContractTest PROPERTIES
+        LABELS "core;shader-graph;cpu;contract;standalone"
+        TIMEOUT 30
+    )
+
     add_subdirectory(MeshShaderLodStandalone)
 endif()
 

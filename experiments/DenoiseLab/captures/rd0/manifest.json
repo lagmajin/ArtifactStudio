@@ -1,0 +1,290 @@
+{
+ "lab": "DenoiseLab",
+ "rd": "rd0",
+ "date": "2026-11-15",
+ "seed": 20261115,
+ "environment": {
+  "python": "3.14.2",
+  "numpy": "2.4.3",
+  "opencv": "4.13.0",
+  "platform": "Windows-11-10.0.26200-SP0"
+ },
+ "noise_models": {
+  "fine": {
+   "luma_sigma": 5.0,
+   "chroma_sigma": 3.0
+  },
+  "strong": {
+   "luma_sigma": 12.0,
+   "chroma_sigma": 12.0
+  },
+  "lowlight": {
+   "luma_sigma": 20.0,
+   "chroma_sigma": 30.0
+  }
+ },
+ "noise_contract": "channel = clean + N(0, luma_sigma^2) + N(0, chroma_sigma^2) per channel, clipped to 0..255 and rounded to 8-bit",
+ "candidates": {
+  "baseline_raw": {},
+  "median3": {
+   "ksize": 3
+  },
+  "gaussian_s1": {
+   "sigma": 1.0
+  },
+  "bilateral": {
+   "d": 7,
+   "sigma_color": 25.0,
+   "sigma_space": 5.0
+  },
+  "nlm_light": {
+   "h": 4.0,
+   "h_color": 4.0,
+   "template": 7,
+   "search": 15
+  },
+  "nlm_strong": {
+   "h": 10.0,
+   "h_color": 10.0,
+   "template": 7,
+   "search": 21
+  }
+ },
+ "regions": {
+  "step_edge": {
+   "rect": [
+    64,
+    64,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "fine_lines": {
+   "rect": [
+    288,
+    64,
+    240,
+    120
+   ],
+   "pixels": 28800
+  },
+  "text_strokes": {
+   "rect": [
+    552,
+    64,
+    280,
+    120
+   ],
+   "pixels": 33600
+  },
+  "color_edge": {
+   "rect": [
+    856,
+    64,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "flat_dark": {
+   "rect": [
+    1080,
+    64,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "flat_mid": {
+   "rect": [
+    1304,
+    64,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "flat_light": {
+   "rect": [
+    64,
+    208,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "skin_tone": {
+   "rect": [
+    288,
+    208,
+    240,
+    120
+   ],
+   "pixels": 28800
+  },
+  "ramp": {
+   "rect": [
+    552,
+    208,
+    280,
+    120
+   ],
+   "pixels": 33600
+  },
+  "fine_detail": {
+   "rect": [
+    856,
+    208,
+    200,
+    120
+   ],
+   "pixels": 24000
+  },
+  "zone_plate": {
+   "rect": [
+    64,
+    352,
+    600,
+    360
+   ],
+   "pixels": 216000
+  },
+  "flat_colored": {
+   "rect": [
+    700,
+    352,
+    240,
+    200
+   ],
+   "pixels": 48000
+  },
+  "hair_strands": {
+   "rect": [
+    964,
+    352,
+    300,
+    200
+   ],
+   "pixels": 60000
+  }
+ },
+ "fixtures": {
+  "chart": {
+   "file": "fixtures/chart.png",
+   "sha256": "e1de76744a03030ef3b6a3892af27fd0a0c74ed4561436ed6527e1f46d94ad4f"
+  },
+  "photo_neon_streets": {
+   "file": "fixtures/photo_neon_streets.png",
+   "sha256": "9c51bcb513e914faefa5c17870439cab273175f0eee988ef88eae6b80b7adee7"
+  }
+ },
+ "noisy_fixtures": {
+  "chart_fine": {
+   "file": "fixtures/chart_fine.png",
+   "sha256": "ff76549070edf8b3ab34b48cbb16d9eabd000721629f8c53df8e3f55b8429f4e"
+  },
+  "photo_neon_streets_fine": {
+   "file": "fixtures/photo_neon_streets_fine.png",
+   "sha256": "11b8b51e70d689ac6c83b2e674ffb0b233e99cfe1be480170e7e32d89f6e25d8"
+  },
+  "chart_strong": {
+   "file": "fixtures/chart_strong.png",
+   "sha256": "3edeb3665fabb1d37d5c522fbb3981b9be7044a42163bc4ec0a6b4b0e9178b0e"
+  },
+  "photo_neon_streets_strong": {
+   "file": "fixtures/photo_neon_streets_strong.png",
+   "sha256": "87b18c6a05d144ab8233582bac8fea0ade9ccfb68fb329f1b12c2c9c5ff628b2"
+  },
+  "chart_lowlight": {
+   "file": "fixtures/chart_lowlight.png",
+   "sha256": "827750b31088ab3379d3d6ad8bf306cf6e029eb19104528948904c8e3a8add83"
+  },
+  "photo_neon_streets_lowlight": {
+   "file": "fixtures/photo_neon_streets_lowlight.png",
+   "sha256": "d1651c17c32410ab5c033c8b4cef11bed2df88402058b2cd78ce4b02f5752cf5"
+  }
+ },
+ "timings_ms": {
+  "fine": {
+   "baseline_raw": {
+    "chart": 0.68,
+    "photo_neon_streets": 0.63
+   },
+   "median3": {
+    "chart": 1.01,
+    "photo_neon_streets": 1.08
+   },
+   "gaussian_s1": {
+    "chart": 1.01,
+    "photo_neon_streets": 1.27
+   },
+   "bilateral": {
+    "chart": 6.22,
+    "photo_neon_streets": 5.84
+   },
+   "nlm_light": {
+    "chart": 225.63,
+    "photo_neon_streets": 224.77
+   },
+   "nlm_strong": {
+    "chart": 444.95,
+    "photo_neon_streets": 441.94
+   }
+  },
+  "strong": {
+   "baseline_raw": {
+    "chart": 0.68,
+    "photo_neon_streets": 0.7
+   },
+   "median3": {
+    "chart": 1.11,
+    "photo_neon_streets": 1.01
+   },
+   "gaussian_s1": {
+    "chart": 0.96,
+    "photo_neon_streets": 1.04
+   },
+   "bilateral": {
+    "chart": 5.87,
+    "photo_neon_streets": 5.72
+   },
+   "nlm_light": {
+    "chart": 229.23,
+    "photo_neon_streets": 227.17
+   },
+   "nlm_strong": {
+    "chart": 449.75,
+    "photo_neon_streets": 443.58
+   }
+  },
+  "lowlight": {
+   "baseline_raw": {
+    "chart": 0.66,
+    "photo_neon_streets": 0.71
+   },
+   "median3": {
+    "chart": 1.04,
+    "photo_neon_streets": 1.02
+   },
+   "gaussian_s1": {
+    "chart": 0.97,
+    "photo_neon_streets": 1.07
+   },
+   "bilateral": {
+    "chart": 5.92,
+    "photo_neon_streets": 5.9
+   },
+   "nlm_light": {
+    "chart": 228.03,
+    "photo_neon_streets": 231.44
+   },
+   "nlm_strong": {
+    "chart": 442.78,
+    "photo_neon_streets": 450.94
+   }
+  }
+ },
+ "human_visual_review": "not performed (AI agent run only)",
+ "review_sheets": "review/<case>/<noise>/<candidate>.png \u2014 clean | noisy | candidate, nearest x3 (display only)"
+}
