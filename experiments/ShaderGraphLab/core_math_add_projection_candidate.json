@@ -117,7 +117,9 @@
       "math_outer"
     ],
     "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
-    "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision"
+    "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
+    "unsupportedRoughnessMathOperation": "legacy.node.operation.unsupported",
+    "clampedRoughnessMath": "legacy.node.operation.unsupported"
   },
   "nestedAddProjection": {
     "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",
@@ -364,21 +366,29 @@
     ]
   },
   "dynamicRoughnessUvProjection": {
-    "sourceFixture": "tests/fixtures/shader-graph-rd/texcoord_roughness.json",
-    "sourceSha256": "CF9B5BF3E4AFA7ECFEFA7CF61EA21AF995FC2F28519A58948428CD995BA7D940",
+    "sourceFixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
+    "sourceSha256": "B8DB6765A8E7BE987925BB76B6E312DAF267E4C12B19E9E48AC9187CA0E0FB8F",
     "selectedLegacyInput": {
       "nodeId": "surface",
       "socketId": "Roughness"
     },
     "includedNodeIds": [
-      "uv"
+      "uv",
+      "gain",
+      "scale",
+      "bias",
+      "roughness"
     ],
     "excludedNodeIds": [
       "surface",
       "output"
     ],
     "layoutProvenance": {
-      "uv": "deterministic-rd-canvas-projection"
+      "uv": "deterministic-rd-canvas-projection",
+      "gain": "deterministic-rd-canvas-projection",
+      "scale": "deterministic-rd-canvas-projection",
+      "bias": "deterministic-rd-canvas-projection",
+      "roughness": "deterministic-rd-canvas-projection"
     },
     "document": {
       "schemaVersion": 1,
@@ -393,16 +403,101 @@
             "x": 0.0,
             "y": 0.0
           }
+        },
+        {
+          "nodeId": "gain",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.5
+          },
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "scale",
+          "operationId": "artifact.rd.math.multiply.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 440.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "bias",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.125
+          },
+          "layout": {
+            "x": 660.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "roughness",
+          "operationId": "artifact.rd.math.add.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 880.0,
+            "y": 0.0
+          }
         }
       ],
-      "links": [],
+      "links": [
+        {
+          "from": {
+            "nodeId": "uv",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "scale",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "gain",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "scale",
+            "socketId": "b"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "scale",
+            "socketId": "result"
+          },
+          "to": {
+            "nodeId": "roughness",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "bias",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "roughness",
+            "socketId": "b"
+          }
+        }
+      ],
       "output": {
-        "nodeId": "uv",
-        "socketId": "value"
+        "nodeId": "roughness",
+        "socketId": "result"
       }
     },
-    "candidateHlslBodySha256": "8E0868CD39C05D87E3E87AF09A648DBD395CE29B6CA0D9DCC658095A45C97D9B",
-    "candidateHlslBody": "float n_uv_value = In.UV.x;\nreturn n_uv_value;\n",
+    "candidateHlslBodySha256": "264EC4FCB9E23EC87526DB2FC6E1CE70FE9545627787158DA7F2184A26073C5B",
+    "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = 0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value * n_gain_value);\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
     "outputType": "Float",
     "contextBindings": [
       {
@@ -415,40 +510,41 @@
         ]
       }
     ],
-    "coreSourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+    "coreSourceAdapter": "Core Math is componentwise float4; Vector2/Value conversion preserves x for Roughness",
+    "graphFormula": "f32(f32(uv0.x * 0.5) + 0.125)",
     "numericCases": [
       {
         "uv0X": -0.25,
-        "expectedBinary32": -0.25
-      },
-      {
-        "uv0X": 0.0,
         "expectedBinary32": 0.0
       },
       {
-        "uv0X": 0.125,
+        "uv0X": 0.0,
         "expectedBinary32": 0.125
       },
       {
+        "uv0X": 0.125,
+        "expectedBinary32": 0.1875
+      },
+      {
         "uv0X": 0.5,
-        "expectedBinary32": 0.5
+        "expectedBinary32": 0.375
       },
       {
         "uv0X": 1.0,
-        "expectedBinary32": 1.0
+        "expectedBinary32": 0.625
       },
       {
         "uv0X": 1.75,
-        "expectedBinary32": 1.75
+        "expectedBinary32": 1.0
       }
     ]
   },
   "limitations": [
-    "read-only projection of the explicitly selected Principled BaseColor or direct UV-driven Roughness input only",
-    "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
+    "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
+    "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Multiply Roughness lane",
     "does not infer or perform any other legacy implicit numeric conversion",
     "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
-    "Roughness accepts only direct TexCoord.UV and projects the source-audited Vector2.x conversion to UV0.x",
+    "Roughness accepts only TexCoord.UV, Value, and unclamped legacy Math Add/Multiply in the selected Float lane",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

@@ -4885,58 +4885,142 @@ def project_legacy_core_material_input(
     target_sources = incoming.get((target_node_id, target_input_socket), [])
     if target_input_socket == "Roughness":
         if len(target_sources) != 1:
-            raise ContractError("legacy Roughness projection requires exactly one UV source",
+            raise ContractError("legacy Roughness projection requires exactly one source",
                                 code="legacy.link.cardinality.invalid",
                                 path=f"/nodes/{target_node_id}/inputs/{target_input_socket}")
-        source_id, source_socket = target_sources[0]
-        uv_node = node_by_id.get(source_id)
-        if uv_node is None:
-            raise ContractError("legacy link references a missing node",
-                                code="legacy.link.endpoint.missing", path="/links")
-        uv_params = uv_node.get("params", {})
-        if (uv_node.get("type") != "TexCoord" or source_socket != "UV" or
-                not isinstance(uv_params, dict) or uv_params):
-            raise ContractError("Roughness projection supports only an unparameterized TexCoord.UV source",
+        root_id, root_socket = target_sources[0]
+        dependency_socket: dict[str, str] = {root_id: root_socket}
+
+        def roughness_inputs(node_id: str) -> tuple[str, ...]:
+            node = node_by_id.get(node_id)
+            if node is None:
+                raise ContractError("legacy link references a missing node",
+                                    code="legacy.link.endpoint.missing", path="/links")
+            params = node.get("params", {})
+            if not isinstance(params, dict):
+                raise ContractError("legacy node params must be an object",
+                                    code="legacy.node.parameters.invalid",
+                                    path=f"/nodes/{node_id}/params")
+            socket = dependency_socket[node_id]
+            if node.get("type") == "TexCoord" and socket == "UV" and not params:
+                return ()
+            if node.get("type") == "Value" and socket == "Value":
+                return ()
+            if node.get("type") == "Math" and socket == "Value":
+                operation = params.get("op", 0)
+                if isinstance(operation, bool) or operation not in (0, 2):
+                    raise ContractError("Roughness projection supports only legacy Math Add and Multiply",
+                                        code="legacy.node.operation.unsupported",
+                                        path=f"/nodes/{node_id}/params/op")
+                clamp_result = params.get("clamp", False)
+                if not isinstance(clamp_result, bool) or clamp_result:
+                    raise ContractError("clamped legacy Math has no matching typed operation",
+                                        code="legacy.node.operation.unsupported",
+                                        path=f"/nodes/{node_id}/params/clamp")
+                return ("A", "B")
+            raise ContractError("legacy node/socket is outside the Roughness projection lane",
                                 code="legacy.node.operation.unsupported",
-                                path=f"/nodes/{source_id}")
-        layout: dict[str, float] = {}
-        layout_source = "deterministic-rd-canvas-projection"
-        if "x" in uv_node and "y" in uv_node:
-            layout = {
-                "x": _f32(uv_node["x"], "legacy layout x",
-                          path=f"/nodes/{source_id}/x", code="legacy.layout.invalid"),
-                "y": _f32(uv_node["y"], "legacy layout y",
-                          path=f"/nodes/{source_id}/y", code="legacy.layout.invalid"),
-            }
-            layout_source = "legacy"
+                                path=f"/nodes/{node_id}")
+
+        ordered_ids: list[str] = []
+        visited: set[str] = set()
+        visiting: set[str] = {root_id}
+        stack: list[tuple[str, int, tuple[str, ...]]] = [
+            (root_id, 0, roughness_inputs(root_id))]
+        while stack:
+            node_id, input_index, sockets = stack[-1]
+            if input_index == len(sockets):
+                stack.pop()
+                visiting.remove(node_id)
+                visited.add(node_id)
+                ordered_ids.append(node_id)
+                continue
+            socket = sockets[input_index]
+            stack[-1] = (node_id, input_index + 1, sockets)
+            sources = incoming.get((node_id, socket), [])
+            if len(sources) != 1:
+                raise ContractError("legacy Roughness math inputs require exactly one source",
+                                    code="legacy.link.cardinality.invalid",
+                                    path=f"/nodes/{node_id}/inputs/{socket}")
+            dependency_id, dependency_output = sources[0]
+            dependency = node_by_id.get(dependency_id)
+            if dependency is None:
+                raise ContractError("legacy link references a missing node",
+                                    code="legacy.link.endpoint.missing", path="/links")
+            dependency_socket[dependency_id] = dependency_output
+            if dependency_id in visiting:
+                raise ContractError("legacy Roughness projection contains a cycle",
+                                    code="legacy.graph.cycle", path=f"/nodes/{dependency_id}")
+            if dependency_id not in visited:
+                visiting.add(dependency_id)
+                stack.append((dependency_id, 0, roughness_inputs(dependency_id)))
+
+        projected_nodes: list[dict[str, Any]] = []
+        projected_links: list[dict[str, dict[str, str]]] = []
+        layout_provenance: dict[str, str] = {}
+        for index, node_id in enumerate(ordered_ids):
+            node = node_by_id[node_id]
+            params = node.get("params", {})
+            node_type = node["type"]
+            if node_type == "TexCoord":
+                operation_id, semantic_parameters = "artifact.input.texcoord.uv0.x", {}
+            elif node_type == "Value":
+                operation_id = "artifact.rd.constant.float32"
+                semantic_parameters = {
+                    "value": _f32(params.get("value", 0.0), "legacy Value value",
+                                  path=f"/nodes/{node_id}/params/value",
+                                  code="legacy.parameter.invalid")}
+            else:
+                operation_id = ("artifact.rd.math.add.float32" if params.get("op", 0) == 0
+                                else "artifact.rd.math.multiply.float32")
+                semantic_parameters = {}
+                for old_socket, new_socket in (("A", "a"), ("B", "b")):
+                    source_id, source_socket = incoming[(node_id, old_socket)][0]
+                    source_type = node_by_id[source_id]["type"]
+                    projected_links.append({
+                        "from": {"nodeId": source_id, "socketId": "result" if
+                                 source_type == "Math" else "value"},
+                        "to": {"nodeId": node_id, "socketId": new_socket},
+                    })
+            if "x" in node and "y" in node:
+                layout = {
+                    "x": _f32(node["x"], "legacy layout x",
+                              path=f"/nodes/{node_id}/x", code="legacy.layout.invalid"),
+                    "y": _f32(node["y"], "legacy layout y",
+                              path=f"/nodes/{node_id}/y", code="legacy.layout.invalid"),
+                }
+                layout_provenance[node_id] = "legacy"
+            else:
+                layout = {"x": float(index * 220), "y": 0.0}
+                layout_provenance[node_id] = "deterministic-rd-canvas-projection"
+            projected_nodes.append({
+                "nodeId": node_id, "operationId": operation_id,
+                "semanticVersion": 1, "parameters": semantic_parameters,
+                "layout": layout,
+            })
         projected_document = {
             "schemaVersion": 1,
             "kind": "artifact-shader-graph-rd-document",
-            "nodes": [{
-                "nodeId": source_id,
-                "operationId": "artifact.input.texcoord.uv0.x",
-                "semanticVersion": 1,
-                "parameters": {},
-                "layout": layout or {"x": 0.0, "y": 0.0},
-            }],
-            "links": [],
-            "output": {"nodeId": source_id, "socketId": "value"},
+            "nodes": projected_nodes,
+            "links": projected_links,
+            "output": {"nodeId": root_id, "socketId":
+                       "value" if node_by_id[root_id]["type"] in ("TexCoord", "Value")
+                       else "result"},
         }
         compile_document_from_data(
             projected_document, registry,
             hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
-        included = [source_id]
         return {
             "status": "read-only-projection",
             "sourceSha256": hashlib.sha256(source_json.encode("utf-8")).hexdigest().upper(),
             "opaqueSourceJson": source_json,
             "selectedLegacyInput": {"nodeId": target_node_id,
                                      "socketId": target_input_socket},
-            "includedNodeIds": included,
-            "excludedNodeIds": [node_id for node_id in node_by_id if node_id not in included],
-            "layoutProvenance": {source_id: layout_source},
+            "includedNodeIds": ordered_ids,
+            "excludedNodeIds": [node_id for node_id in node_by_id if node_id not in visited],
+            "layoutProvenance": layout_provenance,
             "document": projected_document,
-            "sourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+            "sourceAdapter": "Core Math is componentwise float4; Vector2/Value conversion preserves x for Roughness",
         }
     if not target_sources:
         if target_input_socket != "BaseColor":

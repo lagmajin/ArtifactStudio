@@ -686,6 +686,13 @@
       "runtimeStatus": "source-adapter-and-vulkan-compiler-probe-only-no-gpu-execution"
     },
     {
+      "file": "texcoord_math_roughness.json",
+      "sha256": "B8DB6765A8E7BE987925BB76B6E312DAF267E4C12B19E9E48AC9187CA0E0FB8F",
+      "class": "legacy-material-dynamic-math-projection",
+      "purpose": "TexCoord.UV through unclamped legacy Math Multiply and Add into Principled Roughness",
+      "runtimeStatus": "read-only-adapter-and-vulkan-compiler-probe-only-no-gpu-execution"
+    },
+    {
       "file": "math_add.json",
       "sha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
       "class": "positive-math-operation",
@@ -1313,11 +1320,12 @@
     },
     {
       "fixtures": [
-        "texcoord_roughness.json"
+        "texcoord_roughness.json",
+        "texcoord_math_roughness.json"
       ],
-      "cpuContract": "legacy-UV0-x-to-Principled-Roughness-typed-projection",
+      "cpuContract": "legacy-UV0-x-through-Math-to-Principled-Roughness-typed-projection",
       "runtimeRoute": null,
-      "runtimeComparison": "Vulkan 1.2 GLSL/HLSL dynamic input compile, optimized SPIR-V validation, and interface comparison; no GPU execution",
+      "runtimeComparison": "Direct UV and UV-driven Multiply/Add projections; Vulkan 1.2 GLSL/HLSL dynamic input compile, optimized SPIR-V numeric comparison and interface comparison; no GPU execution",
       "evidenceState": "compiler-probe-passed-runtime-unverified"
     }
   ],
@@ -6924,7 +6932,7 @@
           "limitations": "the schema-v4 document is adapted into a schema-v1 registry document that retains generic node resourceReference fields and the resourceId-to-Asset-UUID table; this remains a prototype document contract, is not production editor persistence, HLSL is an uncompiled candidate, and no GPU identity or sampling is measured"
         },
         "runtimeStatus": "schema-v4 source adapter supports explicit UV0→Vector2 Mapping→generic Image Texture projection into the dynamic registry; the primary two-image fixture remains direct-UV; the project loader, shader compiler, image sampling, Core integration, and GPU runtime are unverified",
-        "dynamicResolverPrototypeSha256": "F525764CBB5B331848FFA52AAC1E6785C31B15501FBDA49199CB369A914B0156",
+        "dynamicResolverPrototypeSha256": "411C19E531D98281DC69FAC9F4B8EA81F209B3B99555CB2632FED93CAFDA4E0D",
         "dynamicRegistrySha256": "11864AAB77B3D43EBADB08BA9C2416462CF9EA421FC9572A170243B9343F4F15",
         "mappedUvDocumentFixture": "tests/fixtures/shader-graph-rd/generic_image_mapping_proposal.json",
         "mappedUvDocumentSha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
@@ -6963,7 +6971,7 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "431B50A105D664FDCBD1F566DFD3624638A5874757ADDC9A6620B1D58DD90A09",
+          "candidateSha256": "25BCB30A008DA6A37E6FE751436CC86BE722AC98B4EAF1D2597E4D9818995509",
           "candidateCases": [
             "base_color_add",
             "nested_add",
@@ -6975,12 +6983,12 @@
           "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
           "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution",
           "dynamicInput": {
-            "fixture": "tests/fixtures/shader-graph-rd/texcoord_roughness.json",
+            "fixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
             "targetInputSocket": "Roughness",
-            "sourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+            "sourceAdapter": "Core componentwise Math(Add,Multiply); Vector2/Value conversion preserves x for Roughness",
             "candidateProperty": "dynamicRoughnessUvProjection",
             "runtimeStatus": "dynamic-hlsl-and-glsl-input-compiled-and-interface-matched-no-gpu-execution",
-            "numericOracle": "six UV0.x values specialized in both frontends, spirv-opt -O, and exact binary32 scalar output comparison against candidate numericCases",
+            "numericOracle": "six UV0.x values specialized in both frontends, spirv-opt -O, and exact binary32 scalar output comparison against f32(f32(UV0.x * 0.5) + 0.125)",
             "sampleUv0X": [
               -0.25,
               0.0,
@@ -6991,8 +6999,8 @@
             ],
             "rendererEpilogue": {
               "coreSourceExpression": "roughness = clamp(graphRoughness, 0.04f, 1.0f);",
-              "glslExpression": "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);",
-              "hlslExpression": "return clamp(n_uv_value, 0.04f, 1.0f);",
+              "glslExpression": "artifactGraphOutput = clamp(n_roughness_result, 0.04, 1.0);",
+              "hlslExpression": "return clamp(n_roughness_result, 0.04f, 1.0f);",
               "sampleUv0X": [
                 -0.25,
                 0.0,
@@ -7001,7 +7009,7 @@
                 1.0,
                 1.75
               ],
-              "numericOracle": "clamp(raw UV0.x, binary32(0.04), 1.0); exact binary32 scalar output after spirv-opt -O in each frontend",
+              "numericOracle": "clamp(f32(f32(UV0.x * 0.5) + 0.125), binary32(0.04), 1.0); exact binary32 scalar output after spirv-opt -O",
               "status": "source-audited-renderer-epilogue-compiled-no-gpu-execution"
             }
           },

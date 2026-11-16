@@ -337,12 +337,16 @@ def main() -> int:
         })
         print(f"{uv_stem} sample[{value}]: {'PASS' if sample_passed else 'FAIL'}")
     records[-1]["numericSpecializations"] = uv_numeric_cases
+    glsl_output_match = re.search(r"artifactGraphOutput = (.+);", glsl_uv)
+    hlsl_output_match = re.search(r"return (.+);", hlsl_uv)
+    if glsl_output_match is None or hlsl_output_match is None:
+        raise RuntimeError("dynamic projection output expression could not be located")
     roughness_glsl = glsl_uv.replace(
-        "artifactGraphOutput = n_uv_value;",
-        "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);")
+        glsl_output_match.group(0),
+        f"artifactGraphOutput = clamp({glsl_output_match.group(1)}, 0.04, 1.0);")
     roughness_hlsl = hlsl_uv.replace(
-        "return n_uv_value;",
-        "return clamp(n_uv_value, 0.04f, 1.0f);")
+        hlsl_output_match.group(0),
+        f"return clamp({hlsl_output_match.group(1)}, 0.04f, 1.0f);")
     if roughness_glsl == glsl_uv or roughness_hlsl == hlsl_uv:
         raise RuntimeError("Core Roughness clamp epilogue was not inserted")
     roughness_samples = []
@@ -372,8 +376,8 @@ def main() -> int:
         print(f"Core roughness clamp UV0.x={value}: {'PASS' if sample_passed else 'FAIL'}")
     records[-1]["coreRoughnessEpilogue"] = {
         "sourceContract": "roughness = clamp(graphRoughness, 0.04f, 1.0f);",
-        "glslExpression": "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);",
-        "hlslExpression": "return clamp(n_uv_value, 0.04f, 1.0f);",
+        "glslExpression": roughness_glsl.splitlines()[-1],
+        "hlslExpression": roughness_hlsl.splitlines()[-1],
         "numericSpecializations": roughness_samples,
         "status": "passed" if all(item["status"] == "passed" for item in roughness_samples)
                   else "failed",

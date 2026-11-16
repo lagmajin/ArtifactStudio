@@ -150,7 +150,7 @@ def main() -> int:
     else:
         raise RuntimeError("legacy generated default-node ID collision was not rejected")
 
-    uv_source_path = fixture_root / "texcoord_roughness.json"
+    uv_source_path = fixture_root / "texcoord_math_roughness.json"
     uv_source_json = uv_source_path.read_text(encoding="utf-8")
     uv_projection = prototype.project_legacy_core_material_input(
         uv_source_json, registry, target_node_id="surface",
@@ -158,11 +158,43 @@ def main() -> int:
     uv_compiled = prototype.compile_document_from_data(
         uv_projection["document"], registry,
         hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
-    if (uv_projection["includedNodeIds"] != ["uv"] or
+    expected_uv_math_hlsl = (
+        "float n_bias_value = 0.125f;\n"
+        "float n_gain_value = 0.5f;\n"
+        "float n_uv_value = In.UV.x;\n"
+        "float n_scale_result = (n_uv_value * n_gain_value);\n"
+        "float n_roughness_result = (n_scale_result + n_bias_value);\n"
+        "return n_roughness_result;\n")
+    if (uv_projection["includedNodeIds"] != ["uv", "gain", "scale", "bias", "roughness"] or
             uv_compiled["outputType"] != "Float" or
-            "float n_uv_value = In.UV.x;" not in uv_compiled["hlslBody"]):
-        raise RuntimeError("legacy TexCoord.UV did not project to dynamic UV0.x for Roughness")
+            uv_compiled["hlslBody"] != expected_uv_math_hlsl):
+        raise RuntimeError("legacy UV-driven Math chain did not project to dynamic Roughness")
     uv_sample_values = (-0.25, 0.0, 0.125, 0.5, 1.0, 1.75)
+
+    unsupported_roughness_source = json.loads(uv_source_json)
+    next(node for node in unsupported_roughness_source["nodes"]
+         if node["id"] == "scale")["params"]["op"] = 1
+    try:
+        prototype.project_legacy_core_material_input(
+            json.dumps(unsupported_roughness_source), registry,
+            target_node_id="surface", target_input_socket="Roughness")
+    except prototype.ContractError as error:
+        if error.code != "legacy.node.operation.unsupported":
+            raise RuntimeError(f"unsupported Roughness Math op returned {error.code}")
+    else:
+        raise RuntimeError("unsupported Roughness Math operation was not rejected")
+    clamped_roughness_source = json.loads(uv_source_json)
+    next(node for node in clamped_roughness_source["nodes"]
+         if node["id"] == "scale")["params"]["clamp"] = True
+    try:
+        prototype.project_legacy_core_material_input(
+            json.dumps(clamped_roughness_source), registry,
+            target_node_id="surface", target_input_socket="Roughness")
+    except prototype.ContractError as error:
+        if error.code != "legacy.node.operation.unsupported":
+            raise RuntimeError(f"clamped Roughness Math returned {error.code}")
+    else:
+        raise RuntimeError("clamped Roughness Math was not rejected")
 
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
@@ -206,6 +238,8 @@ def main() -> int:
             "nestedAddIncludedNodeIds": nested_projection["includedNodeIds"],
             "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
             "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
+            "unsupportedRoughnessMathOperation": "legacy.node.operation.unsupported",
+            "clampedRoughnessMath": "legacy.node.operation.unsupported",
         },
         "nestedAddProjection": {
             "sourceSha256": hashlib.sha256(nested_json.encode("utf-8")).hexdigest().upper(),
@@ -246,17 +280,19 @@ def main() -> int:
             "outputType": uv_compiled["outputType"],
             "contextBindings": uv_compiled["contextBindings"],
             "coreSourceAdapter": uv_projection["sourceAdapter"],
+            "graphFormula": "f32(f32(uv0.x * 0.5) + 0.125)",
             "numericCases": [
-                {"uv0X": value, "expectedBinary32": f32(value)}
+                {"uv0X": value,
+                 "expectedBinary32": f32(f32(f32(value) * f32(0.5)) + f32(0.125))}
                 for value in uv_sample_values
             ],
         },
         "limitations": [
-            "read-only projection of the explicitly selected Principled BaseColor or direct UV-driven Roughness input only",
-            "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
+            "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
+            "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and a selected TexCoord/Value/unclamped Math Add/Multiply Roughness lane",
             "does not infer or perform any other legacy implicit numeric conversion",
             "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
-            "Roughness accepts only direct TexCoord.UV and projects the source-audited Vector2.x conversion to UV0.x",
+            "Roughness accepts only TexCoord.UV, Value, and unclamped legacy Math Add/Multiply in the selected Float lane",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",
