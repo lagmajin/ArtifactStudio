@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-16 14:10
+> Generated: 2026-11-16 14:28
 > Total documents: 1509
 
 ---
@@ -632,7 +632,7 @@
 | 16 | `docs/planned/FEATURE_EFFECT_LEVEL_MASK_2026-07-02.md` | エフェクト単位の個別マスク設定 | 2026-07-02 | ** 実装済み・実機未確認 | 2026-07-14 | 3.8 KB | FEATURE, EFFECT, LEVEL, MASK |
 | 17 | `docs/planned/GROUP_CONTAINER_MIGRATION_PLAN_2026-08-27.md` | GroupContainer 移行計画 | 2026-08-27 | Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示・switch列まで部分実装。展開状態の永続化は追加実装。Render Boundary移行は未着手 | 2026-10-01 | 10.2 KB | GROUP, CONTAINER, MIGRATION, PLAN |
 | 18 | `docs/planned/HIEROPLAYER_VIEWER_INSPECTION_PRESTUDY_2026-09-26.md` | HieroPlayer 由来「Viewer Inspection Controls」導入前検討 | 2026-09-26 | 導入前検討（コード変更なし・ビルド未実施） | 2026-09-26 | 17.9 KB | HIEROPLAYER, VIEWER, INSPECTION, PRESTUDY |
-| 19 | `docs/planned/IMAGE_RND_PRIORITY_PORTFOLIO_2026-11-16.md` | 新規画像R&D 優先候補ポートフォリオ | 2026-11-16 | In Progress（指定9候補の既存実装を棚卸し。共通fixture suiteとobject removal初期計測を作成。残りの候補別比較は未完了） | --- | 3.9 KB | IMAGE, RND, PRIORITY, PORTFOLIO |
+| 19 | `docs/planned/IMAGE_RND_PRIORITY_PORTFOLIO_2026-11-16.md` | 新規画像R&D 優先候補ポートフォリオ | 2026-11-16 | 初期一巡完了（指定9候補の既存実装監査、offline reference・既存studyの代表実行とhash記録を用意。品質 gate・製品受入は未実施） | 2026-11-16 | 6.8 KB | IMAGE, RND, PRIORITY, PORTFOLIO |
 | 20 | `docs/planned/IMPLEMENTATION_ANIMATION_PHYSICS_2026-03-22.md` | Animation-Style Physics for Layer Transforms — Implementation Proposal | 2026-03-22 | --- | 2026-03-22 | 13.3 KB | IMPLEMENTATION, ANIMATION, PHYSICS |
 | 21 | `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-02.md` | Implementation Plan: Multi-Viewport Layout System (M-VP-1) | 2026-06-02 | --- | 2026-06-02 | 16.3 KB | IMPLEMENTATION, PLAN, MULTI, VIEWPORT |
 | 22 | `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-27.md` | Implementation Plan: Multi-Viewport Layout System (M-VP-1) | 2026-06-27 | --- | 2026-07-25 | 17.8 KB | IMPLEMENTATION, PLAN, MULTI, VIEWPORT |
@@ -1232,7 +1232,7 @@
 | 616 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-08-16 | 5.1 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 617 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-08-16 | 8.0 KB | SETTINGS, SEARCH, FILTER |
 | 618 | `docs/planned/MILESTONE_SHADER_GRAPH_R2_RUNTIME_PARITY_2026-11-15.md` | Shader Graph R2 — Runtime / Backend / Performance Parity | 2026-11-15 | 契約テスト実行済み。テスト側誤り 3 件 + 実バグ 4 件を修正（matFloatLit / FailedLoad / SanitizedNodeIdentifiers / ColorRamp 2 件）。残り 12 件は既知ギャップの expected failure | 2026-11-16 | 12.7 KB | SHADER, GRAPH, RUNTIME, PARITY |
-| 619 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 218.7 KB | SHADER, GRAPH, RND |
+| 619 | `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md` | Blender-style Shader Graph R&D | 2026-11-16 | In Progress | 2026-11-16 | 222.3 KB | SHADER, GRAPH, RND |
 | 620 | `docs/planned/MILESTONE_SHAPE_DIFFERENTIATION_CONSIDERATIONS_2026-09-10.md` | Shape Differentiation: 検討案 (AE弱点の残り) | 2026-09-10 | --- | 2026-09-10 | 2.6 KB | SHAPE, DIFFERENTIATION, CONSIDERATIONS |
 | 621 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-08-04 | In Progress（Core生成とArtifactの型・描画・JSON・作成ツール・汎用SVG経路を接続。専用パラメータの完全分離とruntime検証は未完了） | 2026-11-10 | 13.4 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 622 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | In Progress | 2026-10-02 | 5.9 KB | SHAPE, LAYERS |

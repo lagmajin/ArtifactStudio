@@ -157,6 +157,8 @@ def main() -> int:
         "schemaVersion": 1, "status": "passed" if passed else "failed",
         "targetEnvironment": "vulkan1.2", "sourceFixture": fixture_path.relative_to(root).as_posix(),
         "sourceSha256": sha256(fixture_bytes), "outputType": compiled["outputType"],
+        "semanticHashSha256": compiled["semanticHashSha256"],
+        "hlslBodySha256": compiled["hlslBodySha256"],
         "hlslBody": compiled["hlslBody"], "contextBindings": compiled["contextBindings"],
         "dynamicInputRetained": "In.UV.x" in hlsl_source and "artifactHostUV.x" in glsl_source,
         "dynamicInputInterfaceMatch": dynamic_interface_match,

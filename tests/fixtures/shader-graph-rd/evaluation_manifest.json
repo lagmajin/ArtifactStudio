@@ -7020,7 +7020,9 @@
             ],
             "numericOracle": "UV0.x * 0.5 + 0.125 with binary32 rounding after multiply and add; GLSL and HLSL optimized SPIR-V scalar outputs compared exactly",
             "evidencePath": "temp/shader-graph-core-projection-compile/dynamic-uv-math-summary.json",
-            "runtimeStatus": "dynamic-context-through-multiply-and-add-compiled-and-numeric-specializations-match-no-gpu-execution"
+            "runtimeStatus": "dynamic-context-through-multiply-and-add-compiled-and-numeric-specializations-match-no-gpu-execution",
+            "semanticHashSha256": "DB5DBDDD4CB88114F4DAEB36E5178DC6DCE1CC3661D43EB1BF7AB6E3F7DD8622",
+            "hlslBodySha256": "264EC4FCB9E23EC87526DB2FC6E1CE70FE9545627787158DA7F2184A26073C5B"
           }
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"

@@ -453,7 +453,7 @@ def temporal_dither_study(fixture_path: Path, output_sheet: Path,
                 # Content locking compensates for the image's +offset translation.
                 phase_origin = -offset if lock == "content" else 0
                 result = ordered_quantize_with_origin(
-                    frame, levels, matrix, 0.5, phase_origin, "srgb",
+                    frame, levels, matrix, 0.5, phase_origin, domain="srgb",
                 )
             else:
                 result = error_diffuse_quantize(frame, levels, "srgb")

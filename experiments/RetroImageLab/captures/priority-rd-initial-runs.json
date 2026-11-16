@@ -1,0 +1,98 @@
+{
+  "purpose": "initial candidate evidence index; not product acceptance or a quality ranking",
+  "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "runs": [
+    {
+      "priority": 4,
+      "theme": "chromatic aberration",
+      "command": "python experiments/RetroImageLab/tools/core_chromatic_angle_study.py",
+      "status": "completed",
+      "summary": "12 amount levels, 360 angles per amount, 48 preview cases; Core source-equation mirror only.",
+      "artifacts": [
+        {
+          "path": "captures/core-chromatic-angle/core-chromatic-angle-metrics.json",
+          "sha256": "8796cd70d77d39d4fd11330ca82e4590c84c15dc8074372b6d1524bb7a9dac76"
+        },
+        {
+          "path": "captures/core-chromatic-angle/core-chromatic-angle-sheet.png",
+          "sha256": "ca03f3845d1476d1b9fdb3aec9e105e13457cc58374249026bcc0307bc58090f"
+        },
+        {
+          "path": "fixtures/core-chromatic-angle-sweep.png",
+          "sha256": "bf8dd6a34b0881ff53e8a790f8934d668a5436ca002f73a856ea07789960f5c7"
+        }
+      ]
+    },
+    {
+      "priority": 11,
+      "theme": "palette extraction",
+      "command": "python experiments/RetroImageLab/tools/adaptive_palette_weighting_study.py",
+      "status": "completed",
+      "summary": "3 provenance-verified CC0 assets × 3 palette sizes × 2 weightings × 2 domains; offline median-cut, not Core SmartPaletteAnalyzer.",
+      "artifacts": [
+        {
+          "path": "captures/adaptive-palette-weighting/adaptive-palette-weighting-metrics.json",
+          "sha256": "1a14595b228181b678ccbb83e729e4c06832c934206d6766ae16c880d89efff3"
+        }
+      ]
+    },
+    {
+      "priority": 13,
+      "theme": "dithering",
+      "command": "python experiments/RetroImageLab/retro_lab.py fixtures/color-space-fixture.png --dither-pattern-study",
+      "status": "completed",
+      "summary": "Bayer 4×4/8×8 and Floyd–Steinberg at two domains; one synthetic opaque landscape fixture; no gate.",
+      "artifacts": [
+        {
+          "path": "captures/priority-rd/dither-pattern-study.png",
+          "sha256": "274dfd8a14c027d70a395db1d3a35c8c0e06ad8c1688ae9ee763b8be99f71212"
+        },
+        {
+          "path": "captures/priority-rd/dither-pattern-detail-crop.png",
+          "sha256": "572aa8f2c4f87259990da61370b7826a2e4e6629a11f42c2b99329abd0931122"
+        }
+      ]
+    },
+    {
+      "priority": 13,
+      "theme": "temporal dither phase",
+      "command": "python experiments/RetroImageLab/retro_lab.py fixtures/color-space-fixture.png --temporal-dither-study",
+      "status": "completed_after_repair",
+      "summary": "Translation fixture: screen-locked Bayer aligned MAE about 0.0285–0.0290; content-locked Bayer 0; per-frame Floyd–Steinberg about 0.0345. Not a look-quality verdict.",
+      "artifacts": [
+        {
+          "path": "captures/priority-rd/temporal-dither-study.png",
+          "sha256": "cfb5a84b1c3aca6fff5ad0667e9f631b6c9c78bd2f936cbc027b6aae6553bd0c"
+        },
+        {
+          "path": "captures/priority-rd/temporal-dither-detail-strip.png",
+          "sha256": "b6f350ade905399ecd7e902111e3bcf0b29da626b986bfd4392e1d59c67d3d5f"
+        }
+      ],
+      "repair": "Pass domain= by keyword in ordered_quantize_with_origin; previous positional call bound the string to origin_y and failed NumPy integer arithmetic."
+    },
+    {
+      "priority": 14,
+      "theme": "pixel-art alpha/crop",
+      "command": "python experiments/RetroImageLab/retro_lab.py fixtures/color-space-fixture.png --alpha-pixel-art-crop-study",
+      "status": "completed",
+      "summary": "Synthetic 515×257 RGBA chart; global, tile-local, and tile-origin resize strategies at 0.50/0.75 with alpha/edge/hidden-RGB measurements over three backgrounds.",
+      "artifacts": [
+        {
+          "path": "fixtures/alpha-pixel-art-crop-fixture.png",
+          "sha256": "5f5b7f7252380f7502962fa1f789802ce187ae6634e883428aa4674ead72000c"
+        },
+        {
+          "path": "captures/priority-rd/alpha-pixel-art-crop-study.png",
+          "sha256": "e2d9375334ae688639bd4cc149e35a792c651070d521cfa1717d3446f4bef85f"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "No independent human review or pre-registered product quality gates.",
+    "Studies are offline reference models; Core/Artifact runtime and GPU parity are not implied.",
+    "Numerical response metrics do not establish aesthetic preference."
+  ]
+}
