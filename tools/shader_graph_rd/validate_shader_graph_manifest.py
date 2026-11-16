@@ -4356,6 +4356,8 @@ def validate(root: Path) -> list[str]:
             "legacyBaseColorProjectionCoversVector4MathVariants": (
                 '"add": {' in legacy_projection_generator_source and
                 '"operationId": "artifact.rd.math.add.vector4.float32"' in legacy_projection_generator_source and
+                'parser.add_argument("--check", action="store_true"' in legacy_projection_generator_source and
+                "checked-in candidate differs from generated projection" in legacy_projection_generator_source and
                 all(name in legacy_base_color_variants for name in
                     ("add", "subtract", "multiply", "dividePositiveFloor")) and
                 legacy_base_color_variants.get("add", {}).get("operationId") ==

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -28,6 +29,10 @@ def f32(value: float) -> float:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true",
+                        help="verify the checked-in candidate without rewriting it")
+    args = parser.parse_args()
     fixture_root = root / "tests/fixtures/shader-graph-rd"
     source_path = fixture_root / "math_add.json"
     registry_path = root / "experiments/ShaderGraphLab/registry.json"
@@ -429,8 +434,14 @@ def main() -> int:
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",
         ],
     }
-    output_path.write_text(json.dumps(candidate, indent=2, ensure_ascii=False) + "\n",
-                           encoding="utf-8", newline="\n")
+    generated_json = json.dumps(candidate, indent=2, ensure_ascii=False) + "\n"
+    if args.check:
+        if not output_path.is_file() or output_path.read_text(encoding="utf-8") != generated_json:
+            print("checked-in candidate differs from generated projection", file=sys.stderr)
+            return 1
+        print(f"candidate matches generator: {output_path.relative_to(root).as_posix()}")
+        return 0
+    output_path.write_text(generated_json, encoding="utf-8", newline="\n")
     print(f"wrote {output_path.relative_to(root).as_posix()}")
     print(f"sourceSha256={candidate['sourceSha256']}")
     print(f"candidateHlslBodySha256={candidate['candidateHlslBodySha256']}")
