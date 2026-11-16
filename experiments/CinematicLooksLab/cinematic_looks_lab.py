@@ -11,7 +11,9 @@ import argparse
 import hashlib
 import json
 import platform
+import random
 import time
+import zlib
 from pathlib import Path
 
 import cv2
@@ -28,6 +30,7 @@ LOOKS = ("baseline", "cinematic", "vintage", "cold", "warm", "high_contrast",
          "low_contrast", "desaturated", "kodak2383", "fuji3510")
 
 LOOK_SOURCE = REPO / "ArtifactCore" / "src" / "Color" / "ColorLUT.cpp"
+SOURCE_CONTRACT = ROOT / "SOURCE_CONTRACT.json"
 LOOK_SOURCE_IDS = {
     "cinematic": "cinematic", "vintage": "vintage", "cold": "cold", "warm": "warm",
     "high_contrast": "highContrast", "low_contrast": "lowContrast",
@@ -35,7 +38,16 @@ LOOK_SOURCE_IDS = {
 }
 
 def look_source_fingerprint() -> str:
-    return sha256(LOOK_SOURCE)
+    actual = sha256(LOOK_SOURCE)
+    expected = json.loads(SOURCE_CONTRACT.read_text(encoding="utf-8"))["source_files"][
+        LOOK_SOURCE.relative_to(REPO).as_posix()
+    ]
+    if actual != expected:
+        raise RuntimeError(
+            "ColorLUT.cpp changed since the Python mirror review; inspect the source, "
+            "update both mirrors/evidence, then refresh SOURCE_CONTRACT.json."
+        )
+    return actual
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -110,18 +122,47 @@ def load_cases() -> tuple[dict[str, np.ndarray], dict[str, dict]]:
     cases["chart"] = generated
     provenance["chart"] = {"source": "deterministic generated RGB chart", "seed": SEED,
                             "size": [SIZE[0], SIZE[1]], "rois": rois}
-    for name, filename in (("neon_streets", "cc0-neon-streets-1536.jpg"),
-                           ("street_lights", "cc0-street-light-night.jpg")):
-        path = ASSETS / filename
+    photo_cases = (
+        ("neon_streets", ASSETS / "cc0-neon-streets-1536.jpg", {
+            "provenance_record": "experiments/GlowLab/assets/SOURCES.md",
+            "rois": {"intersection_lights": [520, 330, 520, 460],
+                     "dark_buildings": [40, 80, 420, 360]}}),
+        ("street_lights", ASSETS / "cc0-street-light-night.jpg", {
+            "provenance_record": "experiments/GlowLab/assets/SOURCES.md",
+            "rois": {"lamp_and_glare": [70, 360, 360, 260],
+                     "lower_sign_lights": [20, 760, 260, 320]}}),
+        ("portrait", ROOT / "assets/portrait-2024-1536.jpg", {
+            "source_page": "https://commons.wikimedia.org/wiki/File:Portrait_2024.jpg",
+            "license": "CC0 1.0",
+            "creator": "MarieClaudeGendron2; camera metadata credits Louis Rivest-Henault",
+            "source_original_path": "experiments/CinematicLooksLab/assets/portrait-2024-source.jpg",
+            "source_original_sha256": "50b3f431675b55d53fefa13451d734af13988c43585a5236c39b2644a47a4f07",
+            "transformation": "proportional LANCZOS resize to 1536x1024; JPEG quality 95, 4:4:4",
+            "rois": {"face_skin": [650, 230, 300, 300],
+                     "hair_and_face": [470, 160, 620, 660],
+                     "bright_window": [80, 180, 380, 390]}}),
+        ("forest", ROOT / "assets/forest-wild-1536.jpg", {
+            "source_page": "https://commons.wikimedia.org/wiki/File:Landscape_of_a_wild_forest.jpg",
+            "license": "CC0 1.0",
+            "creator": "SpessiG",
+            "source_original_path": "experiments/CinematicLooksLab/assets/forest-wild-source.jpg",
+            "source_original_sha256": "2f9f01326230bf9166eec430eb6d14cac69412d6cf6e2ecc7a25970683e4ddea",
+            "transformation": "proportional LANCZOS resize to 1536x1024; JPEG quality 95, 4:4:4",
+            "rois": {"sunlit_canopy": [420, 200, 520, 480],
+                     "deep_foliage": [80, 460, 620, 480],
+                     "fine_branches": [800, 80, 600, 360]}}),
+    )
+    for name, path, metadata in photo_cases:
         if not path.exists():
             provenance[name] = {"available": False, "expected_path": str(path)}
             continue
         with Image.open(path) as image:
             rgb = np.asarray(image.convert("RGB")).copy()
         cases[name] = rgb
-        provenance[name] = {"available": True, "source_path": path.relative_to(REPO).as_posix(),
+        provenance[name] = {**metadata, "available": True,
+                             "source_path": path.relative_to(REPO).as_posix(),
                              "sha256": sha256(path), "size": [int(rgb.shape[1]), int(rgb.shape[0])],
-                             "provenance_record": "experiments/GlowLab/assets/SOURCES.md"}
+                             "rois": metadata["rois"]}
     return cases, provenance
 
 def apply_look(rgb8: np.ndarray, look: str, intensity: float) -> np.ndarray:
@@ -146,7 +187,7 @@ def apply_look(rgb8: np.ndarray, look: str, intensity: float) -> np.ndarray:
             gray = r*.3 + g*.59 + b*.11
             return np.stack((np.clip(gray*1.2+.1,0,1), np.clip(gray+.05,0,1), np.clip(gray*.8,0,1)), axis=-1)
         if sid == "cold": return np.stack((r*.9, g*.95, np.clip(b*1.2,0,1)), axis=-1)
-        if sid == "warm": return np.stack((np.clip(r*1.2,0,1), g*1.05, b*.8), axis=-1)
+        if sid == "warm": return np.stack((np.clip(r*1.2,0,1), np.clip(g*1.05,0,1), b*.8), axis=-1)
         if sid == "highContrast":
             curve = lambda c: np.clip((c-.5)*1.5+.5,0,1)
             return np.stack((curve(r),curve(g),curve(b)),axis=-1)
@@ -198,6 +239,7 @@ def main() -> None:
     cases, provenance = load_cases()
     metrics: dict = {}
     runtime_samples: dict[str, list[float]] = {}
+    blind_review_key: dict[str, dict[str, dict[str, str]]] = {}
     manifest = {"rd": args.rd, "seed": SEED, "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "environment": {"python": platform.python_version(), "numpy": np.__version__,
                                 "opencv": cv2.__version__, "pillow": Image.__version__},
@@ -208,6 +250,8 @@ def main() -> None:
                 "candidate_model": "17^3 BuiltinLUTs generation and trilinear sampler mirrored from ArtifactCore ColorLUT.cpp",
                 "lut_source": {"path": "ArtifactCore/src/Color/ColorLUT.cpp", "sha256": look_source_fingerprint(),
                                "names": LOOK_SOURCE_IDS},
+                "source_contract": {"path": "experiments/CinematicLooksLab/SOURCE_CONTRACT.json",
+                                    "sha256": sha256(SOURCE_CONTRACT)},
                 "cases": provenance, "looks": list(LOOKS), "intensities": args.intensities}
     for case_name, src in cases.items():
         # Chart ROIs are defined in chart coordinates and must never be reused
@@ -215,6 +259,7 @@ def main() -> None:
         rois = provenance[case_name].get("rois", {}) if case_name == "chart" else {}
         metrics[case_name] = {}
         panels = []
+        blind_panels = []
         for look in LOOKS:
             intensities = [0.0] if look == "baseline" else args.intensities
             for intensity in intensities:
@@ -246,6 +291,8 @@ def main() -> None:
                 thumb = Image.fromarray(result)
                 thumb.thumbnail((360, 240))
                 panels.append((label, thumb.copy()))
+                if look == "baseline" or intensity > 0.0:
+                    blind_panels.append((label, thumb.copy()))
         sheet = Image.new("RGB", (720, ((len(panels)+1)//2)*280), (24, 26, 30))
         draw = ImageDraw.Draw(sheet)
         for i, (title, thumb) in enumerate(panels):
@@ -253,12 +300,28 @@ def main() -> None:
             sheet.paste(thumb, (x, y+28))
             draw.text((x+6, y+6), title, fill=(245, 245, 245))
         sheet.save(review_dir / f"{case_name}_comparison.png")
+        blind_seed = SEED ^ zlib.crc32(case_name.encode("utf-8"))
+        random.Random(blind_seed).shuffle(blind_panels)
+        blind_sheet = Image.new("RGB", (720, ((len(blind_panels)+1)//2)*280), (24, 26, 30))
+        blind_draw = ImageDraw.Draw(blind_sheet)
+        code_map: dict[str, dict[str, str]] = {}
+        for i, (candidate, thumb) in enumerate(blind_panels, start=1):
+            x, y = ((i-1) % 2) * 360, ((i-1) // 2) * 280
+            code = f"{case_name[:2].upper()}-{i:02d}"
+            blind_sheet.paste(thumb, (x, y+28))
+            blind_draw.text((x+6, y+6), code, fill=(245, 245, 245))
+            code_map[code] = {"candidate": candidate, "case": case_name}
+        blind_dir = review_dir / "blind"
+        blind_dir.mkdir(parents=True, exist_ok=True)
+        blind_sheet.save(blind_dir / f"{case_name}_contact_sheet.png")
+        blind_review_key[case_name] = code_map
     gates = {"status": "unlocked", "rd0_purpose": "baseline and response characterization only",
              "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
              "thresholds": [], "next_step": "human review, then freeze justified thresholds before rd1 comparison"}
     write_json_lf(out / "manifest.json", manifest)
     write_json_lf(out / "metrics.json", metrics)
     write_json_lf(out / "gates.json", gates)
+    write_json_lf(out / "blind_review_key.json", blind_review_key)
     timings = {k: {"median_ms": float(np.median(v)), "p95_ms": float(np.quantile(v, .95)), "samples": len(v)}
                for k, v in runtime_samples.items()}
     write_json_lf(out / "timings_reference_only.json", timings)

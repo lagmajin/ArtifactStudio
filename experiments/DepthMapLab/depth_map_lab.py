@@ -293,11 +293,98 @@ def build_fixtures() -> dict[str, dict]:
 # Classical baselines
 
 
+PERCENTILE_MODES = {"p1_99": (1.0, 99.0), "p2_98": (2.0, 98.0), "p5_95": (5.0, 95.0)}
+NORMALIZATIONS = ["p2_98", "p1_99", "p5_95", "median_iqr"]
+
+REFINEMENT_PARAMETERS = {
+    "none": {},
+    "guided": {"radius": 4, "epsilon": 1e-4},
+    "joint_bilateral": {"radius": 3, "sigma_space": 2.5, "sigma_color": 0.08},
+}
+REFINEMENTS = list(REFINEMENT_PARAMETERS)
+
+
+def fit_normalization(values: np.ndarray, mode: str = "p2_98"):
+    """Return (transform, parameters) so a sequence can share one scale."""
+    if mode == "median_iqr":
+        median = float(np.median(values))
+        low, high = np.percentile(values, (25.0, 75.0))
+        spread = float(high - low)
+        if not (math.isfinite(median) and math.isfinite(spread)) or spread <= 1e-8:
+            return (lambda array: np.zeros_like(array, dtype=np.float32)), {
+                "mode": mode, "degenerate": True}
+        parameters = {"mode": mode, "median": median, "iqr": spread}
+        return (lambda array: np.clip((array - median) / (2.0 * spread) + 0.5,
+                                     0.0, 1.0).astype(np.float32)), parameters
+    low_percentile, high_percentile = PERCENTILE_MODES[mode]
+    low, high = np.percentile(values, (low_percentile, high_percentile))
+    if not (math.isfinite(low) and math.isfinite(high)) or high - low <= 1e-8:
+        return (lambda array: np.zeros_like(array, dtype=np.float32)), {
+            "mode": mode, "degenerate": True}
+    parameters = {"mode": mode, "low_percentile": low_percentile,
+                  "high_percentile": high_percentile,
+                  "low_value": float(low), "high_value": float(high)}
+    return (lambda array: np.clip((array - low) / (high - low), 0.0, 1.0).astype(np.float32)), parameters
+
+
+def apply_normalization(values: np.ndarray, mode: str = "p2_98") -> np.ndarray:
+    return fit_normalization(values, mode)[0](values)
+
+
 def normalize_near(values: np.ndarray, low: float = 2.0, high: float = 98.0) -> np.ndarray:
     low_value, high_value = np.percentile(values, (low, high))
     if not np.isfinite(low_value) or not np.isfinite(high_value) or high_value - low_value <= 1e-8:
         return np.zeros_like(values, dtype=np.float32)
     return np.clip((values - low_value) / (high_value - low_value), 0.0, 1.0).astype(np.float32)
+
+
+def guided_filter(near: np.ndarray, image: np.ndarray, radius: int = 4,
+                  epsilon: float = 1e-4) -> np.ndarray:
+    """Colour-guided filter (He et al.) applied after normalization."""
+    guide = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    window = (radius * 2 + 1, radius * 2 + 1)
+    mean_guide = cv2.blur(guide, window)
+    mean_depth = cv2.blur(near, window)
+    covariance_depth = cv2.blur(guide * near[..., None], window) - mean_guide * mean_depth[..., None]
+    variance_guide = cv2.blur(guide * guide, window) - mean_guide * mean_guide
+    slope = covariance_depth / (variance_guide + epsilon)
+    intercept = mean_depth[..., None] - slope * mean_guide
+    filtered = np.mean(cv2.blur(slope, window) * guide + cv2.blur(intercept, window), axis=-1)
+    return np.clip(filtered, 0.0, 1.0).astype(np.float32)
+
+
+def joint_bilateral(near: np.ndarray, image: np.ndarray, radius: int = 3,
+                    sigma_space: float = 2.5, sigma_color: float = 0.08) -> np.ndarray:
+    guide = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    height, width = near.shape
+    padded_depth = cv2.copyMakeBorder(near, radius, radius, radius, radius, cv2.BORDER_REPLICATE)
+    padded_guide = cv2.copyMakeBorder(guide, radius, radius, radius, radius, cv2.BORDER_REPLICATE)
+    accumulated = np.zeros_like(near)
+    weights_sum = np.zeros_like(near)
+    for offset_y in range(-radius, radius + 1):
+        for offset_x in range(-radius, radius + 1):
+            shifted_depth = padded_depth[radius + offset_y:radius + offset_y + height,
+                                         radius + offset_x:radius + offset_x + width]
+            shifted_guide = padded_guide[radius + offset_y:radius + offset_y + height,
+                                         radius + offset_x:radius + offset_x + width]
+            spatial = math.exp(-(offset_x * offset_x + offset_y * offset_y) /
+                               (2.0 * sigma_space * sigma_space))
+            color = np.exp(-np.sum((shifted_guide - guide) ** 2, axis=-1) /
+                           (2.0 * sigma_color * sigma_color))
+            weight = spatial * color
+            accumulated += weight * shifted_depth
+            weights_sum += weight
+    return (accumulated / np.maximum(weights_sum, 1e-8)).astype(np.float32)
+
+
+def refine_depth(near: np.ndarray, image: np.ndarray, mode: str = "none") -> np.ndarray:
+    if mode == "none":
+        return near
+    if mode == "guided":
+        return guided_filter(near, image, **REFINEMENT_PARAMETERS[mode])
+    if mode == "joint_bilateral":
+        return joint_bilateral(near, image, **REFINEMENT_PARAMETERS[mode])
+    raise ValueError(f"unknown refinement mode: {mode}")
 
 
 def baseline_luma(image: np.ndarray) -> np.ndarray:
@@ -384,9 +471,9 @@ class OnnxDepthModel:
         depth = cv2.resize(depth, (width, height), interpolation=cv2.INTER_CUBIC)
         return depth, elapsed, model_size
 
-    def near_map(self, image: np.ndarray) -> tuple[np.ndarray, float]:
+    def near_map(self, image: np.ndarray, normalization: str = "p2_98") -> tuple[np.ndarray, float]:
         raw, elapsed, _ = self.raw(image)
-        return normalize_near(-raw if self.invert else raw), elapsed
+        return apply_normalization(-raw if self.invert else raw, normalization), elapsed
 
 
 # ---------------------------------------------------------------------------
@@ -458,9 +545,11 @@ def score_depth(predicted: np.ndarray, truth: np.ndarray,
     edge_f1 = 2.0 * precision * recall / (precision + recall) if precision + recall > 0.0 else 0.0
 
     band = _dilate(truth_edges)
+    interior = ~_dilate(truth_edges, radius=4)
     error = predicted - truth
     band_mae = float(np.abs(error[band]).mean()) if np.any(band) else float("nan")
     band_bias = float(error[band].mean()) if np.any(band) else float("nan")
+    interior_mae = float(np.abs(error[interior]).mean()) if np.any(interior) else float("nan")
 
     near_truth = truth > 0.75
     far_truth = truth < 0.25
@@ -488,6 +577,7 @@ def score_depth(predicted: np.ndarray, truth: np.ndarray,
         "edge_f1": edge_f1,
         "boundary_band_mae": band_mae,
         "boundary_band_bias": band_bias,
+        "interior_mae": interior_mae,
         "foreground_leak": foreground_leak,
         "background_intrusion": background_intrusion,
         "regions": regions,
@@ -590,16 +680,24 @@ def evaluate_gates(results: dict[str, dict]) -> dict:
 # Video temporal study
 
 
-def _temporal_metrics(maps: list[np.ndarray], frames: list[np.ndarray]) -> dict:
+def flow_fields(frames: list[np.ndarray]) -> list[np.ndarray]:
+    flows = []
+    for index in range(1, len(frames)):
+        previous_gray = cv2.cvtColor(frames[index - 1], cv2.COLOR_BGR2GRAY)
+        current_gray = cv2.cvtColor(frames[index], cv2.COLOR_BGR2GRAY)
+        flows.append(cv2.calcOpticalFlowFarneback(previous_gray, current_gray, None,
+                                                  0.5, 3, 15, 3, 5, 1.2, 0))
+    return flows
+
+
+def _temporal_metrics(maps: list[np.ndarray], frames: list[np.ndarray],
+                      flows: list[np.ndarray]) -> dict:
     frame_delta, warped_delta, static_delta = [], [], []
     for index in range(1, len(maps)):
         previous = maps[index - 1]
         current = maps[index]
         frame_delta.append(float(np.abs(current - previous).mean()))
-        previous_gray = cv2.cvtColor(frames[index - 1], cv2.COLOR_BGR2GRAY)
-        current_gray = cv2.cvtColor(frames[index], cv2.COLOR_BGR2GRAY)
-        flow = cv2.calcOpticalFlowFarneback(previous_gray, current_gray, None,
-                                            0.5, 3, 15, 3, 5, 1.2, 0)
+        flow = flows[index - 1]
         height, width = previous.shape
         grid_x, grid_y = np.meshgrid(np.arange(width, dtype=np.float32),
                                      np.arange(height, dtype=np.float32))
@@ -623,7 +721,8 @@ def _temporal_metrics(maps: list[np.ndarray], frames: list[np.ndarray]) -> dict:
 
 
 def run_video(path: Path, models: list[OnnxDepthModel], output: Path,
-              max_frames: int) -> dict:
+              max_frames: int, normalizations: list[str],
+              refinements: list[str]) -> dict:
     capture = cv2.VideoCapture(str(path))
     if not capture.isOpened():
         raise OSError(f"could not open video: {path}")
@@ -647,6 +746,7 @@ def run_video(path: Path, models: list[OnnxDepthModel], output: Path,
         raise ValueError("video study needs at least two decoded frames")
 
     output.mkdir(parents=True, exist_ok=True)
+    flows = flow_fields(frames)
     report = {"input": str(path.resolve()), "frames": len(frames), "models": {}}
     for model in models:
         raws: list[np.ndarray] = []
@@ -655,33 +755,43 @@ def run_video(path: Path, models: list[OnnxDepthModel], output: Path,
             raw, elapsed, _ = model.raw(frame)
             raws.append(-raw if model.invert else raw)
             seconds.append(elapsed)
-        per_frame = [normalize_near(raw) for raw in raws]
-        samples = np.concatenate([raw[::8, ::8].ravel() for raw in raws])
-        low, high = np.percentile(samples, (2.0, 98.0))
-        if high - low <= 1e-8:
-            raise ValueError(f"{model.name}: clip-wide depth has insufficient range")
-        clip_wide = [np.clip((raw - low) / (high - low), 0.0, 1.0).astype(np.float32) for raw in raws]
+        pooled = np.concatenate([raw[::8, ::8].ravel() for raw in raws])
+        variants = {}
+        for normalization in normalizations:
+            clip_transform, clip_parameters = fit_normalization(pooled, normalization)
+            for refinement in refinements:
+                per_frame = [refine_depth(apply_normalization(raw, normalization),
+                                          frames[index], refinement)
+                             for index, raw in enumerate(raws)]
+                clip_wide = [refine_depth(clip_transform(raw), frames[index], refinement)
+                             for index, raw in enumerate(raws)]
+                variants[f"{normalization}|{refinement}"] = {
+                    "per_frame_normalization": _temporal_metrics(per_frame, frames, flows),
+                    "clip_wide_normalization": _temporal_metrics(clip_wide, frames, flows),
+                    "clip_parameters": clip_parameters,
+                }
 
-        metrics = {
-            "per_frame_normalization": _temporal_metrics(per_frame, frames),
-            "clip_wide_normalization": _temporal_metrics(clip_wide, frames),
+        entry = {
             "inference_seconds_median": float(np.median(seconds)),
-            "clip_percentiles": {"low": float(low), "high": float(high)},
+            "variants": variants,
         }
-        report["models"][model.name] = metrics
-        save_json(output / f"temporal-{model.name}.json", metrics)
+        report["models"][model.name] = entry
+        save_json(output / f"temporal-{model.name}.json", entry)
 
+        tile_per_frame = [apply_normalization(raw, normalizations[0]) for raw in raws]
+        tile_clip = [fit_normalization(pooled, normalizations[0])[0](raw) for raw in raws]
         height, width = frames[0].shape[:2]
         writer = cv2.VideoWriter(str(output / f"depth-{model.name}.avi"),
                                  cv2.VideoWriter_fourcc(*"MJPG"), 12.0, (width * 3, height))
-        for frame, frame_map, clip_map in zip(frames, per_frame, clip_wide):
+        for frame, frame_map, clip_map in zip(frames, tile_per_frame, tile_clip):
             tiles = np.hstack((frame, turbo_preview(frame_map), turbo_preview(clip_map)))
             writer.write(tiles)
         writer.release()
 
         picks = np.linspace(0, len(frames) - 1, 6).round().astype(int)
-        rows = [(f"frame {p}", [("source", frames[p]), ("per-frame", turbo_preview(per_frame[p])),
-                                ("clip-wide", turbo_preview(clip_wide[p]))]) for p in picks]
+        rows = [(f"frame {p}", [("source", frames[p]),
+                                ("per-frame", turbo_preview(tile_per_frame[p])),
+                                ("clip-wide", turbo_preview(tile_clip[p]))]) for p in picks]
         build_contact_sheet(rows, output / f"temporal-contact-{model.name}.png")
     save_json(output / "temporal-report.json", report)
     return report
@@ -747,7 +857,13 @@ def main() -> None:
                         help="video for the temporal study (requires --onnx)")
     parser.add_argument("--max-frames", type=int, default=24)
     parser.add_argument("--save-raw", action="store_true", help="also save float32 .npy depth maps")
+    parser.add_argument("--normalization", action="append", choices=NORMALIZATIONS,
+                        help="normalization mode per variant (repeatable)")
+    parser.add_argument("--refine", action="append", choices=REFINEMENTS,
+                        help="edge-aware refinement per variant (repeatable)")
     args = parser.parse_args()
+    args.normalization = args.normalization or ["p2_98"]
+    args.refine = args.refine or ["none"]
     if "/" in args.rd or "\\" in args.rd or not args.rd:
         parser.error("--rd must be a plain directory name such as rd0")
 
@@ -790,8 +906,19 @@ def main() -> None:
             "gt_depth_units": "camera z-depth",
         }
 
+    single_default = (len(args.normalization) == 1 and args.normalization[0] == "p2_98"
+                      and len(args.refine) == 1 and args.refine[0] == "none")
+    variants = []
+    for model in models:
+        for normalization in args.normalization:
+            for refinement in args.refine:
+                variant = (model.name if single_default
+                           else f"{model.name}__{normalization}__{refinement}")
+                variants.append((variant, model, normalization, refinement))
+
     results: dict[str, dict] = {}
     timing: dict[str, list[float]] = {model.name: [] for model in models}
+    raw_cache: dict[tuple[str, str], np.ndarray] = {}
     sheet_rows = []
     for name, fixture in fixtures.items():
         truth = fixture["near"]
@@ -801,10 +928,15 @@ def main() -> None:
             "baseline_luma": baseline_luma(fixture["image"]),
             "baseline_vertical": baseline_vertical(fixture["image"]),
         }
-        for model in models:
-            predicted, elapsed = model.near_map(fixture["image"])
-            candidates[model.name] = predicted
-            timing[model.name].append(elapsed)
+        for variant, model, normalization, refinement in variants:
+            key = (model.name, name)
+            raw = raw_cache.get(key)
+            if raw is None:
+                raw, elapsed, _ = model.raw(fixture["image"])
+                raw_cache[key] = raw
+                timing[model.name].append(elapsed)
+            near = apply_normalization(-raw if model.invert else raw, normalization)
+            candidates[variant] = refine_depth(near, fixture["image"], refinement)
         for candidate_name, predicted in candidates.items():
             results.setdefault(candidate_name, {})[name] = score_depth(predicted, truth, name)
             candidate_dir = maps_dir / candidate_name
@@ -819,8 +951,14 @@ def main() -> None:
             if candidate_name.startswith("baseline"):
                 row_tiles.append((candidate_name.replace("baseline_", ""),
                                   turbo_preview(predicted)))
-            else:
-                row_tiles.append((candidate_name, turbo_preview(predicted)))
+                continue
+            variant_entry = next((entry for entry in variants if entry[0] == candidate_name), None)
+            if variant_entry is None:
+                continue
+            _, _, normalization, refinement = variant_entry
+            if refinement == "none" or normalization == "p2_98":
+                row_tiles.append((f"{normalization}/{refinement}", turbo_preview(predicted)))
+            if normalization == "p2_98" and refinement == "none":
                 row_tiles.append(("diff x6", amplified_difference(predicted, truth)))
         sheet_rows.append((name, row_tiles))
 
@@ -870,7 +1008,9 @@ def main() -> None:
         "orientation_calibration": calibration,
         "photos": photos,
         "gates_source": "pre-registered in EVALUATION_PLAN.md",
-        "normalization": "2/98 percentile of disparity, near=1",
+        "normalizations": args.normalization,
+        "refinements": {mode: REFINEMENT_PARAMETERS[mode] for mode in args.refine},
+        "normalization_contract": "disparity, near=1, refinement applied after normalization",
         "limitation": "Synthetic scenes have analytic GT but no lens, defocus, noise or haze; "
                       "monocular depth is relative, not metric.",
     })
@@ -879,12 +1019,14 @@ def main() -> None:
         if not models:
             parser.error("--video requires at least one --onnx model")
         for video in args.video:
-            report = run_video(video, models, output / "video" / video.stem, args.max_frames)
+            report = run_video(video, models, output / "video" / video.stem, args.max_frames,
+                               args.normalization, args.refine)
             for model_name, entry in report["models"].items():
-                value = entry["clip_wide_normalization"]["temporal_flow_warped_mean_abs_delta"]
-                status = "PASS" if value is not None and value <= TEMPORAL_GATE[2] else "FAIL"
-                print(f"{status} temporal {model_name}: flow-warped delta "
-                      f"{value:.4f} ({TEMPORAL_GATE[2]} gate)")
+                for key, metrics in entry["variants"].items():
+                    value = metrics["clip_wide_normalization"]["temporal_flow_warped_mean_abs_delta"]
+                    status = "PASS" if value is not None and value <= TEMPORAL_GATE[2] else "FAIL"
+                    print(f"{status} temporal {model_name} {key}: flow-warped delta "
+                          f"{value:.4f} ({TEMPORAL_GATE[2]} gate)")
     print(f"Wrote {output}")
 
 

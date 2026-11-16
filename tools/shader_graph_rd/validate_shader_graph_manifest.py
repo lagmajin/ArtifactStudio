@@ -175,9 +175,10 @@ def validate(root: Path) -> list[str]:
         digest = hashlib.sha256(path.read_bytes()).hexdigest().upper()
         if fixture.get("sha256", "").upper() != digest:
             errors.append(f"SHA-256 mismatch for fixture {relative}")
-        if fixture.get("class") != "planned" and not isinstance(payload, dict):
+        non_graph_artifact = fixture.get("class") in {"planned", "research-artifact"}
+        if not non_graph_artifact and not isinstance(payload, dict):
             errors.append(f"fixture root must be an object: {relative}")
-        if isinstance(payload, dict) and fixture.get("class") != "planned":
+        if isinstance(payload, dict) and not non_graph_artifact:
             fixture_payloads[relative] = payload
             is_research_artifact = relative == "entry_path_compatibility_cases.json"
             if not is_research_artifact and payload.get("version") != manifest.get("application", {}).get("graphFormatVersion"):
@@ -205,9 +206,13 @@ def validate(root: Path) -> list[str]:
     unknown = sorted(set(covered) - declared)
     if unknown:
         errors.append("fixtureEvaluationCoverage references unknown fixtures: " + ", ".join(unknown))
-    if set(covered) != declared:
-        if set(covered) != declared - {"entry_path_compatibility_cases.json"}:
-            errors.append("fixtureEvaluationCoverage must cover every declared current graph fixture exactly once, excluding source-only research artifacts")
+    coverage_expected = {
+        item["file"] for item in fixtures
+        if isinstance(item, dict) and isinstance(item.get("file"), str) and
+        item.get("class") not in {"planned", "research-artifact", "source-compatibility-case-pair"}
+    }
+    if set(covered) != coverage_expected:
+        errors.append("fixtureEvaluationCoverage must cover each declared graph fixture exactly once and exclude non-graph research artifacts")
 
     for planned in manifest.get("plannedFixtures", []):
         if not isinstance(planned, dict) or not isinstance(planned.get("file"), str):
@@ -1712,7 +1717,8 @@ def validate(root: Path) -> list[str]:
             color_changed_generic_document, generic_image_catalog,
             generic_image_source_states)
         rewired_uv_generic_document = copy.deepcopy(generic_image_document)
-        rewired_uv_generic_document["nodes"][3]["nodeId"] = "uv_rewired"
+        next(node for node in rewired_uv_generic_document["nodes"]
+             if node["nodeId"] == "uv")["nodeId"] = "uv_rewired"
         for generic_link in rewired_uv_generic_document["links"]:
             if generic_link["from"]["nodeId"] == "uv":
                 generic_link["from"]["nodeId"] = "uv_rewired"
@@ -1785,6 +1791,14 @@ def validate(root: Path) -> list[str]:
         dynamic_module = importlib.util.module_from_spec(dynamic_spec)
         sys.modules[dynamic_spec.name] = dynamic_module
         dynamic_spec.loader.exec_module(dynamic_module)
+
+        def diagnostic_for(action) -> dict[str, str] | None:
+            try:
+                action()
+            except dynamic_module.ContractError as error:
+                return {key: error.to_json()[key] for key in ("code", "severity", "path")}
+            return None
+
         local_ui_module_name = "shader_graph_local_ui"
         local_ui_spec = importlib.util.spec_from_file_location(
             local_ui_module_name, dynamic_prototype_path.with_name("local_graph_lab.py"))
@@ -1964,7 +1978,7 @@ def validate(root: Path) -> list[str]:
             generic_image_dynamic_document, "image_sample", {"x": 300.0})
         generic_image_command_document = copy.deepcopy(generic_image_dynamic_document)
         relinked_image_reference = copy.deepcopy(generic_image_reference)
-        relinked_image_reference["resourceId"] = "image.relinked"
+        relinked_image_reference["resourceId"] = "image.roughness"
         generic_image_command_document = dynamic_module.edit_node_resource_reference(
             generic_image_dynamic_document, dynamic_registry, "image_sample",
             relinked_image_reference)
@@ -2169,7 +2183,7 @@ def validate(root: Path) -> list[str]:
                 generic_image_clipboard["resources"][0]["resourceId"] == "image.albedo" and
                 portable_image_paste["resources"] == generic_image_clipboard["resources"] and
                 dynamic_module.compile_document_from_data(
-                    portable_image_paste, dynamic_registry)["compilationAvailable"] and
+                    portable_image_paste, dynamic_registry).get("outputType") == "Vector4" and
                 resource_conflict_paste_error is not None and
                 resource_conflict_paste_error["code"] ==
                 "resource.reference.resource.conflict"),
@@ -2179,7 +2193,7 @@ def validate(root: Path) -> list[str]:
                 generic_reference_for(generic_image_duplicated_document, "image_duplicate")["resourceKey"] ==
                 "artifact.shadergraph.image.image_duplicate"),
             "roundtripClipboardAndDuplicateRemainCompilerValid": all(
-                dynamic_module.compile_document_from_data(graph, dynamic_registry)["compilationAvailable"]
+                dynamic_module.compile_document_from_data(graph, dynamic_registry).get("outputType") == "Vector4"
                 for graph in (generic_image_roundtrip, generic_image_pasted_document,
                               generic_image_duplicated_document)),
         }
@@ -2877,13 +2891,6 @@ def validate(root: Path) -> list[str]:
             errors.append("opaque document preservation changed an unknown operation payload")
         if len(unknown_version_diagnostics) != 2 or any(item.get("code") != "node.operation.version.unsupported" for item in unknown_version_diagnostics):
             errors.append("unknown operation version did not produce a stable non-destructive diagnostic")
-
-        def diagnostic_for(action) -> dict[str, str] | None:
-            try:
-                action()
-            except dynamic_module.ContractError as error:
-                return {key: error.to_json()[key] for key in ("code", "severity", "path")}
-            return None
 
         invalid_generic_mapping_parameter_document = copy.deepcopy(
             generic_image_mapped_uv_document)
@@ -4816,8 +4823,8 @@ def validate(root: Path) -> list[str]:
             errors.append("duplicate-stop pair must differ only by reversing the equal-position stop order")
     tie_test_body = re.search(r"\bTEST\s*\(\s*ShaderGraphContractTest\s*,\s*ColorRampDuplicateStopOrderRemainsSemanticInDocument\s*\)\s*\{(.*?)(?=\nTEST\s*\(|\Z)", procedural_test_source, re.DOTALL)
     if not tie_test_body or not all(fragment in tie_test_body.group(1) for fragment in (
-        *tie_names, "forwardGraph.fromJson", "reversedGraph.fromJson", "forwardGraph.toJson()", "compileMaterialGraph()",
-        "EXPECT_NE(forwardGraph.toJson(), reversedGraph.toJson())",
+        *tie_names, "forwardGraph.fromJson", "reversedGraph.fromJson", "forwardGraph.toJson({})", "compileMaterialGraph()",
+        "EXPECT_NE(forwardGraph.toJson({}), reversedGraph.toJson({}))",
         "Legacy std::sort tie ordering is unspecified",
     )):
         errors.append("duplicate-stop source case must preserve authored document order without asserting unspecified legacy tie lowering")
@@ -4825,7 +4832,9 @@ def validate(root: Path) -> list[str]:
     if not voronoi_test_body or not all(fragment in voronoi_test_body.group(1) for fragment in (
         "voronoi_cells_surface.json", "graph.fromJson(payload)",
         "voronoi_Color = float4(voronoi_cell, 1.0f)",
-        "voronoi_Distance = sqrt(voronoi_Distance)",
+        "float voronoi_Distance = 0.0f",
+        "artMatGraph_voronoi(voronoi_p, voronoi_Distance, voronoi_cell)",
+        "dist = sqrt(dist)",
     )):
         errors.append("Voronoi test must load the declared fixture and assert color/distance lowering")
     scalar_cases = core_schema.get("scalarCanonicalizationCases", [])
@@ -4956,7 +4965,7 @@ def validate(root: Path) -> list[str]:
     if "Stop{0.0f, 0.0f, 0.0f, 0.0f, 1.0f}" not in ramp_constructor or "Stop{1.0f, 1.0f, 1.0f, 1.0f, 1.0f}" not in ramp_constructor:
         errors.append("legacy ColorRamp constructor default stop golden changed")
     required_migration_source_fragments = {
-        "wrong_kind_negative.json": ('root.value(QStringLiteral("version"))',),
+        "wrong_kind_negative.json": ('root.value(QStringLiteral("version"))', 'root.value(QStringLiteral("kind"))', 'result.error = "unsupported material graph kind"'),
         "missing_arrays_negative.json": ('root.value(QStringLiteral("nodes")).toArray()', 'root.value(QStringLiteral("links")).toArray()'),
         "skipped_type_mismatch_link_negative.json": ('++skippedLinks;', 'result.ok = true;'),
         "out_of_range_enum_negative.json": ('std::clamp(p.value(QStringLiteral("op")).toInt(0), 0, 16)',),
@@ -4970,8 +4979,10 @@ def validate(root: Path) -> list[str]:
                 errors.append(f"legacy migration source observation is stale for {fixture_name}: {fragment}")
     loader_start = shader_node_source_text.find("MaterialGraphLoadResult NodeGraph::fromJson(")
     compiler_start = shader_node_source_text.find("MaterialGraphResult NodeGraph::compileMaterialGraph(", loader_start)
-    if loader_start < 0 or compiler_start < 0 or 'QStringLiteral("kind")' in shader_node_source_text[loader_start:compiler_start]:
-        errors.append("wrong-kind migration observation changed: fromJson kind handling needs source review")
+    if (loader_start < 0 or compiler_start < 0 or
+            'root.value(QStringLiteral("kind"))' not in shader_node_source_text[loader_start:compiler_start] or
+            'result.error = "unsupported material graph kind"' not in shader_node_source_text[loader_start:compiler_start]):
+        errors.append("wrong-kind migration observation changed: fromJson must reject a mismatched string kind")
     serialization_start = shader_node_source_text.find("std::string NodeGraph::toJson(")
     if serialization_start < 0 or loader_start < 0 or "extension" in shader_node_source_text[serialization_start:loader_start].lower() or "extension" in shader_node_source_text[loader_start:compiler_start].lower():
         errors.append("legacy extension-field loss observation changed: review JSON extension handling")

@@ -711,3 +711,10 @@ Added `summarize_document_limit_measurements.py` to consume JSONL measurement ro
 ### Measurement payload provenance schema v3 (2026-11-15)
 
 Measurement records now require the uppercase SHA-256 of the exact UTF-8 payload presented to the measured API. The reducer checks it against the generated case in addition to effective limits and input dimensions, and includes case boundary metadata and payload identity in each summary. Corpus/record schema versions are advanced so older records without input identity cannot be mistaken for this contract. Generation and schema equality are source-checked; no raw runtime records exist.
+
+
+### Vulkan Ramp numeric compiler probe (2026-11-16)
+
+Added `tools/shader_graph_rd/probe_vulkan_ramp_numeric_parity.py` to bind each of the five pre-recorded Ramp factors as a compile-time UV0.x constant, emit both HLSL and GLSL from the same typed IR, compile them to Vulkan 1.2 SPIR-V, optimize, validate, and read their constant RGBA output. GLSL and DXC outputs match exactly in binary32 for all five cases. Both differ from the independent CPU formula golden at factor `0.4999` by exactly one ULP in alpha (`0.200159982` vs `0.2001599669456482`); the other four samples match exactly. The probe therefore keeps a strict exact-golden status of `failed` and exits nonzero rather than applying a tolerance after seeing the result. Evidence and per-case hashes are written to `temp/shader-graph-glsl450-compile/ramp-numeric-parity.json`; `--keep-artifacts` retains source and SPIR-V for inspection. This establishes compiler constant-fold behavior only, not GPU execution or image parity.
+
+Source inspection found the existing `ArtifactCore::ColorRampNode` lowering emits a sequential series of clamped `lerp` calls across sorted stops, while the dynamic prototype selects a half-open segment and has an explicit duplicate-position boundary policy. The present probe does not compare those two paths, so the exact duplicate-stop behavior of the Core path and its runtime output remain unverified. The already-authored Vulkan capture case in `tests/ArtifactCore/RayTracingAcceptanceTest.cpp` remains unbuilt and unrun.

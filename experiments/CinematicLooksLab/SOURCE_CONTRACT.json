@@ -1,0 +1,16 @@
+{
+  "mirror_revision": 2,
+  "purpose": "Pinned source boundary for the hand-transcribed Python LUT and LUTEffect contract mirrors.",
+  "source_files": {
+    "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e",
+    "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821"
+  },
+  "reviewed_contract": [
+    "Builtin LUTs are generated on a 17^3 grid.",
+    "ColorLUT::setValue clamps each stored RGB grid value to [0,1].",
+    "ColorLUT lookup uses trilinear interpolation and clamps finite-sanitized RGB input and output to [0,1].",
+    "LUTEffect CPU intensity 0 leaves RGB unchanged, intensity in (0.0001,0.9999) linearly blends original and mapped RGB, and intensity >=0.9999 writes mapped RGB.",
+    "LUTEffect CPU implementation copies the input RGBA image and writes only RGB components."
+  ],
+  "refresh_rule": "If either pinned source hash changes, inspect the changed source contract, update the mirrors and evidence, then update this file. Do not only replace hashes to bypass the guard."
+}

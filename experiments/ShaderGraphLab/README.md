@@ -62,6 +62,20 @@ descriptor/register map is still a candidate proposal. Diligent integration
 and GPU validation remain open; the full manifest validator has not been
 executed.
 
+Measure five fixed Ramp samples through both compiler frontends and compare
+their constant-folded SPIR-V outputs with the independent CPU binary32 formula
+golden:
+
+```powershell
+python -B tools/shader_graph_rd/probe_vulkan_ramp_numeric_parity.py --keep-artifacts
+```
+
+The current evidence has exact GLSL/DXC agreement for 5/5 samples. At factor
+`0.4999`, both compiled outputs differ from the CPU formula golden by one ULP
+in alpha, so strict golden parity reports `failed` and exits nonzero. The tool
+does not relax the comparison threshold. It validates SPIR-V but does not run
+a GPU, Diligent, or the application; generated evidence is kept under `temp/`.
+
 Optional typed input defaults are declared by operation versions, while
 document schema v3 stores an editable Float or Vector4 default per node. Adding
 an operation with optional inputs or editing a socket default upgrades the

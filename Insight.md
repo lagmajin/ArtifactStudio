@@ -14969,3 +14969,10 @@
 - **価値または懸念:** refinement の効果は「モデルの出力解像度 < 入力解像度」かどうかで符号が変わる。低解像度モデルには必須級、高解像度モデルには有害な場合がある。raw / refined を選ぶ分岐（またはエッジ活動量による選択）無しに一律適用すると、良い画を壊す。
 - **次に確認すべきこと:** 選択基準（エッジ活動量、raw と refined の差の大きさ、局所的な α の勾配）で raw / refined を出し分ける実装。半径依存の再確認（実写・高解像度素材）。
 - **未検証:** 1024 入力版 BiRefNet、実写素材での半径依存、選択基準の精度。
+
+## 2026-11-16: Ramp の2コンパイラ出力は一致するが CPU golden と1 ULPずれる
+- **関連:** `tools/shader_graph_rd/probe_vulkan_ramp_numeric_parity.py`、`temp/shader-graph-glsl450-compile/ramp-numeric-parity.json`、`tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json`、`ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp::ColorRampNode`。
+- **確認できた事実:** 事前登録済み5 factorを定数UVとしてHLSL/DXCとGLSL/glslangからVulkan 1.2 SPIR-Vへコンパイルし、`spirv-opt -O` 後の定数出力を比較した。両frontendは5/5でRGBA binary32が完全一致した。CPU binary32 goldenとは factor 0.4999 の alpha だけ1 ULP異なる（shader `0.200159982`、golden `0.2001599669456482`）。goldenとの厳密一致ゲートは変更せず、プローブは `failed` を返す。ソース調査では Core ColorRamp がsorted stopsへの逐次 clamped `lerp` を生成する一方、dynamic candidate は半開区間を選択し、重複位置の境界方針を明示している。
+- **価値または懸念:** コンパイラ間の数値一貫性は小さなfixtureで確認できたが、CPU式との厳密一致は示せず、さらにcandidateと現行Coreのstop選択・補間手順が同一とも言えない。許容誤差を事後に導入すると差を隠すため、今はstrict failureとして記録する。
+- **次に確認すべきこと:** `ArtifactCore/RayTracingAcceptanceTest.cpp` の既存Vulkan capture caseで、同一入力の現行Core ColorRampとcandidate HLSLをRGBA32Fで比較し、stop境界・alphaを別々に解析する。結果に基づき、Coreへ昇格するoperation semanticsとCPU goldenの役割を決める。
+- **未検証:** GPU/runtime値、Core capture case、D3D12/Vulkan実描画、linear/display変換、alpha association、Blender実挙動。今回のコンパイラ constant-fold probeはこれらの代替ではない。

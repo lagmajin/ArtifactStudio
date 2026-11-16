@@ -3,7 +3,7 @@
   "kind": "artifact-shader-graph-operation-registry-audit",
   "status": "manifest-derived-proposal-audit-no-core-registry",
   "manifest": "tests/fixtures/shader-graph-rd/evaluation_manifest.json",
-  "manifestSha256": "3049312D1F3AEF71A90829C0961537A49AAF0A56DE15DC77AC6B0CD384EC4595",
+  "manifestSha256": "0EB537224BB5F32DE8F4519CEB2C952280F594334614086DE3A894B9C3031117",
   "operationCount": 24,
   "uniqueRegistryKeyCount": 24,
   "duplicateRegistryKeys": [],
@@ -3640,7 +3640,7 @@
     "pinCount": 90,
     "mismatchedOrUnidentifiedPins": [],
     "sourcePath": "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
-    "sourceSha256": "5A177E2BED0634AE4329D0679FCA2055CEC6283613E6E3E35FF415837E297C45",
+    "sourceSha256": "966A306CA210C1395590A7B80E409EC8622FF3F050C60466E46A3CC1E451C3CE",
     "sourceAuditScope": "constructor addInput/addOutput declarations for manifest-characterized families only"
   },
   "limitations": [

@@ -1,0 +1,477 @@
+{
+  "run": "rd2",
+  "seed": 20261116,
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "fixtures": {
+    "scene_boxes": {
+      "image_sha256": "dc5a1738d9491391a49fed210002f0e43fc0a574bcfd253d3b1a16ad9319fb53",
+      "width": 640,
+      "height": 360,
+      "source": "synthetic analytic renderer",
+      "objects": [
+        {
+          "kind": "plane",
+          "y": 0.0,
+          "color": [
+            0.42,
+            0.45,
+            0.5
+          ],
+          "phase": 0.7
+        },
+        {
+          "kind": "box",
+          "center": [
+            -1.05,
+            1.0,
+            -2.6
+          ],
+          "half": [
+            0.65,
+            1.0,
+            0.45
+          ],
+          "color": [
+            0.1,
+            0.12,
+            0.18
+          ],
+          "phase": 1.3
+        },
+        {
+          "kind": "box",
+          "center": [
+            1.15,
+            0.75,
+            -5.2
+          ],
+          "half": [
+            0.85,
+            0.75,
+            0.6
+          ],
+          "color": [
+            0.55,
+            0.5,
+            0.45
+          ],
+          "phase": 2.1
+        },
+        {
+          "kind": "sphere",
+          "center": [
+            0.1,
+            0.62,
+            -3.9
+          ],
+          "radius": 0.6,
+          "color": [
+            0.75,
+            0.55,
+            0.35
+          ],
+          "phase": 3.7
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.0,
+            2.4,
+            -9.5
+          ],
+          "half": [
+            3.4,
+            2.4,
+            0.3
+          ],
+          "color": [
+            0.92,
+            0.9,
+            0.82
+          ],
+          "phase": 0.2
+        }
+      ],
+      "gt_depth_units": "camera z-depth"
+    },
+    "scene_corridor": {
+      "image_sha256": "7d359d51f919afc44ac70055db58d8a1c657bdc046120ba6212643703a075c5f",
+      "width": 640,
+      "height": 360,
+      "source": "synthetic analytic renderer",
+      "objects": [
+        {
+          "kind": "plane",
+          "y": 0.0,
+          "color": [
+            0.42,
+            0.45,
+            0.5
+          ],
+          "phase": 0.7
+        },
+        {
+          "kind": "box",
+          "center": [
+            -1.9,
+            1.5,
+            -2.0
+          ],
+          "half": [
+            0.28,
+            1.5,
+            0.22
+          ],
+          "color": [
+            0.7,
+            0.66,
+            0.58
+          ],
+          "phase": 0.9
+        },
+        {
+          "kind": "box",
+          "center": [
+            1.9,
+            1.5,
+            -3.0
+          ],
+          "half": [
+            0.28,
+            1.5,
+            0.22
+          ],
+          "color": [
+            0.16,
+            0.18,
+            0.22
+          ],
+          "phase": 1.6
+        },
+        {
+          "kind": "box",
+          "center": [
+            -1.9,
+            1.5,
+            -4.5
+          ],
+          "half": [
+            0.28,
+            1.5,
+            0.22
+          ],
+          "color": [
+            0.22,
+            0.24,
+            0.28
+          ],
+          "phase": 2.4
+        },
+        {
+          "kind": "box",
+          "center": [
+            1.9,
+            1.5,
+            -6.0
+          ],
+          "half": [
+            0.28,
+            1.5,
+            0.22
+          ],
+          "color": [
+            0.8,
+            0.76,
+            0.68
+          ],
+          "phase": 3.1
+        },
+        {
+          "kind": "box",
+          "center": [
+            -1.9,
+            1.5,
+            -7.5
+          ],
+          "half": [
+            0.28,
+            1.5,
+            0.22
+          ],
+          "color": [
+            0.34,
+            0.36,
+            0.4
+          ],
+          "phase": 3.9
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.0,
+            2.2,
+            -11.0
+          ],
+          "half": [
+            2.8,
+            2.2,
+            0.25
+          ],
+          "color": [
+            0.9,
+            0.88,
+            0.8
+          ],
+          "phase": 0.4
+        }
+      ],
+      "gt_depth_units": "camera z-depth"
+    },
+    "scene_occlusion": {
+      "image_sha256": "843c45527d2fb154e4e6ca13baad3c5cfc34113b60d7afb7d2043a95145f0b17",
+      "width": 640,
+      "height": 360,
+      "source": "synthetic analytic renderer",
+      "objects": [
+        {
+          "kind": "plane",
+          "y": 0.0,
+          "color": [
+            0.42,
+            0.45,
+            0.5
+          ],
+          "phase": 0.7
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.0,
+            2.0,
+            -8.0
+          ],
+          "half": [
+            3.0,
+            2.0,
+            0.25
+          ],
+          "color": [
+            0.88,
+            0.88,
+            0.84
+          ],
+          "phase": 0.5
+        },
+        {
+          "kind": "sphere",
+          "center": [
+            -0.5,
+            0.8,
+            -2.8
+          ],
+          "radius": 0.7,
+          "color": [
+            0.12,
+            0.14,
+            0.2
+          ],
+          "phase": 2.8
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.6,
+            1.0,
+            -4.5
+          ],
+          "half": [
+            0.8,
+            1.0,
+            0.3
+          ],
+          "color": [
+            0.58,
+            0.5,
+            0.42
+          ],
+          "phase": 1.1
+        },
+        {
+          "kind": "box",
+          "center": [
+            1.0,
+            1.0,
+            -2.2
+          ],
+          "half": [
+            0.05,
+            1.0,
+            0.05
+          ],
+          "color": [
+            0.3,
+            0.3,
+            0.32
+          ],
+          "phase": 3.4
+        },
+        {
+          "kind": "box",
+          "center": [
+            -1.6,
+            0.25,
+            -6.5
+          ],
+          "half": [
+            0.4,
+            0.25,
+            0.3
+          ],
+          "color": [
+            0.85,
+            0.62,
+            0.4
+          ],
+          "phase": 4.2
+        }
+      ],
+      "gt_depth_units": "camera z-depth"
+    },
+    "scene_prior_trap": {
+      "image_sha256": "d930a8b0404d533b4217fc4df08fefaa84204c703268281f4fba8f1da64db7ef",
+      "width": 640,
+      "height": 360,
+      "source": "synthetic analytic renderer",
+      "objects": [
+        {
+          "kind": "plane",
+          "y": 0.0,
+          "color": [
+            0.42,
+            0.45,
+            0.5
+          ],
+          "phase": 0.7
+        },
+        {
+          "kind": "box",
+          "center": [
+            -0.75,
+            1.15,
+            -1.8
+          ],
+          "half": [
+            0.5,
+            1.15,
+            0.05
+          ],
+          "color": [
+            0.08,
+            0.09,
+            0.11
+          ],
+          "phase": 5.1
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.9,
+            0.7,
+            -3.0
+          ],
+          "half": [
+            0.5,
+            0.7,
+            0.4
+          ],
+          "color": [
+            0.4,
+            0.4,
+            0.42
+          ],
+          "phase": 2.2
+        },
+        {
+          "kind": "box",
+          "center": [
+            0.0,
+            3.0,
+            -9.0
+          ],
+          "half": [
+            4.0,
+            3.0,
+            0.2
+          ],
+          "color": [
+            0.98,
+            0.96,
+            0.9
+          ],
+          "phase": 0.1
+        }
+      ],
+      "gt_depth_units": "camera z-depth"
+    }
+  },
+  "models": [
+    {
+      "name": "da2s",
+      "path": "J:\\dev\\ArtifactStudio\\experiments\\DepthMapLab\\models\\depth-anything-v2-small-int8.onnx",
+      "sha256": "01aa7a23de3f4a0ee1a2bb9997e6918104c85a9f95dea46d27b9b3fb0c6b9001",
+      "size_bytes": 27258801,
+      "preset": "da2_small",
+      "model_input_short_side": 518,
+      "patch_multiple": 14,
+      "mean": [
+        0.48500001430511475,
+        0.4560000002384186,
+        0.4059999883174896
+      ],
+      "std": [
+        0.2290000021457672,
+        0.2240000069141388,
+        0.22499999403953552
+      ],
+      "execution_provider": "CPUExecutionProvider",
+      "onnxruntime": "1.31.1",
+      "depth_orientation": "higher=near",
+      "inverted_after_calibration": false
+    }
+  ],
+  "orientation_calibration": {
+    "da2s": {
+      "fixture": "scene_boxes",
+      "spearman_raw_vs_gt_disparity": 0.920481114308358,
+      "inverted": false,
+      "result": "higher=near"
+    }
+  },
+  "photos": {},
+  "gates_source": "pre-registered in EVALUATION_PLAN.md",
+  "normalizations": [
+    "p2_98",
+    "p1_99",
+    "p5_95",
+    "median_iqr"
+  ],
+  "refinements": {
+    "none": {},
+    "guided": {
+      "radius": 4,
+      "epsilon": 0.0001
+    },
+    "joint_bilateral": {
+      "radius": 3,
+      "sigma_space": 2.5,
+      "sigma_color": 0.08
+    }
+  },
+  "normalization_contract": "disparity, near=1, refinement applied after normalization",
+  "limitation": "Synthetic scenes have analytic GT but no lens, defocus, noise or haze; monocular depth is relative, not metric."
+}

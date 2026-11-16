@@ -852,6 +852,55 @@
       "class": "positive-mixrgb-blend",
       "purpose": "legacy MixRGB difference blend with explicit RGBA inputs and MaterialOutput topology",
       "runtimeStatus": "not-run"
+    },
+    {
+      "file": "dynamic_ramp_formula_golden.json",
+      "sha256": "0E4C7753DA60EF733E79CF402FC7386FE63BBEF29ED07F088D803CBA561C6959",
+      "class": "research-artifact",
+      "purpose": "independent binary32 formula oracle; not an application material-graph fixture",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "dynamic-ramp-image-oracle/report.json",
+      "sha256": "34184B5E8A1703B0861E624B06719F77BF5481F2E706957335C667DFD6628001",
+      "class": "research-artifact",
+      "purpose": "generated CPU-only Ramp image reference report; not shader or GPU capture evidence",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "generic_image_asset_catalog.json",
+      "sha256": "BDA26B39D61B402B66B5AC1E2724DAEF56BB32F0737DB7BE1C833576D8DCBAC6",
+      "class": "research-artifact",
+      "purpose": "synthetic host AssetDatabase catalog used by the schema-v4 resource proposal",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "generic_image_asset_database_snapshot.json",
+      "sha256": "A7D75F3596EE392B4D9BB376808F2B141948202BB4EEF8A09E31EF95CCA9BE8E",
+      "class": "research-artifact",
+      "purpose": "synthetic host AssetDatabase JSON snapshot used by the local editor fixture",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "generic_image_mapping_proposal.json",
+      "sha256": "4F5AB95041D842A6CF6CBE1224070FBA9275D86D32B1926DA06CB8D6CBB82161",
+      "class": "research-artifact",
+      "purpose": "schema-v4 generic image resource and UV Mapping proposal document",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "generic_image_resource_reference_proposal.json",
+      "sha256": "EEA80A74B7D9CFD5172272375C38706811F3E3A88B56693DB3B66C507FD1CC31",
+      "class": "research-artifact",
+      "purpose": "schema-v4 generic image resource-reference proposal document",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
+    },
+    {
+      "file": "generic_image_source_states.json",
+      "sha256": "D70FC22A854808DB2AE69C7866FB559CA6AA8B612076888DF303A9816D45E8D3",
+      "class": "research-artifact",
+      "purpose": "synthetic source-revision snapshot used by the resource binding proposal",
+      "runtimeStatus": "research-artifact-not-application-graph-fixture"
     }
   ],
   "fixtureEvaluationCoverage": [
@@ -1245,6 +1294,15 @@
       "runtimeRoute": null,
       "runtimeComparison": "cell feature and distance coverage proposal; runtime numeric parity unverified",
       "evidenceState": "source-fixture-only-runtime-unverified"
+    },
+    {
+      "fixtures": [
+        "dynamic_ramp_legacy_uv.json"
+      ],
+      "cpuContract": "legacy-core-ramp-capture-source",
+      "runtimeRoute": "rampImageEvaluationPlan.gpuCaptureSource",
+      "runtimeComparison": "legacy Core output and dynamic candidate captured as separate characterization paths; no assumed duplicate-stop equivalence",
+      "evidenceState": "capture-source-added-not-built-or-run"
     }
   ],
   "sourceContracts": [
@@ -2158,7 +2216,7 @@
         {
           "from": "Vector3",
           "to": "Vector2",
-          "currentHlslEvidence": "float2(geometry_Position.xy)",
+          "currentHlslEvidence": "geometry_Position.xy",
           "proposedOpcode": "convert.vector3.truncate_xy",
           "numericProbeInput": [
             0.25,
@@ -2206,7 +2264,7 @@
         {
           "from": "Vector4",
           "to": "Vector2",
-          "currentHlslEvidence": "float2(color_Color.xy)",
+          "currentHlslEvidence": "color_Color.xy",
           "proposedOpcode": "convert.vector4.truncate_xy",
           "numericProbeInput": [
             0.25,
@@ -2820,7 +2878,7 @@
     ],
     "status": "source-audited-numeric-boundary-probes-and-cross-backend-goldens-open",
     "formulaGolden": "math_operation_formula_golden.json",
-    "formulaGoldenSha256": "310D1DED13C04DE79F642A4D724847CFA399E4C78251FE62B234E59375FEA9E4",
+    "formulaGoldenSha256": "1E8F1BFBDE9AE43A53C69DCBA7AB8DBBF05CECDEAECCD309D7407BE48759C930",
     "numericCoverage": [
       "signed inputs",
       "epsilon and negative divisors",
@@ -2952,7 +3010,7 @@
     },
     {
       "fixture": "wrong_kind_negative.json",
-      "sourceBehavior": "reader does not inspect kind and can load known nodes despite unrelated document kind",
+      "sourceBehavior": "reader requires version 1 and rejects a mismatched string kind before mutating the existing graph; omitted kind remains accepted for legacy compatibility",
       "adapterPolicy": "reject Core Document conversion with document.kind.unsupported",
       "lossPrevention": "retain original source bytes in opaque compatibility envelope; never rewrite as valid current kind",
       "expected": "reject-and-retain-source"
@@ -3144,7 +3202,7 @@
           },
           "runtimeStatus": "planned-no-capture-source-or-pixel-evidence",
           "formulaGolden": "mixrgb_formula_golden.json",
-          "formulaGoldenSha256": "6DB7B90876F0E26699F058FFFC0FCEBB75A1213C65A71C3C3D9416A4DE1B77F7"
+          "formulaGoldenSha256": "D6AC62559EE06F51EFF576D6E0CE0031C82AE210A4884177B7B4D8CE704B8053"
         },
         "colorRampDuplicateStopProbe": {
           "fixtures": [
@@ -3573,22 +3631,67 @@
           "version": 3,
           "caseIdFormat": "<limitField>.<boundary>; stable and unique within one generated corpus",
           "requiredFields": [
-            "runId", "caseId", "payloadSha256", "sampleIndex", "phase", "appRevision", "buildAndCompiler",
-            "platform", "hardware", "instrumentation", "effectiveLimits", "inputUtf8Bytes",
-            "documentNodes", "documentLinks", "observedTraversalDepth", "parseNs",
-            "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes",
-            "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes",
-            "rejectionStage", "destinationUnchanged", "resultStatus", "notes"
+            "runId",
+            "caseId",
+            "payloadSha256",
+            "sampleIndex",
+            "phase",
+            "appRevision",
+            "buildAndCompiler",
+            "platform",
+            "hardware",
+            "instrumentation",
+            "effectiveLimits",
+            "inputUtf8Bytes",
+            "documentNodes",
+            "documentLinks",
+            "observedTraversalDepth",
+            "parseNs",
+            "structuralValidationNs",
+            "canonicalizationNs",
+            "loweringNs",
+            "peakLiveBytes",
+            "allocationCount",
+            "allocatedBytes",
+            "largestAllocationBytes",
+            "stackHighWaterBytes",
+            "rejectionStage",
+            "destinationUnchanged",
+            "resultStatus",
+            "notes"
           ],
-          "phaseValues": ["cold-parse", "warm-validation"],
-          "stageDurationFieldsNs": ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs"],
+          "phaseValues": [
+            "cold-parse",
+            "warm-validation"
+          ],
+          "stageDurationFieldsNs": [
+            "parseNs",
+            "structuralValidationNs",
+            "canonicalizationNs",
+            "loweringNs"
+          ],
           "recordSemantics": {
-            "phase": ["cold-parse", "warm-validation"],
+            "phase": [
+              "cold-parse",
+              "warm-validation"
+            ],
             "sampleIndex": "zero-based within a case/phase; retain every raw sample",
             "payloadSha256": "uppercase SHA-256 of the exact UTF-8 input bytes measured; must match the referenced corpus payload",
             "timings": "integer nanoseconds per stage; use null when that stage was not reached",
             "memoryAndAllocation": "record peak/live and cumulative allocator counters for the whole isolated sample; never infer zero from unavailable instrumentation",
-            "rejectionStage": ["configuration", "before-parse", "parse", "before-index", "before-adjacency", "validation", "depth-check", "canonicalization", "lowering", "accepted", "unknown"],
+            "rejectionStage": [
+              "configuration",
+              "before-parse",
+              "parse",
+              "before-index",
+              "before-adjacency",
+              "validation",
+              "depth-check",
+              "canonicalization",
+              "lowering",
+              "accepted",
+              "unknown"
+            ],
             "destinationUnchanged": "true is required for every rejected mutating request; null only when the measured API has no destination state",
             "warmup": "record warmup separately or exclude it from sampleIndex; collect at least 30 timed successful samples after warmup"
           },
@@ -3598,12 +3701,36 @@
         },
         "measurementSummarySchema": {
           "version": 2,
-          "groupBy": ["runId", "caseId", "phase", "appRevision", "buildAndCompiler", "platform", "hardware", "instrumentation", "effectiveLimits"],
+          "groupBy": [
+            "runId",
+            "caseId",
+            "phase",
+            "appRevision",
+            "buildAndCompiler",
+            "platform",
+            "hardware",
+            "instrumentation",
+            "effectiveLimits"
+          ],
           "minimumTimedSamples": 30,
           "percentiles": {
             "method": "nearest-rank; sort non-null integer nanosecond values ascending; rank is ceil(p*n), one-based",
-            "values": ["median", "p95", "p99"],
-            "fields": ["parseNs", "structuralValidationNs", "canonicalizationNs", "loweringNs", "peakLiveBytes", "allocationCount", "allocatedBytes", "largestAllocationBytes", "stackHighWaterBytes"],
+            "values": [
+              "median",
+              "p95",
+              "p99"
+            ],
+            "fields": [
+              "parseNs",
+              "structuralValidationNs",
+              "canonicalizationNs",
+              "loweringNs",
+              "peakLiveBytes",
+              "allocationCount",
+              "allocatedBytes",
+              "largestAllocationBytes",
+              "stackHighWaterBytes"
+            ],
             "missing": "summarize each field only from non-null values and report its measured sample count; never coerce null to zero"
           },
           "boundaryDisposition": {
@@ -3614,8 +3741,25 @@
             "rejectedMutation": "every rejected mutating sample must have destinationUnchanged=true",
             "productionSelection": "no numeric production limit may be selected until reviewed resource thresholds and safety margins are supplied; this summary reports evidence and contract violations but does not choose limits"
           },
-          "requiredSummaryFields": ["caseId", "case", "phase", "context", "observedSampleCount", "fieldSummaries", "acceptCount", "rejectCount", "destinationPreservationUnknownCount", "contractViolationCount", "decisionStatus"],
-          "decisionStatusValues": ["insufficient-samples", "incomplete-instrumentation", "contract-violation", "evidence-only-no-production-limit"],
+          "requiredSummaryFields": [
+            "caseId",
+            "case",
+            "phase",
+            "context",
+            "observedSampleCount",
+            "fieldSummaries",
+            "acceptCount",
+            "rejectCount",
+            "destinationPreservationUnknownCount",
+            "contractViolationCount",
+            "decisionStatus"
+          ],
+          "decisionStatusValues": [
+            "insufficient-samples",
+            "incomplete-instrumentation",
+            "contract-violation",
+            "evidence-only-no-production-limit"
+          ],
           "decisionRules": "contract violation takes precedence; otherwise fewer than minimumTimedSamples is insufficient; otherwise all metric fields unavailable or any rejected sample with unknown destination preservation is incomplete-instrumentation; otherwise report evidence-only-no-production-limit"
         },
         "executionMethod": "For each shape, sweep sizes geometrically until failure/resource budget, then refine around the transition; repeat successful timed samples at least 30 times after warmup and report median/p95/p99. Keep raw per-run records, compiler/build/backend/CPU/OS details, and instrumentation overhead. Repeat cold parse and warm validation separately.",
@@ -3787,7 +3931,8 @@
       "AllLegacySocketConversionsHaveExplicitExpressions",
       "ImageTextureSlotsSelectDeclaredResources",
       "SanitizedNodeIdentifiersDoNotCollide",
-      "GraphTraversalHandlesDeepChainsWithoutStackFailure"
+      "GraphTraversalHandlesDeepChainsWithoutStackFailure",
+      "WrongDocumentKindRejectsLoadWithoutMutatingGraph"
     ],
     "contractTestSourceCoverage": {
       "nodeParameterRoundTrip": [
@@ -3826,16 +3971,86 @@
       "defaultLane": "unclassified-do-not-register-as-green",
       "registrationPolicy": "expected-failure candidates and default-lane cases stay outside the green target until assigned to characterization, expected-failure, or target-acceptance lanes and reviewed after execution",
       "expectedFailureCandidates": [
-        {"testCase": "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder", "sourceCoverageKey": "canonicalSerialization", "assertionFragments": ["EXPECT_EQ(forward.toJson({}), reverse.toJson({})", "Equivalent graph documents should serialize canonically regardless "]},
-        {"testCase": "MultipleMaterialOutputsRequireExplicitSelection", "sourceCoverageKey": "multipleOutputSelection", "assertionFragments": ["EXPECT_FALSE(result.ok)", "multiple Material Output"]},
-        {"testCase": "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph", "sourceCoverageKey": "singleWriterInput", "assertionFragments": ["EXPECT_FALSE(loaded.ok)", "graph.toJson({}), before"]},
-        {"testCase": "EmptyColorRampStopsAreNotSilentlyIgnored", "sourceCoverageKey": "rampEmptyAndOversizedCases", "assertionFragments": ["EXPECT_TRUE(!loaded.ok || !loaded.error.empty())", "An empty Color Ramp must be rejected"]},
-        {"testCase": "ExcessColorRampStopsAreNotSilentlyTruncated", "sourceCoverageKey": "rampEmptyAndOversizedCases", "assertionFragments": ["EXPECT_TRUE(!loaded.ok || !loaded.error.empty())", "Stops above the supported limit must be rejected"]},
-        {"testCase": "LinkRejectsPinsOwnedByAnotherGraph", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation", "assertionFragments": ["EXPECT_TRUE(graph.links.empty())", "Pin* owned by another graph"]},
-        {"testCase": "LinkRejectsIncompatiblePinTypes", "sourceCoverageKey": "directLinkOwnershipAndTypeValidation", "assertionFragments": ["EXPECT_TRUE(graph.links.empty())", "Float output must not be connected"]},
-        {"testCase": "LinkRejectsMultipleWritersForOneInput", "sourceCoverageKey": "singleWriterInput", "assertionFragments": ["EXPECT_EQ(graph.links.size(), 1u)", "at most one incoming link"]},
-        {"testCase": "SanitizedNodeIdentifiersDoNotCollide", "sourceCoverageKey": "identifierSanitizationCollision", "assertionFragments": ["float4 base_color_Color =", "Distinct graph IDs must not emit duplicate HLSL declarations"]},
-        {"testCase": "OutOfRangeGraphBaseColorAlphaIsDiagnosed", "sourceCoverageKey": "graphBaseColorAlphaRange", "assertionFragments": ["EXPECT_TRUE(diagnosed)", "alpha outside [0,1]"]}
+        {
+          "testCase": "CanonicalSerializationIgnoresNodeAndLinkInsertionOrder",
+          "sourceCoverageKey": "canonicalSerialization",
+          "assertionFragments": [
+            "EXPECT_EQ(forward.toJson({}), reverse.toJson({})",
+            "Equivalent graph documents should serialize canonically regardless "
+          ]
+        },
+        {
+          "testCase": "MultipleMaterialOutputsRequireExplicitSelection",
+          "sourceCoverageKey": "multipleOutputSelection",
+          "assertionFragments": [
+            "EXPECT_FALSE(result.ok)",
+            "multiple Material Output"
+          ]
+        },
+        {
+          "testCase": "DuplicateInputLinksAreRejectedWithoutReplacingExistingGraph",
+          "sourceCoverageKey": "singleWriterInput",
+          "assertionFragments": [
+            "EXPECT_FALSE(loaded.ok)",
+            "graph.toJson({}), before"
+          ]
+        },
+        {
+          "testCase": "EmptyColorRampStopsAreNotSilentlyIgnored",
+          "sourceCoverageKey": "rampEmptyAndOversizedCases",
+          "assertionFragments": [
+            "EXPECT_TRUE(!loaded.ok || !loaded.error.empty())",
+            "An empty Color Ramp must be rejected"
+          ]
+        },
+        {
+          "testCase": "ExcessColorRampStopsAreNotSilentlyTruncated",
+          "sourceCoverageKey": "rampEmptyAndOversizedCases",
+          "assertionFragments": [
+            "EXPECT_TRUE(!loaded.ok || !loaded.error.empty())",
+            "Stops above the supported limit must be rejected"
+          ]
+        },
+        {
+          "testCase": "LinkRejectsPinsOwnedByAnotherGraph",
+          "sourceCoverageKey": "directLinkOwnershipAndTypeValidation",
+          "assertionFragments": [
+            "EXPECT_TRUE(graph.links.empty())",
+            "Pin* owned by another graph"
+          ]
+        },
+        {
+          "testCase": "LinkRejectsIncompatiblePinTypes",
+          "sourceCoverageKey": "directLinkOwnershipAndTypeValidation",
+          "assertionFragments": [
+            "EXPECT_TRUE(graph.links.empty())",
+            "Float output must not be connected"
+          ]
+        },
+        {
+          "testCase": "LinkRejectsMultipleWritersForOneInput",
+          "sourceCoverageKey": "singleWriterInput",
+          "assertionFragments": [
+            "EXPECT_EQ(graph.links.size(), 1u)",
+            "at most one incoming link"
+          ]
+        },
+        {
+          "testCase": "SanitizedNodeIdentifiersDoNotCollide",
+          "sourceCoverageKey": "identifierSanitizationCollision",
+          "assertionFragments": [
+            "float4 base_color_Color =",
+            "Distinct graph IDs must not emit duplicate HLSL declarations"
+          ]
+        },
+        {
+          "testCase": "OutOfRangeGraphBaseColorAlphaIsDiagnosed",
+          "sourceCoverageKey": "graphBaseColorAlphaRange",
+          "assertionFragments": [
+            "EXPECT_TRUE(diagnosed)",
+            "alpha outside [0,1]"
+          ]
+        }
       ]
     },
     "contractTestRegistered": false,
@@ -3896,7 +4111,7 @@
     ],
     "status": "source-audited-finite-runtime-pixel-and-backend-parity-open",
     "formulaGolden": "mixrgb_formula_golden.json",
-    "formulaGoldenSha256": "6DB7B90876F0E26699F058FFFC0FCEBB75A1213C65A71C3C3D9416A4DE1B77F7"
+    "formulaGoldenSha256": "D6AC62559EE06F51EFF576D6E0CE0031C82AE210A4884177B7B4D8CE704B8053"
   },
   "coreTypedOperationSchemaProposal": {
     "schemaId": "artifact.material-graph.typed-operation-schema",
@@ -5859,7 +6074,16 @@
         "maxLinks": 16384,
         "evidenceStatus": "provisional-unprofiled"
       },
-      "graphParameterLayoutContract": {"valueTypes":["Float32","Vector3F32","Vector4F32"],"vector3Cbuffer":"float3 at an explicit 16-byte register start; reserve all 16 bytes in host layout","vector3ResidentAbi":"three consecutive scalar float lanes lowered as float3; capacity remains sixteen lanes","status":"source-candidate-no-compiler-reflection-or-runtime-upload"},
+      "graphParameterLayoutContract": {
+        "valueTypes": [
+          "Float32",
+          "Vector3F32",
+          "Vector4F32"
+        ],
+        "vector3Cbuffer": "float3 at an explicit 16-byte register start; reserve all 16 bytes in host layout",
+        "vector3ResidentAbi": "three consecutive scalar float lanes lowered as float3; capacity remains sixteen lanes",
+        "status": "source-candidate-no-compiler-reflection-or-runtime-upload"
+      },
       "prototype": "experiments/ShaderGraphLab/dynamic_graph_prototype.py",
       "registryFixture": "experiments/ShaderGraphLab/registry.json",
       "localImageResourceResolverSnapshotContract": {

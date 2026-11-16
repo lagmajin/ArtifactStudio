@@ -1,7 +1,7 @@
 {
   "rd": "rd0",
   "seed": 20261116,
-  "created_utc": "2026-11-16T02:04:38Z",
+  "created_utc": "2026-11-16T02:43:20Z",
   "environment": {
     "python": "3.14.2",
     "numpy": "2.4.3",
@@ -91,24 +91,122 @@
       }
     },
     "neon_streets": {
+      "provenance_record": "experiments/GlowLab/assets/SOURCES.md",
+      "rois": {
+        "intersection_lights": [
+          520,
+          330,
+          520,
+          460
+        ],
+        "dark_buildings": [
+          40,
+          80,
+          420,
+          360
+        ]
+      },
       "available": true,
       "source_path": "experiments/GlowLab/assets/cc0-neon-streets-1536.jpg",
       "sha256": "8791bd593b699be76dcfb181d72dd8655caaae2e88c235b89ed5d9097aa319d4",
       "size": [
         1536,
         1025
-      ],
-      "provenance_record": "experiments/GlowLab/assets/SOURCES.md"
+      ]
     },
     "street_lights": {
+      "provenance_record": "experiments/GlowLab/assets/SOURCES.md",
+      "rois": {
+        "lamp_and_glare": [
+          70,
+          360,
+          360,
+          260
+        ],
+        "lower_sign_lights": [
+          20,
+          760,
+          260,
+          320
+        ]
+      },
       "available": true,
       "source_path": "experiments/GlowLab/assets/cc0-street-light-night.jpg",
       "sha256": "b01e663da4cada43f95b936d88ed377244680b56c41929d2d621d087d7224eb8",
       "size": [
         576,
         1280
-      ],
-      "provenance_record": "experiments/GlowLab/assets/SOURCES.md"
+      ]
+    },
+    "portrait": {
+      "source_page": "https://commons.wikimedia.org/wiki/File:Portrait_2024.jpg",
+      "license": "CC0 1.0",
+      "creator": "MarieClaudeGendron2; camera metadata credits Louis Rivest-Henault",
+      "source_original_path": "experiments/CinematicLooksLab/assets/portrait-2024-source.jpg",
+      "source_original_sha256": "50b3f431675b55d53fefa13451d734af13988c43585a5236c39b2644a47a4f07",
+      "transformation": "proportional LANCZOS resize to 1536x1024; JPEG quality 95, 4:4:4",
+      "rois": {
+        "face_skin": [
+          650,
+          230,
+          300,
+          300
+        ],
+        "hair_and_face": [
+          470,
+          160,
+          620,
+          660
+        ],
+        "bright_window": [
+          80,
+          180,
+          380,
+          390
+        ]
+      },
+      "available": true,
+      "source_path": "experiments/CinematicLooksLab/assets/portrait-2024-1536.jpg",
+      "sha256": "9c14e3c0206ad6fe080c349368bf29219071892002fc01f1b6fc947af3bd40e2",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "forest": {
+      "source_page": "https://commons.wikimedia.org/wiki/File:Landscape_of_a_wild_forest.jpg",
+      "license": "CC0 1.0",
+      "creator": "SpessiG",
+      "source_original_path": "experiments/CinematicLooksLab/assets/forest-wild-source.jpg",
+      "source_original_sha256": "2f9f01326230bf9166eec430eb6d14cac69412d6cf6e2ecc7a25970683e4ddea",
+      "transformation": "proportional LANCZOS resize to 1536x1024; JPEG quality 95, 4:4:4",
+      "rois": {
+        "sunlit_canopy": [
+          420,
+          200,
+          520,
+          480
+        ],
+        "deep_foliage": [
+          80,
+          460,
+          620,
+          480
+        ],
+        "fine_branches": [
+          800,
+          80,
+          600,
+          360
+        ]
+      },
+      "available": true,
+      "source_path": "experiments/CinematicLooksLab/assets/forest-wild-1536.jpg",
+      "sha256": "b417d6ffe3b494ee80906d6b433544ee7a2afa51c1557dcdf3b8feae9536ce6c",
+      "size": [
+        1536,
+        1024
+      ]
     }
   },
   "looks": [

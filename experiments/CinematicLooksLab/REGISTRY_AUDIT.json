@@ -1,0 +1,233 @@
+{
+  "audit": "Looks browser preset IDs versus executable LUT registry",
+  "scope": "static source inventory; no inferred semantic mapping",
+  "sources": {
+    "Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp": "a6a09bad96073eef9102ecbda784d23d518c9852bc372308257020654c4393d3",
+    "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821",
+    "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e"
+  },
+  "browser_preset_count": 24,
+  "browser_presets": [
+    {
+      "id": "amber_dusk",
+      "name": "Amber Dusk",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "bleach_bypass",
+      "name": "Bleach Bypass",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "broadcast_safe",
+      "name": "Broadcast Safe",
+      "category": "TV & Video",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cold_day",
+      "name": "Cold Day",
+      "category": "Photo",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cross_process",
+      "name": "Cross Process",
+      "category": "Creative",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cyberpunk",
+      "name": "Cyberpunk",
+      "category": "Creative",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "day_for_night",
+      "name": "Day For Night",
+      "category": "Film",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "deep_forest",
+      "name": "Deep Forest",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "fuji_velvia",
+      "name": "Fuji Velvia",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "golden_hour",
+      "name": "Golden Hour",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "horror_night",
+      "name": "Horror Night",
+      "category": "Creative",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "hyper_real",
+      "name": "Hyper Real",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "kodak_5219",
+      "name": "Kodak 5219",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "log_c_rec709",
+      "name": "Log C Rec709",
+      "category": "TV & Video",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "miami_vice",
+      "name": "Miami Vice",
+      "category": "TV & Video",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "muted_indie",
+      "name": "Muted Indie",
+      "category": "Film",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "news_footage",
+      "name": "News Footage",
+      "category": "TV & Video",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "noir_bw",
+      "name": "Noir B&W",
+      "category": "Creative",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "pastel_dream",
+      "name": "Pastel Dream",
+      "category": "Photo",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "pro_mist",
+      "name": "Pro Mist",
+      "category": "Film",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "raw_log_flat",
+      "name": "Raw Log Flat",
+      "category": "TV & Video",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "teal_orange",
+      "name": "Teal & Orange",
+      "category": "Film",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "vintage_70s",
+      "name": "Vintage 70s",
+      "category": "Creative",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "washed_out",
+      "name": "Washed Out",
+      "category": "Photo",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    }
+  ],
+  "lut_effect_presets": [
+    "Custom",
+    "Cinematic",
+    "Vintage",
+    "Cold",
+    "Warm",
+    "HighContrast",
+    "LowContrast",
+    "Desaturated",
+    "Kodak2383",
+    "Fuji3510"
+  ],
+  "builtin_lut_names": [
+    "cinematic",
+    "vintage",
+    "cold",
+    "warm",
+    "highContrast",
+    "lowContrast",
+    "desaturated",
+    "kodak2383",
+    "fuji3510"
+  ],
+  "mapping_contract": "No browser preset is treated as mapped without an explicit implementation and an observed apply path.",
+  "integration_findings": [
+    "No LooksPresetBrowserDialog construction callsite was found under Artifact/src or Artifact/include.",
+    "Dialog Apply updates only appliedId_ and a badge; it does not create or apply an effect, notify a caller, or close the dialog.",
+    "No browser preset ID to LUTEffect preset mapping was found in the inspected source."
+  ]
+}

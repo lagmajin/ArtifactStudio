@@ -3,8 +3,8 @@
 **最終更新:** 2026-11-16
 
 ### Cinematic Looks 画像補正 R&D
-- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: 計画登録・Python reference harness・rd0 baseline capture 作成。製品経路未検証）
-  - 既存 BuiltinLUTs と未接続の Looks browser preset 定義を区別し、決定論 chart と provenance 済み CC0 photo で応答・色/階調・細部・強度・性能を比較する
+- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: 計画・Python reference harness・4実写rd0/blind sheet・float契約probe・CPU Rasterizer経路・browser24 ID対builtin LUT9件registry audit。人手画質/gate/runtime parity未検証）
+  - 既存 BuiltinLUTs と未接続の Looks browser preset 定義を区別し、決定論 chart と provenance 済み CC0 photo で応答・色/階調・細部・強度・性能を比較する。RD0で人物／肌・森林・夜景の素材カテゴリを確保した
   - 未確定ゲートを人の baseline review 後に固定し、候補比較と実アプリ経路の証拠を分けて記録する。R&D は UI・新規 LUT・既定値の実装承認ではない
   - 詳細: `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md`
 

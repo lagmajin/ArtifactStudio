@@ -3,7 +3,7 @@
   "kind": "artifact-shader-graph-math-formula-golden",
   "status": "candidate-core-math-only-not-runtime-or-cross-backend-evidence",
   "sourcePath": "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
-  "sourceSha256": "5A177E2BED0634AE4329D0679FCA2055CEC6283613E6E3E35FF415837E297C45",
+  "sourceSha256": "966A306CA210C1395590A7B80E409EC8622FF3F050C60466E46A3CC1E451C3CE",
   "arithmetic": "binary32 round-to-nearest after each declared operation; no fused multiply-add; compiler fast-math behavior not characterized",
   "clampResult": false,
   "cases": [

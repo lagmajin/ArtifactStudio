@@ -207,6 +207,25 @@ TEST(ShaderGraphContractTest, SemanticChangeChangesCurrentCompileHash)
         << "A source-affecting graph parameter change must change the HLSL hash";
 }
 
+TEST(ShaderGraphContractTest, WrongDocumentKindRejectsLoadWithoutMutatingGraph)
+{
+    const auto fixturePath = std::filesystem::path(__FILE__).parent_path().parent_path() /
+        "fixtures" / "shader-graph-rd" / "wrong_kind_negative.json";
+    std::ifstream fixtureFile(fixturePath, std::ios::binary);
+    ASSERT_TRUE(fixtureFile.is_open()) << fixturePath.string();
+    const std::string payload{
+        std::istreambuf_iterator<char>(fixtureFile),
+        std::istreambuf_iterator<char>()};
+
+    NodeGraph graph;
+    graph.addNode(std::make_unique<RGBNode>("preserved"));
+    const auto before = graph.toJson({});
+    const auto loaded = graph.fromJson(payload);
+    EXPECT_FALSE(loaded.ok);
+    EXPECT_EQ(loaded.error, "unsupported material graph kind");
+    EXPECT_EQ(graph.toJson({}), before);
+}
+
 TEST(ShaderGraphContractTest, CompileHashTracksHelperAndBlockSource)
 {
     NodeGraph withNoise;
