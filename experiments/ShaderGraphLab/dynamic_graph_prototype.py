@@ -4878,11 +4878,70 @@ def project_legacy_core_material_input(
         incoming.setdefault((target_id, target_socket), []).append((source_id, source_socket))
 
     target = node_by_id.get(target_node_id)
-    if target is None or target.get("type") != "Principled" or target_input_socket != "BaseColor":
-        raise ContractError("projection target must be a Principled BaseColor input",
+    if (target is None or target.get("type") != "Principled" or
+            target_input_socket not in ("BaseColor", "Roughness")):
+        raise ContractError("projection target must be a supported Principled input",
                             code="legacy.projection.target.unsupported", path="/target")
     target_sources = incoming.get((target_node_id, target_input_socket), [])
+    if target_input_socket == "Roughness":
+        if len(target_sources) != 1:
+            raise ContractError("legacy Roughness projection requires exactly one UV source",
+                                code="legacy.link.cardinality.invalid",
+                                path=f"/nodes/{target_node_id}/inputs/{target_input_socket}")
+        source_id, source_socket = target_sources[0]
+        uv_node = node_by_id.get(source_id)
+        if uv_node is None:
+            raise ContractError("legacy link references a missing node",
+                                code="legacy.link.endpoint.missing", path="/links")
+        uv_params = uv_node.get("params", {})
+        if (uv_node.get("type") != "TexCoord" or source_socket != "UV" or
+                not isinstance(uv_params, dict) or uv_params):
+            raise ContractError("Roughness projection supports only an unparameterized TexCoord.UV source",
+                                code="legacy.node.operation.unsupported",
+                                path=f"/nodes/{source_id}")
+        layout: dict[str, float] = {}
+        layout_source = "deterministic-rd-canvas-projection"
+        if "x" in uv_node and "y" in uv_node:
+            layout = {
+                "x": _f32(uv_node["x"], "legacy layout x",
+                          path=f"/nodes/{source_id}/x", code="legacy.layout.invalid"),
+                "y": _f32(uv_node["y"], "legacy layout y",
+                          path=f"/nodes/{source_id}/y", code="legacy.layout.invalid"),
+            }
+            layout_source = "legacy"
+        projected_document = {
+            "schemaVersion": 1,
+            "kind": "artifact-shader-graph-rd-document",
+            "nodes": [{
+                "nodeId": source_id,
+                "operationId": "artifact.input.texcoord.uv0.x",
+                "semanticVersion": 1,
+                "parameters": {},
+                "layout": layout or {"x": 0.0, "y": 0.0},
+            }],
+            "links": [],
+            "output": {"nodeId": source_id, "socketId": "value"},
+        }
+        compile_document_from_data(
+            projected_document, registry,
+            hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+        included = [source_id]
+        return {
+            "status": "read-only-projection",
+            "sourceSha256": hashlib.sha256(source_json.encode("utf-8")).hexdigest().upper(),
+            "opaqueSourceJson": source_json,
+            "selectedLegacyInput": {"nodeId": target_node_id,
+                                     "socketId": target_input_socket},
+            "includedNodeIds": included,
+            "excludedNodeIds": [node_id for node_id in node_by_id if node_id not in included],
+            "layoutProvenance": {source_id: layout_source},
+            "document": projected_document,
+            "sourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+        }
     if not target_sources:
+        if target_input_socket != "BaseColor":
+            raise ContractError("unconnected target input is outside the supported projection lane",
+                                code="legacy.projection.target.unsupported", path="/target")
         default_id = "legacy_BaseColor_default"
         if default_id in node_by_id:
             raise ContractError("generated BaseColor default node id collides with source",

@@ -1,7 +1,7 @@
 # Cinematic Looks Lab — 事前登録済み画像評価計画
 
 **最終更新:** 2026-11-16
-**ステータス:** rd0 LUT lane と Color Balance / Tritone の source-mirror 画像応答を記録済み。新しい effect lane のブラインド票も生成済み。人手判定・品質 gate・C++ differential・HDR/alpha runtime・Composition復元は未実施。
+**ステータス:** rd0 LUT lane と Color Balance / Tritone CPU/GPU source-mirror 応答を記録済み。追加 effect lane の full/ROI blind materials も生成済み。人手判定・品質 gate・C++ differential・HDR/alpha runtime・Composition復元は未実施。
 
 本計画は `docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md` に従う。目的は既存のカラー補正部品と、未接続の Looks プリセットブラウザー案を評価することであり、製品 UI の実装・採用を承認するものではない。
 
@@ -25,8 +25,8 @@
 
 - 取得済み `rd0` LUT lane: 無処理 baseline、builtin cinematic、vintage、cold、warm、high contrast、low contrast、desaturated、Kodak 2383、Fuji 3510。各 LUT の intensity 0 / 0.5 / 1.0 は同じ入力に対して測定済み。
 - Color Balance lane: baseline と Cinematic preset の Strength 0 / 0.5 / 1.0 を同一素材で評価する。0 は baseline を兼ね、CPU effect の no-op branch を別の float probe で確認する。0.5 / 1.0 の5素材画像と統計を `captures/rd0_effect_extension/` に生成済み。
-- Tritone lane: baseline と Cinematic preset の Master Strength 0 / 0.5 / 1.0 を評価し、Color Mix は Cinematic 既定値に固定する。TealAndOrange を比較対照として Master Strength 1.0 も追加。5素材の画像・統計・alpha / float probe を同じ extension に生成済み。0.5 / 1.0 は LUT intensity と同じアルゴリズム・保証とはみなさない。
-- 追加 lane は effect ID 別に source equation mirror / source hash pin を用意した。結果は独立したブラインド接触シートと空欄票に含めたが、人手レビューと Look 対応キーの照合は未実施。
+- Tritone lane: CPU / GPU の source equation を別々に mirror し、Cinematic Master Strength 0 / 0.5 / 1.0 と TealAndOrange 1.0 を5素材で測定。CPU / GPU の式差、float domain、alpha association probe、画像・統計を同じ extension に保存した。0.5 / 1.0 は LUT intensity と同じアルゴリズム・保証とはみなさない。
+- 追加 lane は effect ID 別に source equation mirror / source hash pin を用意した。CPU source outputs を独立した blind contact sheet、18 ROI sheets、126 full-resolution crops、空欄票に含めた。人手レビューと Look 対応キーの照合は未実施。
 - オプション候補: Looks ブラウザーの「Teal & Orange」「Amber Dusk」「Muted Indie」などは、実体が既存 LUT と重複するかを調べるための名前上の候補に留める。コードにない補正式や見た目を既存機能とみなさない。
 - 資材: 決定論チャート、`experiments/GlowLab/assets/SOURCES.md` の CC0 夜景写真2点、および `assets/SOURCES.md` の CC0 人物・森林写真を使用する。人物／肌、屋外緑・枝葉、夜景／点光源の3カテゴリを満たす。入力写真は見た目の ground truth ではない。
 - 評価対象は静止画の全体および ROI。連番画像は今回対象外（時間変化を持たない LUT でも、フレームごとに内容が変わると見た目が揺れる素材依存性は別途残る）。
@@ -35,7 +35,7 @@
 
 - 未接続ブラウザーの製品 UI、ユーザー向けプリセットの保存・配布・管理、および既定値変更
 - 新しいシネマティック効果／LUT アルゴリズムの実装、外部 LUT のライセンス評価と配布
-- 動画再生・時間的一貫性の製品保証、GPU/D3D12/Vulkan parity、Render Queue の画質・性能受入
+- 動画再生・時間的一貫性の製品保証。D3D12/Vulkan と Render Queue の実 runtime acceptance はオフライン段階では未実施とするが、CPU/GPU の source equation parity は対象に含め、実測差を open finding として記録する。
 - 任意の LUT を「映画フィルムの物理的正解」とみなすこと。既知の目標画像がなければ、ルックの良否は基準化された視覚レビューと技術的破綻の有無で評価する。
 
 ## 2. 比較条件と評価素材
@@ -52,7 +52,7 @@
 ## 3. 固定画像条件
 
 - LUT 応答は ArtifactCore `ColorLUT.cpp` の 17³ table generation / trilinear sampler を mirror した Python harness で測定し、source SHA-256 を manifest に記録する。Color Balance / Tritone は `cinematic_effects_extension.py` が core processor 式と effect preset 値を別途 mirror し、6 source file の hash pin に記録する。いずれも C++ 実行結果の直接測定ではなく、数値一致の証明ではない。
-- 写真／チャート画像は sRGB 8-bit RGB のみで、source processor が入力値に対して transfer conversion を行わないため、そのまま正規化値を式へ渡す。extension の float probe は unit-range／negative／HDR／NaN／Inf 入力、strength 0 / 0.5 / 1 と alpha association を source equation で調べる。これは HDR 実画像、C++ differential test、実アプリの透明エッジ評価ではない。
+- 写真／チャート画像は sRGB 8-bit RGB のみで、source processor が入力値に対して transfer conversion を行わないため、そのまま正規化値を式へ渡す。extension の float probe は unit-range／negative／HDR／NaN／Inf 入力、strength 0 / 0.5 / 1 と alpha association を CPU/GPU source equation で調べる。これは HDR 実画像、C++ differential test、実アプリの透明エッジ評価ではない。
 - 表示用画像は固定した sRGB 変換で生成する。統計は可能な限り LUT 入出力の作業値で取り、表示変換後の統計と混同しない。
 - 乱数を使う場合は seed を固定。LUT 適用自体は決定論的であることを記録する。
 - 全候補で同一入力、解像度、ROI、alpha、色条件を使う。候補順は固定 seed で並べ替えた blind contact sheet で隠し、対応表 `blind_review_key.json` は分離する。判定者と日付は人手レビュー後に記録する。LUT 95 ID の票に加え、Color Balance / Tritone extension の35 ID（5素材 × baselineを含む7候補）を生成済み。
@@ -89,7 +89,8 @@
 - Alpha association は単に A channel が変わらないだけでは不十分。`qImageCvMatSurfaceDescriptor` は `Format_ARGB32_Premultiplied` を sRGB/Premultiplied として float effect buffer に渡し、`LUTEffectCPUImpl` は descriptor を見ず premultiplied RGB を直接 LUT 入力にする。後段 `ImageF32x4_RGBA::toQImage` は premultiplied buffer を sRGB straight-alpha output へ unpremultiply する。したがって LUT が `F(alpha*C)` と `alpha*F(C)` で一致しない場合、同じ色の見え方が alpha に依存する候補がある。source-equation probe は straight color `(0.8,0.2,0.1)` を alpha `0 / 0.1 / 0.25 / 0.5 / 1` で全9 LUT・intensity 0/0.5/1について比較する。synthetic fixture の8色 × 6 alpha patch × 3 intensity の最大 per-channel RGB 差（output unpremultiply 後、0/1 clip 前／後）は highContrast `1.000000 / 1.000000`、lowContrast `1.321154 / 0.745686`、vintage `0.880769 / 0.395216`、fuji3510 `0.145529 / 0.145529`、kodak2383 `0.238881 / 0.079738`。cold は `0.040196 / 0.004902`、cinematic `0.043922 / 約0`、warm `0.138824 / 約0`、desaturated は約 `1e-7`。すべて alpha byte 0 を除外したsource-equation mirror 値で、after-clip は単純 [0,1] clamp（transfer encoding／8-bit quantization を含まない）。これは実画像、背景合成、C++ 実行一致、runtime 品質ではなく、runtime 優先順位のための診断値である。finding `RD0-ALPHA-ASSOCIATION-01` に全 Look の最大値を保存した。
 - 実経路確認に使う synthetic RGBA 素材 `assets/alpha-association-chart.png` を生成した。8色の行それぞれに固定 alpha byte `0,26,64,128,192,255` の小パッチと、同じ RGB 値を保った水平 alpha 0..255 ramp を持つ。色・行・byte 条件・SHA-256 は隣接 manifest に記録し、再生成は `python experiments/CinematicLooksLab/make_alpha_association_fixture.py` で行う。PNG の入力 RGB は straight/unassociated。これは表示 ground truth ではなく、レビュー／runtime capture 用入力であり、まだ Artifact 経路へ適用していない。
 - `contract_probe.py` は fixture の SHA-256、寸法、全色行の固定 alpha patch 値を manifest と照合してから、9 builtin LUT × 8色 × 6 alpha patch × intensity 0/0.5/1 の straight／premultiplied 経路を source-equation mirror で比較する。`float_contract_probe.json` の `alpha_fixture_patch_probe` に RGB差と、alpha byte 0 を除外した Look ごとの最大差を保存する。例えば alpha byte 26（約0.102）の入力では vintage の output clip 前最大 RGB 差が約0.881、clip 後が約0.395（skin approximation）、lowContrast は約1.321 / 約0.746（amber）。これはソース式上の診断値であり、C++ 実行・PNG decoder・Composition 合成の評価でも品質 gate でもない。
-- **Alpha runtime protocol (未実行):** fixture を同一プロジェクトへ読み込み、全9 built-in LUT を strength 0 / 0.5 / 1 で適用する。source-mirror が強い alpha 差を示す highContrast / lowContrast / vintage / fuji3510 / kodak2383 を優先候補、他4種を対照として含める。出力は effect なし baseline と共に Composition preview、Composition final、Render Queue の利用可能な CPU/GPU 経路で lossless PNG capture し、8色 × alpha patch / ramp の RGB 出力を比較する。黒・白・50% gray・saturated magenta の背景上で合成表示を保存する。各 capture にアプリ revision、effect ID、strength、経路/backend、出力 hash、row/ROI、色管理設定を記録する。暫定期待は、同じ straight RGB の見える色が opacity だけで変わらないこと。ただし source-equation mirror と C++/runtime capture の一致、および preview/final/backend 間の差を確認するまでは gate を確定しない。
+- **Alpha runtime protocol (未実行):** fixture を同一プロジェクトへ読み込み、LUT / Color Balance / Tritone を各 native strength 0 / 0.5 / 1 で適用する。LUT は mirror 差が大きい look と対照を含める。Color Balance は premultiplied-aware control、Tritone Cinematic / TealAndOrange は alpha 候補として比較する。出力は Composition preview、Composition final、利用可能な Render Queue CPU/GPU 経路で lossless PNG capture し、8色 × alpha patch / ramp の RGB を複数背景へ合成して比較する。各 capture に revision、effect ID、preset、strength、path/backend、hash、ROI、color settings を記録する。C++ differential／runtime一致と経路差を確認するまで gate は確定しない。
+- **Float/HDR runtime protocol (未実行):** float RGBA fixture に black, mid-gray, white, HDR >1, negative-channel, alpha 0 / 0.1 / 0.25 / 0.5 / 1 を用意し、Color Balance / Tritone の strength 0 / 0.5 / 1 を CPU / GPUで capture する。Tritone source mirror は strength 0 でも HDR 1.5 を1、負値を0へ clamp し、NaN/Infを sanitize しない挙動を示す。これは契約候補の根拠で、期待仕様・C++一致・実出力は未確定。関連 finding は `RD0-TRITONE-HDR-CLAMP-01`。
 - 上記を `captures/rd0/findings.json` の `RD0-ALPHA-ASSOCIATION-01` として記録した。severity は視覚・runtime 影響確認まで未確定。gate を lock せず、人手レビューと path-specific output capture の対象候補とする。
 - `ArtifactEffectService` は `effect.colorcorrection.lut` に `LUTEffect` を生成する factory を持つ。`LUTEffect` は `BuiltinLUTs` または custom LUT を保持し、CPU の float RGBA effect として RGB に LUT を適用し、alpha を書き換えない実装である。これはクラスと実装のソース確認であり、実アプリからの呼び出し実行を証明しない。
 - `ArtifactPresetManager::effectToPresetJson` / `applyPresetJsonToEffect` と `ArtifactEffectService::saveEffectPreset` / `loadEffectPreset` は、effect id と properties（LUT `Preset` integer、`LUT File` string、`Intensity` float を含む）を保存し、既存 effect object へ再適用する汎用 per-effect file API を提供する。loader は対象 effect id と owned property payload を検証する。これはコード上の保存／復元契約であり、実際の round-trip、プロジェクト保存、named Looks library または browser 接続は未検証。監査した `ArtifactPresetManager.cpp` の hash は [`REGISTRY_AUDIT.json`](REGISTRY_AUDIT.json) に記録する。

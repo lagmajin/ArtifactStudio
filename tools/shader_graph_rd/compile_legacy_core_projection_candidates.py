@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,6 +21,49 @@ CASES = (
     ("scalarBaseColorConversionProbe", "scalar_conversion"),
     ("unconnectedBaseColorDefaultProbe", "base_color_default"),
 )
+
+
+def compile_scalar(source: str, stem: str, output_dir: Path, args: Any,
+                  compiler: Any) -> dict[str, Any]:
+    source_path = output_dir / f"{stem}.frag"
+    spirv_path = output_dir / f"{stem}.spv"
+    optimized_path = output_dir / f"{stem}_opt.spv"
+    source_path.write_text(source, encoding="utf-8", newline="\n")
+    glsl = run([str(args.glslang), "-V", "--target-env", "vulkan1.2", "-S", "frag",
+                "-o", str(spirv_path), str(source_path)])
+    validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2", str(spirv_path)])
+                if glsl["exitCode"] == 0 else {"exitCode": None})
+    optimize = (run([str(args.spirv_opt), "-O", str(spirv_path), "-o", str(optimized_path)])
+                if validate["exitCode"] == 0 else {"exitCode": None})
+    optimized_validate = (run([str(args.spirv_val), "--target-env", "vulkan1.2",
+                               str(optimized_path)]) if optimize["exitCode"] == 0
+                          else {"exitCode": None})
+    disassembly = (run([str(args.spirv_dis), str(optimized_path), "-o", "-"])
+                   if optimized_validate["exitCode"] == 0 else {"exitCode": None, "stdout": ""})
+    value = None
+    if disassembly["exitCode"] == 0:
+        location_zero: set[str] = set()
+        output_variables: set[str] = set()
+        constants: dict[str, float] = {}
+        for line in disassembly["stdout"].splitlines():
+            match = re.match(r"\s*OpDecorate\s+(%\S+)\s+Location\s+0\b", line)
+            if match:
+                location_zero.add(match.group(1))
+            match = re.match(r"\s*(%\S+)\s*=\s*OpVariable\s+%\S+\s+Output\b", line)
+            if match:
+                output_variables.add(match.group(1))
+            match = re.match(r"\s*(%\S+)\s*=\s*OpConstant\s+%\S+\s+([^\s]+)", line)
+            if match:
+                constants[match.group(1)] = float(match.group(2))
+            match = re.match(r"\s*OpStore\s+(%\S+)\s+(%\S+)", line)
+            if match and match.group(1) in output_variables | location_zero:
+                value = constants.get(match.group(2))
+    return {"compile": glsl, "validation": validate, "optimize": optimize,
+            "optimizedValidation": optimized_validate, "disassembly": disassembly,
+            "output": value, "sourceSha256": sha256(source.encode("utf-8")),
+            "status": "passed" if glsl["exitCode"] == 0 and
+            optimized_validate["exitCode"] == 0 and disassembly["exitCode"] == 0 and
+            value is not None else "failed"}
 
 
 def load_module(name: str, path: Path) -> Any:
@@ -196,6 +240,52 @@ def main() -> int:
             "status": "passed" if passed else "failed",
         })
         print(f"{label}: {'PASS' if passed else 'FAIL'}")
+
+    uv_projection = candidate["dynamicRoughnessUvProjection"]
+    uv_compiled = prototype.compile_document_from_data(
+        uv_projection["document"], registry,
+        hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+    glsl_uv, uv_interface = prototype.emit_glsl_from_typed_ir(
+        uv_compiled["typedIR"], uv_compiled["parameterBlock"],
+        context_bindings={("artifact.material.surface.uv0", "x"): "artifactHostUV.x"})
+    glsl_uv = glsl_uv.replace(
+        "#version 450\n", "#version 450\nlayout(location = 0) in vec2 artifactHostUV;\n", 1)
+    hlsl_uv = compiler.build_hlsl_fragment(uv_compiled, uv_interface)
+    uv_stem = "dynamic_roughness_uv0_x"
+    uv_glsl_path, uv_hlsl_path = output_dir / f"{uv_stem}.frag", output_dir / f"{uv_stem}.hlsl"
+    uv_glsl_spv, uv_hlsl_spv = output_dir / f"{uv_stem}.spv", output_dir / f"{uv_stem}_hlsl.spv"
+    uv_glsl_opt, uv_hlsl_opt = output_dir / f"{uv_stem}_opt.spv", output_dir / f"{uv_stem}_hlsl_opt.spv"
+    uv_glsl_path.write_text(glsl_uv, encoding="utf-8", newline="\n")
+    uv_hlsl_path.write_text(hlsl_uv, encoding="utf-8", newline="\n")
+    uv_glsl_compile = run([str(args.glslang), "-V", "--target-env", "vulkan1.2", "-S", "frag", "-o", str(uv_glsl_spv), str(uv_glsl_path)])
+    uv_hlsl_compile = run([str(args.dxc), "-spirv", "-T", "ps_6_0", "-E", "main", "-fspv-target-env=vulkan1.2", "-Fo", str(uv_hlsl_spv), str(uv_hlsl_path)])
+    uv_glsl_valid = run([str(args.spirv_val), "--target-env", "vulkan1.2", str(uv_glsl_spv)]) if uv_glsl_compile["exitCode"] == 0 else {"exitCode": None}
+    uv_hlsl_valid = run([str(args.spirv_val), "--target-env", "vulkan1.2", str(uv_hlsl_spv)]) if uv_hlsl_compile["exitCode"] == 0 else {"exitCode": None}
+    uv_glsl_optimize = run([str(args.spirv_opt), "-O", str(uv_glsl_spv), "-o", str(uv_glsl_opt)]) if uv_glsl_valid["exitCode"] == 0 else {"exitCode": None}
+    uv_hlsl_optimize = run([str(args.spirv_opt), "-O", str(uv_hlsl_spv), "-o", str(uv_hlsl_opt)]) if uv_hlsl_valid["exitCode"] == 0 else {"exitCode": None}
+    uv_glsl_final = run([str(args.spirv_val), "--target-env", "vulkan1.2", str(uv_glsl_opt)]) if uv_glsl_optimize["exitCode"] == 0 else {"exitCode": None}
+    uv_hlsl_final = run([str(args.spirv_val), "--target-env", "vulkan1.2", str(uv_hlsl_opt)]) if uv_hlsl_optimize["exitCode"] == 0 else {"exitCode": None}
+    uv_interfaces_match = False
+    if uv_glsl_final["exitCode"] == 0 and uv_hlsl_final["exitCode"] == 0:
+        uv_glsl_dis = run([str(args.spirv_dis), str(uv_glsl_opt), "-o", "-"])
+        uv_hlsl_dis = run([str(args.spirv_dis), str(uv_hlsl_opt), "-o", "-"])
+        if uv_glsl_dis["exitCode"] == 0 and uv_hlsl_dis["exitCode"] == 0:
+            uv_interfaces_match = (compiler.parse_spirv_interface(uv_glsl_dis["stdout"]) ==
+                                   compiler.parse_spirv_interface(uv_hlsl_dis["stdout"]))
+    uv_passed = all(item.get("exitCode") == 0 for item in (
+        uv_glsl_compile, uv_hlsl_compile, uv_glsl_valid, uv_hlsl_valid,
+        uv_glsl_optimize, uv_hlsl_optimize, uv_glsl_final, uv_hlsl_final)) and uv_interfaces_match
+    records.append({
+        "caseId": uv_stem, "outputType": uv_compiled["outputType"],
+        "sourceSha256": uv_projection["sourceSha256"],
+        "glslSha256": sha256(glsl_uv.encode()), "hlslSha256": sha256(hlsl_uv.encode()),
+        "contextBindings": uv_compiled["contextBindings"],
+        "glslCompile": uv_glsl_compile, "hlslCompile": uv_hlsl_compile,
+        "glslValidation": uv_glsl_valid, "hlslValidation": uv_hlsl_valid,
+        "glslOptimizedValidation": uv_glsl_final, "hlslOptimizedValidation": uv_hlsl_final,
+        "interfaceMatch": uv_interfaces_match, "dynamicInputRetained": "In.UV.x" in hlsl_uv and "artifactHostUV.x" in glsl_uv,
+        "gpuExecution": False, "status": "passed" if uv_passed else "failed"})
+    print(f"{uv_stem}: {'PASS' if uv_passed else 'FAIL'}")
 
     result = {
         "schemaId": "artifact.shadergraph.legacy-core-projection-compiler-evidence",

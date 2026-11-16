@@ -1,7 +1,7 @@
 # Cinematic Looks 画像補正 R&D プロジェクト
 
 **最終更新:** 2026-11-16
-**ステータス:** In Progress（LUT 9種の rd0 応答測定のみ完了。Color Balance / Tritone lane は未測定で評価計画を拡張中。人手視覚判定・品質 gate・製品 runtime 検証は未実施）
+**ステータス:** In Progress（LUT9種と Color Balance / Tritone CPU/GPU source-mirror 応答・full/ROI blind sheets を5素材で記録済み。人手視覚判定・品質 gate・C++ differential・製品 runtime 検証は未実施）
 
 ## 目的
 
@@ -15,14 +15,14 @@
 - `ColorBalanceEffect` (`effect.colorcorrection.colorbalance`) は Inspector catalog / Effect Service に登録された CPU/GPU effect で、`Custom / Neutral / CoolShadows / WarmHighlights / Cinematic` を持ち、初期値は Cinematic。`TritoneEffect` (`effect.colorcorrection.tritone`) も登録済み CPU/GPU effect で、`Custom / Cinematic / TealAndOrange / WarmGold / ColdBlue` を持ち、初期値は Cinematic。どちらの Preset も選択肢 tooltip のない Integer property で、名前付き chooser にはなっていない。設定式・ソース hash は `REGISTRY_AUDIT.json` に記録した。
 - LUT 関連は三つの別機能として扱う。`LUTEffect` の内蔵9 preset は effect property として存在する。外部 `.cube/.3dl` library/browser は Color Science Panel 側に別途あり、旧 `MILESTONE_LUT_BROWSER_2026-06-16.md` の2026-07監査では一覧・選択 preview・Load/Clear・drop入口が部分実装（同 milestone は OCIO integration に superseded）とされる。24件の `ArtifactLooksPresetBrowser` はさらに別 inventory で、callsite・effect適用・builtin LUT との ID mapping が確認されていない。従って外部 LUT browser の存在や Film / Cinematic 等の表示名から内蔵 Look への割当を推定してはならない。
 - `ColorBalanceEffect` に `Cinematic` preset（shadow/midtone/highlight balance）、`TritoneEffect` に `Cinematic` と `TealAndOrange` preset（tonal color mix）、`LUTEffect` に9個の内蔵 LUT preset があり、いずれも Inspector catalog / service factory から追加可能。従ってシネマティックな画像補正部品・effect preset は既に部分導入されている。ただし各 `Preset` は現状名前付き chooser でなく整数入力で、統合 Looks browser / ID mapping は未接続。画質検証も未完了である。
-- product / visual acceptance は保留。ブラインドレビュー、LUT / Color Balance / Tritone の実アプリ画像測定、alpha runtime capture、Composition save/reload、Render Queue 適用確認、品質 gate が残っている。LUT と Tritone は source-level alpha association 候補、Color Balance は CPU / GPU の premultiplied handling 一致を確認する必要がある。いずれも runtime 判定ではない。
+- product / visual acceptance は保留。LUT と effect extension のブラインドレビュー、3 family の C++ differential／実アプリ画像測定、alpha/HDR runtime capture、Composition save/reload、Render Queue 適用確認、品質 gate が残っている。LUT / Tritone は source-level alpha association 候補。Color Balance は premultiplied-aware control lane。Tritone はCPU/GPU source equationが異なり、式mirrorの強度0.5/1で素材ごとに約7〜16 RGB codes MAE、GPU式は強度0でも飽和色を変化させる候補を検出した。いずれも製品 runtime 差の判定ではない。
 - 追加の静的監査で、Composition effect stack の LUT / Color Balance / Tritone は JSON に保存される一方、Composition deserializer が各 concrete effect を生成せず base ArtifactAbstractEffect に落とす経路を確認した。base effect は LUT implementation と LUT 固有 property を持たない。従って Composition に追加した LUT が project reload 後に無効化される可能性が高い。layer 側は Effect Service factory で concrete effect を再生成する別経路。差は `captures/rd0/findings.json` の `RD0-COMPOSITION-LUT-RESTORE-01` と `RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01` に source evidence 付きで記録したが、project round-trip/render は未実行。
 
 この結論はソース監査と Python source mirror に基づく暫定整理であり、実アプリの画面確認や画質受入を代替しない。
 
 ## 現状のコード確認
 
-- `Artifact/src/Effects/ColorCorrection/LUTEffect.cpp` は組み込み cinematic / vintage / cold / warm / contrast / desaturated / film-stock LUT と外部 LUT 選択、強度混合を実装している。追加調査では ColorBalanceEffect と TritoneEffect にも Cinematic preset があり、両方とも effect service factory、Inspector catalog、CPU/GPU implementation を持つことを確認した。preset 設定式と source hash は `REGISTRY_AUDIT.json` に記録したが、この2 effect は現在の rd0 画像出力・ブラインド票に含まれていない。
+- `Artifact/src/Effects/ColorCorrection/LUTEffect.cpp` は組み込み cinematic / vintage / cold / warm / contrast / desaturated / film-stock LUT と外部 LUT 選択、強度混合を実装している。追加の Color Balance / Tritone Cinematic lane も effect service factory、Inspector catalog、CPU/GPU implementation に登録済み。preset 設定式と source hash は `REGISTRY_AUDIT.json` / `EFFECT_SOURCE_CONTRACT.json` に記録し、追加2 family の source-mirror 画像応答・blind sheet を `captures/rd0_effect_extension/` に生成した。
 - 一般の `Apply LUT` effect は `InspectorEffectCatalog` に登録され、`ArtifactEffectService` が `effect.colorcorrection.lut` ID で factory 作成する。`ArtifactInspectorWidget::addSelectedEffectToCurrentTarget` は factory から生成し、選択中の layer または composition stack へ追加する。`LUTEffect` には Custom と9 builtin preset があり、既定 preset は Cinematic、強度は1.0。ただし `Preset` は選択肢 tooltip のない Integer property のため、現状は数値入力になる。共通 property editor は Integer tooltip の `0=label,1=label,...` 形式を既存 enum chooser に変換できるため、LUTEffect が0..9の全選択肢をその形式で供給すれば widget 共通改修なしに名前付き chooser を再利用できる見込みである（ソース監査のみ、画面未確認）。`LUTEffectContractTest.cpp` には LUT の CPU 契約テストがあるが tooltip enum chooser を直接確認するテストは検索範囲内で見つからず、Composition round-trip テストは IBK を対象として LUT は含まない。コード上の値は0=Custom、1=Cinematic、2=Vintage、3=Cold、4=Warm、5=HighContrast、6=LowContrast、7=Desaturated、8=Kodak2383、9=Fuji3510。これは適用導線・property editor 選択の静的ソース確認で、画面操作・見た目の受入・実 runtime parity の証拠ではない。
 - 既存の汎用 effect preset file API は effect ID、enabled/mix/mask state と property 値を JSON 保存し、既存 effect object への再適用に対応する。`LUTEffect` の `Preset`、`LUT File`、`Intensity` も保存対象で、load は effect ID と owned property payload を検証後に `setPropertyValue` へ戻す。これは個別 effect のファイル保存／復元 API の静的根拠で、専用 cinematic look library、Looks browser 接続、プロジェクト保存・再読込や runtime の実行証拠ではない。根拠 source hash は `experiments/CinematicLooksLab/REGISTRY_AUDIT.json` に追加した。
 - `ArtifactCore/src/Color/ColorLUT.cpp` の `BuiltinLUTs` に LUT データ生成がある。ラボは 17³ 格子生成式と三線形 sampler を Python で mirror し、harness 自身・source・source contract の hash を manifest に記録する。各素材のブラインド順についても導出 seed と shuffle 方法を保存する。これは C++ 実装そのものの実行・一致テストではない。
@@ -41,15 +41,19 @@
 
 必須の事前登録済み計画は [`../../experiments/CinematicLooksLab/EVALUATION_PLAN.md`](../../experiments/CinematicLooksLab/EVALUATION_PLAN.md) に置く。評価計画ルールは [`../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`](../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md)。
 
-評価素材は deterministic chart と CC0 実写4点（夜景2、人物1、森林1）を確保し、人物／肌・屋外緑・夜景／点光源の3カテゴリを含む。全体画像と細部・肌・階調・高輝度・alpha の領域を統計とブラインド視覚レビューで評価する計画だが、現 rd0 の画像応答統計とブラインド接触シートは LUTEffect の9 preset lane のみであり、Color Balance / Tritone の画像測定、HDR/alpha の runtime 画像評価・人手判定・品質 gate は未実施。CPU Rasterizer のソース呼び出し経路は追跡済み、GPU/final の runtime parity は未検証。
+評価素材は deterministic chart と CC0 実写4点（夜景2、人物1、森林1）を確保し、人物／肌・屋外緑・夜景／点光源の3カテゴリを含む。LUTEffect の9 preset lane に加えて Color Balance / Tritone Cinematic lane と Tritone TealAndOrange を5素材 source mirror で測定し、Tritone CPU/GPU式も独立比較した。別 ID のblind full/ROI sheets、126 crops、空欄票を追加。HDR/alpha runtime 画像評価、人手判定、品質 gate は未実施。GPU/final runtime parity は未検証。
 
 chart の灰色 ramp ROI では RGB channel spread と水平 luma の reversal / flat-step 率を、smooth / color gradient では中央行・列の unique code level、flat-step / reversal 率、最大隣接 step を候補別に記録する。加えて8色の既知 flat patch 中心で RGB code delta と8-bit sRGB code 値由来の OpenCV HSV hue / saturation 応答を記録する。hue は低彩度時に未定義とする。rd0 baseline の灰色 ramp は mean / p95 channel spread 0、luma reversal 率0、flat-step 率約0.430。smooth gradient の中央水平線は211 unique RGB triplet、最大隣接 step 1 code。これらは説明指標であり、知覚色差、banding の合否閾値や美的品質の証明ではない。定義と制約は `experiments/CinematicLooksLab/EVALUATION_PLAN.md` に記録した。
 
 9 builtin LUT × 6 float RGBA probe 入力 × intensity 0/0.5/1 の source-equation probe を `captures/rd0/float_contract_probe.json` に保存した。加えて同一 straight RGB の alpha sweep と、synthetic fixture の8色 × 6 alpha patch × 3 intensity の mirror 比較も記録した。Composition QImage 経路は premultiplied descriptor を effect に渡す一方、LUTEffect は descriptor を考慮せず、出力 QImage conversion は unpremultiply する。fixture mirror の output unpremultiply 後最大RGB差（単純[0,1]clip 前／後）は highContrast 1.000 / 1.000、lowContrast 1.321 / 0.746、vintage 0.881 / 0.395、fuji3510 0.146 / 0.146、kodak2383 0.239 / 0.080。これは9 LUT全体からruntime候補を選ぶ診断値で、C++ 差分一致、実画像 HDR 品質、背景合成後の runtime 画質は未検証。全候補の値は `captures/rd0/findings.json` に記録した。
 
+Color Balance CPU / HLSL equation mirror は5つの8-bit素材、strength 0.5 / 1.0 の全出力でbyte差0となった（source-equation証拠のみ）。Tritone CPU / HLSL mirror はsource式が異なり、Cinematic strength 0.5/1.0で素材ごとのMAEは約10.6〜16.0 RGB codes、TealAndOrange 1.0は約6.9〜14.0。Tritone GPU式はstrength 0でも5素材の62〜100%のpixelを変化させ、飽和色 `(0.8,0.2,0.1)` を `(0.4112,0.3512,0.3412)` へ動かすsource-mirror結果になった。これはCPU / GPU / HLSLの実行差ではなく、現在の式を別々にmirrorした結果である。根拠とcase別p95/maxは `captures/rd0_effect_extension/metrics.json`、open finding は `RD0-TRITONE-CPU-GPU-DIVERGENCE-01`。
+
 後続の製品修正を行う場合、Composition 側 `deserializeEffect()` は現在 `LUTEffect` module を import せず、effect ID ごとの concrete factory 列挙にも LUT がない。Layer 側は `ArtifactEffectService::createEffect()` を利用するため、両経路を同じ deserializer とみなさないこと。候補となる最小修正は既存 Composition 実装ファイルで `LUTEffect` 型を直接生成する分岐を追加し、追加の共有サービス依存や新規ファイルを避ける方法だが、module 依存・起動時ロード・project round-trip は未検証で、実装前に確認が必要。受入では Composition と Layer の LUT をそれぞれ非既定 preset / intensity で保存・再読込し、具体型・全 property・レンダー結果を確認する。\n\nComposition / Render Queue の後続確認向けに、8色・6固定 alpha 値・水平 alpha ramp を持つ synthetic straight-alpha fixture [`experiments/CinematicLooksLab/assets/alpha-association-chart.png`](../../experiments/CinematicLooksLab/assets/alpha-association-chart.png) と SHA-256 manifest を追加した。評価計画には preview/final・CPU/GPU の capture 条件と複数背景の確認手順を記録したが、アプリへの適用・capture は未実施。
 
 ブラインド視覚レビュー用に全95 ID（5素材 × 19候補）の空欄票 [`experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md`](../../experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md) を追加した。画像 harness は5素材すべての定義済み ROI 統計と full-resolution ROI crops を出し、blind full-sheet と18 ROI sheet、342個の候補名なし ID crops を生成する。manifest に harness SHA-256 と素材ごとの shuffle seed／方法を保存し、今回再生成後も harness hash 一致と5ケース分の seed を確認した。票は未記入で、候補名との照合・人手レビュー・品質判定はまだ行っていない。
+
+追加 effect extension は、baseline を含む35 blind IDs（5素材 × 7候補）、18 ROI contact sheets、126 full-resolution candidate-name-free crops を別ディレクトリに生成した。blind key は別 JSON。CPU source-mirror outputs のみが blind set に含まれ、GPU HLSL mirror outputs は `metrics.json` に CPU との source-equation deltas として記録した。AI triage は全5 full sheets と6選択ROI sheetのみ、未採点・gate未設定である。blank manual review form は [`experiments/CinematicLooksLab/captures/rd0_effect_extension/BLIND_REVIEW_FORM.md`](../../experiments/CinematicLooksLab/captures/rd0_effect_extension/BLIND_REVIEW_FORM.md)。
 
 ## 段階と受入条件
 
@@ -57,20 +61,20 @@ chart の灰色 ramp ROI では RGB channel spread と水平 luma の reversal /
 
 | 必須項目 | 現在の証拠 | 判定状態 / 次の確認 |
 |---|---|---|
-| 効果の正しさ | LUTEffect の Python source mirror、float probe、source hash pin。Color Balance / Tritone は source audit のみ | LUT lane の応答式を参考確認。追加2 effect の画像 mirror と全 effect の C++ differential は未実施 |
+| 効果の正しさ | LUTEffect、Color Balance、Tritone CPU/GPU の pinned Python source mirrors、float probe | 三 family の応答式を同一素材で characterization 済み。Tritone CPU/GPU式の差を source-level で検出。C++ differential と製品 runtime は未実施 |
 | プロジェクト保存・再読込 | Effect Preset file API のソース監査、Composition / Layer の別個の serializer・restore factory 経路 | Composition-level LUT restore の source-level failure candidate を検出。実 project round-trip と output capture は未実施 |
-| 画質・細部 | deterministic chart、CC0 写真4点、ROI、LUT lane の通常／ブラインド sheet、95 ID の空欄レビュー票 | LUT の人手レビューも未実施。Color Balance / Tritone は未測定で、追加候補の画像・blind key を要する |
+| 画質・細部 | deterministic chart、CC0 写真4点、ROI、三 family の source-mirror contact sheets、95 ID + 35 ID の空欄レビュー票 | 人手レビュー未実施。contact sheet triage は未採点・非 gate。高解像度 ROI crops の人手比較が必要 |
 | 色・階調 | sRGB 8-bit 画像応答、全体／ROI の分布・差分統計、chart 灰色軸・グラデーション診断と既知8色 patch の RGB code delta・HSV hue / saturation 応答 | 応答測定済み。補助指標は候補応答の説明に限る。目標画像がないため品質 gate・ランキングは未確定 |
-| HDR・alpha | float source-equation probe、alpha 0/0.1/0.25/0.5/1 sweep、source-level alpha path finding、synthetic runtime fixture | fixture は準備済み。C++/runtime画像、HDR画質、黒・白・中間色背景への合成確認は未実施 |
+| HDR・alpha | LUT / Color Balance / Tritone CPU/GPU float equation probes、alpha sweep、source-level findings、synthetic straight-alpha fixture | alpha 0.1の最大RGB差はColor Balance 2.4e-7、Tritone CPU Cinematic 0.349、GPU式0.680。Tritone CPUはstrength 0でもHDR/負値をclampし、GPU式は飽和RGBでstrength 0も非neutral。C++/runtime画像・複数背景確認は未実施 |
 | 時間安定性 | LUT が時間不変である実装構造 | 同一静止入力の処理決定性は説明可能。内容変化時の見た目安定性は対象外・未検証 |
-| 経路・解像度 | Composition / Render Queue CPU・GPU 経路のソース監査 | preview/final の実画像到達、backend 差、解像度比較は未検証 |
+| 経路・解像度 | Composition / Render Queue CPU・GPU 経路のソース監査、Tritone CPU/HLSL equation comparison | Tritoneの式差はsource-mirrorで定量化済み。preview/final の実画像到達、backend 差、解像度比較はruntime未検証 |
 | 性能 | NumPy/Python reference timing | 製品性能ではない。1080p/4K の実行時間・メモリ gate は未実施 |
 | 採否・受入条件 | ブラウザー ID と builtin LUT の registry audit | preset 対応付け・採用候補の判断は未完了。品質 gate の確定後に recommendation を記録 |
 
 この表の「準備済み」は画像品質の合格を示さない。全必須項目に判定根拠が揃うまでは R&D を In Progress とする。
 
-1. **RD0 — harness と baseline:** deterministic chart と4点の CC0 実写素材（夜景2、人物1、森林1）で response characterization を取得済み。manifest/source hash、ROI、統計、通常シート、固定 seed のブラインド接触シートと別管理の対応表あり。人手判定、float HDR/alpha、C++ differential check、性能ゲートは残課題。候補ランキングは行っていない。
-2. **RD1 — 既存 effect preset 比較:** 追加の Color Balance / Tritone source mirror と source pin を整えて rd0 response capture を拡張し、人手 baseline review 後に threshold を固定する。LUT intensity、Color Balance Strength、Tritone Master Strength は各 native control として測り、同一 effect と別 effect family の比較を分けて記録する。色・階調、HDR/alpha、細部、処理時間を測り、ゲートと目視票を保存する。
+1. **RD0 — harness と baseline:** deterministic chart と4点の CC0 実写素材（夜景2、人物1、森林1）で三 family の source-mirror response characterization を取得済み。manifest/source hash、ROI、統計、通常シート、固定 seed の blind contact sheets と別管理の対応表あり。人手判定、C++ differential check、実アプリ HDR/alpha、性能ゲートは残課題。候補ランキングは行っていない。
+2. **RD1 — 既存 effect preset 比較:** 同一素材で LUT Cinematic、Color Balance Cinematic、Tritone Cinematic、Tritone TealAndOrange の CPU式応答・strength sweep・alpha/float probe と Tritone GPU HLSL式を記録済み。Tritone CPU/GPU予測差を finding に分離した。次は人手 baseline review 後に visual / technical thresholds を固定し、実 runtime parity を確認する。どの候補もまだ採用・不採用判定していない。
 3. **RD2 — 製品経路の追跡:** source-level CPU call chain は `EVALUATION_PLAN.md` に記録済み。Composition preview／final、Render Queue CPU／GPU variants の実画像到達・適用順・backend parity を実行証拠と区別して確認する。実行できなかった経路は未検証とする。
 4. **RD3 — Look mapping recommendation:** ブラウザーの Look ID ごとに実在 LUT/effect、補正 recipe、未定義状態を対応表にし、採用候補・保留・不採用と根拠をまとめる。R&D 完了は製品機能追加の承認ではない。
 

@@ -7,16 +7,16 @@ See EVALUATION_PLAN.md and EFFECT_SOURCE_CONTRACT.json before interpreting outpu
 
 from __future__ import annotations
 
-import hashlib
 import json
+import platform
 import random
 import zlib
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, __version__ as PILLOW_VERSION
 
-from cinematic_looks_lab import load_cases, roi_stats, sha256, write_json_lf
+from cinematic_looks_lab import apply_look, load_cases, roi_stats, sha256, write_json_lf
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
@@ -31,6 +31,7 @@ SOURCES = {
     "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "tritone_effect",
 }
 LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+TRITONE_GPU_LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
 
 
 def verify_sources() -> dict[str, str]:
@@ -75,6 +76,29 @@ def color_balance(rgb: np.ndarray, strength: float) -> np.ndarray:
     return np.clip(result, 0.0, 1.0)
 
 
+def color_balance_gpu(rgb: np.ndarray, strength: float) -> np.ndarray:
+    """Mirror the ColorBalanceEffect shared HLSL balanceColor equation."""
+    source = rgb.astype(np.float32, copy=False)
+    if strength <= 0.0:
+        return source.copy()
+    lum = source @ LUMA
+    shadow_w = 1.0 - smoothstep(0.20, 0.40, lum)
+    highlight_w = smoothstep(0.60, 0.80, lum)
+    mid_w = np.clip(1.0 - shadow_w - highlight_w, 0.0, 1.0)
+    shadow = np.array([-0.01, 0.03, 0.10], dtype=np.float32)
+    midtone = np.array([0.02, 0.01, -0.01], dtype=np.float32)
+    highlight = np.array([0.10, 0.04, -0.01], dtype=np.float32)
+    mixed = source + (shadow_w[..., None] * shadow + mid_w[..., None] * midtone +
+                      highlight_w[..., None] * highlight) * np.float32(strength)
+    mixed_lum = mixed @ LUMA
+    safe = mixed_lum > np.float32(1e-6)
+    scale = np.ones_like(mixed_lum)
+    np.divide(lum, mixed_lum, out=scale, where=safe)
+    preserved = np.clip(mixed * scale[..., None], 0.0, 1.0)
+    mixed = mixed * np.float32(1.0 - strength) + preserved * np.float32(strength)
+    return np.clip(mixed, 0.0, 1.0)
+
+
 TRITONE_CINEMATIC = {
     "shadow": (0.09, 0.18, 0.28),
     "midtone": (0.54, 0.48, 0.40),
@@ -113,8 +137,33 @@ def tritone(rgb: np.ndarray, strength: float, preset: dict = TRITONE_CINEMATIC) 
     return np.clip(result, 0.0, 1.0)
 
 
+def tritone_gpu(rgb: np.ndarray, strength: float, preset: dict = TRITONE_CINEMATIC) -> np.ndarray:
+    """Mirror the current TritoneEffect HLSL equations, independent of CPU mirror."""
+    source = rgb.astype(np.float32, copy=False)
+    lum = source @ TRITONE_GPU_LUMA
+    balance = preset["balance"]
+    softness = preset["softness"]
+    shadow_w = smoothstep(balance - softness * 0.5, balance, lum)
+    highlight_w = smoothstep(balance, balance + softness * 0.5, lum)
+    mid_w = np.clip(1.0 - shadow_w - highlight_w, 0.0, 1.0)
+    colors = np.array([preset["shadow"], preset["midtone"], preset["highlight"]], dtype=np.float32)
+    target = (shadow_w[..., None] * colors[0] + mid_w[..., None] * colors[1] +
+              highlight_w[..., None] * colors[2]) * np.float32(strength)
+    color_mix = np.float32(preset["color_mix"])
+    result = source * (np.float32(1.0) - color_mix) + target * color_mix
+    mixed_luma = result @ TRITONE_GPU_LUMA
+    result = result + (lum - mixed_luma)[..., None]
+    return np.clip(result, 0.0, 1.0)
+
+
 def quantize(rgb: np.ndarray) -> np.ndarray:
     return np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+
+
+def save_png(path: Path, image: Image.Image) -> None:
+    if path.exists():
+        path.unlink()
+    image.save(path, format="PNG")
 
 
 def alpha_association_probe(transform, premultiplied_aware: bool) -> dict:
@@ -153,6 +202,7 @@ def float_contract_probe() -> dict:
     samples = {
         "black": (0.0, 0.0, 0.0),
         "mid_gray": (0.18, 0.18, 0.18),
+        "saturated_red": (0.80, 0.20, 0.10),
         "white": (1.0, 1.0, 1.0),
         "hdr_positive": (1.5, 0.5, 0.1),
         "negative_and_overrange": (-0.2, 0.4, 1.4),
@@ -162,7 +212,9 @@ def float_contract_probe() -> dict:
     results = {}
     for effect_name, transform in (
         ("color_balance_cinematic", lambda x, s: color_balance(x, s)),
+        ("color_balance_gpu_cinematic", lambda x, s: color_balance_gpu(x, s)),
         ("tritone_cinematic", lambda x, s: tritone(x, s)),
+        ("tritone_gpu_cinematic", lambda x, s: tritone_gpu(x, s)),
     ):
         effect_results = {}
         for sample_name, sample in samples.items():
@@ -194,7 +246,7 @@ def main() -> None:
     images.mkdir(exist_ok=True)
     blind.mkdir(exist_ok=True)
     candidate_functions = {
-        "lut_cinematic_s1": lambda rgb: np.asarray(__import__("cinematic_looks_lab").apply_look(quantize(rgb), "cinematic", 1.0), dtype=np.float32) / 255.0,
+        "lut_cinematic_s1": lambda rgb: np.asarray(apply_look(quantize(rgb), "cinematic", 1.0), dtype=np.float32) / 255.0,
         "color_balance_cinematic_s0.5": lambda rgb: color_balance(rgb, 0.5),
         "color_balance_cinematic_s1": lambda rgb: color_balance(rgb, 1.0),
         "tritone_cinematic_s0.5": lambda rgb: tritone(rgb, 0.5),
@@ -202,7 +254,9 @@ def main() -> None:
         "tritone_teal_orange_s1": lambda rgb: tritone(rgb, 1.0, TRITONE_TEAL_ORANGE),
     }
     stats: dict = {}
+    gpu_parity: dict = {}
     review_key: dict = {}
+    review_materials: dict = {}
     for case_name, rgb8 in cases.items():
         source = rgb8.astype(np.float32) / np.float32(255.0)
         rois = provenance[case_name].get("rois", {})
@@ -210,9 +264,34 @@ def main() -> None:
         candidate_outputs = {"baseline": baseline}
         for candidate, transform in candidate_functions.items():
             candidate_outputs[candidate] = quantize(transform(source))
+        gpu_candidates = {
+            "color_balance_gpu_cinematic_s0.5": (lambda: color_balance_gpu(source, 0.5), "color_balance_cinematic_s0.5"),
+            "color_balance_gpu_cinematic_s1": (lambda: color_balance_gpu(source, 1.0), "color_balance_cinematic_s1"),
+            "tritone_gpu_cinematic_s0": (lambda: tritone_gpu(source, 0.0), "baseline"),
+            "tritone_gpu_cinematic_s0.5": (lambda: tritone_gpu(source, 0.5), "tritone_cinematic_s0.5"),
+            "tritone_gpu_cinematic_s1": (lambda: tritone_gpu(source, 1.0), "tritone_cinematic_s1"),
+            "tritone_gpu_teal_orange_s1": (lambda: tritone_gpu(source, 1.0, TRITONE_TEAL_ORANGE), "tritone_teal_orange_s1"),
+        }
+        gpu_parity[case_name] = {}
+        for gpu_name, (produce, cpu_name) in gpu_candidates.items():
+            gpu_output = quantize(produce())
+            cpu_output = candidate_outputs[cpu_name]
+            delta = np.abs(gpu_output.astype(np.int16) - cpu_output.astype(np.int16))
+            save_png(images / f"{case_name}__{gpu_name}.png", Image.fromarray(gpu_output, "RGB"))
+            gpu_parity[case_name][gpu_name] = {
+                "compared_cpu_candidate": cpu_name,
+                "cpu_gpu_delta_code": {
+                    "mae": float(delta.mean()),
+                    "rmse": float(np.sqrt(np.mean(delta.astype(np.float32) ** 2))),
+                    "p95": float(np.quantile(delta, 0.95)),
+                    "max": int(delta.max()),
+                    "changed_pixel_rate": float(np.mean(np.any(delta != 0, axis=-1))),
+                    "channel_mae": delta.mean(axis=(0, 1)).tolist(),
+                },
+            }
         stats[case_name] = {}
         for candidate, result in candidate_outputs.items():
-            Image.fromarray(result, "RGB").save(images / f"{case_name}__{candidate}.png")
+            save_png(images / f"{case_name}__{candidate}.png", Image.fromarray(result, "RGB"))
             delta = np.abs(result.astype(np.int16) - baseline.astype(np.int16))
             regions = {"full": roi_stats(result, None)}
             for roi_name, roi in rois.items():
@@ -237,40 +316,93 @@ def main() -> None:
         sheet = Image.new("RGB", (720, ((len(ordered) + 1) // 2) * 280), (24, 26, 30))
         draw = ImageDraw.Draw(sheet)
         case_key = {}
+        candidate_codes = {}
         for index, (candidate, result) in enumerate(ordered, start=1):
             code = f"{case_name[:2].upper()}X-{index:02d}"
+            candidate_codes[candidate] = code
             thumb = Image.fromarray(result, "RGB")
             thumb.thumbnail((360, 240))
             x, y = ((index - 1) % 2) * 360, ((index - 1) // 2) * 280
             sheet.paste(thumb, (x, y + 28))
             draw.text((x + 6, y + 6), code, fill=(245, 245, 245))
             case_key[code] = candidate
-        sheet.save(blind / f"{case_name}_contact_sheet.png")
+        save_png(blind / f"{case_name}_contact_sheet.png", sheet)
+        roi_sheets = {}
+        crops_dir = blind / "crops"
+        crops_dir.mkdir(exist_ok=True)
+        for roi_name, (rx, ry, rw, rh) in rois.items():
+            roi_sheet = Image.new("RGB", (720, ((len(ordered) + 1) // 2) * 280), (24, 26, 30))
+            roi_draw = ImageDraw.Draw(roi_sheet)
+            for index, (candidate, result) in enumerate(ordered, start=1):
+                code = candidate_codes[candidate]
+                crop = Image.fromarray(result[ry:ry+rh, rx:rx+rw], "RGB")
+                save_png(crops_dir / f"{case_name}__{roi_name}__{code}.png", crop)
+                thumb = crop.copy()
+                thumb.thumbnail((360, 240))
+                x, y = ((index - 1) % 2) * 360, ((index - 1) // 2) * 280
+                roi_sheet.paste(thumb, (x, y + 28))
+                roi_draw.text((x + 6, y + 6), code, fill=(245, 245, 245))
+            roi_path = blind / f"{case_name}__roi_{roi_name}_contact_sheet.png"
+            save_png(roi_path, roi_sheet)
+            roi_sheets[roi_name] = roi_path.relative_to(OUT).as_posix()
         review_key[case_name] = case_key
+        review_materials[case_name] = {
+            "shuffle_seed": seed,
+            "shuffle_method": "random.Random(seed).shuffle; seed = 20261116 XOR crc32(case_name UTF-8)",
+            "contact_sheet": (blind / f"{case_name}_contact_sheet.png").relative_to(OUT).as_posix(),
+            "roi_contact_sheets": roi_sheets,
+            "full_resolution_blind_crops": crops_dir.relative_to(OUT).as_posix(),
+            "candidate_count_including_baseline": len(ordered),
+            "candidate_to_id_mapping_separate": "blind_review_key.json",
+        }
 
     # Alpha sweep distinguishes ColorBalance's premultiplied-aware effect wrapper
     # from Tritone's direct-RGB CPU wrapper. This remains source-equation evidence.
     alpha = {
         "color_balance_cinematic": alpha_association_probe(lambda x: color_balance(x, 1.0), True),
+        "color_balance_gpu_cinematic": alpha_association_probe(lambda x: color_balance_gpu(x, 1.0), True),
         "tritone_cinematic": alpha_association_probe(lambda x: tritone(x, 1.0), False),
         "tritone_teal_orange": alpha_association_probe(lambda x: tritone(x, 1.0, TRITONE_TEAL_ORANGE), False),
+        "tritone_gpu_cinematic": alpha_association_probe(lambda x: tritone_gpu(x, 1.0), False),
+        "tritone_gpu_teal_orange": alpha_association_probe(lambda x: tritone_gpu(x, 1.0, TRITONE_TEAL_ORANGE), False),
         "note": "Probe applies effect equations directly to premultiplied RGB, then unpremultiplies for comparison. It is not a C++ differential or runtime capture.",
     }
     report = {
         "rd": "rd0_effect_extension",
         "status": "source_mirror_response_characterization_only",
+        "created_utc": __import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime()),
         "source_hashes": source_hashes,
         "harness_sha256": sha256(Path(__file__).resolve()),
-        "candidate_model": "ColorBalanceProcessor::applyPixel and TritoneProcessor::applyPixel equations, normalized channel values; LUT Cinematic output reused via existing pinned mirror",
+        "source_contract_sha256": sha256(CONTRACT),
+        "lut_harness_sha256": sha256(ROOT / "cinematic_looks_lab.py"),
+        "lut_source_contract_sha256": sha256(ROOT / "SOURCE_CONTRACT.json"),
+        "environment": {"python": platform.python_version(), "numpy": np.__version__, "pillow": PILLOW_VERSION},
+        "candidate_model": "ColorBalanceProcessor::applyPixel, TritoneProcessor::applyPixel, and TritoneEffect HLSL equations mirrored separately; LUT Cinematic output reused via existing pinned mirror",
+        "gpu_parity_source_mirror": gpu_parity,
         "image_contract": "same 5 deterministic/CC0 RGB uint8 cases and stored ROIs as rd0; normalized sRGB code values used directly because source processors operate channel values without transfer conversion",
         "candidates": list(candidate_functions),
         "case_provenance": provenance,
+        "blind_review_materials": review_materials,
         "metrics": stats,
         "alpha_association_probe": alpha,
         "float_contract_probe": float_contract_probe(),
+        "assistant_visual_triage": {
+            "status": "blind_contact_sheet_and_selected_roi_triage_only_no_scores_no_gate",
+            "cases_opened": ["chart", "neon_streets", "street_lights", "portrait", "forest"],
+            "selected_roi_sheets_opened": [
+                "chart/skin_patches", "chart/smooth_gradient", "portrait/face_skin",
+                "forest/fine_branches", "neon_streets/intersection_lights", "street_lights/lamp_and_glare"
+            ],
+            "blind_key_opened": False,
+            "observations": [
+                "Candidate outputs show clear color and tonal changes; portrait skin and warm light, foliage contrast, neon hues, and lamp highlights vary by candidate.",
+                "No obvious spatial artifacts are identifiable at contact-sheet scale for these pointwise transforms; full-resolution crops and runtime paths still require review.",
+                "No aesthetic ranking, technical-quality score, defect severity, or threshold was assigned."
+            ],
+            "limitation": "Assistant visual triage only; not the planned manual review or product runtime image assessment."
+        },
         "quality_verdict": "not assigned; these transforms have no approved target images and no human blind review",
     }
-    write_json_lf(OUT / "metrics.json", report)
     write_json_lf(OUT / "blind_review_key.json", review_key)
     form = [
         "# Color Effect rd0 Extension — blind review form", "", "**Status:** Blank review template; no aesthetic or quality verdict assigned.",
@@ -279,10 +411,17 @@ def main() -> None:
         "", f"Reviewer: ______  Date: ______  Display conditions: ______", "",
     ]
     for case_name, case_key in review_key.items():
-        form.extend([f"## {case_name}", "", f"Contact sheet: `blind/{case_name}_contact_sheet.png`", "", "| Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |", "|---|---:|---:|---:|---|"])
+        form.extend([f"## {case_name}", "", f"Contact sheet: `blind/{case_name}_contact_sheet.png`", ""])
+        form.extend(f"- ROI `{roi_name}`: `{path}`" for roi_name, path in review_materials[case_name]["roi_contact_sheets"].items())
+        form.extend(["", "| Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |", "|---|---:|---:|---:|---|"])
         form.extend(f"| {code} | | | | |" for code in case_key)
         form.append("")
-    (OUT / "BLIND_REVIEW_FORM.md").write_text("\n".join(form) + "\n", encoding="utf-8", newline="\n")
+    (OUT / "BLIND_REVIEW_FORM.md").write_text("\n".join(form).rstrip() + "\n", encoding="utf-8", newline="\n")
+    report["output_sha256"] = {
+        path.relative_to(OUT).as_posix(): sha256(path)
+        for path in sorted(OUT.rglob("*")) if path.is_file() and path.name not in {"metrics.json", "blind_review_key.json"}
+    }
+    write_json_lf(OUT / "metrics.json", report)
     print(f"Wrote source-mirror response characterization for {len(cases)} cases to {OUT}")
 
 

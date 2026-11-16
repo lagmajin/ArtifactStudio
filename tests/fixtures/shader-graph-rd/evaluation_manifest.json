@@ -679,6 +679,13 @@
       "runtimeStatus": "source-added; not-built-or-run"
     },
     {
+      "file": "texcoord_roughness.json",
+      "sha256": "CF9B5BF3E4AFA7ECFEFA7CF61EA21AF995FC2F28519A58948428CD995BA7D940",
+      "class": "legacy-material-input-projection",
+      "purpose": "direct TexCoord.UV to Principled Roughness projection through the Core Vector2-to-Float x conversion",
+      "runtimeStatus": "source-adapter-and-vulkan-compiler-probe-only-no-gpu-execution"
+    },
+    {
       "file": "math_add.json",
       "sha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
       "class": "positive-math-operation",
@@ -1303,6 +1310,15 @@
       "runtimeRoute": "rampImageEvaluationPlan.gpuCaptureSource",
       "runtimeComparison": "legacy Core output and dynamic candidate captured as separate characterization paths; no assumed duplicate-stop equivalence",
       "evidenceState": "capture-source-added-not-built-or-run"
+    },
+    {
+      "fixtures": [
+        "texcoord_roughness.json"
+      ],
+      "cpuContract": "legacy-UV0-x-to-Principled-Roughness-typed-projection",
+      "runtimeRoute": null,
+      "runtimeComparison": "Vulkan 1.2 GLSL/HLSL dynamic input compile, optimized SPIR-V validation, and interface comparison; no GPU execution",
+      "evidenceState": "compiler-probe-passed-runtime-unverified"
     }
   ],
   "sourceContracts": [
@@ -6947,16 +6963,24 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "6EC2501CFF9BB6B2A3FD9F31F54C6708FFB2D258746EDEE3B3A01B6987F56A50",
+          "candidateSha256": "431B50A105D664FDCBD1F566DFD3624638A5874757ADDC9A6620B1D58DD90A09",
           "candidateCases": [
             "base_color_add",
             "nested_add",
             "scalar_conversion",
-            "base_color_default"
+            "base_color_default",
+            "dynamic_roughness_uv0_x"
           ],
           "numericOracle": "exact binary32 output comparison against each projection CPU golden after spirv-opt -O",
           "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
-          "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution"
+          "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution",
+          "dynamicInput": {
+            "fixture": "tests/fixtures/shader-graph-rd/texcoord_roughness.json",
+            "targetInputSocket": "Roughness",
+            "sourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+            "candidateProperty": "dynamicRoughnessUvProjection",
+            "runtimeStatus": "dynamic-hlsl-and-glsl-input-compiled-and-interface-matched-no-gpu-execution"
+          }
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"
       }

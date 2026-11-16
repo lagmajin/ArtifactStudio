@@ -246,11 +246,15 @@
       "id": "RD0-TRITONE-ALPHA-ASSOCIATION-01",
       "status": "candidate_pending_runtime_visual_confirmation",
       "severity": "undetermined",
-      "summary": "TritoneEffect transforms source RGB directly in the CPU implementation without inspecting the input surface alpha association, which may make its output depend on alpha for premultiplied input.",
+      "summary": "Tritone CPU and GPU implementations transform the supplied RGB channels directly without inspecting alpha association. Source mirrors predict strong alpha-dependent visible color for premultiplied inputs, especially in the GPU equation mirror.",
       "scope": {
         "effect_id": "effect.colorcorrection.tritone",
         "preset": "Cinematic",
-        "input_boundary": "Composition CPU Rasterizer / other premultiplied ImageF32x4_RGBA callers"
+        "input_boundary": "Composition CPU Rasterizer / other premultiplied ImageF32x4_RGBA callers",
+        "paths": [
+          "TritoneEffectCPUImpl",
+          "TritoneEffectGPUImpl"
+        ]
       },
       "evidence": [
         {
@@ -285,6 +289,18 @@
             2030
           ],
           "fact": "The Composition QImage boundary can tag the input float surface as sRGB/Premultiplied before the CPU composition effect loop."
+        },
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+          "lines": [
+            115,
+            120
+          ],
+          "fact": "The GPU shader loads pixel.rgb, runs the tritone transform, writes pixel.rgb, and preserves alpha without consulting a premultiplied descriptor or unpremultiplying."
+        },
+        {
+          "path": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+          "fact": "Source-mirror alpha sweep maximum unpremultiplied RGB deltas: CPU Cinematic 0.349, CPU TealAndOrange 0.517, GPU Cinematic 0.680, GPU TealAndOrange 0.422. These are equation-mirror diagnostics, not C++/GPU runtime measurements."
         }
       ],
       "impact": "Source equations predict that nonlinear/offset RGB remapping can vary with alpha when applied directly to premultiplied channels. This is prioritization evidence only, not a runtime defect or quality gate.",
@@ -293,7 +309,7 @@
         "Actual impact depends on the image format and path reaching a premultiplied boundary.",
         "No multiple-background composite review has been performed."
       ],
-      "next_evidence": "Measure Tritone Cinematic on straight and premultiplied versions of identical RGB at alpha 0/0.1/0.25/0.5/1, then run Composition preview/final and available Render Queue captures over black, white, 50% gray, and saturated magenta. Include other Tritone presets as controls."
+      "next_evidence": "Compare straight and premultiplied inputs through actual CPU and Diligent GPU implementations over alpha patches/ramp and multiple backgrounds; record backend output hashes and color-management configuration."
     },
     {
       "id": "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01",
@@ -373,7 +389,7 @@
       "id": "RD0-TRITONE-HDR-CLAMP-01",
       "status": "source_mirror_candidate_pending_runtime_contract_review",
       "severity": "undetermined",
-      "summary": "TritoneEffect runs its RGB processor even at Master Strength 0; the processor clamps the resulting RGB to [0,1]. Thus zero strength is an exact no-op for finite in-range RGB, but clips finite HDR/negative RGB and does not sanitize non-finite input.",
+      "summary": "Tritone CPU and GPU paths run their RGB processing even at Master Strength 0 and clamp final RGB to [0,1]. The GPU path also departs from the in-range source at zero strength for saturated colors because its shader applies colorMix independently of masterStrength and then adds a full luma correction.",
       "scope": {
         "effect_id": "effect.colorcorrection.tritone",
         "preset": "Cinematic",
@@ -398,7 +414,7 @@
         },
         {
           "path": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
-          "fact": "Pinned Python source-equation probe: at strength 0, HDR sample (1.5,0.5,0.1) becomes (1.0,0.5,0.1); sample (-0.2,0.4,1.4) becomes (0,0.4,1). NaN/Inf inputs propagate to non-finite output."
+          "fact": "Pinned CPU/HLSL source-equation probes: CPU strength 0 preserves in-range (0.8,0.2,0.1), while GPU gives about (0.4112,0.3512,0.3412); HDR (1.5,0.5,0.1) is clipped to the unit range in both paths. Non-finite input is not sanitized by the mirrors."
         }
       ],
       "impact": "Potentially changes highlight/negative-domain values even when the effect strength is zero. Whether this is a defect depends on the accepted working-space contract; current photographic fixtures are SDR and do not prove HDR runtime behavior.",
@@ -407,6 +423,52 @@
         "No HDR source fixture or Composition render has been captured."
       ],
       "next_evidence": "Define the expected Master Strength 0 contract for HDR-capable surfaces, then compare C++/runtime outputs using a float HDR fixture through preview and final paths."
+    },
+    {
+      "id": "RD0-TRITONE-CPU-GPU-DIVERGENCE-01",
+      "status": "source_mirror_candidate_pending_runtime_backend_comparison",
+      "severity": "undetermined",
+      "summary": "Tritone CPU processor and GPU HLSL implement materially different tonal weights, luma coefficients, and preserve-luma/strength mixing. Source mirrors predict visible output differences, including a non-neutral GPU result at Master Strength 0.",
+      "scope": {
+        "effect_id": "effect.colorcorrection.tritone",
+        "presets": [
+          "Cinematic",
+          "TealAndOrange"
+        ],
+        "paths": [
+          "CPU implementation",
+          "Diligent GPU compute implementation"
+        ]
+      },
+      "evidence": [
+        {
+          "path": "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp",
+          "lines": [
+            55,
+            105
+          ],
+          "fact": "CPU uses Rec.709-like luma weights 0.2126/0.7152/0.0722, softness-wide shadow/highlight transition edges, and blends preserve-luma according to masterStrength."
+        },
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+          "lines": [
+            115,
+            120
+          ],
+          "fact": "GPU HLSL uses 0.299/0.587/0.114 luma, half-softness transition widths, blends colorMix independently of masterStrength, and adds the full luma correction instead of strength-weighting it."
+        },
+        {
+          "path": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+          "fact": "Independent pinned CPU/HLSL equation mirrors over five identical cases predict CPU/GPU Cinematic strength-1 MAE 11.4–16.0 RGB codes and strength-0.5 MAE 10.6–15.8. At strength 0, GPU-vs-CPU-baseline MAE is 4.7–15.0 codes and 62–100% of pixels change. TealAndOrange strength-1 MAE is 6.9–14.0. Full per-case p95/max values are in the report."
+        }
+      ],
+      "impact": "Preview/final/backend output may depend on the selected compute path. If CPU and GPU paths are expected to implement the same effect settings, this is a source-level parity risk; actual product difference is not measured.",
+      "limitations": [
+        "Both paths are independently transcribed source mirrors, not C++ or HLSL execution.",
+        "No D3D12/Vulkan runtime capture or image comparison has been run.",
+        "No visual acceptance threshold is locked."
+      ],
+      "next_evidence": "Run the same float and SDR fixtures through the actual CPU effect and Diligent GPU implementation on supported backends; compare output deltas, alpha association, HDR clamping, and settings at strengths 0/0.5/1."
     }
   ]
 }

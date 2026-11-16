@@ -363,11 +363,92 @@
       1.0
     ]
   },
+  "dynamicRoughnessUvProjection": {
+    "sourceFixture": "tests/fixtures/shader-graph-rd/texcoord_roughness.json",
+    "sourceSha256": "CF9B5BF3E4AFA7ECFEFA7CF61EA21AF995FC2F28519A58948428CD995BA7D940",
+    "selectedLegacyInput": {
+      "nodeId": "surface",
+      "socketId": "Roughness"
+    },
+    "includedNodeIds": [
+      "uv"
+    ],
+    "excludedNodeIds": [
+      "surface",
+      "output"
+    ],
+    "layoutProvenance": {
+      "uv": "deterministic-rd-canvas-projection"
+    },
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "uv",
+          "operationId": "artifact.input.texcoord.uv0.x",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [],
+      "output": {
+        "nodeId": "uv",
+        "socketId": "value"
+      }
+    },
+    "candidateHlslBodySha256": "8E0868CD39C05D87E3E87AF09A648DBD395CE29B6CA0D9DCC658095A45C97D9B",
+    "candidateHlslBody": "float n_uv_value = In.UV.x;\nreturn n_uv_value;\n",
+    "outputType": "Float",
+    "contextBindings": [
+      {
+        "contextId": "artifact.material.surface.uv0",
+        "component": "x",
+        "valueType": "Float",
+        "hlslExpression": "In.UV.x",
+        "nodeIds": [
+          "uv"
+        ]
+      }
+    ],
+    "coreSourceAdapter": "TexCoord.UV -> In.UV.x via Core Vector2-to-Float component-X conversion",
+    "numericCases": [
+      {
+        "uv0X": -0.25,
+        "expectedBinary32": -0.25
+      },
+      {
+        "uv0X": 0.0,
+        "expectedBinary32": 0.0
+      },
+      {
+        "uv0X": 0.125,
+        "expectedBinary32": 0.125
+      },
+      {
+        "uv0X": 0.5,
+        "expectedBinary32": 0.5
+      },
+      {
+        "uv0X": 1.0,
+        "expectedBinary32": 1.0
+      },
+      {
+        "uv0X": 1.75,
+        "expectedBinary32": 1.75
+      }
+    ]
+  },
   "limitations": [
-    "read-only projection of the explicitly selected Principled BaseColor input only",
+    "read-only projection of the explicitly selected Principled BaseColor or direct UV-driven Roughness input only",
     "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
     "does not infer or perform any other legacy implicit numeric conversion",
     "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
+    "Roughness accepts only direct TexCoord.UV and projects the source-audited Vector2.x conversion to UV0.x",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

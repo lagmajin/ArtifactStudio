@@ -12,6 +12,15 @@ Reviewer: ______  Date: ______  Display conditions: ______
 
 Contact sheet: `blind/chart_contact_sheet.png`
 
+- ROI `gray_ramp`: `blind/chart__roi_gray_ramp_contact_sheet.png`
+- ROI `skin_patches`: `blind/chart__roi_skin_patches_contact_sheet.png`
+- ROI `color_patches`: `blind/chart__roi_color_patches_contact_sheet.png`
+- ROI `fine_lines`: `blind/chart__roi_fine_lines_contact_sheet.png`
+- ROI `step_edges`: `blind/chart__roi_step_edges_contact_sheet.png`
+- ROI `dark_highlight`: `blind/chart__roi_dark_highlight_contact_sheet.png`
+- ROI `smooth_gradient`: `blind/chart__roi_smooth_gradient_contact_sheet.png`
+- ROI `color_gradient`: `blind/chart__roi_color_gradient_contact_sheet.png`
+
 | Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |
 |---|---:|---:|---:|---|
 | CHX-01 | | | | |
@@ -25,6 +34,9 @@ Contact sheet: `blind/chart_contact_sheet.png`
 ## neon_streets
 
 Contact sheet: `blind/neon_streets_contact_sheet.png`
+
+- ROI `intersection_lights`: `blind/neon_streets__roi_intersection_lights_contact_sheet.png`
+- ROI `dark_buildings`: `blind/neon_streets__roi_dark_buildings_contact_sheet.png`
 
 | Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |
 |---|---:|---:|---:|---|
@@ -40,6 +52,9 @@ Contact sheet: `blind/neon_streets_contact_sheet.png`
 
 Contact sheet: `blind/street_lights_contact_sheet.png`
 
+- ROI `lamp_and_glare`: `blind/street_lights__roi_lamp_and_glare_contact_sheet.png`
+- ROI `lower_sign_lights`: `blind/street_lights__roi_lower_sign_lights_contact_sheet.png`
+
 | Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |
 |---|---:|---:|---:|---|
 | STX-01 | | | | |
@@ -53,6 +68,10 @@ Contact sheet: `blind/street_lights_contact_sheet.png`
 ## portrait
 
 Contact sheet: `blind/portrait_contact_sheet.png`
+
+- ROI `face_skin`: `blind/portrait__roi_face_skin_contact_sheet.png`
+- ROI `hair_and_face`: `blind/portrait__roi_hair_and_face_contact_sheet.png`
+- ROI `bright_window`: `blind/portrait__roi_bright_window_contact_sheet.png`
 
 | Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |
 |---|---:|---:|---:|---|
@@ -68,6 +87,10 @@ Contact sheet: `blind/portrait_contact_sheet.png`
 
 Contact sheet: `blind/forest_contact_sheet.png`
 
+- ROI `sunlit_canopy`: `blind/forest__roi_sunlit_canopy_contact_sheet.png`
+- ROI `deep_foliage`: `blind/forest__roi_deep_foliage_contact_sheet.png`
+- ROI `fine_branches`: `blind/forest__roi_fine_branches_contact_sheet.png`
+
 | Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |
 |---|---:|---:|---:|---|
 | FOX-01 | | | | |
@@ -77,5 +100,3 @@ Contact sheet: `blind/forest_contact_sheet.png`
 | FOX-05 | | | | |
 | FOX-06 | | | | |
 | FOX-07 | | | | |
-
-\n

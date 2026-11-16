@@ -150,6 +150,20 @@ def main() -> int:
     else:
         raise RuntimeError("legacy generated default-node ID collision was not rejected")
 
+    uv_source_path = fixture_root / "texcoord_roughness.json"
+    uv_source_json = uv_source_path.read_text(encoding="utf-8")
+    uv_projection = prototype.project_legacy_core_material_input(
+        uv_source_json, registry, target_node_id="surface",
+        target_input_socket="Roughness")
+    uv_compiled = prototype.compile_document_from_data(
+        uv_projection["document"], registry,
+        hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+    if (uv_projection["includedNodeIds"] != ["uv"] or
+            uv_compiled["outputType"] != "Float" or
+            "float n_uv_value = In.UV.x;" not in uv_compiled["hlslBody"]):
+        raise RuntimeError("legacy TexCoord.UV did not project to dynamic UV0.x for Roughness")
+    uv_sample_values = (-0.25, 0.0, 0.125, 0.5, 1.0, 1.75)
+
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
     math_node["params"]["op"] = 1
@@ -219,11 +233,30 @@ def main() -> int:
             "candidateHlslBody": default_compiled["hlslBody"],
             "cpuVector4Golden": [0.8, 0.8, 0.8, 1.0],
         },
+        "dynamicRoughnessUvProjection": {
+            "sourceFixture": uv_source_path.relative_to(root).as_posix(),
+            "sourceSha256": hashlib.sha256(uv_source_json.encode("utf-8")).hexdigest().upper(),
+            "selectedLegacyInput": uv_projection["selectedLegacyInput"],
+            "includedNodeIds": uv_projection["includedNodeIds"],
+            "excludedNodeIds": uv_projection["excludedNodeIds"],
+            "layoutProvenance": uv_projection["layoutProvenance"],
+            "document": uv_projection["document"],
+            "candidateHlslBodySha256": uv_compiled["hlslBodySha256"],
+            "candidateHlslBody": uv_compiled["hlslBody"],
+            "outputType": uv_compiled["outputType"],
+            "contextBindings": uv_compiled["contextBindings"],
+            "coreSourceAdapter": uv_projection["sourceAdapter"],
+            "numericCases": [
+                {"uv0X": value, "expectedBinary32": f32(value)}
+                for value in uv_sample_values
+            ],
+        },
         "limitations": [
-            "read-only projection of the explicitly selected Principled BaseColor input only",
+            "read-only projection of the explicitly selected Principled BaseColor or direct UV-driven Roughness input only",
             "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
             "does not infer or perform any other legacy implicit numeric conversion",
             "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
+            "Roughness accepts only direct TexCoord.UV and projects the source-audited Vector2.x conversion to UV0.x",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",

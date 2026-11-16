@@ -13,20 +13,37 @@
 
 以下は元の20案からユーザーが指定した順序。番号は元リストの番号を維持する。
 
+初期段階では各候補の重複監査・評価計画・決定論的 fixture または既存ラボへの明確な導線を用意する。ここに書いた順序は着手順であり、製品実装の優先判断ではない。
+
 1. **画像の不要物除去** — 塗った領域を周囲の模様で埋め、小さなゴミ、電線、文字で結果を比べる。規模目安: 大。
+   - 初期R&D: [ObjectRemovalLab](../../experiments/ObjectRemovalLab/README.md) に4ケースのtruth fixture・mask・baseline metricsを作成済み。候補比較とgateは未実施。
 2. **画像の自動修復** — 傷・ほこり・小さな欠損を検出し、元の質感を保つ補修方法を評価する。規模目安: 大。
+   - 初期R&D: [ImageCorrectionSuite](../../experiments/ImageCorrectionSuite/README.md) のscratch/dust fixtureとmedian reference。実写・独立視覚評価は未実施。
 3. **モアレ除去** — 服や網戸に出る縞を抑えつつ、本来の模様や細部を残す方法を比較する。規模目安: 中〜大。
+   - 初期R&D: 同suiteの周期干渉chartと周波数低域reference。実写模様での品質は未確認。
 4. **色収差補正** — 写真の周辺に現れる色チャンネルのずれを補正し、輪郭と色の副作用を評価する。規模目安: 中。
+   - 既存基盤: `ArtifactCore::ChromaSpread`（`ArtifactCore/include/ImageProcessing/ChromaSpread.ixx`）と RetroImageLab の chromatic fixture/study。radial CA model と製品経路の一致は別途確認。
+   - 初期R&D: 共通suiteにradial channel-shift fixtureを追加。詳細studyは [`RetroImageLab README`](../../experiments/RetroImageLab/README.md) を参照。
 5. **レンズ歪曲補正** — 樽型・糸巻き型の歪みを補正し、直線の保持と画像端の画質を確認する。規模目安: 中。
+   - 既存基盤: `ArtifactCore::makeOpticsCompensation`（`ArtifactCore/include/ImageProcessing/Distortion.ixx`）。新規実装候補ではなく、補正品質・端の crop/alpha・逆変換の検証候補。
+   - 初期R&D: 同suiteにbarrel/pincushion fixtureとknown-coefficient inverse referenceを追加。製品式との同値性は未検証。
 6. **遠近補正** — 斜め撮影した紙面・看板を正面に近づけ、補間品質と透明端を評価する。規模目安: 中。
 7. **照明の変更** — 静止画の人物や物体に光を加え、影・質感・色の整合を調べる。規模目安: 大。
 8. **影の除去・軽減** — 紙面や壁の影を薄くし、元の色と模様を保てる条件を調べる。規模目安: 大。
 9. **反射・映り込みの軽減** — ガラス越しの写真で反射を抑え、対象物まで失われないか評価する。規模目安: 大。
 10. **画像間の色合わせ** — 参照画像の色調を別画像へ移し、肌色や白の保持を比較する。規模目安: 中〜大。
+   - 既存基盤: `AutoColorMatcher` の Reinhard / MeanStddev / Histogram（`ArtifactCore/include/Color/AutoColorMatch.ixx`）。色空間・alpha・肌/白保護の同条件評価が不足候補。
+   - 初期R&D: 同suiteにsource/reference chartとmean/std referenceを追加。Core matcherとは未比較。
 11. **画像から配色を抽出** — 代表色を抽出し、色数や面積配分を編集可能にする方法を調べる。規模目安: 小〜中。
+   - 既存基盤: `SmartPaletteAnalyzer::extractPalette` と RetroImageLab の alpha-weighted median-cut 実験。cluster stability・coverage・UI向け編集契約を比較する候補。
+   - 初期R&D: 共通suiteに既知色面積のcoverage chart。詳細比較はRetroImageLabのadaptive palette studiesを参照。
 12. **限定色への減色** — 指定パレットへ変換し、グラデーション・細線・色のまとまりを比較する。規模目安: 中。
 13. **ディザリング** — 減色時の階調を点の配置で表現し、模様の規則性と粒状感を評価する。規模目安: 中。
+   - 既存基盤: RetroImageLab に Bayer ordered dithering、Floyd–Steinberg、時間/alpha/位相 study が存在。候補は仕上げ比較・製品式との契約監査。
+   - 初期R&D: 既存fixture・studyを再利用。[`RetroImageLab README`](../../experiments/RetroImageLab/README.md) と `RESEARCH_NOTES.md`。新規重複コードは作らない。
 14. **ドット絵化** — 低解像度・少色数への変換で、輪郭と重要な細部がどこまで保たれるか調べる。規模目安: 中。
+   - 既存基盤: RetroImageLab の pixelation / palette / alpha resize studies。候補は一連の操作を合わせた品質 preset・fixture評価であり、新規pixelation式とは限らない。
+   - 初期R&D: 既存pixel-art crop/resize studiesを再利用。suite導線は [`ImageCorrectionSuite`](../../experiments/ImageCorrectionSuite/README.md)。
 
 ## その他の候補
 

@@ -14991,3 +14991,9 @@
 - **価値または懸念:** 1 ULPはコンパイラ間の不一致やランダムノイズではなく、代数的に同じ補間式の評価順による差と説明できる。候補に対する参照式を一つに固定し、別の数学的等価式を誤差と混ぜない検査が必要。ただしCore ColorRampの逐次合成は別アルゴリズムで、GPU実行値や製品許容差は未確定。
 - **次に確認すべきこと:** Core captureで現行ColorRamp、dynamic shader-mix candidate、両CPU式を同じRGBA32F座標で比較し、厳密参照と実用許容差を事前登録する。
 - **未検証:** 実GPUのFMA/精度、Diligent runtime、Coreとの画素差、D3D12 parity、Blender parity。
+## 2026-11-16: Dynamic material inputs can be projected as host-context bindings
+- **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`、`experiments/ShaderGraphLab/dynamic_graph_prototype.py`、`tools/shader_graph_rd/compile_legacy_core_projection_candidates.py`。
+- **確認できた事実:** legacy `TexCoord.UV` exposes a Vector2 and the audited Core conversion to Float selects component `.x`. The read-only R&D adapter maps this to UV0.x and compiles it as `In.UV.x` (HLSL) / `artifactHostUV.x` (GLSL); both Vulkan 1.2 frontend paths validate and produce matching SPIR-V interface projections.
+- **価値または懸念:** Legacy material migration can carry a dynamic shader input without baking the current UV into a constant. This is still a narrow context adapter; coordinate conventions, GPU execution, renderer binding and project persistence are not proven.
+- **次に確認すべきこと:** Compare this host-context contract to the production mesh vertex input and Diligent resource/interface binding, then run the authorized renderer capture path before considering Core promotion.
+- **未検証:** GPU output, actual Core graph execution, Diligent compatibility and save/reload behavior.
