@@ -119,7 +119,10 @@
     "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
     "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
     "unsupportedRoughnessMathOperation": "legacy.node.operation.unsupported",
-    "clampedRoughnessMath": "legacy.node.operation.unsupported"
+    "clampedRoughnessMath": "legacy.node.operation.unsupported",
+    "duplicateRoughnessMathWriter": "legacy.link.cardinality.invalid",
+    "roughnessMathCycle": "legacy.graph.cycle",
+    "roughnessNodeLinkOrderInvariant": true
   },
   "nestedAddProjection": {
     "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",

@@ -6971,7 +6971,7 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "25BCB30A008DA6A37E6FE751436CC86BE722AC98B4EAF1D2597E4D9818995509",
+          "candidateSha256": "AF2735A46438C95D4A5F0D72831142AFA34134CBF4211E9F302BD3A3013ED096",
           "candidateCases": [
             "base_color_add",
             "nested_add",
@@ -7011,7 +7011,14 @@
               ],
               "numericOracle": "clamp(f32(f32(UV0.x * 0.5) + 0.125), binary32(0.04), 1.0); exact binary32 scalar output after spirv-opt -O",
               "status": "source-audited-renderer-epilogue-compiled-no-gpu-execution"
-            }
+            },
+            "negativeCases": {
+              "unsupportedOperation": "legacy.node.operation.unsupported",
+              "clampedMath": "legacy.node.operation.unsupported",
+              "duplicateInputWriter": "legacy.link.cardinality.invalid",
+              "cycle": "legacy.graph.cycle"
+            },
+            "nodeLinkStorageOrderInvariant": true
           },
           "dynamicInputMath": {
             "tool": "tools/shader_graph_rd/probe_legacy_uv_math_projection.py",

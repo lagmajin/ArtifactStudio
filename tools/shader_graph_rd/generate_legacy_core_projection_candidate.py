@@ -169,32 +169,57 @@ def main() -> int:
             uv_compiled["outputType"] != "Float" or
             uv_compiled["hlslBody"] != expected_uv_math_hlsl):
         raise RuntimeError("legacy UV-driven Math chain did not project to dynamic Roughness")
+    reordered_roughness_source = json.loads(uv_source_json)
+    reordered_roughness_source["nodes"].reverse()
+    reordered_roughness_source["links"].reverse()
+    reordered_roughness_json = json.dumps(
+        reordered_roughness_source, ensure_ascii=False, separators=(",", ":"))
+    reordered_roughness_projection = prototype.project_legacy_core_material_input(
+        reordered_roughness_json, registry,
+        target_node_id="surface", target_input_socket="Roughness")
+    reordered_roughness_compiled = prototype.compile_document_from_data(
+        reordered_roughness_projection["document"], registry,
+        hlsl_context_bindings={("artifact.material.surface.uv0", "x"): "In.UV.x"})
+    if (reordered_roughness_projection["document"] != uv_projection["document"] or
+            reordered_roughness_compiled["hlslBody"] != uv_compiled["hlslBody"] or
+            reordered_roughness_projection["opaqueSourceJson"] != reordered_roughness_json):
+        raise RuntimeError("legacy Roughness projection changed with source node/link storage order")
     uv_sample_values = (-0.25, 0.0, 0.125, 0.5, 1.0, 1.75)
 
+    roughness_rejection_cases = {}
     unsupported_roughness_source = json.loads(uv_source_json)
     next(node for node in unsupported_roughness_source["nodes"]
          if node["id"] == "scale")["params"]["op"] = 1
-    try:
-        prototype.project_legacy_core_material_input(
-            json.dumps(unsupported_roughness_source), registry,
-            target_node_id="surface", target_input_socket="Roughness")
-    except prototype.ContractError as error:
-        if error.code != "legacy.node.operation.unsupported":
-            raise RuntimeError(f"unsupported Roughness Math op returned {error.code}")
-    else:
-        raise RuntimeError("unsupported Roughness Math operation was not rejected")
+    roughness_rejection_cases["unsupportedRoughnessMathOperation"] = (
+        unsupported_roughness_source, "legacy.node.operation.unsupported")
     clamped_roughness_source = json.loads(uv_source_json)
     next(node for node in clamped_roughness_source["nodes"]
          if node["id"] == "scale")["params"]["clamp"] = True
-    try:
-        prototype.project_legacy_core_material_input(
-            json.dumps(clamped_roughness_source), registry,
-            target_node_id="surface", target_input_socket="Roughness")
-    except prototype.ContractError as error:
-        if error.code != "legacy.node.operation.unsupported":
-            raise RuntimeError(f"clamped Roughness Math returned {error.code}")
-    else:
-        raise RuntimeError("clamped Roughness Math was not rejected")
+    roughness_rejection_cases["clampedRoughnessMath"] = (
+        clamped_roughness_source, "legacy.node.operation.unsupported")
+    duplicate_roughness_source = json.loads(uv_source_json)
+    duplicate_roughness_source["links"].append(
+        {"from": "bias", "out": "Value", "to": "scale", "in": "A"})
+    roughness_rejection_cases["duplicateRoughnessMathWriter"] = (
+        duplicate_roughness_source, "legacy.link.cardinality.invalid")
+    cyclic_roughness_source = json.loads(uv_source_json)
+    cyclic_roughness_source["links"] = [
+        link for link in cyclic_roughness_source["links"]
+        if not (link["to"] == "scale" and link["in"] == "A")]
+    cyclic_roughness_source["links"].append(
+        {"from": "roughness", "out": "Value", "to": "scale", "in": "A"})
+    roughness_rejection_cases["roughnessMathCycle"] = (
+        cyclic_roughness_source, "legacy.graph.cycle")
+    for case_id, (invalid_source, expected_code) in roughness_rejection_cases.items():
+        try:
+            prototype.project_legacy_core_material_input(
+                json.dumps(invalid_source), registry,
+                target_node_id="surface", target_input_socket="Roughness")
+        except prototype.ContractError as error:
+            if error.code != expected_code:
+                raise RuntimeError(f"{case_id} returned {error.code}, expected {expected_code}")
+        else:
+            raise RuntimeError(f"{case_id} was not rejected")
 
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
@@ -238,8 +263,8 @@ def main() -> int:
             "nestedAddIncludedNodeIds": nested_projection["includedNodeIds"],
             "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
             "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
-            "unsupportedRoughnessMathOperation": "legacy.node.operation.unsupported",
-            "clampedRoughnessMath": "legacy.node.operation.unsupported",
+            **{case_id: code for case_id, (_, code) in roughness_rejection_cases.items()},
+            "roughnessNodeLinkOrderInvariant": True,
         },
         "nestedAddProjection": {
             "sourceSha256": hashlib.sha256(nested_json.encode("utf-8")).hexdigest().upper(),
