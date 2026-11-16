@@ -814,7 +814,7 @@ The read-only Core adapter now maps unclamped legacy `Math` operations Add/Subtr
 
 The 10/10 compiler result is now stored as `experiments/ShaderGraphLab/legacy_core_projection_compiler_evidence.json`. Compiler stdout/stderr paths are normalized to repository-relative form; the manifest pins the evidence SHA-256, candidate SHA-256, and all-passed case count, and the validator checks those records. The report preserves no compiler version/build identity and remains offline compiler evidence without GPU execution.
 
-`generate_legacy_core_projection_candidate.py --check` now regenerates the full candidate in memory and compares the exact UTF-8/LF JSON bytes with the checked-in candidate without rewriting it. The source manifest validator pins the dry-run behavior, and the explicit generator check passes for the current Add/Subtract/Multiply/positive-floor-Divide variants.
+`generate_legacy_core_projection_candidate.py --check` now regenerates the full candidate in memory and compares the exact UTF-8/LF JSON bytes with the checked-in candidate without rewriting it. The manifest validator runs this check on every validation invocation; it passes for the current Add/Subtract/Multiply/positive-floor-Divide variants.
 
 ### Vulkan runtime capture source extension (2026-11-16)
 

@@ -14,6 +14,7 @@ from dataclasses import replace
 from pathlib import Path
 import re
 import struct
+import subprocess
 import sys
 import tempfile
 import zlib
@@ -139,6 +140,21 @@ def validate(root: Path) -> list[str]:
         return [f"cannot read manifest: {error}"]
     if manifest.get("manifestVersion") != 1 or manifest.get("evaluation") != "shader-graph-rd":
         errors.append("manifest identity/version is invalid")
+    candidate_generator = (root / manifest.get("coreTypedOperationSchemaProposal", {})
+                          .get("dynamicGraphPrototype", {})
+                          .get("legacyCoreProjection", {}).get("generator", ""))
+    if not candidate_generator.is_file():
+        errors.append("legacy Core projection candidate generator is missing")
+    else:
+        try:
+            generator_check = subprocess.run(
+                [sys.executable, str(candidate_generator), "--check"],
+                cwd=root, capture_output=True, text=True, check=False)
+            if generator_check.returncode != 0:
+                errors.append("legacy Core projection candidate is not reproducible: " +
+                              generator_check.stderr.strip())
+        except OSError as error:
+            errors.append(f"cannot run legacy Core projection candidate check: {error}")
 
     fixtures = manifest.get("fixtures")
     if not isinstance(fixtures, list):
