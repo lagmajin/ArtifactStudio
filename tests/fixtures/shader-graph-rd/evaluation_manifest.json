@@ -6989,6 +6989,23 @@
               1.0,
               1.75
             ]
+          },
+          "dynamicInputMath": {
+            "tool": "tools/shader_graph_rd/probe_legacy_uv_math_projection.py",
+            "fixture": "experiments/ShaderGraphLab/dynamic_uv_roughness_math.json",
+            "fixtureSha256": "886C3CBC32F152DF00E1E91602B7B9237FDE5564B961D499CE8D4303353264FA",
+            "hlslOutputExpression": "float n_roughness_result = (n_scale_result + n_bias_value);",
+            "sampleUv0X": [
+              -0.25,
+              0.0,
+              0.125,
+              0.5,
+              1.0,
+              1.75
+            ],
+            "numericOracle": "UV0.x * 0.5 + 0.125 with binary32 rounding after multiply and add; GLSL and HLSL optimized SPIR-V scalar outputs compared exactly",
+            "evidencePath": "temp/shader-graph-core-projection-compile/dynamic-uv-math-summary.json",
+            "runtimeStatus": "dynamic-context-through-multiply-and-add-compiled-and-numeric-specializations-match-no-gpu-execution"
           }
         },
         "runtimeStatus": "source-projection-and-cpu-golden-only-no-core-runtime"
