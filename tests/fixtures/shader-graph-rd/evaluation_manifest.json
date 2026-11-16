@@ -2773,7 +2773,9 @@
           "linearRgb",
           "alpha"
         ],
-        "exactTieRule": "first-authored-stop-at-exact-position; candidate policy requires product review",
+        "exactTieRule": "last-authored-stop-at-exact-position-after-stable-ordering; candidate policy requires runtime review",
+        "referenceBehavior": "Blender BKE_colorband_evaluate selects the last stop in sorted order at an exact tied position; its qsort tie ordering is unspecified",
+        "referenceSource": "https://github.com/blender/blender/blob/main/source/blender/blenkernel/intern/colorband.cc#L378-L456",
         "negativeDomainPolicy": "reject-nonfinite-and-out-of-range-stop-positions-before-lowering"
       },
       "currentEqualPositionBehavior": "unspecified: std::sort comparator compares position only and zero-width segments use a 1e-5 denominator floor",
@@ -3237,7 +3239,7 @@
             "ramp_duplicate_stops_reversed.json"
           ],
           "formulaGolden": "ramp_duplicate_stops_formula_golden.json",
-          "formulaGoldenSha256": "92BB6A265496EBD922CF274DE9355A7EFF786ABA57600DF0A0AE89278CFE259E",
+          "formulaGoldenSha256": "C0E1D8B5C7F3F87E9AEF43174DED7B89D9CFD3D9A7A76DD77CDB80EEA1AE92AA",
           "factorValues": [
             0.0,
             0.4999,
@@ -3349,7 +3351,7 @@
       {
         "id": "color-ramp-duplicate-stop-numeric-contract",
         "route": "Vulkan MeshRenderer RGBA32F capture source; source added, not run",
-        "baseline": "ramp_duplicate_stops_formula_golden.json is an experimental stable first-authored exact-tie formula candidate for the legacy-format fixtures; it does not model Core sequential lerp lowering or unspecified std::sort tie ordering. The dynamic typed Ramp candidate uses last-authored exact-tie selection; neither policy is promoted",
+        "baseline": "ramp_duplicate_stops_formula_golden.json uses a deterministic last-authored exact-tie candidate after stable sorting, matching Blender evaluator selection within its sorted tie group; Blender does not specify equal-position qsort ordering. This formula does not model Core sequential lerp lowering or unspecified std::sort tie ordering, and it is not runtime parity evidence",
         "candidate": "dynamic Vector4 Ramp candidate HLSL injected through a test-only MeshRenderer host adapter and compared with the legacy Core ColorRamp fixture at factors 0, 0.4999, 0.5, 0.5001, and 1",
         "measurement": "linear RGBA32F samples, channel-wise absolute/relative formula error, finite checks, and separately reported alpha; exact probe coordinates and output hashes",
         "review": "compare authored-order behavior at the exact tie, decide the product policy after capture review, and keep non-tie numeric tolerance separate; no Blender parity claim",
@@ -6491,7 +6493,7 @@
         "hostContextAdapterRejectsMalformedAndMissingBindings",
         "rampStopsPersistExactlyThroughFileRoundTrip",
         "rampStopsEditIsBoundedFiniteAtomicAndUndoable",
-        "rampDuplicateStopOraclePoliciesAndProvenanceAreDistinct",
+        "rampDuplicateStopOracleAndDynamicCandidateAgree",
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",

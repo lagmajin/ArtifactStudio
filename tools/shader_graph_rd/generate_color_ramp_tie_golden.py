@@ -28,11 +28,11 @@ def evaluate(stops: list[dict], factor: float) -> list[float]:
         raise ValueError("ColorRamp needs at least one stop")
     t = f32(min(f32(ordered[-1][1]["pos"]), max(f32(ordered[0][1]["pos"]), t)))
 
-    # At an exact tied coordinate, choose the first authored stop in that group.
+    # At an exact tied coordinate, choose the last authored stop in the stable-sorted group.
     # Values on either side interpolate over the adjacent distinct-position span.
     for index, (pos, stop) in enumerate((f32(item[1]["pos"]), item[1]) for item in ordered):
         if t == pos:
-            if index > 0 and f32(ordered[index - 1][1]["pos"]) == pos:
+            if index + 1 < len(ordered) and f32(ordered[index + 1][1]["pos"]) == pos:
                 continue
             return [f32(stop[channel]) for channel in ("r", "g", "b", "a")]
 
@@ -77,7 +77,7 @@ def make_golden(fixture_root: Path) -> dict:
         "factorDomain": "clamp to the minimum and maximum finite stop positions after stable sorting",
         "interpolation": "linear",
         "stopOrdering": "stable ascending (position, authored array index)",
-        "exactTieRule": "first authored stop at the exact tied position; interpolate adjacent distinct-position intervals on either side",
+        "exactTieRule": "last authored stop at the exact tied position after stable ordering; interpolate adjacent distinct-position intervals on either side",
         "cases": cases,
     }
 

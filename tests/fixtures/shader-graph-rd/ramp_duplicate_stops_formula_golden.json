@@ -6,7 +6,7 @@
   "factorDomain": "clamp to the minimum and maximum finite stop positions after stable sorting",
   "interpolation": "linear",
   "stopOrdering": "stable ascending (position, authored array index)",
-  "exactTieRule": "first authored stop at the exact tied position; interpolate adjacent distinct-position intervals on either side",
+  "exactTieRule": "last authored stop at the exact tied position after stable ordering; interpolate adjacent distinct-position intervals on either side",
   "cases": [
     {
       "fixture": "ramp_duplicate_stops_forward.json",
@@ -33,10 +33,10 @@
         {
           "factor": 0.5,
           "linearRgbaBinary32": [
+            0.0,
+            0.0,
             1.0,
-            0.0,
-            0.0,
-            0.25
+            0.75
           ]
         },
         {
@@ -84,10 +84,10 @@
         {
           "factor": 0.5,
           "linearRgbaBinary32": [
-            0.0,
-            0.0,
             1.0,
-            0.75
+            0.0,
+            0.0,
+            0.25
           ]
         },
         {
