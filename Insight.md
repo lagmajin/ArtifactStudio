@@ -9,9 +9,9 @@
 
 ## 2026-11-16: Legacy BaseColor arithmetic can be projected without collapsing RGBA lanes
 - **関連:** `experiments/ShaderGraphLab/dynamic_graph_prototype.py::project_legacy_core_material_input`、`tools/shader_graph_rd/compile_legacy_core_projection_candidates.py`、Core `MathNode` material lowering。
-- **確認できた事実:** The selected BaseColor lane now projects legacy componentwise Vector4 Math Subtract, Multiply, and positive-floor Divide into distinct typed operations. DXC/HLSL and glslang/GLSL Vulkan 1.2 constant-fold outputs match all four binary32 lanes for the generated RGB-node fixture variants; the main manifest validator passes.
+- **確認できた事実:** The selected BaseColor lane now projects legacy componentwise Vector4 Math Add, Subtract, Multiply, and positive-floor Divide into distinct typed operations. DXC/HLSL and glslang/GLSL Vulkan 1.2 constant-fold outputs match all four binary32 lanes for the generated RGB-node fixture variants; a portable 10/10 compiler evidence report is pinned under `experiments/ShaderGraphLab/` and checked by the manifest validator.
 - **価値または懸念:** The adapter can carry more legacy material arithmetic through a typed graph while preserving alpha and the unusual positive-floor division rule. This does not settle Color4 transfer/premultiplication policy or the product decision that graph BaseColor replaces fixed-PBR tint/factor contributions.
-- **次に確認すべきこと:** Run the authorized Core Vulkan capture, then add representative BaseColor operation runtime captures and project save/reload before considering migration support in Core.
+- **次に確認すべきこと:** Run the authorized Core Vulkan capture, then review the per-operation raw RGBA captures and project save/reload before considering migration support in Core.
 - **未検証:** GPU arithmetic/pixels, production application path, project persistence, and D3D12 parity.
 
 ## 2026-11-16: Vulkan graph capture source compares legacy and typed scalar lanes

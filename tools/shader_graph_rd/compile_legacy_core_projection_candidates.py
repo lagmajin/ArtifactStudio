@@ -109,6 +109,24 @@ def run(command: list[str]) -> dict[str, Any]:
             "stderr": result.stderr}
 
 
+def normalize_report_output(value: Any, root: Path) -> Any:
+    if isinstance(value, dict):
+        normalized = {}
+        for key, item in value.items():
+            item = normalize_report_output(item, root)
+            if key in ("stdout", "stderr") and isinstance(item, str):
+                item = item.replace("\\", "/")
+            normalized[key] = item
+        return normalized
+    if isinstance(value, list):
+        return [normalize_report_output(item, root) for item in value]
+    if isinstance(value, str):
+        value = value.replace(root.as_posix(), "<repo>")
+        value = value.replace(str(root), "<repo>")
+        return value
+    return value
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
@@ -464,6 +482,7 @@ def main() -> int:
         ],
         "candidates": records,
     }
+    result = normalize_report_output(result, root)
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n",
                             encoding="utf-8", newline="\n")

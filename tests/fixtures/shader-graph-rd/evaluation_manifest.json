@@ -7041,7 +7041,8 @@
             "legacy_roughness_dividePositiveFloor"
           ],
           "numericOracle": "exact binary32 output comparison against each projection CPU golden after spirv-opt -O",
-          "evidencePath": "temp/shader-graph-core-projection-compile/summary.json",
+    "evidencePath": "experiments/ShaderGraphLab/legacy_core_projection_compiler_evidence.json",
+    "evidenceSha256": "5EA391F821D68B9FDDEA65D7D0E58F2727842F07D4125803DF9EC924AFFDAD9C",
           "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution",
           "dynamicInput": {
             "fixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
