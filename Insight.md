@@ -1,4 +1,11 @@
-**最終更新:** 2026-11-15
+**最終更新:** 2026-11-16
+
+## 2026-11-16: Clip bar design prototype should keep GPU-path evidence separate
+- **関連:** `experiments/TimelineClipBarLab/`、`tools/TimelineClipBarPlayground/`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`。
+- **確認できた事実:** `ArtifactIRenderer` は Diligent 経由の矩形・パネル・線・文字描画APIを公開しており、タイムラインWidgetを使わない比較用ネイティブPlaygroundを構成できる。製品Timelineには別途 clip hit-test、選択、trim、サムネイル／波形のデータ供給がある。
+- **価値または懸念:** ブラウザーのデザイン探索とGPU描画確認を分離すれば、視覚案の比較結果を製品経路やGPU parityの証拠と誤認しにくい。
+- **次に確認すべきこと:** 許可されたビルド／実行時にDiligent初期化、3案の描画、選択枠・密度切替を確認し、製品Timelineへの採用は別レビューにする。
+- **未検証:** PlaygroundのビルドとGPU実機表示。
 
 ## 2026-11-16: Looks browser presets and executable LUT presets are separate inventories
 - **関連:** `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`ArtifactCore/src/Color/ColorLUT.cpp`、`experiments/CinematicLooksLab/`。
@@ -14993,7 +15000,7 @@
 - **未検証:** 実GPUのFMA/精度、Diligent runtime、Coreとの画素差、D3D12 parity、Blender parity。
 ## 2026-11-16: Dynamic material inputs can be projected as host-context bindings
 - **関連:** `ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp`、`experiments/ShaderGraphLab/dynamic_graph_prototype.py`、`tools/shader_graph_rd/compile_legacy_core_projection_candidates.py`。
-- **確認できた事実:** legacy `TexCoord.UV` exposes a Vector2 and the audited Core conversion to Float selects component `.x`. The read-only R&D adapter maps this to UV0.x and compiles it as `In.UV.x` (HLSL) / `artifactHostUV.x` (GLSL); both Vulkan 1.2 frontend paths validate and produce matching SPIR-V interface projections. The manifest validator now also pins the Core `In.UV` lowering, `.x` conversion, and MeshRenderer `In.uv` → `Out.UV` source bridge. A six-point UV0.x specialization probe matches the candidate scalar golden exactly in optimized GLSL and HLSL SPIR-V. A second typed fixture sends that context value through Float Multiply and Add nodes, with exact compiler output matches at all six samples. Updating the prototype source without refreshing its pinned SHA-256 had made the broader manifest appear broken; refreshing the pin restored the complete validator pass, showing why source-digest checks should be diagnosed separately from behavior assertions.
+- **確認できた事実:** legacy `TexCoord.UV` exposes a Vector2 and the audited Core conversion to Float selects component `.x`. The read-only R&D adapter maps this to UV0.x and compiles it as `In.UV.x` (HLSL) / `artifactHostUV.x` (GLSL); both Vulkan 1.2 frontend paths validate and produce matching SPIR-V interface projections. The manifest validator now also pins the Core `In.UV` lowering, `.x` conversion, and MeshRenderer `In.uv` → `Out.UV` source bridge. A six-point UV0.x specialization probe matches the candidate scalar golden exactly in optimized GLSL and HLSL SPIR-V. A second typed fixture sends that context value through Float Multiply and Add nodes, with exact compiler output matches at all six samples. The legacy UV-to-Roughness candidate also matches the MeshRenderer 0.04-to-1.0 clamp at all six samples in both shader frontends. Updating the prototype source without refreshing its pinned SHA-256 had made the broader manifest appear broken; refreshing the pin restored the complete validator pass, showing why source-digest checks should be diagnosed separately from behavior assertions.
 - **価値または懸念:** Legacy material migration can carry a dynamic shader input without baking the current UV into a constant. This is still a narrow context adapter; coordinate conventions, GPU execution, renderer binding and project persistence are not proven.
 - **次に確認すべきこと:** Compare this host-context contract to the production mesh vertex input and Diligent resource/interface binding, then run the authorized renderer capture path before considering Core promotion.
 - **未検証:** GPU output, actual Core graph execution, Diligent compatibility and save/reload behavior.

@@ -789,3 +789,9 @@ This increases confidence in the dynamic input adapter and scalar lowering for U
 Added `dynamic_uv_roughness_math.json`, a typed graph that reads UV0.x, multiplies by a Float constant, and adds a second Float constant before selecting the scalar result as Roughness. The new Vulkan 1.2 probe first compiles the nonconstant graph through glslang and DXC and compares optimized SPIR-V interfaces, then specializes six UV0.x values in both languages. All 12 numeric outputs exactly match the binary32 oracle `f32(f32(uv0.x * 0.5) + 0.125)`. The probe also pins the deterministic HLSL lowering for the UV input, Multiply, and Add chain; the evaluation manifest validator passes with the new fixture and probe contract.
 
 This is evidence that a dynamic context value flows through multiple typed graph operations in both compiler frontends. It still does not execute on a GPU or pass through ArtifactCore's actual renderer, Diligent bindings, or project save/reload. Core promotion remains gated on those runtime and persistence checks.
+
+### Core Roughness renderer epilogue probe (2026-11-16)
+
+The direct legacy UV projection was also evaluated through the current MeshRenderer Roughness epilogue, which clamps the graph value to `[0.04, 1.0]`. The compiler probe now applies that exact source-audited clamp expression to the UV0.x candidate, compiles and optimizes both shader frontends for the same six UV samples, and checks exact binary32 scalar outputs. All 12 outputs match: negative and zero inputs reach the `0.04` floor, while `1.75` reaches the `1.0` ceiling. The manifest ties the probe expressions to the current MeshRenderer source line.
+
+This closes a formula-level gap between the selected legacy input projection and its renderer field application. It does not prove the full MeshRenderer shader assembly, actual GPU values, Diligent compatibility, or a rendered material response.

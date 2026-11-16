@@ -6988,7 +6988,22 @@
               0.5,
               1.0,
               1.75
-            ]
+            ],
+            "rendererEpilogue": {
+              "coreSourceExpression": "roughness = clamp(graphRoughness, 0.04f, 1.0f);",
+              "glslExpression": "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);",
+              "hlslExpression": "return clamp(n_uv_value, 0.04f, 1.0f);",
+              "sampleUv0X": [
+                -0.25,
+                0.0,
+                0.125,
+                0.5,
+                1.0,
+                1.75
+              ],
+              "numericOracle": "clamp(raw UV0.x, binary32(0.04), 1.0); exact binary32 scalar output after spirv-opt -O in each frontend",
+              "status": "source-audited-renderer-epilogue-compiled-no-gpu-execution"
+            }
           },
           "dynamicInputMath": {
             "tool": "tools/shader_graph_rd/probe_legacy_uv_math_projection.py",

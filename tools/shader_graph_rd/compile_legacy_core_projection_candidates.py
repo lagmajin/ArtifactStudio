@@ -337,10 +337,52 @@ def main() -> int:
         })
         print(f"{uv_stem} sample[{value}]: {'PASS' if sample_passed else 'FAIL'}")
     records[-1]["numericSpecializations"] = uv_numeric_cases
+    roughness_glsl = glsl_uv.replace(
+        "artifactGraphOutput = n_uv_value;",
+        "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);")
+    roughness_hlsl = hlsl_uv.replace(
+        "return n_uv_value;",
+        "return clamp(n_uv_value, 0.04f, 1.0f);")
+    if roughness_glsl == glsl_uv or roughness_hlsl == hlsl_uv:
+        raise RuntimeError("Core Roughness clamp epilogue was not inserted")
+    roughness_samples = []
+    for index, sample in enumerate(uv_projection["numericCases"]):
+        value = float(sample["uv0X"])
+        literal = format(value, ".9g")
+        if "." not in literal and "e" not in literal.lower():
+            literal += ".0"
+        case_stem = f"{uv_stem}_core_roughness_{index:02d}"
+        glsl_sample = compile_scalar_frontend(
+            roughness_glsl.replace("artifactHostUV.x", literal),
+            case_stem, "glsl", output_dir, args)
+        hlsl_sample = compile_scalar_frontend(
+            roughness_hlsl.replace("In.UV.x", literal + "f"),
+            case_stem, "hlsl", output_dir, args)
+        expected = min(max(float(sample["expectedBinary32"]), numeric_probe.f32(0.04)), 1.0)
+        exact_match = (
+            glsl_sample["output"] is not None and hlsl_sample["output"] is not None and
+            numeric_probe.f32_bits(glsl_sample["output"]) == numeric_probe.f32_bits(expected) and
+            numeric_probe.f32_bits(hlsl_sample["output"]) == numeric_probe.f32_bits(expected))
+        sample_passed = (glsl_sample["status"] == "passed" and
+                         hlsl_sample["status"] == "passed" and exact_match)
+        roughness_samples.append({"uv0X": value, "expectedRoughnessBinary32": expected,
+            "glslOutput": glsl_sample["output"], "hlslOutput": hlsl_sample["output"],
+            "exactBinary32GoldenMatch": exact_match,
+            "status": "passed" if sample_passed else "failed"})
+        print(f"Core roughness clamp UV0.x={value}: {'PASS' if sample_passed else 'FAIL'}")
+    records[-1]["coreRoughnessEpilogue"] = {
+        "sourceContract": "roughness = clamp(graphRoughness, 0.04f, 1.0f);",
+        "glslExpression": "artifactGraphOutput = clamp(n_uv_value, 0.04, 1.0);",
+        "hlslExpression": "return clamp(n_uv_value, 0.04f, 1.0f);",
+        "numericSpecializations": roughness_samples,
+        "status": "passed" if all(item["status"] == "passed" for item in roughness_samples)
+                  else "failed",
+    }
     records[-1]["status"] = ("passed" if uv_passed and
-                              all(item["status"] == "passed" for item in uv_numeric_cases)
+                              all(item["status"] == "passed" for item in uv_numeric_cases) and
+                              records[-1]["coreRoughnessEpilogue"]["status"] == "passed"
                               else "failed")
-    print(f"{uv_stem}: {'PASS' if uv_passed else 'FAIL'}")
+    print(f"{uv_stem}: {'PASS' if records[-1]['status'] == 'passed' else 'FAIL'}")
 
     result = {
         "schemaId": "artifact.shadergraph.legacy-core-projection-compiler-evidence",
