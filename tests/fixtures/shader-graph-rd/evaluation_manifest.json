@@ -6546,6 +6546,7 @@
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
         "legacyBaseColorProjectionCoversVector4MathVariants",
+        "legacyProjectionToolchainSnapshotIsPinnedAndHistoricallyScoped",
         "legacyCoreProjectionCompilesThroughBothVulkanFrontends",
         "legacyRoughnessProjectionCoversSubtractAndPositiveFloorDivide",
         "rampNumericProbeSeparatesShaderMixFromLerpRounding",
@@ -7104,6 +7105,10 @@
           "numericOracle": "exact binary32 output comparison against each projection CPU golden after spirv-opt -O",
     "evidencePath": "experiments/ShaderGraphLab/legacy_core_projection_compiler_evidence.json",
     "evidenceSha256": "5EA391F821D68B9FDDEA65D7D0E58F2727842F07D4125803DF9EC924AFFDAD9C",
+    "toolchainSnapshot": "experiments/ShaderGraphLab/shader_compiler_toolchain_snapshot.json",
+    "toolchainSnapshotSha256": "3A382E379FA3F412EA93C431A6DD04B5D8864A9541F52ECCF4597FCFB21BF801",
+    "toolchainSnapshotStatus": "captured-current-host-not-bound-to-existing-compile-evidence",
+    "toolchainIdentityTool": "tools/shader_graph_rd/capture_shader_toolchain_identity.py",
           "runtimeStatus": "compiler-and-constant-folded-numeric-golden-no-gpu-execution",
           "dynamicInput": {
             "fixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",

@@ -1,0 +1,110 @@
+{
+  "schemaId": "artifact.shadergraph.compiler-toolchain-snapshot",
+  "schemaVersion": 1,
+  "status": "captured-current-toolchain-not-historical-provenance",
+  "capturedAtUtc": "2026-11-16T07:35:51.007511Z",
+  "host": {
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64"
+  },
+  "targetEnvironment": "vulkan1.2",
+  "tools": {
+    "glslangValidator": {
+      "status": "captured",
+      "command": "glslangValidator",
+      "versionArguments": [
+        "--version"
+      ],
+      "versionExitCode": 0,
+      "versionStdout": "Glslang Version: 11:16.2.0\nESSL Version: OpenGL ES GLSL 3.20 glslang Khronos. 16.2.0\nGLSL Version: 4.60 glslang Khronos. 16.2.0\nSPIR-V Version 0x00010600, Revision 1\nGLSL.std.450 Version 100, Revision 1\nKhronos Tool ID 8\nSPIR-V Generator Version 11\nGL_KHR_vulkan_glsl version 100\nARB_GL_gl_spirv version 100",
+      "versionStderr": "",
+      "executable": {
+        "role": "executable",
+        "location": "<VULKAN_SDK>/Bin/glslangValidator.exe",
+        "fileName": "glslangValidator.EXE",
+        "byteLength": 4873656,
+        "sha256": "DB832826D73049193882D5572AD76E14FCB7B1CDFC1A6B892AC25217B850B6BC"
+      }
+    },
+    "dxc": {
+      "status": "captured",
+      "command": "dxc",
+      "versionArguments": [
+        "--version"
+      ],
+      "versionExitCode": 0,
+      "versionStdout": "dxcompiler.dll: 1.10(5180-e3554182)(1.9.0.5180) - 1.9.0.5180 (e35541826)",
+      "versionStderr": "",
+      "executable": {
+        "role": "executable",
+        "location": "<VULKAN_SDK>/Bin/dxc.exe",
+        "fileName": "dxc.EXE",
+        "byteLength": 1092024,
+        "sha256": "74B2AB9FB05270CA1F1D7B6CED979B40CB65AFDFB5842EEDA1F98C5181859661"
+      },
+      "runtimeLibraries": [
+        {
+          "role": "runtime-library",
+          "location": "<VULKAN_SDK>/Bin/dxcompiler.dll",
+          "fileName": "dxcompiler.dll",
+          "byteLength": 21349816,
+          "sha256": "5474EDA4F2D177BA20FB9C63C9C48D3D20788FD5B7D2278C6608AB761F9F5C47"
+        }
+      ]
+    },
+    "spirv-val": {
+      "status": "captured",
+      "command": "spirv-val",
+      "versionArguments": [
+        "--version"
+      ],
+      "versionExitCode": 0,
+      "versionStdout": "SPIRV-Tools v2026.1 v2026.1-0-gfbe4f3ad\nTargets:\n  SPIR-V 1.0\n  SPIR-V 1.1\n  SPIR-V 1.2\n  SPIR-V 1.3\n  SPIR-V 1.4\n  SPIR-V 1.5\n  SPIR-V 1.6\n  SPIR-V 1.2 (under OpenCL 2.2 Full Profile semantics)\n  SPIR-V 1.0 (under Vulkan 1.0 semantics)\n  SPIR-V 1.3 (under Vulkan 1.1 semantics)\n  SPIR-V 1.4 (under Vulkan 1.1 semantics)\n  SPIR-V 1.5 (under Vulkan 1.2 semantics)\n  SPIR-V 1.6 (under Vulkan 1.3 semantics) SPIR-V 1.6 (under Vulkan 1.4 semantics)",
+      "versionStderr": "",
+      "executable": {
+        "role": "executable",
+        "location": "<VULKAN_SDK>/Bin/spirv-val.exe",
+        "fileName": "spirv-val.EXE",
+        "byteLength": 3536824,
+        "sha256": "14B9820BCDCFEA88B0E0DB5688C2FD5FE87B957497E689F3BBF535BBD0400979"
+      }
+    },
+    "spirv-opt": {
+      "status": "captured",
+      "command": "spirv-opt",
+      "versionArguments": [
+        "--version"
+      ],
+      "versionExitCode": 0,
+      "versionStdout": "",
+      "versionStderr": "SPIRV-Tools v2026.1 v2026.1-0-gfbe4f3ad",
+      "executable": {
+        "role": "executable",
+        "location": "<VULKAN_SDK>/Bin/spirv-opt.exe",
+        "fileName": "spirv-opt.EXE",
+        "byteLength": 8004536,
+        "sha256": "D36374E3C0FB3E1E2688450115001F4E7F6577ABC3E49F40FFEC88633A0A8E0E"
+      }
+    },
+    "spirv-dis": {
+      "status": "captured",
+      "command": "spirv-dis",
+      "versionArguments": [
+        "--version"
+      ],
+      "versionExitCode": 0,
+      "versionStdout": "SPIRV-Tools v2026.1 v2026.1-0-gfbe4f3ad\nTarget: SPIR-V 1.5",
+      "versionStderr": "",
+      "executable": {
+        "role": "executable",
+        "location": "<VULKAN_SDK>/Bin/spirv-dis.exe",
+        "fileName": "spirv-dis.EXE",
+        "byteLength": 1185208,
+        "sha256": "7CF5075975111D52205EC774E121923AA4983C0DBF275F3607F6EE14F8290721"
+      }
+    }
+  },
+  "evidenceBoundary": "This is a current host snapshot. It does not establish which binaries produced legacy_core_projection_compiler_evidence.json; that older compilation report omitted tool identities and must be rerun to bind results to this snapshot.",
+  "shaderCompilationPerformed": false
+}
