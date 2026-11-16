@@ -16448,6 +16448,115 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         ? std::filesystem::path(configuredOutputDir)
         : std::filesystem::current_path() / "ray-tracing-frames";
     std::filesystem::create_directories(outputDir);
+
+    const auto baseColorMathFixturePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "math_add.json";
+    QFile baseColorMathFixtureFile(
+        QString::fromStdString(baseColorMathFixturePath.string()));
+    ASSERT_TRUE(baseColorMathFixtureFile.open(QIODevice::ReadOnly))
+        << baseColorMathFixturePath.string();
+    const QByteArray baseColorMathFixtureBytes = baseColorMathFixtureFile.readAll();
+    const auto baseColorMathSourceDocument =
+        QJsonDocument::fromJson(baseColorMathFixtureBytes);
+    ASSERT_TRUE(baseColorMathSourceDocument.isObject());
+    const auto baseColorMathVariants = roughnessMathCandidateJson.object()
+        .value("baseColorMathVariants").toObject();
+    struct BaseColorMathCaptureRecord {
+        QString variantId;
+        int legacyOperation = 0;
+        QByteArray legacyJson;
+        std::vector<std::array<float, 4>> legacyPixels;
+        std::vector<std::array<float, 4>> projectedPixels;
+        std::array<float, 4> expected{};
+        QString legacyFilename;
+        QString projectedFilename;
+    };
+    std::array<BaseColorMathCaptureRecord, 3> baseColorMathCaptures{{
+        {QStringLiteral("subtract")},
+        {QStringLiteral("multiply")},
+        {QStringLiteral("dividePositiveFloor")},
+    }};
+    const std::array<int, 3> baseColorLegacyOperations{1, 2, 3};
+    constexpr char baseColorReturnStatement[] = "return n_math_result;\n";
+    for (size_t variantIndex = 0; variantIndex < baseColorMathCaptures.size();
+         ++variantIndex) {
+        auto& record = baseColorMathCaptures[variantIndex];
+        record.legacyOperation = baseColorLegacyOperations[variantIndex];
+        const auto variant = baseColorMathVariants.value(record.variantId).toObject();
+        ASSERT_FALSE(variant.isEmpty()) << record.variantId.toStdString();
+        const auto candidateBody = variant.value("candidateHlslBody").toString();
+        ASSERT_TRUE(candidateBody.endsWith(QString::fromLatin1(baseColorReturnStatement)))
+            << record.variantId.toStdString();
+        ASSERT_EQ(variant.value("cpuVector4Golden").toArray().size(), 4);
+        for (size_t channel = 0; channel < record.expected.size(); ++channel) {
+            record.expected[channel] = static_cast<float>(
+                variant.value("cpuVector4Golden").toArray().at(
+                    static_cast<qsizetype>(channel)).toDouble());
+        }
+
+        auto legacyDocument = baseColorMathSourceDocument.object();
+        auto legacyNodes = legacyDocument.value("nodes").toArray();
+        bool foundMathNode = false;
+        for (qsizetype nodeIndex = 0; nodeIndex < legacyNodes.size(); ++nodeIndex) {
+            auto node = legacyNodes.at(nodeIndex).toObject();
+            if (node.value("id").toString() != QStringLiteral("math")) continue;
+            auto parameters = node.value("params").toObject();
+            parameters.insert(QStringLiteral("op"), record.legacyOperation);
+            node.insert(QStringLiteral("params"), parameters);
+            legacyNodes.replace(nodeIndex, node);
+            foundMathNode = true;
+            break;
+        }
+        ASSERT_TRUE(foundMathNode) << record.variantId.toStdString();
+        legacyDocument.insert(QStringLiteral("nodes"), legacyNodes);
+        record.legacyJson = QJsonDocument(legacyDocument).toJson(QJsonDocument::Compact);
+        ASSERT_TRUE(renderer.setMaterialGraphJson(std::string(
+            record.legacyJson.constData(),
+            static_cast<size_t>(record.legacyJson.size()))))
+            << record.variantId.toStdString();
+        record.legacyPixels = capture();
+        const auto legacySamples = samplesAtPanelCenters(record.legacyPixels);
+
+        QString candidateBodyWithoutReturn = candidateBody;
+        candidateBodyWithoutReturn.chop(
+            static_cast<qsizetype>(sizeof(baseColorReturnStatement) - 1));
+        std::string candidateBlock = candidateBodyWithoutReturn.toStdString();
+        candidateBlock +=
+            "float4 graphBaseColor = n_math_result;\n"
+            "float graphMetallic = 0.0f;\n"
+            "float graphRoughness = 0.5f;\n"
+            "float3 graphEmission = float3(0.0f, 0.0f, 0.0f);\n"
+            "float graphAlpha = 1.0f;\n"
+            "float3 graphNormalSample = normalSample;\n"
+            "float graphOcclusion = occlusionSample;\n"
+            "float3 graphWorldNormal = float3(0.0f, 0.0f, 1.0f);\n"
+            "float graphUseWorldNormal = 0.0f;\n";
+        renderer.setMaterialGraphBlock(candidateBlock);
+        record.projectedPixels = capture();
+        const auto projectedSamples = samplesAtPanelCenters(record.projectedPixels);
+        for (size_t panel = 0; panel < factors.size(); ++panel) {
+            for (size_t channel = 0; channel < record.expected.size(); ++channel) {
+                EXPECT_NEAR(legacySamples[panel][channel], record.expected[channel], 1.0e-5f)
+                    << record.variantId.toStdString() << " legacy Core channel "
+                    << channel << " sample " << panel;
+                EXPECT_NEAR(projectedSamples[panel][channel], record.expected[channel], 1.0e-5f)
+                    << record.variantId.toStdString() << " typed candidate channel "
+                    << channel << " sample " << panel;
+                EXPECT_NEAR(projectedSamples[panel][channel], legacySamples[panel][channel],
+                            1.0e-5f)
+                    << record.variantId.toStdString() << " Core/candidate channel "
+                    << channel << " sample " << panel;
+            }
+        }
+        record.legacyFilename = QStringLiteral("shader-graph-base-color-%1-legacy-vulkan.rgba32f")
+            .arg(record.variantId);
+        record.projectedFilename = QStringLiteral("shader-graph-base-color-%1-projected-vulkan.rgba32f")
+            .arg(record.variantId);
+        ASSERT_TRUE(writeRgba32f(outputDir / record.legacyFilename.toStdString(),
+                                 record.legacyPixels));
+        ASSERT_TRUE(writeRgba32f(outputDir / record.projectedFilename.toStdString(),
+                                 record.projectedPixels));
+    }
     QJsonArray legacyRepeatedRawCapturesJson;
     for (size_t repeat = 0; repeat < legacyRepeatPixels.size(); ++repeat) {
         const auto filename = QStringLiteral("shader-graph-ramp-legacy-repeat-%1-vulkan.rgba32f")
@@ -16554,6 +16663,58 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         {QStringLiteral("comparisonScope"),
          QStringLiteral("BaseColor AOV red channel carries the scalar x response; this captures the selected Math-to-Roughness value path but does not measure BRDF appearance or roughness clamp response")},
     });
+    QJsonArray baseColorMathCaptureReports;
+    for (const auto& record : baseColorMathCaptures) {
+        const auto variant = baseColorMathVariants.value(record.variantId).toObject();
+        QJsonArray samplesJson;
+        const auto legacySamples = samplesAtPanelCenters(record.legacyPixels);
+        const auto projectedSamples = samplesAtPanelCenters(record.projectedPixels);
+        for (size_t panel = 0; panel < factors.size(); ++panel) {
+            QJsonArray expectedJson;
+            QJsonArray legacyJson;
+            QJsonArray projectedJson;
+            for (size_t channel = 0; channel < record.expected.size(); ++channel) {
+                expectedJson.append(record.expected[channel]);
+                legacyJson.append(legacySamples[panel][channel]);
+                projectedJson.append(projectedSamples[panel][channel]);
+            }
+            samplesJson.append(QJsonObject{
+                {QStringLiteral("panelUv0X"), factors[panel]},
+                {QStringLiteral("expectedRgba"), expectedJson},
+                {QStringLiteral("legacyCoreRgba"), legacyJson},
+                {QStringLiteral("projectedCandidateRgba"), projectedJson},
+            });
+        }
+        baseColorMathCaptureReports.append(QJsonObject{
+            {QStringLiteral("variantId"), record.variantId},
+            {QStringLiteral("legacyMathOp"), record.legacyOperation},
+            {QStringLiteral("operationId"), variant.value("operationId").toString()},
+            {QStringLiteral("candidateHlslBodySha256"),
+             variant.value("candidateHlslBodySha256").toString()},
+            {QStringLiteral("legacyFixture"), QStringLiteral("tests/fixtures/shader-graph-rd/math_add.json")},
+            {QStringLiteral("legacyFixtureSha256"), sha256Hex(baseColorMathFixtureBytes)},
+            {QStringLiteral("legacyGraphJsonSha256"), sha256Hex(record.legacyJson)},
+            {QStringLiteral("legacyRawCapture"), record.legacyFilename},
+            {QStringLiteral("projectedRawCapture"), record.projectedFilename},
+            {QStringLiteral("legacyRawCaptureSha256"), rawCaptureSha256(record.legacyPixels)},
+            {QStringLiteral("projectedRawCaptureSha256"), rawCaptureSha256(record.projectedPixels)},
+            {QStringLiteral("numericSamples"), samplesJson},
+        });
+    }
+    reportJson.insert(QStringLiteral("dynamicBaseColorMath"), QJsonObject{
+        {QStringLiteral("projectionCandidate"),
+         QStringLiteral("experiments/ShaderGraphLab/core_math_add_projection_candidate.json")},
+        {QStringLiteral("projectionCandidateSha256"), sha256Hex(roughnessMathCandidateBytes)},
+        {QStringLiteral("comparisonScope"),
+         QStringLiteral("same Vulkan MeshRenderer BaseColor AOV, Core legacy JSON lowering versus typed candidate HLSL injection; four RGBA lanes at five panel samples; no UI/persistence path")},
+        {QStringLiteral("operationCaptures"), baseColorMathCaptureReports},
+    });
+    reportJson.insert(QStringLiteral("baseColorFixtureSha256"),
+                      sha256Hex(baseColorMathFixtureBytes));
+    reportJson.insert(QStringLiteral("baseColorMathOperationCaptures"),
+                      baseColorMathCaptureReports);
+    reportJson.insert(QStringLiteral("baseColorMathNumericSamples"),
+                      baseColorMathCaptureReports);
     reportJson.insert(QStringLiteral("legacyBlackCompositeSha256"), fileSha256(
         outputDir / "shader-graph-ramp-legacy-vulkan-over-black.png"));
     reportJson.insert(QStringLiteral("legacyWhiteCompositeSha256"), fileSha256(

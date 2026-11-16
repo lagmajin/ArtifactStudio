@@ -6220,14 +6220,15 @@
           "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
           "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
           "formulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
-          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy Ramp captures and one candidate capture; then legacy and projected UV-Math Roughness captures",
+          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; repeated legacy Ramp baseline and candidate; legacy/projected Roughness math; BaseColor Vector4 Subtract, Multiply, and positive-floor Divide pairs",
           "reportEvidence": {
             "inputSha256Fields": [
               "legacyFixtureSha256",
               "candidateFixtureSha256",
               "formulaGoldenFixtureSha256",
               "fixtureSha256",
-              "projectionCandidateSha256"
+              "projectionCandidateSha256",
+              "baseColorFixtureSha256"
             ],
             "outputSha256Fields": [
               "legacyRawCaptureSha256",
@@ -6238,7 +6239,8 @@
               "candidateBlackCompositeSha256",
               "candidateWhiteCompositeSha256",
               "legacyRawCaptureSha256",
-              "projectedRawCaptureSha256"
+              "projectedRawCaptureSha256",
+              "baseColorMathOperationCaptures"
             ],
             "measurementFields": [
               "samplePixelCoordinates",
@@ -6246,7 +6248,8 @@
               "candidateVsFormulaGoldenAbsoluteError",
               "candidateVsFormulaGoldenRelativeError",
               "redChannelNumericSamples",
-              "comparisonScope"
+              "comparisonScope",
+              "baseColorMathNumericSamples"
             ],
             "renderOutputModeField": "renderOutputMode"
           },
@@ -6271,6 +6274,26 @@
             "expectedRed": "f32(f32(UV0.x * 0.5) + 0.125)",
             "reportedSamplesField": "redChannelNumericSamples",
             "comparisonScope": "Core legacy graph and projected typed HLSL through the same MeshRenderer shader compiler/draw/readback. BaseColor AOV red carries the scalar x response; this does not measure BRDF appearance or prove the Roughness clamp output."
+          },
+          "baseColorMathCapture": {
+            "legacyFixture": "tests/fixtures/shader-graph-rd/math_add.json",
+            "projectionCandidate": "experiments/ShaderGraphLab/core_math_add_projection_candidate.json",
+            "variants": [
+              "subtract",
+              "multiply",
+              "dividePositiveFloor"
+            ],
+            "legacyMathOps": [
+              1,
+              2,
+              3
+            ],
+            "reportField": "dynamicBaseColorMath.operationCaptures",
+            "sampleField": "numericSamples",
+            "sampleCount": 5,
+            "channels": "RGBA32F all four lanes",
+            "comparisonScope": "Each legacy op is written into the fixture Math node and captured via setMaterialGraphJson; the stored typed HLSL candidate is injected with setMaterialGraphBlock. Compare all RGBA channels against binary32 golden and legacy capture at five panel centers. This does not exercise UI, persistence, or production migration adapter.",
+            "status": "source-added-not-run"
           }
         }
       },
@@ -6448,6 +6471,7 @@
         "rampBinary32GoldenPinsDuplicateBoundaryAndImagePlan",
         "rampCpuImageOracleArtifactsAreDeterministicAndFinite",
         "rampGpuCaptureSourcePinsHostAdapterAndFixtures",
+        "rampGpuCaptureComparesBaseColorTypedMathVariants",
         "rampGpuCaptureUsesRawBaseColorAovAndFormulaGolden",
         "legacyCoreProjectionMapsSelectedRgbAddAndRetainsSource",
         "legacyBaseColorProjectionCoversVector4MathVariants",

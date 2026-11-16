@@ -109,9 +109,9 @@ float t = saturate((0.5f - 0f) / 1f);
 
 ## Vulkan capture source（2026-11-16、未実行）
 
-親repoの `tests/ArtifactCore/RayTracingAcceptanceTest.cpp` にある `VulkanMeshRendererAcceptanceTest` へ、既存のheadless Vulkan/RGBA32F harnessを再利用した capture case を追加した。従来のRamp比較に加えて、legacy `TexCoord.UV → Math(Multiply) → Math(Add) → Principled.Roughness` fixtureを `setMaterialGraphJson()` で評価し、同じmesh UV上でR&D typed projectionのHLSL bodyを `setMaterialGraphBlock()` へ注入した候補と赤channelを比較する。五つのUV0.x sample、入力fixture/candidate hash、生RGBA32F capture hashをreportへ記録する。
+親repoの `tests/ArtifactCore/RayTracingAcceptanceTest.cpp` にある `VulkanMeshRendererAcceptanceTest` へ、既存のheadless Vulkan/RGBA32F harnessを再利用した capture case を追加した。従来のRamp比較に加えて、legacy `TexCoord.UV → Math(Multiply) → Math(Add) → Principled.Roughness` fixtureを `setMaterialGraphJson()` で評価し、同じmesh UV上でR&D typed projectionのHLSL bodyを `setMaterialGraphBlock()` へ注入した候補と赤channelを比較する。五つのUV0.x sample、入力fixture/candidate hash、生RGBA32F capture hashをreportへ記録する。さらに同じcaseへBaseColor Vector4 Subtract / Multiply / positive-floor Divideを追加し、legacy fixtureのMath opを切り替えたCore graphとtyped HLSL候補をRGBA32Fの全4 lane・5 sampleで比較するreport sourceを加えた。
 
-この経路は現行Core legacy loweringとR&D候補の選択scalar結果をGPU上で並べるための試験sourceであり、製品UI・ArtifactIRenderer adapter・project save/reloadを通らない。BaseColor AOVの赤channelへscalar値を載せるためroughness値の応答だけを検査し、BRDF見た目、roughness clampの出力、D3D12 parity、compile failure recovery、性能は評価しない。C++ sourceは未ビルド・未実行で、capture recordsも未生成。実行には明示許可が必要。
+この経路は現行Core legacy loweringとR&D候補の選択値をGPU上で並べるための試験sourceであり、製品UI・ArtifactIRenderer adapter・project save/reloadを通らない。RoughnessではBaseColor AOVの赤channelへscalar値を載せるためroughness値の応答だけを検査し、BRDF見た目、roughness clampの出力、D3D12 parity、compile failure recovery、性能は評価しない。BaseColor arithmeticはcandidate goldenおよびlegacy captureとの一致をsource上で検査するが、実測値はまだない。C++ sourceは未ビルド・未実行で、capture recordsも未生成。実行には明示許可が必要。
 
 ## Legacy Math projection拡張（2026-11-16、compiler-only）
 
