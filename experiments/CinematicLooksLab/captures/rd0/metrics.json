@@ -1,7 +1,7 @@
 {
   "chart": {
     "baseline_i0.00": {
-      "elapsed_ms": 8.024599999771453,
+      "elapsed_ms": 7.5446999981068075,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -1170,7 +1170,7 @@
       }
     },
     "cinematic_i0.00": {
-      "elapsed_ms": 8.511500011081807,
+      "elapsed_ms": 8.128700006636791,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -2339,7 +2339,7 @@
       }
     },
     "cinematic_i0.50": {
-      "elapsed_ms": 674.4363000034355,
+      "elapsed_ms": 513.4152000100585,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -3508,7 +3508,7 @@
       }
     },
     "cinematic_i1.00": {
-      "elapsed_ms": 589.7909999912372,
+      "elapsed_ms": 521.752499989816,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -4677,7 +4677,7 @@
       }
     },
     "vintage_i0.00": {
-      "elapsed_ms": 9.342200006358325,
+      "elapsed_ms": 10.923499998170882,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -5846,7 +5846,7 @@
       }
     },
     "vintage_i0.50": {
-      "elapsed_ms": 780.6132999976398,
+      "elapsed_ms": 702.078900008928,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -7015,7 +7015,7 @@
       }
     },
     "vintage_i1.00": {
-      "elapsed_ms": 750.2901999978349,
+      "elapsed_ms": 686.6118000034476,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -8184,7 +8184,7 @@
       }
     },
     "cold_i0.00": {
-      "elapsed_ms": 8.577300002798438,
+      "elapsed_ms": 10.148100001970306,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -9353,7 +9353,7 @@
       }
     },
     "cold_i0.50": {
-      "elapsed_ms": 653.9196999947308,
+      "elapsed_ms": 639.9342000077013,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -10522,7 +10522,7 @@
       }
     },
     "cold_i1.00": {
-      "elapsed_ms": 641.4770000119461,
+      "elapsed_ms": 609.6883999998681,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -11691,7 +11691,7 @@
       }
     },
     "warm_i0.00": {
-      "elapsed_ms": 11.625800005276687,
+      "elapsed_ms": 13.150400001904927,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -12860,7 +12860,7 @@
       }
     },
     "warm_i0.50": {
-      "elapsed_ms": 667.4322000035318,
+      "elapsed_ms": 689.8531999904662,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -14029,7 +14029,7 @@
       }
     },
     "warm_i1.00": {
-      "elapsed_ms": 714.2572000011569,
+      "elapsed_ms": 674.88950000552,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -15198,7 +15198,7 @@
       }
     },
     "high_contrast_i0.00": {
-      "elapsed_ms": 9.745799994561821,
+      "elapsed_ms": 8.772800007136539,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -16367,7 +16367,7 @@
       }
     },
     "high_contrast_i0.50": {
-      "elapsed_ms": 708.13939999789,
+      "elapsed_ms": 685.761700005969,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -17536,7 +17536,7 @@
       }
     },
     "high_contrast_i1.00": {
-      "elapsed_ms": 676.2988999980735,
+      "elapsed_ms": 690.596700005699,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -18705,7 +18705,7 @@
       }
     },
     "low_contrast_i0.00": {
-      "elapsed_ms": 9.782599998288788,
+      "elapsed_ms": 10.198299991316162,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -19874,7 +19874,7 @@
       }
     },
     "low_contrast_i0.50": {
-      "elapsed_ms": 641.735700002755,
+      "elapsed_ms": 674.7579999937443,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -21043,7 +21043,7 @@
       }
     },
     "low_contrast_i1.00": {
-      "elapsed_ms": 636.0069999936968,
+      "elapsed_ms": 665.5095000023721,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -22212,7 +22212,7 @@
       }
     },
     "desaturated_i0.00": {
-      "elapsed_ms": 10.164200008148327,
+      "elapsed_ms": 12.385699999867938,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -23381,7 +23381,7 @@
       }
     },
     "desaturated_i0.50": {
-      "elapsed_ms": 666.5211000072304,
+      "elapsed_ms": 659.0539000026183,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -24550,7 +24550,7 @@
       }
     },
     "desaturated_i1.00": {
-      "elapsed_ms": 697.6379999978235,
+      "elapsed_ms": 573.5272000019904,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -25719,7 +25719,7 @@
       }
     },
     "kodak2383_i0.00": {
-      "elapsed_ms": 9.39940000534989,
+      "elapsed_ms": 9.813600001507439,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -26888,7 +26888,7 @@
       }
     },
     "kodak2383_i0.50": {
-      "elapsed_ms": 939.0692999877501,
+      "elapsed_ms": 922.7991999941878,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -28057,7 +28057,7 @@
       }
     },
     "kodak2383_i1.00": {
-      "elapsed_ms": 849.7520999953849,
+      "elapsed_ms": 886.5729000099236,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -29226,7 +29226,7 @@
       }
     },
     "fuji3510_i0.00": {
-      "elapsed_ms": 9.678100002929568,
+      "elapsed_ms": 9.869900008197874,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -30395,7 +30395,7 @@
       }
     },
     "fuji3510_i0.50": {
-      "elapsed_ms": 925.7322000048589,
+      "elapsed_ms": 926.8141000065953,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -31564,7 +31564,7 @@
       }
     },
     "fuji3510_i1.00": {
-      "elapsed_ms": 863.6474999948405,
+      "elapsed_ms": 911.532600002829,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -32735,7 +32735,7 @@
   },
   "neon_streets": {
     "baseline_i0.00": {
-      "elapsed_ms": 9.938899995177053,
+      "elapsed_ms": 9.801099993637763,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -32880,7 +32880,7 @@
       }
     },
     "cinematic_i0.00": {
-      "elapsed_ms": 9.15769999846816,
+      "elapsed_ms": 10.801399999763817,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33025,7 +33025,7 @@
       }
     },
     "cinematic_i0.50": {
-      "elapsed_ms": 669.9341999919852,
+      "elapsed_ms": 612.7379000099609,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33170,7 +33170,7 @@
       }
     },
     "cinematic_i1.00": {
-      "elapsed_ms": 679.0879000036512,
+      "elapsed_ms": 628.3565000048839,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33315,7 +33315,7 @@
       }
     },
     "vintage_i0.00": {
-      "elapsed_ms": 9.370899992063642,
+      "elapsed_ms": 8.140499994624406,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33460,7 +33460,7 @@
       }
     },
     "vintage_i0.50": {
-      "elapsed_ms": 733.1435999949463,
+      "elapsed_ms": 674.0709000005154,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33605,7 +33605,7 @@
       }
     },
     "vintage_i1.00": {
-      "elapsed_ms": 718.4095999982674,
+      "elapsed_ms": 669.6902999974554,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33750,7 +33750,7 @@
       }
     },
     "cold_i0.00": {
-      "elapsed_ms": 10.247700003674254,
+      "elapsed_ms": 9.857299999566749,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -33895,7 +33895,7 @@
       }
     },
     "cold_i0.50": {
-      "elapsed_ms": 594.2200000135927,
+      "elapsed_ms": 585.9934000036446,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34040,7 +34040,7 @@
       }
     },
     "cold_i1.00": {
-      "elapsed_ms": 555.7283999951323,
+      "elapsed_ms": 526.0850000049686,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34185,7 +34185,7 @@
       }
     },
     "warm_i0.00": {
-      "elapsed_ms": 8.944000001065433,
+      "elapsed_ms": 10.633199999574572,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34330,7 +34330,7 @@
       }
     },
     "warm_i0.50": {
-      "elapsed_ms": 654.5027000101982,
+      "elapsed_ms": 601.493299996946,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34475,7 +34475,7 @@
       }
     },
     "warm_i1.00": {
-      "elapsed_ms": 604.8339999979362,
+      "elapsed_ms": 629.239999994752,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34620,7 +34620,7 @@
       }
     },
     "high_contrast_i0.00": {
-      "elapsed_ms": 10.324800008675084,
+      "elapsed_ms": 13.291199997183867,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34765,7 +34765,7 @@
       }
     },
     "high_contrast_i0.50": {
-      "elapsed_ms": 708.0913000099827,
+      "elapsed_ms": 690.8159999875352,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -34910,7 +34910,7 @@
       }
     },
     "high_contrast_i1.00": {
-      "elapsed_ms": 695.9133000054862,
+      "elapsed_ms": 705.4915000044275,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35055,7 +35055,7 @@
       }
     },
     "low_contrast_i0.00": {
-      "elapsed_ms": 10.506000005989335,
+      "elapsed_ms": 10.252699998090975,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35200,7 +35200,7 @@
       }
     },
     "low_contrast_i0.50": {
-      "elapsed_ms": 629.9289999878965,
+      "elapsed_ms": 663.27089999686,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35345,7 +35345,7 @@
       }
     },
     "low_contrast_i1.00": {
-      "elapsed_ms": 639.8561999958474,
+      "elapsed_ms": 651.073400003952,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35490,7 +35490,7 @@
       }
     },
     "desaturated_i0.00": {
-      "elapsed_ms": 10.518399998545647,
+      "elapsed_ms": 10.466399995493703,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35635,7 +35635,7 @@
       }
     },
     "desaturated_i0.50": {
-      "elapsed_ms": 639.4010000076378,
+      "elapsed_ms": 622.1129000041401,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35780,7 +35780,7 @@
       }
     },
     "desaturated_i1.00": {
-      "elapsed_ms": 691.0027999983868,
+      "elapsed_ms": 618.6881000030553,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -35925,7 +35925,7 @@
       }
     },
     "kodak2383_i0.00": {
-      "elapsed_ms": 9.80810000328347,
+      "elapsed_ms": 11.035200004698709,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36070,7 +36070,7 @@
       }
     },
     "kodak2383_i0.50": {
-      "elapsed_ms": 1016.23500000278,
+      "elapsed_ms": 921.2597000005189,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36215,7 +36215,7 @@
       }
     },
     "kodak2383_i1.00": {
-      "elapsed_ms": 907.8963000065414,
+      "elapsed_ms": 879.2317000043113,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36360,7 +36360,7 @@
       }
     },
     "fuji3510_i0.00": {
-      "elapsed_ms": 9.598500007996336,
+      "elapsed_ms": 9.960299998056144,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36505,7 +36505,7 @@
       }
     },
     "fuji3510_i0.50": {
-      "elapsed_ms": 984.5337000006111,
+      "elapsed_ms": 901.914999994915,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36650,7 +36650,7 @@
       }
     },
     "fuji3510_i1.00": {
-      "elapsed_ms": 910.576399997808,
+      "elapsed_ms": 836.0862999979872,
       "regions": {
         "full": {
           "pixels": 1574400,
@@ -36797,7 +36797,7 @@
   },
   "street_lights": {
     "baseline_i0.00": {
-      "elapsed_ms": 6.22569999541156,
+      "elapsed_ms": 4.743800003780052,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -36942,7 +36942,7 @@
       }
     },
     "cinematic_i0.00": {
-      "elapsed_ms": 4.7741000016685575,
+      "elapsed_ms": 4.444999998668209,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37087,7 +37087,7 @@
       }
     },
     "cinematic_i0.50": {
-      "elapsed_ms": 290.5841000028886,
+      "elapsed_ms": 294.92080000636633,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37232,7 +37232,7 @@
       }
     },
     "cinematic_i1.00": {
-      "elapsed_ms": 285.60859999561217,
+      "elapsed_ms": 282.3711000091862,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37377,7 +37377,7 @@
       }
     },
     "vintage_i0.00": {
-      "elapsed_ms": 3.8274999969871715,
+      "elapsed_ms": 4.324599998653866,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37522,7 +37522,7 @@
       }
     },
     "vintage_i0.50": {
-      "elapsed_ms": 328.76660001056734,
+      "elapsed_ms": 302.6456999941729,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37667,7 +37667,7 @@
       }
     },
     "vintage_i1.00": {
-      "elapsed_ms": 323.1465999997454,
+      "elapsed_ms": 326.9453000102658,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37812,7 +37812,7 @@
       }
     },
     "cold_i0.00": {
-      "elapsed_ms": 5.284600003506057,
+      "elapsed_ms": 3.792299990891479,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -37957,7 +37957,7 @@
       }
     },
     "cold_i0.50": {
-      "elapsed_ms": 261.7405999917537,
+      "elapsed_ms": 253.02830000873655,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38102,7 +38102,7 @@
       }
     },
     "cold_i1.00": {
-      "elapsed_ms": 294.80750000220723,
+      "elapsed_ms": 295.40969998924993,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38247,7 +38247,7 @@
       }
     },
     "warm_i0.00": {
-      "elapsed_ms": 5.764999994426034,
+      "elapsed_ms": 4.471100008231588,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38392,7 +38392,7 @@
       }
     },
     "warm_i0.50": {
-      "elapsed_ms": 317.1928000083426,
+      "elapsed_ms": 269.60529999632854,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38537,7 +38537,7 @@
       }
     },
     "warm_i1.00": {
-      "elapsed_ms": 298.51190000772476,
+      "elapsed_ms": 268.06290000968147,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38682,7 +38682,7 @@
       }
     },
     "high_contrast_i0.00": {
-      "elapsed_ms": 5.314399997587316,
+      "elapsed_ms": 4.807200006325729,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38827,7 +38827,7 @@
       }
     },
     "high_contrast_i0.50": {
-      "elapsed_ms": 331.8559000035748,
+      "elapsed_ms": 324.02770000044256,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -38972,7 +38972,7 @@
       }
     },
     "high_contrast_i1.00": {
-      "elapsed_ms": 353.24200001196004,
+      "elapsed_ms": 324.0853000024799,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39117,7 +39117,7 @@
       }
     },
     "low_contrast_i0.00": {
-      "elapsed_ms": 5.019400006858632,
+      "elapsed_ms": 3.882999997586012,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39262,7 +39262,7 @@
       }
     },
     "low_contrast_i0.50": {
-      "elapsed_ms": 315.5963999888627,
+      "elapsed_ms": 290.5514000012772,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39407,7 +39407,7 @@
       }
     },
     "low_contrast_i1.00": {
-      "elapsed_ms": 315.2070000069216,
+      "elapsed_ms": 287.33619999547955,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39552,7 +39552,7 @@
       }
     },
     "desaturated_i0.00": {
-      "elapsed_ms": 7.056699992972426,
+      "elapsed_ms": 4.750500011141412,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39697,7 +39697,7 @@
       }
     },
     "desaturated_i0.50": {
-      "elapsed_ms": 348.49340000073425,
+      "elapsed_ms": 301.3416000030702,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39842,7 +39842,7 @@
       }
     },
     "desaturated_i1.00": {
-      "elapsed_ms": 304.7985000011977,
+      "elapsed_ms": 275.22110000427347,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -39987,7 +39987,7 @@
       }
     },
     "kodak2383_i0.00": {
-      "elapsed_ms": 4.954200005158782,
+      "elapsed_ms": 4.995700001018122,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40132,7 +40132,7 @@
       }
     },
     "kodak2383_i0.50": {
-      "elapsed_ms": 435.22220000158995,
+      "elapsed_ms": 436.3207999995211,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40277,7 +40277,7 @@
       }
     },
     "kodak2383_i1.00": {
-      "elapsed_ms": 459.5071000076132,
+      "elapsed_ms": 422.5923000049079,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40422,7 +40422,7 @@
       }
     },
     "fuji3510_i0.00": {
-      "elapsed_ms": 5.142399997566827,
+      "elapsed_ms": 4.479200011701323,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40567,7 +40567,7 @@
       }
     },
     "fuji3510_i0.50": {
-      "elapsed_ms": 431.40619999030605,
+      "elapsed_ms": 384.9726000044029,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40712,7 +40712,7 @@
       }
     },
     "fuji3510_i1.00": {
-      "elapsed_ms": 452.1087000030093,
+      "elapsed_ms": 419.7301999956835,
       "regions": {
         "full": {
           "pixels": 737280,
@@ -40859,7 +40859,7 @@
   },
   "portrait": {
     "baseline_i0.00": {
-      "elapsed_ms": 8.730400004424155,
+      "elapsed_ms": 10.575700012850575,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41004,7 +41004,7 @@
       }
     },
     "cinematic_i0.00": {
-      "elapsed_ms": 11.744799994630739,
+      "elapsed_ms": 10.328100004699081,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41149,7 +41149,7 @@
       }
     },
     "cinematic_i0.50": {
-      "elapsed_ms": 788.1321999884676,
+      "elapsed_ms": 647.1299999975599,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41294,7 +41294,7 @@
       }
     },
     "cinematic_i1.00": {
-      "elapsed_ms": 683.2379999978002,
+      "elapsed_ms": 742.4975000030827,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41439,7 +41439,7 @@
       }
     },
     "vintage_i0.00": {
-      "elapsed_ms": 11.593499992159195,
+      "elapsed_ms": 10.407399997347966,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41584,7 +41584,7 @@
       }
     },
     "vintage_i0.50": {
-      "elapsed_ms": 760.1026999909664,
+      "elapsed_ms": 771.2657999945804,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41729,7 +41729,7 @@
       }
     },
     "vintage_i1.00": {
-      "elapsed_ms": 700.5933999898843,
+      "elapsed_ms": 753.4338999976171,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -41874,7 +41874,7 @@
       }
     },
     "cold_i0.00": {
-      "elapsed_ms": 11.14899999811314,
+      "elapsed_ms": 13.324600004125386,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42019,7 +42019,7 @@
       }
     },
     "cold_i0.50": {
-      "elapsed_ms": 636.3506000052439,
+      "elapsed_ms": 656.7601999995532,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42164,7 +42164,7 @@
       }
     },
     "cold_i1.00": {
-      "elapsed_ms": 586.968200004776,
+      "elapsed_ms": 646.8150000000605,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42309,7 +42309,7 @@
       }
     },
     "warm_i0.00": {
-      "elapsed_ms": 10.12750000518281,
+      "elapsed_ms": 10.463700004038401,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42454,7 +42454,7 @@
       }
     },
     "warm_i0.50": {
-      "elapsed_ms": 607.3562999954447,
+      "elapsed_ms": 641.985599999316,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42599,7 +42599,7 @@
       }
     },
     "warm_i1.00": {
-      "elapsed_ms": 606.1741999874357,
+      "elapsed_ms": 621.5765999950236,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42744,7 +42744,7 @@
       }
     },
     "high_contrast_i0.00": {
-      "elapsed_ms": 10.415200013085268,
+      "elapsed_ms": 10.305400006473064,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -42889,7 +42889,7 @@
       }
     },
     "high_contrast_i0.50": {
-      "elapsed_ms": 702.4308000109158,
+      "elapsed_ms": 662.9664999927627,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43034,7 +43034,7 @@
       }
     },
     "high_contrast_i1.00": {
-      "elapsed_ms": 643.0111000081524,
+      "elapsed_ms": 751.7989000043599,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43179,7 +43179,7 @@
       }
     },
     "low_contrast_i0.00": {
-      "elapsed_ms": 9.439000001293607,
+      "elapsed_ms": 10.135399992577732,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43324,7 +43324,7 @@
       }
     },
     "low_contrast_i0.50": {
-      "elapsed_ms": 635.0165000039851,
+      "elapsed_ms": 669.1365000006044,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43469,7 +43469,7 @@
       }
     },
     "low_contrast_i1.00": {
-      "elapsed_ms": 620.151099996292,
+      "elapsed_ms": 688.3831000013743,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43614,7 +43614,7 @@
       }
     },
     "desaturated_i0.00": {
-      "elapsed_ms": 9.507499999017455,
+      "elapsed_ms": 11.670599997160025,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43759,7 +43759,7 @@
       }
     },
     "desaturated_i0.50": {
-      "elapsed_ms": 653.7683999922592,
+      "elapsed_ms": 689.2744000069797,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -43904,7 +43904,7 @@
       }
     },
     "desaturated_i1.00": {
-      "elapsed_ms": 667.2777000057977,
+      "elapsed_ms": 602.0598000031896,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44049,7 +44049,7 @@
       }
     },
     "kodak2383_i0.00": {
-      "elapsed_ms": 11.466500000096858,
+      "elapsed_ms": 9.474900012719445,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44194,7 +44194,7 @@
       }
     },
     "kodak2383_i0.50": {
-      "elapsed_ms": 966.8133999948623,
+      "elapsed_ms": 852.6047999912407,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44339,7 +44339,7 @@
       }
     },
     "kodak2383_i1.00": {
-      "elapsed_ms": 893.3535999967717,
+      "elapsed_ms": 769.7303000022657,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44484,7 +44484,7 @@
       }
     },
     "fuji3510_i0.00": {
-      "elapsed_ms": 8.370299998205155,
+      "elapsed_ms": 8.591299992986023,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44629,7 +44629,7 @@
       }
     },
     "fuji3510_i0.50": {
-      "elapsed_ms": 919.0838000067743,
+      "elapsed_ms": 788.2712999999058,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44774,7 +44774,7 @@
       }
     },
     "fuji3510_i1.00": {
-      "elapsed_ms": 861.6742000012891,
+      "elapsed_ms": 859.358700006851,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -44921,7 +44921,7 @@
   },
   "forest": {
     "baseline_i0.00": {
-      "elapsed_ms": 11.192499994649552,
+      "elapsed_ms": 11.486500006867573,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45066,7 +45066,7 @@
       }
     },
     "cinematic_i0.00": {
-      "elapsed_ms": 12.09660001040902,
+      "elapsed_ms": 9.361199990962632,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45211,7 +45211,7 @@
       }
     },
     "cinematic_i0.50": {
-      "elapsed_ms": 616.1529999953927,
+      "elapsed_ms": 599.9091999983648,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45356,7 +45356,7 @@
       }
     },
     "cinematic_i1.00": {
-      "elapsed_ms": 611.0771000094246,
+      "elapsed_ms": 586.8530000007013,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45501,7 +45501,7 @@
       }
     },
     "vintage_i0.00": {
-      "elapsed_ms": 10.615699997288175,
+      "elapsed_ms": 8.79269999859389,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45646,7 +45646,7 @@
       }
     },
     "vintage_i0.50": {
-      "elapsed_ms": 684.2668999888701,
+      "elapsed_ms": 638.0513000040082,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45791,7 +45791,7 @@
       }
     },
     "vintage_i1.00": {
-      "elapsed_ms": 787.697499996284,
+      "elapsed_ms": 637.0410000090487,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -45936,7 +45936,7 @@
       }
     },
     "cold_i0.00": {
-      "elapsed_ms": 8.337000006577,
+      "elapsed_ms": 10.30900000478141,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46081,7 +46081,7 @@
       }
     },
     "cold_i0.50": {
-      "elapsed_ms": 621.5301000047475,
+      "elapsed_ms": 584.1782000061357,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46226,7 +46226,7 @@
       }
     },
     "cold_i1.00": {
-      "elapsed_ms": 630.8122000045842,
+      "elapsed_ms": 583.5676999995485,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46371,7 +46371,7 @@
       }
     },
     "warm_i0.00": {
-      "elapsed_ms": 10.703699997975491,
+      "elapsed_ms": 8.50360000913497,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46516,7 +46516,7 @@
       }
     },
     "warm_i0.50": {
-      "elapsed_ms": 606.8197999993572,
+      "elapsed_ms": 640.2218000002904,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46661,7 +46661,7 @@
       }
     },
     "warm_i1.00": {
-      "elapsed_ms": 629.7290000075009,
+      "elapsed_ms": 622.7081999968505,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46806,7 +46806,7 @@
       }
     },
     "high_contrast_i0.00": {
-      "elapsed_ms": 9.25190000270959,
+      "elapsed_ms": 8.754900001804344,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -46951,7 +46951,7 @@
       }
     },
     "high_contrast_i0.50": {
-      "elapsed_ms": 684.4320000091102,
+      "elapsed_ms": 778.5685999988345,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47096,7 +47096,7 @@
       }
     },
     "high_contrast_i1.00": {
-      "elapsed_ms": 673.5416999872541,
+      "elapsed_ms": 663.6021000012988,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47241,7 +47241,7 @@
       }
     },
     "low_contrast_i0.00": {
-      "elapsed_ms": 10.44450000335928,
+      "elapsed_ms": 10.144800005946308,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47386,7 +47386,7 @@
       }
     },
     "low_contrast_i0.50": {
-      "elapsed_ms": 696.4241999958176,
+      "elapsed_ms": 638.6041999940062,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47531,7 +47531,7 @@
       }
     },
     "low_contrast_i1.00": {
-      "elapsed_ms": 651.9578999868827,
+      "elapsed_ms": 615.3556999925058,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47676,7 +47676,7 @@
       }
     },
     "desaturated_i0.00": {
-      "elapsed_ms": 10.439299992867745,
+      "elapsed_ms": 9.880600002361462,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47821,7 +47821,7 @@
       }
     },
     "desaturated_i0.50": {
-      "elapsed_ms": 646.0081999975955,
+      "elapsed_ms": 597.4688999995124,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -47966,7 +47966,7 @@
       }
     },
     "desaturated_i1.00": {
-      "elapsed_ms": 630.021899996791,
+      "elapsed_ms": 571.4682999969227,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48111,7 +48111,7 @@
       }
     },
     "kodak2383_i0.00": {
-      "elapsed_ms": 11.015299998689443,
+      "elapsed_ms": 10.203700003330596,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48256,7 +48256,7 @@
       }
     },
     "kodak2383_i0.50": {
-      "elapsed_ms": 914.4596999976784,
+      "elapsed_ms": 820.8980000053998,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48401,7 +48401,7 @@
       }
     },
     "kodak2383_i1.00": {
-      "elapsed_ms": 864.1079000080936,
+      "elapsed_ms": 946.3067000033334,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48546,7 +48546,7 @@
       }
     },
     "fuji3510_i0.00": {
-      "elapsed_ms": 9.082399992621504,
+      "elapsed_ms": 10.366199989221059,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48691,7 +48691,7 @@
       }
     },
     "fuji3510_i0.50": {
-      "elapsed_ms": 935.7817999989493,
+      "elapsed_ms": 970.6473999976879,
       "regions": {
         "full": {
           "pixels": 1572864,
@@ -48836,7 +48836,7 @@
       }
     },
     "fuji3510_i1.00": {
-      "elapsed_ms": 961.3955999957398,
+      "elapsed_ms": 929.3752999947174,
       "regions": {
         "full": {
           "pixels": 1572864,

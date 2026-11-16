@@ -30,6 +30,7 @@ LOOKS = ("baseline", "cinematic", "vintage", "cold", "warm", "high_contrast",
          "low_contrast", "desaturated", "kodak2383", "fuji3510")
 
 LOOK_SOURCE = REPO / "ArtifactCore" / "src" / "Color" / "ColorLUT.cpp"
+EFFECT_SOURCE = REPO / "Artifact" / "src" / "Effects" / "ColorCorrection" / "LUTEffect.cpp"
 SOURCE_CONTRACT = ROOT / "SOURCE_CONTRACT.json"
 LOOK_SOURCE_IDS = {
     "cinematic": "cinematic", "vintage": "vintage", "cold": "cold", "warm": "warm",
@@ -38,16 +39,17 @@ LOOK_SOURCE_IDS = {
 }
 
 def look_source_fingerprint() -> str:
-    actual = sha256(LOOK_SOURCE)
-    expected = json.loads(SOURCE_CONTRACT.read_text(encoding="utf-8"))["source_files"][
-        LOOK_SOURCE.relative_to(REPO).as_posix()
-    ]
+    expected = json.loads(SOURCE_CONTRACT.read_text(encoding="utf-8"))["source_files"]
+    actual = {
+        LOOK_SOURCE.relative_to(REPO).as_posix(): sha256(LOOK_SOURCE),
+        EFFECT_SOURCE.relative_to(REPO).as_posix(): sha256(EFFECT_SOURCE),
+    }
     if actual != expected:
         raise RuntimeError(
-            "ColorLUT.cpp changed since the Python mirror review; inspect the source, "
+            "LUT source changed since the Python mirror review; inspect the source, "
             "update both mirrors/evidence, then refresh SOURCE_CONTRACT.json."
         )
-    return actual
+    return actual[LOOK_SOURCE.relative_to(REPO).as_posix()]
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()

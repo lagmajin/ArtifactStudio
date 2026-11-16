@@ -1,7 +1,7 @@
 {
   "rd": "rd0",
   "seed": 20261116,
-  "created_utc": "2026-11-16T02:43:20Z",
+  "created_utc": "2026-11-16T02:47:43Z",
   "environment": {
     "python": "3.14.2",
     "numpy": "2.4.3",
@@ -30,6 +30,10 @@
       "kodak2383": "kodak2383",
       "fuji3510": "fuji3510"
     }
+  },
+  "source_contract": {
+    "path": "experiments/CinematicLooksLab/SOURCE_CONTRACT.json",
+    "sha256": "8cabe62e6a3d157055425255b8049aee14f2e371f5a2354e2f555bcb072c27c5"
   },
   "cases": {
     "chart": {
