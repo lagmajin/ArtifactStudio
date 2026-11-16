@@ -5060,6 +5060,31 @@ def validate(root: Path) -> list[str]:
             ramp_policy.get("negativeDomainPolicy") != "reject-nonfinite-and-out-of-range-stop-positions-before-lowering"):
         errors.append("ColorRamp tie-order proposal must pin stable ordering, numeric probes, and unresolved exact-tie/domain decisions")
     ramp_image_probe = manifest.get("imageConditions", {}).get("requiredEvaluationMatrix", {}).get("effectCorrectness", {}).get("colorRampDuplicateStopProbe", {})
+    blender_ramp_reference = ramp_image_probe.get("blenderGpuReference", {})
+    blender_ramp_capture = blender_ramp_reference.get("capturePlan", {})
+    expected_blender_ramp_sources = [
+        ("source/blender/blenkernel/intern/colorband.cc",
+         "https://github.com/blender/blender/blob/main/source/blender/blenkernel/intern/colorband.cc#L378-L456"),
+        ("source/blender/nodes/shader/nodes/node_shader_color_ramp.cc",
+         "https://github.com/blender/blender/blob/main/source/blender/nodes/shader/nodes/node_shader_color_ramp.cc#L40-L99"),
+        ("source/blender/gpu/intern/gpu_material.cc",
+         "https://github.com/blender/blender/blob/main/source/blender/gpu/intern/gpu_material.cc#L440-L483"),
+    ]
+    if (blender_ramp_reference.get("status") != "source-audited-runtime-capture-not-run" or
+            [(item.get("path"), item.get("url")) for item in blender_ramp_reference.get("sourceFiles", [])] != expected_blender_ramp_sources or
+            "BKE_colorband_evaluate" not in blender_ramp_reference.get("cpuPath", "") or
+            "uniform" not in blender_ramp_reference.get("gpuPath", {}).get("oneStop", "") or
+            "optimized direct shader" not in blender_ramp_reference.get("gpuPath", {}).get("twoStopFastPath", "") or
+            "GPU_color_band" not in blender_ramp_reference.get("gpuPath", {}).get("generalRamp", "") or
+            "CM_TABLE+1" not in blender_ramp_reference.get("gpuPath", {}).get("generalRamp", "") or
+            "RGBA32F" not in blender_ramp_reference.get("gpuPath", {}).get("generalRamp", "") or
+            "background EEVEE" not in blender_ramp_capture.get("route", "") or
+            "Value AOV" not in blender_ramp_capture.get("route", "") or
+            "OpenEXR scene-linear" not in blender_ramp_capture.get("measurement", "") or
+            blender_ramp_capture.get("factorSamples") != [0.0, 0.4999, 0.5, 0.5001, 1.0] or
+            blender_ramp_capture.get("repeatBaselineCount") != 5 or
+            blender_ramp_capture.get("status") != "planned-route-unvalidated-blender-not-found-on-path"):
+        errors.append("ColorRamp Blender reference gate must distinguish CPU evaluation, GPU lookup texture, fixed samples, repeated baseline, and unrun status")
     if (ramp_image_probe.get("fixtures") != ["ramp_duplicate_stops_forward.json", "ramp_duplicate_stops_reversed.json"] or
             ramp_image_probe.get("factorValues") != [0.0, 0.4999, 0.5, 0.5001, 1.0] or
             ramp_image_probe.get("captureRoute") != "not-implemented" or

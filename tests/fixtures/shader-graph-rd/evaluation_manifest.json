@@ -3270,7 +3270,50 @@
           ],
           "alpha": "capture and compare independently from RGB; preserve raw stored alpha",
           "roi": "fixed pixel coordinates sampling a flat UV-to-Factor test surface; record exact texel centers and coordinates before capture",
-          "runtimeStatus": "cpu-formula-golden-added-no-capture-source"
+          "runtimeStatus": "cpu-formula-golden-added-no-capture-source",
+          "blenderGpuReference": {
+            "status": "source-audited-runtime-capture-not-run",
+            "reviewedAt": "2026-11-16",
+            "sourceFiles": [
+              {
+                "path": "source/blender/blenkernel/intern/colorband.cc",
+                "url": "https://github.com/blender/blender/blob/main/source/blender/blenkernel/intern/colorband.cc#L378-L456"
+              },
+              {
+                "path": "source/blender/nodes/shader/nodes/node_shader_color_ramp.cc",
+                "url": "https://github.com/blender/blender/blob/main/source/blender/nodes/shader/nodes/node_shader_color_ramp.cc#L40-L99"
+              },
+              {
+                "path": "source/blender/gpu/intern/gpu_material.cc",
+                "url": "https://github.com/blender/blender/blob/main/source/blender/gpu/intern/gpu_material.cc#L440-L483"
+              }
+            ],
+            "cpuPath": "ColorBandFunction calls BKE_colorband_evaluate for each input value",
+            "gpuPath": {
+              "oneStop": "emit the single stop as a uniform",
+              "twoStopFastPath": "for RGB blending and supported interpolation, emit an optimized direct shader path",
+              "generalRamp": "evaluate CM_TABLE+1 RGBA samples, pass them through GPU_color_band, and store them in a 1D RGBA32F array texture"
+            },
+            "capturePlan": {
+              "route": "Blender background EEVEE render; Color Ramp RGB to Emission; Ramp Alpha to a Value AOV",
+              "fixtures": [
+                "ramp_duplicate_stops_forward.json",
+                "ramp_duplicate_stops_reversed.json"
+              ],
+              "factorSamples": [
+                0.0,
+                0.4999,
+                0.5,
+                0.5001,
+                1.0
+              ],
+              "measurement": "OpenEXR scene-linear raw RGB plus separate Ramp Alpha AOV; display transform excluded from numeric comparison",
+              "backendRecord": "record Blender revision, EEVEE GPU backend, device, and driver; do not infer paired-backend parity",
+              "repeatBaselineCount": 5,
+              "tolerancePolicy": "measure repeated baseline noise before comparing candidate; evaluate exact tie and adjacent samples separately",
+              "status": "planned-route-unvalidated-blender-not-found-on-path"
+            }
+          }
         }
       },
       "detailAndArtifacts": {
