@@ -4088,6 +4088,27 @@ def validate(root: Path) -> list[str]:
             root / legacy_projection_contract.get("generator", "")).read_text(encoding="utf-8")
         legacy_core_shader_node_source = (
             root / "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp").read_text(encoding="utf-8")
+        dynamic_module_source = dynamic_prototype_path.read_text(encoding="utf-8")
+        scalar_legacy_source = {
+            "version": 1,
+            "kind": "artifact-material-graph",
+            "nodes": [
+                {"id": "scalar", "type": "Value", "params": {"value": 0.375}},
+                {"id": "surface", "type": "Principled", "params": {}},
+                {"id": "output", "type": "MaterialOutput", "params": {}},
+            ],
+            "links": [
+                {"from": "scalar", "out": "Value", "to": "surface", "in": "BaseColor"},
+                {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"},
+            ],
+        }
+        scalar_legacy_source_json = json.dumps(
+            scalar_legacy_source, ensure_ascii=False, separators=(",", ":"))
+        scalar_legacy_projection_from_source = dynamic_module.project_legacy_core_material_input(
+            scalar_legacy_source_json, dynamic_registry,
+            target_node_id="surface", target_input_socket="BaseColor")
+        scalar_legacy_compiled_from_source = dynamic_module.compile_document_from_data(
+            scalar_legacy_projection_from_source["document"], dynamic_registry)
 
         checks = {
             "layoutExcludedFromSemanticIdentity": layout_result["semanticHashSha256"] == regenerated_candidate["semanticHashSha256"] and layout_result["hlslBody"] == regenerated_candidate["hlslBody"],
@@ -4296,12 +4317,25 @@ def validate(root: Path) -> list[str]:
         nested_legacy_projection = legacy_projection_candidate.get("nestedAddProjection", {})
         nested_legacy_compiled = dynamic_module.compile_document_from_data(
             nested_legacy_projection.get("document", {}), dynamic_registry)
-        checks["legacyNestedMathAddChainProjectsDeterministically"] = (
+        scalar_legacy_projection = legacy_projection_candidate.get("scalarBaseColorConversionProbe", {})
+        scalar_legacy_compiled = dynamic_module.compile_document_from_data(
+            scalar_legacy_projection.get("document", {}), dynamic_registry)
+        checks["legacyProjectionAddsNestedMathAndExplicitScalarConversion"] = (
             nested_legacy_projection.get("candidateHlslBody") == nested_legacy_compiled.get("hlslBody") and
             nested_legacy_projection.get("candidateHlslBodySha256") == nested_legacy_compiled.get("hlslBodySha256") and
             nested_legacy_projection.get("includedNodeIds") == ["input_a", "input_b", "math", "input_c", "math_outer"] and
             nested_legacy_projection.get("cpuVector4AddGolden") == [0.625, -0.75, -0.5, 0.5] and
-            "float4 n_math_outer_result = (n_math_result + n_input_c_value);" in nested_legacy_compiled.get("hlslBody", "")
+            "float4 n_math_outer_result = (n_math_result + n_input_c_value);" in nested_legacy_compiled.get("hlslBody", "") and
+            scalar_legacy_projection.get("candidateHlslBody") == scalar_legacy_compiled.get("hlslBody") and
+            scalar_legacy_projection.get("candidateHlslBodySha256") == scalar_legacy_compiled.get("hlslBodySha256") and
+            scalar_legacy_projection.get("conversionOperationId") == "artifact.convert.scalar.replicate.vector4.rgb_alpha_one" and
+            scalar_legacy_projection.get("document") == scalar_legacy_projection_from_source.get("document") and
+            scalar_legacy_projection.get("sourceSha256") == scalar_legacy_projection_from_source.get("sourceSha256") and
+            scalar_legacy_compiled.get("hlslBody") == scalar_legacy_compiled_from_source.get("hlslBody") and
+            scalar_legacy_projection.get("cpuVector4Golden") == [0.375, 0.375, 0.375, 1.0] and
+            "float4 n_legacy_BaseColor_replicate_vector = float4(n_scalar_value, n_scalar_value, n_scalar_value, 1.0f);" in scalar_legacy_compiled.get("hlslBody", "") and
+            'return std::format("float4({0},{0},{0},1.0f)", v);' in legacy_core_shader_node_source and
+            "expression = f\"float4({value}, {value}, {value}, 1.0f)\"" in dynamic_module_source
         )
         if (dynamic_contract.get("status") != "source-only-prototype-no-Core-integration" or
                 dynamic_candidate != regenerated_candidate or

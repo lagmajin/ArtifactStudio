@@ -115,7 +115,8 @@
       "math",
       "input_c",
       "math_outer"
-    ]
+    ],
+    "generatedConversionNodeCollision": "legacy.projection.generated_id.collision"
   },
   "nestedAddProjection": {
     "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",
@@ -258,9 +259,69 @@
       0.5
     ]
   },
+  "scalarBaseColorConversionProbe": {
+    "sourceSha256": "2BC43180F9417104FEAF07ABD4DCDBFACB2026464F9182BBA219970586CF85E2",
+    "includedNodeIds": [
+      "scalar"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "scalar",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.375
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "legacy_BaseColor_replicate",
+          "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "scalar",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "legacy_BaseColor_replicate",
+            "socketId": "value"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "legacy_BaseColor_replicate",
+        "socketId": "vector"
+      }
+    },
+    "candidateHlslBodySha256": "5B3EDB56E5C2C5F12CEC0B3FD84D9BABE31991CD325F2F69B0607B0BA50C5CDD",
+    "candidateHlslBody": "float n_scalar_value = 0.375f;\nfloat4 n_legacy_BaseColor_replicate_vector = float4(n_scalar_value, n_scalar_value, n_scalar_value, 1.0f);\nreturn n_legacy_BaseColor_replicate_vector;\n",
+    "cpuVector4Golden": [
+      0.375,
+      0.375,
+      0.375,
+      1.0
+    ],
+    "conversionOperationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one"
+  },
   "limitations": [
     "read-only projection of the explicitly selected Principled BaseColor input only",
-    "supports linked RGB constants and nested unclamped Math Add nodes in the selected BaseColor input only",
+    "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
+    "does not infer or perform any other legacy implicit numeric conversion",
     "Principled/MaterialOutput remain outside the projected document",
     "source JSON text is retained by the adapter result and is never rewritten",
     "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"

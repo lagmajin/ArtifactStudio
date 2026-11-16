@@ -753,3 +753,9 @@ This prototype does **not** migrate the full Core graph: `Principled` and `Mater
 Extended the read-only adapter’s closed lane to follow nested unclamped Math(Add) producers as well as legacy RGB constants. The generator builds a deterministic synthetic chain from the existing math_add.json fixture, preserves the original fixture unchanged, and records the projected typed document, candidate HLSL/hash, included-node order, and binary32 CPU golden in xperiments/ShaderGraphLab/core_math_add_projection_candidate.json. The manifest validator recompiles that candidate and checks the topological node order and nested Add expression. Unsupported operations, clamps, source sockets, node families, and implicit type conversions still fail closed.
 
 This checks candidate transformation mechanics only. It does not exercise ArtifactCore loading, shader compiler output, renderer behavior, project save/reload, or GPU execution. Core is unchanged, and no C++ build or test was run.
+
+### Explicit legacy scalar-to-BaseColor conversion probe (2026-11-16)
+
+Added a synthetic legacy Value node connected directly to Principled.BaseColor. The adapter projects the scalar parameter to rtifact.rd.constant.float32, then inserts rtifact.convert.scalar.replicate.vector4.rgb_alpha_one; this matches the inspected Core matConvert(Float, Vector4) rule that repeats the scalar into RGB and sets alpha to 1. The manifest validator reconstructs this legacy JSON, reruns the projection, and checks document/source identity and emitted candidate HLSL against the stored record. Other implicit conversion directions remain unsupported and must be represented by explicit typed operations.
+
+This is formula-level source and Python-prototype evidence only. It does not prove Core document migration, shader compiler equivalence, renderer output, or GPU behavior.

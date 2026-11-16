@@ -1,25 +1,32 @@
 # Cinematic Looks Lab — 事前登録済み画像評価計画
 
 **最終更新:** 2026-11-16
-**ステータス:** 4点の実写素材を含む rd0 応答測定と、float source-equation probe を取得済み。ブラインド接触シートを生成。実アプリ alpha 確認、判定票・数値 gate は未確定。
+**ステータス:** rd0 は9種 LUT のみを測定済み。追加静的監査で Color Balance / Tritone の Cinematic preset も見つかったため、画像応答・alpha・Composition復元の評価範囲を拡張中。ブラインド判定・数値 gate・実アプリ確認は未実施。
 
 本計画は `docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md` に従う。目的は既存のカラー補正部品と、未接続の Looks プリセットブラウザー案を評価することであり、製品 UI の実装・採用を承認するものではない。
 
 ## 1. 目的と対象
 
-静止画に対する「シネマティックなルック」を、再現可能な画像素材と条件で比較する。候補ルックの見栄えだけでなく、色域・階調・HDR 値・alpha・細部に対する応答、強度調整、素材間の頑健性を評価し、後続のプリセット提供方式（既存 LUT effect の整理、Look 定義の追加、ブラウザー接続）の要件を決める。
+静止画に対する「シネマティックなルック」を、再現可能な画像素材と条件で比較する。実際に適用可能な候補は LUTEffect、ColorBalanceEffect、TritoneEffect の3 effect familyとして別々に扱い、未接続 Looks browser inventory とは分離する。候補ルックの見栄えだけでなく、色域・階調・HDR 値・alpha・細部に対する応答、強度調整、素材間の頑健性を評価し、後続のプリセット提供方式（既存 LUT effect の整理、Look 定義の追加、ブラウザー接続）の要件を決める。
 
 ### 調査済みの実装境界
 
 - `Artifact/src/Effects/ColorCorrection/LUTEffect.cpp` は `BuiltinLUTs::cinematic()`、`vintage()`、`cold()`、`warm()`、`highContrast()`、`lowContrast()`、`desaturated()`、`kodak2383()`、`fuji3510()` および外部 LUT の選択を持つ。
 - 一般の `Apply LUT` effect (`effect.colorcorrection.lut`) は Inspector effect catalog と `ArtifactEffectService` factory に登録されている。`ArtifactInspectorWidget::addSelectedEffectToCurrentTarget` は同 factory から effect を作成し、選択中 layer または composition の stack に追加する。`LUTEffect` は Custom + 9 builtin preset を持ち、初期値は Cinematic / intensity 1.0。ただし `Preset` は enum metadata を持たない Integer property であり、shared property editor は一般整数 editor を選ぶため、preset 名の chooser は確認できない。これは適用導線・property control のソース監査であり、画面操作・Looks browser との接続・品質受入を意味しない。
 - `ArtifactCore/src/Color/ColorLUT.cpp` に組み込み LUT が定義され、`Artifact/include/Effects/ColorCorrection/LUTEffect.ixx` に effect のプリセット／強度プロパティがある。
+- `ColorBalanceEffect` (`effect.colorcorrection.colorbalance`) は Custom / Neutral / CoolShadows / WarmHighlights / Cinematic を持ち、既定は Cinematic。`ColorBalanceSettings::cinematic()` は shadow/midtone/highlight 係数、range、preserve-luma を設定する。effect catalog、service factory、CPU/GPU implementation は存在するが、Preset は選択肢 metadata のない Integer property。
+- `TritoneEffect` (`effect.colorcorrection.tritone`) は Custom / Cinematic / TealAndOrange / WarmGold / ColdBlue を持ち、既定は Cinematic。`TritoneSettings::cinematic()` は shadow/midtone/highlight 色、balance、softness、color mix を設定する。effect catalog、service factory、CPU/GPU implementation は存在するが、Preset は選択肢 metadata のない Integer property。CPU loop は RGB を alpha-mode descriptor なしで直接変換するため、premultiplied 入力での alpha 応答は別途確認が必要。
+- `ColorGrader::createCinematic()` / `createFilmLook()` API も存在するが、検索範囲で product callsite は見つからないため、接続済み effect preset として扱わない。
+- Composition / Render Queue の実適用・保存復元はソース宣言だけでは完了扱いにせず、本 R&D の統合確認で検証する。LUT / Color Balance / Tritone の Composition deserializer concrete factory 欠落候補は `captures/rd0/findings.json` に記録済み。
 - `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp` の別系統ブラウザーは名前、カテゴリ、パック、強度などを表示するが、サムネイルはプレースホルダー生成で、確認した範囲では LUT または effect 適用へ接続されていない。
 - 実際の Composition／Render Queue 適用経路と、どの候補 LUT が最終画像へ到達するかはソース宣言だけでは確認完了として扱わず、本 R&D の統合確認で検証する。
 
 ### 対象
 
-- 既存候補: 無処理 baseline、builtin cinematic、vintage、cold、warm、high contrast、low contrast、desaturated、Kodak 2383、Fuji 3510。各 LUT を同じ入力へ適用し、effect 強度 0 / 0.5 / 1.0 を比較する。
+- 取得済み `rd0` LUT lane: 無処理 baseline、builtin cinematic、vintage、cold、warm、high contrast、low contrast、desaturated、Kodak 2383、Fuji 3510。各 LUT の intensity 0 / 0.5 / 1.0 は同じ入力に対して測定済み。
+- 追加する Color Balance lane: baseline と Cinematic preset を同じ素材へ適用し、native `Strength` 0 / 0.5 / 1.0 を評価。これは LUT intensity と同じアルゴリズム・保証とはみなさない。
+- 追加する Tritone lane: baseline と Cinematic preset を同じ素材へ適用し、native `Master Strength` 0 / 0.5 / 1.0 を評価。`Color Mix` は既定値を固定し、別途感度として記録する。TealAndOrange は比較対照候補。追加2 lane は現在未測定で、先に source mirror / source hash pin を作成してから rd0 extension として記録する。
+- 既存の95-ID blind form と接触シートは9種 LUT lane のみを対象とする。Color Balance / Tritone は別ID・別キーのブラインド素材を生成し、人手レビューへ合流する前に評価計画を更新する。
 - オプション候補: Looks ブラウザーの「Teal & Orange」「Amber Dusk」「Muted Indie」などは、実体が既存 LUT と重複するかを調べるための名前上の候補に留める。コードにない補正式や見た目を既存機能とみなさない。
 - 資材: 決定論チャート、`experiments/GlowLab/assets/SOURCES.md` の CC0 夜景写真2点、および `assets/SOURCES.md` の CC0 人物・森林写真を使用する。人物／肌、屋外緑・枝葉、夜景／点光源の3カテゴリを満たす。入力写真は見た目の ground truth ではない。
 - 評価対象は静止画の全体および ROI。連番画像は今回対象外（時間変化を持たない LUT でも、フレームごとに内容が変わると見た目が揺れる素材依存性は別途残る）。
@@ -44,7 +51,7 @@
 
 ## 3. 固定画像条件
 
-- 主要な LUT 応答は ArtifactCore `ColorLUT.cpp` の 17³ table generation / trilinear sampler を mirror した Python harness で測定し、source SHA-256 を manifest に記録する。これは C++ 実行結果の直接測定ではなく、source mirror の differential contract が未実装のため数値一致の証明ではない。
+- 取得済みの LUT 応答は ArtifactCore `ColorLUT.cpp` の 17³ table generation / trilinear sampler を mirror した Python harness で測定し、source SHA-256 を manifest に記録する。追加 Color Balance / Tritone mirror はまだなく、現在の harness からは生成されない。これは C++ 実行結果の直接測定ではなく、source mirror の differential contract が未実装のため数値一致の証明ではない。
 - 画像 harness は sRGB 8-bit RGB のみ。別の float source-equation probe は >1.0 RGB と alpha 0 / 0.1 / 0.25 / 0.5 / 1 を扱うが、C++ differential test、実画像 fixture、実アプリでの HDR 画質・透明エッジ評価は未実施。
 - 表示用画像は固定した sRGB 変換で生成する。統計は可能な限り LUT 入出力の作業値で取り、表示変換後の統計と混同しない。
 - 乱数を使う場合は seed を固定。LUT 適用自体は決定論的であることを記録する。

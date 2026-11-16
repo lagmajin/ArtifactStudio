@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-11-16
 
-静止画の cinematic look を、チャートとライセンス記録済みの実写素材で比較するオフライン R&D ラボです。評価計画は [`EVALUATION_PLAN.md`](EVALUATION_PLAN.md) を参照してください。
+静止画の cinematic look を、チャートとライセンス記録済み実写素材で比較するオフライン R&D ラボです。現在の画像測定は LUTEffect の9 builtin LUT lane のみです。ColorBalanceEffect と TritoneEffect にも適用可能な Cinematic preset が見つかりましたが、画像測定は未実施で評価計画を拡張中です。評価計画は [`EVALUATION_PLAN.md`](EVALUATION_PLAN.md) を参照してください。
 
 ## 現行コードとの関係
 

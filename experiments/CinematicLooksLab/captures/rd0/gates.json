@@ -5,7 +5,9 @@
   "thresholds": [],
   "open_findings": [
     "RD0-ALPHA-ASSOCIATION-01",
-    "RD0-COMPOSITION-LUT-RESTORE-01"
+    "RD0-COMPOSITION-LUT-RESTORE-01",
+    "RD0-TRITONE-ALPHA-ASSOCIATION-01",
+    "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01"
   ],
   "source_contract_matrix": {
     "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
@@ -70,7 +72,7 @@
     "visual_review": "blind form remains blank; no candidate was ranked or quality gate established",
     "product_runtime": "not run; build, test, and GUI workflow were not executed"
   },
-  "next_step": "Complete the 95-entry blind review without opening the key; separately run the alpha fixture protocol in EVALUATION_PLAN.md; reproduce a composition-level LUT save/reload and output check against a layer-level control; then freeze justified thresholds before rd1 comparison.",
+  "next_step": "Complete the existing 95-entry blind review for the nine-LUT lane without opening its key; characterize the newly discovered Color Balance and Tritone Cinematic effect presets separately before quality gates; run alpha and Composition save/reload/runtime protocols for all three executable preset effect families; only then freeze justified thresholds and run the expanded comparison.",
   "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
   "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
   "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)"

@@ -82,6 +82,42 @@ def main() -> int:
             "float4 n_math_outer_result = (n_math_result + n_input_c_value);" not in nested_compiled["hlslBody"]):
         raise RuntimeError("nested legacy Add chain did not project in deterministic dependency order")
 
+    scalar_source = {
+        "version": 1,
+        "kind": "artifact-material-graph",
+        "nodes": [
+            {"id": "scalar", "type": "Value", "params": {"value": 0.375}},
+            {"id": "surface", "type": "Principled", "params": {}},
+            {"id": "output", "type": "MaterialOutput", "params": {}},
+        ],
+        "links": [
+            {"from": "scalar", "out": "Value", "to": "surface", "in": "BaseColor"},
+            {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"},
+        ],
+    }
+    scalar_json = json.dumps(scalar_source, ensure_ascii=False, separators=(",", ":"))
+    scalar_projection = prototype.project_legacy_core_material_input(
+        scalar_json, registry, target_node_id="surface", target_input_socket="BaseColor")
+    scalar_compiled = prototype.compile_document_from_data(scalar_projection["document"], registry)
+    if (scalar_projection["document"]["output"] !=
+            {"nodeId": "legacy_BaseColor_replicate", "socketId": "vector"} or
+            "float4 n_legacy_BaseColor_replicate_vector = float4(n_scalar_value, n_scalar_value, n_scalar_value, 1.0f);" not in
+            scalar_compiled["hlslBody"]):
+        raise RuntimeError("legacy scalar-to-BaseColor conversion did not lower explicitly")
+    collision_source = json.loads(scalar_json)
+    collision_source["nodes"].append({
+        "id": "legacy_BaseColor_replicate", "type": "Value", "params": {"value": 1.0},
+    })
+    try:
+        prototype.project_legacy_core_material_input(
+            json.dumps(collision_source), registry,
+            target_node_id="surface", target_input_socket="BaseColor")
+    except prototype.ContractError as error:
+        if error.code != "legacy.projection.generated_id.collision":
+            raise RuntimeError(f"generated conversion-node collision returned wrong diagnostic: {error.code}")
+    else:
+        raise RuntimeError("legacy generated conversion-node ID collision was not rejected")
+
     unsupported_source = json.loads(source_json)
     math_node = next(node for node in unsupported_source["nodes"] if node["id"] == "math")
     math_node["params"]["op"] = 1
@@ -122,6 +158,7 @@ def main() -> int:
             "unsupportedMathOperation": "legacy.node.operation.unsupported",
             "opaqueExtensionPreservedVerbatim": True,
             "nestedAddIncludedNodeIds": nested_projection["includedNodeIds"],
+            "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
         },
         "nestedAddProjection": {
             "sourceSha256": hashlib.sha256(nested_json.encode("utf-8")).hexdigest().upper(),
@@ -131,9 +168,19 @@ def main() -> int:
             "candidateHlslBody": nested_compiled["hlslBody"],
             "cpuVector4AddGolden": nested_golden,
         },
+        "scalarBaseColorConversionProbe": {
+            "sourceSha256": hashlib.sha256(scalar_json.encode("utf-8")).hexdigest().upper(),
+            "includedNodeIds": scalar_projection["includedNodeIds"],
+            "document": scalar_projection["document"],
+            "candidateHlslBodySha256": scalar_compiled["hlslBodySha256"],
+            "candidateHlslBody": scalar_compiled["hlslBody"],
+            "cpuVector4Golden": [0.375, 0.375, 0.375, 1.0],
+            "conversionOperationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+        },
         "limitations": [
             "read-only projection of the explicitly selected Principled BaseColor input only",
-            "supports linked RGB constants and nested unclamped Math Add nodes in the selected BaseColor input only",
+            "supports linked RGB constants, nested unclamped Math Add nodes, and a direct scalar Value-to-BaseColor explicit conversion",
+            "does not infer or perform any other legacy implicit numeric conversion",
             "Principled/MaterialOutput remain outside the projected document",
             "source JSON text is retained by the adapter result and is never rewritten",
             "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked",

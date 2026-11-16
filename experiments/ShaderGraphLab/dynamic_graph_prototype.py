@@ -4897,6 +4897,8 @@ def project_legacy_core_material_input(
                                 code="legacy.link.endpoint.missing", path="/links")
         if node.get("type") == "RGB" and socket == "Color":
             return ()
+        if node.get("type") == "Value" and socket == "Value":
+            return ()
         if node.get("type") == "Math" and socket == "Value":
             params = node.get("params", {})
             if not isinstance(params, dict):
@@ -5003,6 +5005,13 @@ def project_legacy_core_material_input(
             ]
             operation_id = "artifact.rd.constant.vector4.float32"
             semantic_parameters = {"value": values}
+        elif source_node["type"] == "Value":
+            operation_id = "artifact.rd.constant.float32"
+            semantic_parameters = {
+                "value": _f32(params.get("value", 0.0), "legacy Value value",
+                              path=f"/nodes/{node_id}/params/value",
+                              code="legacy.parameter.invalid")
+            }
         else:
             operation_id = "artifact.rd.math.add.vector4.float32"
             semantic_parameters = {}
@@ -5023,12 +5032,36 @@ def project_legacy_core_material_input(
             projected_node["layout"] = layout
         projected_nodes.append(projected_node)
 
+    projected_output = {"nodeId": root_id, "socketId": "result"}
+    if node_by_id[root_id]["type"] == "Value":
+        conversion_id = "legacy_BaseColor_replicate"
+        if conversion_id in node_by_id:
+            raise ContractError("generated legacy conversion node id collides with source",
+                                code="legacy.projection.generated_id.collision",
+                                path=f"/nodes/{conversion_id}")
+        root_layout = next(node.get("layout", {}) for node in projected_nodes
+                           if node["nodeId"] == root_id)
+        projected_nodes.append({
+            "nodeId": conversion_id,
+            "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {"x": root_layout.get("x", 0.0) + 220.0,
+                       "y": root_layout.get("y", 0.0)},
+        })
+        projected_links.append({
+            "from": {"nodeId": root_id, "socketId": "value"},
+            "to": {"nodeId": conversion_id, "socketId": "value"},
+        })
+        layout_provenance[conversion_id] = "deterministic-rd-explicit-conversion-projection"
+        projected_output = {"nodeId": conversion_id, "socketId": "vector"}
+
     projected_document = {
         "schemaVersion": 1,
         "kind": "artifact-shader-graph-rd-document",
         "nodes": projected_nodes,
         "links": projected_links,
-        "output": {"nodeId": root_id, "socketId": "result"},
+        "output": projected_output,
     }
     compile_document_from_data(projected_document, registry)
     return {

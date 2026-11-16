@@ -8,41 +8,97 @@
       "severity": "undetermined",
       "summary": "The inspected Composition QImage path can pass premultiplied RGB into LUTEffect, which transforms RGB without consulting the alpha-association descriptor; offset/nonlinear looks may therefore depend on alpha.",
       "reproduction": {
-        "straight_rgb": [0.8, 0.2, 0.1],
-        "alpha_values": [0.0, 0.1, 0.25, 0.5, 1.0],
-        "example_straight_rgba_at_alpha_0_25": [0.8, 0.2, 0.1, 0.25],
-        "example_premultiplied_input_at_alpha_0_25": [0.2, 0.05, 0.025, 0.25],
-        "look_ids": ["vintage", "lowContrast"],
+        "straight_rgb": [
+          0.8,
+          0.2,
+          0.1
+        ],
+        "alpha_values": [
+          0.0,
+          0.1,
+          0.25,
+          0.5,
+          1.0
+        ],
+        "example_straight_rgba_at_alpha_0_25": [
+          0.8,
+          0.2,
+          0.1,
+          0.25
+        ],
+        "example_premultiplied_input_at_alpha_0_25": [
+          0.2,
+          0.05,
+          0.025,
+          0.25
+        ],
+        "look_ids": [
+          "vintage",
+          "lowContrast"
+        ],
         "intensity": 1.0,
         "probe": "experiments/CinematicLooksLab/captures/rd0/float_contract_probe.json"
       },
       "evidence": [
         {
           "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
-          "lines": [150, 175, 2030],
+          "lines": [
+            150,
+            175,
+            2030
+          ],
           "fact": "ARGB32_Premultiplied input is tagged sRGB/Premultiplied and that descriptor is attached to the float buffer before composition effects."
         },
         {
           "path": "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp",
-          "lines": [51, 78],
+          "lines": [
+            51,
+            78
+          ],
           "fact": "The CPU LUT loop reads and transforms RGB directly and writes RGB only; it does not inspect the surface alpha-mode descriptor or unpremultiply/re-premultiply."
         },
         {
           "path": "ArtifactCore/src/Image/ImageF32x4_RGBA.cpp",
-          "lines": [405, 407],
+          "lines": [
+            405,
+            407
+          ],
           "fact": "ImageF32x4_RGBA::toQImage converts the effect result to an sRGB straight-alpha output target."
         },
         {
           "path": "ArtifactCore/include/Image/SurfacePixelConversion.ixx",
-          "lines": [345, 365],
+          "lines": [
+            345,
+            365
+          ],
           "fact": "Premultiplied source RGB is divided by alpha during conversion to straight alpha."
         }
       ],
       "measured_source_mirror": {
-        "vintage_straight_result": [0.5428, 0.419, 0.2952, 0.25],
-        "vintage_premultiplied_then_unpremultiplied": [0.8428, 0.569, 0.2952, 0.25],
-        "low_contrast_straight_result": [0.71, 0.29, 0.22, 0.25],
-        "low_contrast_premultiplied_then_unpremultiplied_before_8bit_clip": [1.16, 0.74, 0.67, 0.25],
+        "vintage_straight_result": [
+          0.5428,
+          0.419,
+          0.2952,
+          0.25
+        ],
+        "vintage_premultiplied_then_unpremultiplied": [
+          0.8428,
+          0.569,
+          0.2952,
+          0.25
+        ],
+        "low_contrast_straight_result": [
+          0.71,
+          0.29,
+          0.22,
+          0.25
+        ],
+        "low_contrast_premultiplied_then_unpremultiplied_before_8bit_clip": [
+          1.16,
+          0.74,
+          0.67,
+          0.25
+        ],
         "cinematic_linear_scaling_in_this_sample": "commutes with premultiplication within the non-clipping range",
         "fixture_patch_sweep": {
           "scope": "8 synthetic RGB rows × alpha bytes 0,26,64,128,192,255 × all nine LUTs × intensity 0,0.5,1; source-equation mirror only",
@@ -52,15 +108,51 @@
           "low_contrast_amber_alpha_byte_026_max_abs_rgb_error_before_clip": 1.321154,
           "low_contrast_amber_alpha_byte_026_max_abs_rgb_error_after_clip": 0.745686,
           "per_look_worst_case": {
-            "cinematic": {"before_clip": 0.043922, "after_clip": 0.000000007, "case": "amber / alpha 128 / intensity 1"},
-            "vintage": {"before_clip": 0.880769, "after_clip": 0.395216, "case": "skin_approximation / alpha 026 / intensity 1"},
-            "cold": {"before_clip": 0.040196, "after_clip": 0.004902, "case": "blue / alpha 192 / intensity 1"},
-            "warm": {"before_clip": 0.138824, "after_clip": 0.000000045, "case": "amber / alpha 026 / intensity 1"},
-            "highContrast": {"before_clip": 1.000000, "after_clip": 1.000000, "case": "amber / alpha 026 / intensity 1"},
-            "lowContrast": {"before_clip": 1.321154, "after_clip": 0.745686, "case": "amber / alpha 026 / intensity 1"},
-            "desaturated": {"before_clip": 0.000000115, "after_clip": 0.000000115, "case": "skin_approximation / alpha 064 / intensity 1"},
-            "kodak2383": {"before_clip": 0.238881, "after_clip": 0.079738, "case": "amber / alpha 026 / intensity 1"},
-            "fuji3510": {"before_clip": 0.145529, "after_clip": 0.145529, "case": "green / alpha 026 / intensity 1"}
+            "cinematic": {
+              "before_clip": 0.043922,
+              "after_clip": 7e-09,
+              "case": "amber / alpha 128 / intensity 1"
+            },
+            "vintage": {
+              "before_clip": 0.880769,
+              "after_clip": 0.395216,
+              "case": "skin_approximation / alpha 026 / intensity 1"
+            },
+            "cold": {
+              "before_clip": 0.040196,
+              "after_clip": 0.004902,
+              "case": "blue / alpha 192 / intensity 1"
+            },
+            "warm": {
+              "before_clip": 0.138824,
+              "after_clip": 4.5e-08,
+              "case": "amber / alpha 026 / intensity 1"
+            },
+            "highContrast": {
+              "before_clip": 1.0,
+              "after_clip": 1.0,
+              "case": "amber / alpha 026 / intensity 1"
+            },
+            "lowContrast": {
+              "before_clip": 1.321154,
+              "after_clip": 0.745686,
+              "case": "amber / alpha 026 / intensity 1"
+            },
+            "desaturated": {
+              "before_clip": 1.15e-07,
+              "after_clip": 1.15e-07,
+              "case": "skin_approximation / alpha 064 / intensity 1"
+            },
+            "kodak2383": {
+              "before_clip": 0.238881,
+              "after_clip": 0.079738,
+              "case": "amber / alpha 026 / intensity 1"
+            },
+            "fuji3510": {
+              "before_clip": 0.145529,
+              "after_clip": 0.145529,
+              "case": "green / alpha 026 / intensity 1"
+            }
           },
           "metric_note": "per-channel RGB difference after output unpremultiplication; after_clip applies only [0,1] clamping, not transfer-function encoding or 8-bit quantization",
           "probe": "experiments/CinematicLooksLab/captures/rd0/float_contract_probe.json"
@@ -85,32 +177,62 @@
       "evidence": [
         {
           "path": "Artifact/src/Widgets/ArtifactInspectorWidget.cpp",
-          "lines": [4998, 5019, 5098, 5100],
+          "lines": [
+            4998,
+            5019,
+            5098,
+            5100
+          ],
           "fact": "Inspector can add an effect through ArtifactEffectService and route it to the composition stack when composition effects are being edited."
         },
         {
           "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
-          "lines": [1999, 2073, 7582, 7588],
+          "lines": [
+            1999,
+            2073,
+            7582,
+            7588
+          ],
           "fact": "Composition JSON serializes each composition effect, including effect id and property name/type/value arrays."
         },
         {
           "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
-          "lines": [2081, 2103, 2163, 7783, 7788],
+          "lines": [
+            2081,
+            2103,
+            2163,
+            7783,
+            7788
+          ],
           "fact": "The local restore factory handles SurfaceFX and several keying types, but the fallback is ArtifactAbstractEffect; serialized properties are then sent to that object. LUTEffect is not instantiated here."
         },
         {
           "path": "Artifact/src/Effects/ArtifactAbstractEffect.cpp",
-          "lines": [771, 793, 827, 876],
+          "lines": [
+            771,
+            793,
+            827,
+            876
+          ],
           "fact": "The base effect exposes only common mask properties, ignores unknown common-property names, and deep-copies input when no CPU/GPU implementation exists."
         },
         {
           "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
-          "lines": [1961, 1985, 2002],
+          "lines": [
+            1961,
+            1985,
+            2002
+          ],
           "fact": "Composition final-effect rendering iterates the composition effect stack and invokes applyToCpuSurface for enabled rasterizer effects; the restored base object therefore reaches its no-implementation copy path rather than LUT processing."
         },
         {
           "path": "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp",
-          "lines": [61, 95, 104, 149],
+          "lines": [
+            61,
+            95,
+            104,
+            149
+          ],
           "fact": "Layer effect restore instead creates the concrete effect through ArtifactEffectService and then restores its properties."
         }
       ],
@@ -119,6 +241,133 @@
         "The finding is limited to effects stored in the composition-level effects array; it does not claim that layer-level LUT effects fail persistence."
       ],
       "next_evidence": "After explicit authorization for the relevant project runtime/test workflow, create a composition-level Apply LUT effect with a non-default preset and intensity, save and reload the project, then confirm concrete effect type, restored properties, and rendered output. Compare with an equivalent layer-level effect."
+    },
+    {
+      "id": "RD0-TRITONE-ALPHA-ASSOCIATION-01",
+      "status": "candidate_pending_runtime_visual_confirmation",
+      "severity": "undetermined",
+      "summary": "TritoneEffect transforms source RGB directly in the CPU implementation without inspecting the input surface alpha association, which may make its output depend on alpha for premultiplied input.",
+      "scope": {
+        "effect_id": "effect.colorcorrection.tritone",
+        "preset": "Cinematic",
+        "input_boundary": "Composition CPU Rasterizer / other premultiplied ImageF32x4_RGBA callers"
+      },
+      "evidence": [
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+          "lines": [
+            31,
+            50
+          ],
+          "fact": "The CPU implementation copies the input and applies TritoneProcessor::applyPixel directly to pixel.r/g/b; it does not inspect colorDescriptor().alphaMode or unpremultiply/re-premultiply."
+        },
+        {
+          "path": "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+          "lines": [
+            141,
+            151
+          ],
+          "fact": "TritoneEffect registers a CPU implementation, a GPU implementation, and the Cinematic default preset."
+        },
+        {
+          "path": "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp",
+          "lines": [
+            55,
+            105
+          ],
+          "fact": "The processor computes tonal weights and mixes target colors into the supplied RGB values, then clamps RGB; alpha is outside the processor contract."
+        },
+        {
+          "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
+          "lines": [
+            150,
+            175,
+            2030
+          ],
+          "fact": "The Composition QImage boundary can tag the input float surface as sRGB/Premultiplied before the CPU composition effect loop."
+        }
+      ],
+      "impact": "Source equations predict that nonlinear/offset RGB remapping can vary with alpha when applied directly to premultiplied channels. This is prioritization evidence only, not a runtime defect or quality gate.",
+      "limitations": [
+        "No C++ differential probe or runtime capture has been run for Tritone.",
+        "Actual impact depends on the image format and path reaching a premultiplied boundary.",
+        "No multiple-background composite review has been performed."
+      ],
+      "next_evidence": "Measure Tritone Cinematic on straight and premultiplied versions of identical RGB at alpha 0/0.1/0.25/0.5/1, then run Composition preview/final and available Render Queue captures over black, white, 50% gray, and saturated magenta. Include other Tritone presets as controls."
+    },
+    {
+      "id": "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01",
+      "status": "source_path_complete_runtime_roundtrip_pending",
+      "severity": "high",
+      "summary": "Composition effect serialization records properties, but the Composition deserializer has no concrete factory branches for Color Balance or Tritone and falls back to ArtifactAbstractEffect. The restored base object lacks the specific color processor and effect properties.",
+      "scope": {
+        "effect_ids": [
+          "effect.colorcorrection.colorbalance",
+          "effect.colorcorrection.tritone"
+        ],
+        "excludes": "layer effect restoration, which uses ArtifactEffectService"
+      },
+      "evidence": [
+        {
+          "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
+          "lines": [
+            1999,
+            2073
+          ],
+          "fact": "Composition effect serialization writes the effect id and serialized property payload."
+        },
+        {
+          "path": "Artifact/src/Composition/ArtifactAbstractComposition.cpp",
+          "lines": [
+            2081,
+            2103,
+            2163
+          ],
+          "fact": "The local deserializer has explicit branches for a small set of effects; Color Balance and Tritone are absent and the fallback constructs ArtifactAbstractEffect."
+        },
+        {
+          "path": "Artifact/src/Service/ArtifactEffectService.cpp",
+          "lines": [
+            362,
+            370
+          ],
+          "fact": "ArtifactEffectService can create concrete Tritone and Color Balance effect instances, but Composition deserializeEffect does not call this factory."
+        },
+        {
+          "path": "Artifact/src/Effects/ArtifactAbstractEffect.cpp",
+          "lines": [
+            771,
+            793,
+            827,
+            876
+          ],
+          "fact": "The base effect does not own these effect-specific properties or CPU/GPU implementations."
+        },
+        {
+          "path": "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp",
+          "lines": [
+            1961,
+            1985,
+            2002
+          ],
+          "fact": "The Composition final-effect loop invokes applyToCpuSurface on restored effects; a base fallback therefore does not execute the concrete Color Balance or Tritone processing."
+        },
+        {
+          "path": "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp",
+          "lines": [
+            61,
+            95,
+            104,
+            149
+          ],
+          "fact": "Layer effect restore is a separate path and uses ArtifactEffectService to recreate concrete effects."
+        }
+      ],
+      "limitations": [
+        "This is static source evidence only; project save/reload and output comparison have not been run.",
+        "The finding is limited to Composition-level effects."
+      ],
+      "next_evidence": "Save non-default Color Balance and Tritone effects at Composition level and as Layer controls, reload the project, verify concrete dynamic types and every preset/parameter, then compare rendered output."
     }
   ]
 }
