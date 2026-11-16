@@ -1,7 +1,7 @@
 # Shader Graph R2 — Runtime / Backend / Performance Parity
 
-**最終更新:** 2026-11-15
-**ステータス:** 契約テスト実行済み。テスト側誤り 3 件 + 実バグ 4 件を修正（matFloatLit / FailedLoad / SanitizedNodeIdentifiers / ColorRamp 2 件）。残り 12 件は既知ギャップの expected failure
+**最終更新:** 2026-11-16
+**ステータス:** 契約テスト実行済み。テスト側誤り 3 件 + 実バグ 4 件を修正。Vulkan GPU capture source を追加したが未実行。残り12件は既知ギャップの expected failure
 
 ## 目的
 
@@ -103,9 +103,15 @@ float t = saturate((0.5f - 0f) / 1f);
 
 **影響範囲**: `matFloatLit()` は Value node（`matFloatLit(n->value)`）、RGB node の `matFloat4Lit()`（alpha 既定 `1.0f`）、ColorRamp の stop 位置/色、span（`max(p1.p - p0.p, 1e-5f)`）で使われる。既定の RGB node は `a = 1.0f` なので、**RGB/Value を含む material graph の block はほぼ常に `1f`/`0f` を含む**。同様の `"{}f"` 出力が L76（legacy node の `generateHLSL()`）にもある。
 
-**未確認**: この block を実際に PSO 生成へ通した実行証拠はまだ無い（製品 capture harness 待ち）。DXC/FXC の単体検証では確実に失敗するため、material graph の PSO 生成が fallback に落ちている可能性が高い。
+**実行証拠の状態**: ソース上は `matFloatLit()` の修正がArtifactCore `main`へ入っている。上記のDXC/FXC failureは修正前の文字列に対する結果であり、現在のmaterial graphで同じ失敗が起きるとは推定しない。修正後sourceを製品PSO生成まで通したGPU/runtime証拠はまだ無い。
 
-**修正案（今回は未適用、ユーザー指示により実装変更なし）**: 最短表現に小数点が無ければ `.0` を補う（例: `contains('.') || contains('e') ? s : s + ".0"`）。1 箇所の修正で L76 と `matFloat4Lit()` 経由も同時に直る。
+**修正状況（2026-11-16）**: ArtifactCore `main` の `c34524e3 fix_ArtifactCore_shader_node_emission` で、指数表記を含め小数点のない最短表現へ `.0` を加えてから `f` を付ける修正が入った。legacy `ColorNode::generateHLSL()` も同じ literal helper を使う。#3/#4 の契約テスト実行記録はこの修正後のもの。今回追加したGPU capture sourceはRampではなく UV→Multiply→Add→Roughness の経路を対象にしており、この修正のPSO適用確認にはならない。
+
+## Vulkan capture source（2026-11-16、未実行）
+
+親repoの `tests/ArtifactCore/RayTracingAcceptanceTest.cpp` にある `VulkanMeshRendererAcceptanceTest` へ、既存のheadless Vulkan/RGBA32F harnessを再利用した capture case を追加した。従来のRamp比較に加えて、legacy `TexCoord.UV → Math(Multiply) → Math(Add) → Principled.Roughness` fixtureを `setMaterialGraphJson()` で評価し、同じmesh UV上でR&D typed projectionのHLSL bodyを `setMaterialGraphBlock()` へ注入した候補と赤channelを比較する。五つのUV0.x sample、入力fixture/candidate hash、生RGBA32F capture hashをreportへ記録する。
+
+この経路は現行Core legacy loweringとR&D候補の選択scalar結果をGPU上で並べるための試験sourceであり、製品UI・ArtifactIRenderer adapter・project save/reloadを通らない。BaseColor AOVの赤channelへscalar値を載せるためroughness値の応答だけを検査し、BRDF見た目、roughness clampの出力、D3D12 parity、compile failure recovery、性能は評価しない。C++ sourceは未ビルド・未実行で、capture recordsも未生成。実行には明示許可が必要。
 
 ## 非対象
 
@@ -115,9 +121,9 @@ float t = saturate((0.5f - 0f) / 1f);
 
 ## 次の作業
 
-1. `matFloatLit()` の integral literal バグ修正（上記修正案）→ #3 / #4 の EF が解消するか確認。
-2. 実装ギャップ 13 件の優先順位付け（load 検証 / `link()` 事前条件 / canonical serialization）。
-3. GPU capture（D3D12/Vulkan）の paired run。
+1. 追加した Vulkan capture source を許可後にビルド・実行し、Coreとtyped projectionの5 sample値およびraw capture reportを確認。
+2. 実装ギャップ12件の優先順位付け（load検証 / `link()` 事前条件 / canonical serialization）。
+3. production layer smokeを経て、D3D12/Vulkan paired runとsave/reload評価へ進む。
 4. hot-path allocation の steady-state 計測。
 
 ## 関連

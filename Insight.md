@@ -1,5 +1,12 @@
 **最終更新:** 2026-11-16
 
+## 2026-11-16: Vulkan graph capture source compares legacy and typed scalar lanes
+- **関連:** `tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer`、`tests/fixtures/shader-graph-rd/texcoord_math_roughness.json`、`experiments/ShaderGraphLab/core_math_add_projection_candidate.json`。
+- **確認できた事実:** 既存headless Vulkan MeshRenderer capture harnessへ、legacy JSON loweringとtyped candidate HLSL injectionを同じmesh UV・RGBA32F readbackで比較するsource caseを追加した。五つのUV0.x値とfixture/candidate/capture SHA-256を記録する設計で、数値比較はBaseColor AOV赤channelを使う。これはC++ source上の事実で、captureは未実行。
+- **価値または懸念:** CPU golden/compiler constant-foldだけだったscalar migrationに、Core renderer上で選択入力を比較する次の評価段階ができた。一方、typed candidate注入はtest-only host bindingで、製品adapter経路・BRDF appearance・roughness clamp・backend parityは証明しない。
+- **次に確認すべきこと:** 許可されたbuild/testでVulkan captureを実行し、reportとraw outputを確認する。値が一致した場合もD3D12 paired run、product adapter、save/reload、performance gateを別に満たしてからCore API昇格を判断する。
+- **未検証:** capture sourceのコンパイル、Vulkan実行値、production adapter経路、D3D12 parity、persist/reload。
+
 ## 2026-11-16: Clip bar design prototype should keep GPU-path evidence separate
 - **関連:** `experiments/TimelineClipBarLab/`、`tools/TimelineClipBarPlayground/`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`。
 - **確認できた事実:** `ArtifactIRenderer` は Diligent 経由の矩形・パネル・線・文字描画APIを公開しており、タイムラインWidgetを使わない比較用ネイティブPlaygroundを構成できる。製品Timelineには別途 clip hit-test、選択、trim、サムネイル／波形のデータ供給がある。
