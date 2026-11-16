@@ -1,0 +1,7 @@
+{
+  "status": "unlocked",
+  "rd0_purpose": "baseline and response characterization only",
+  "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
+  "thresholds": [],
+  "next_step": "human review, then freeze justified thresholds before rd1 comparison"
+}

@@ -1,0 +1,131 @@
+{
+  "rd": "rd0",
+  "seed": 20261116,
+  "created_utc": "2026-11-16T02:04:38Z",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "pillow": "12.2.0"
+  },
+  "image_contract": {
+    "storage": "RGB uint8",
+    "analysis": "8-bit sRGB encoded code values normalized to [0,1]",
+    "display": "RGB PNG interpreted as sRGB",
+    "candidate_outputs": "chart and chart ROI: PNG; photographic full frames: JPEG quality 90, 4:4:4; metrics are computed before encoding",
+    "alpha": "not represented in current fixtures; not evaluated"
+  },
+  "candidate_model": "17^3 BuiltinLUTs generation and trilinear sampler mirrored from ArtifactCore ColorLUT.cpp",
+  "lut_source": {
+    "path": "ArtifactCore/src/Color/ColorLUT.cpp",
+    "sha256": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e",
+    "names": {
+      "cinematic": "cinematic",
+      "vintage": "vintage",
+      "cold": "cold",
+      "warm": "warm",
+      "high_contrast": "highContrast",
+      "low_contrast": "lowContrast",
+      "desaturated": "desaturated",
+      "kodak2383": "kodak2383",
+      "fuji3510": "fuji3510"
+    }
+  },
+  "cases": {
+    "chart": {
+      "source": "deterministic generated RGB chart",
+      "seed": 20261116,
+      "size": [
+        1536,
+        1024
+      ],
+      "rois": {
+        "gray_ramp": [
+          32,
+          32,
+          464,
+          168
+        ],
+        "skin_patches": [
+          528,
+          32,
+          464,
+          168
+        ],
+        "color_patches": [
+          1024,
+          32,
+          480,
+          168
+        ],
+        "fine_lines": [
+          32,
+          232,
+          464,
+          216
+        ],
+        "step_edges": [
+          528,
+          232,
+          464,
+          216
+        ],
+        "dark_highlight": [
+          1024,
+          232,
+          480,
+          216
+        ],
+        "smooth_gradient": [
+          32,
+          480,
+          704,
+          480
+        ],
+        "color_gradient": [
+          768,
+          480,
+          736,
+          480
+        ]
+      }
+    },
+    "neon_streets": {
+      "available": true,
+      "source_path": "experiments/GlowLab/assets/cc0-neon-streets-1536.jpg",
+      "sha256": "8791bd593b699be76dcfb181d72dd8655caaae2e88c235b89ed5d9097aa319d4",
+      "size": [
+        1536,
+        1025
+      ],
+      "provenance_record": "experiments/GlowLab/assets/SOURCES.md"
+    },
+    "street_lights": {
+      "available": true,
+      "source_path": "experiments/GlowLab/assets/cc0-street-light-night.jpg",
+      "sha256": "b01e663da4cada43f95b936d88ed377244680b56c41929d2d621d087d7224eb8",
+      "size": [
+        576,
+        1280
+      ],
+      "provenance_record": "experiments/GlowLab/assets/SOURCES.md"
+    }
+  },
+  "looks": [
+    "baseline",
+    "cinematic",
+    "vintage",
+    "cold",
+    "warm",
+    "high_contrast",
+    "low_contrast",
+    "desaturated",
+    "kodak2383",
+    "fuji3510"
+  ],
+  "intensities": [
+    0.0,
+    0.5,
+    1.0
+  ]
+}
