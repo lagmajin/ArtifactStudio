@@ -16,6 +16,7 @@
     {"from": "scale", "out": "Value", "to": "roughness", "in": "A"},
     {"from": "bias", "out": "Value", "to": "roughness", "in": "B"},
     {"from": "roughness", "out": "Value", "to": "surface", "in": "Roughness"},
+    {"from": "roughness", "out": "Value", "to": "surface", "in": "BaseColor"},
     {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
   ]
 }

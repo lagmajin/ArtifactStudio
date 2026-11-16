@@ -370,7 +370,7 @@
   },
   "dynamicRoughnessUvProjection": {
     "sourceFixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
-    "sourceSha256": "B8DB6765A8E7BE987925BB76B6E312DAF267E4C12B19E9E48AC9187CA0E0FB8F",
+    "sourceSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437",
     "selectedLegacyInput": {
       "nodeId": "surface",
       "socketId": "Roughness"

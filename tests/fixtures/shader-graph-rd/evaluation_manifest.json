@@ -687,9 +687,9 @@
     },
     {
       "file": "texcoord_math_roughness.json",
-      "sha256": "B8DB6765A8E7BE987925BB76B6E312DAF267E4C12B19E9E48AC9187CA0E0FB8F",
+      "sha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437",
       "class": "legacy-material-dynamic-math-projection",
-      "purpose": "TexCoord.UV through unclamped legacy Math Multiply and Add into Principled Roughness",
+      "purpose": "TexCoord.UV through unclamped legacy Math Multiply and Add into Principled Roughness and BaseColor x for a Vulkan comparison AOV",
       "runtimeStatus": "read-only-adapter-and-vulkan-compiler-probe-only-no-gpu-execution"
     },
     {
@@ -1325,7 +1325,7 @@
       ],
       "cpuContract": "legacy-UV0-x-through-Math-to-Principled-Roughness-typed-projection",
       "runtimeRoute": null,
-      "runtimeComparison": "Direct UV and UV-driven Multiply/Add projections; Vulkan 1.2 GLSL/HLSL dynamic input compile, optimized SPIR-V numeric comparison and interface comparison; no GPU execution",
+      "runtimeComparison": "Compare the Core legacy graph and read-only typed projection in the Vulkan MeshRenderer BaseColor AOV red channel at five UV0.x samples; this characterizes the selected scalar x path only, not BRDF appearance or clamp behavior",
       "evidenceState": "compiler-probe-passed-runtime-unverified"
     }
   ],
@@ -6216,16 +6216,18 @@
         "gpuCaptureSource": {
           "status": "source-added-not-run",
           "testSource": "tests/ArtifactCore/RayTracingAcceptanceTest.cpp",
-          "testName": "CapturesLegacyAndDynamicRampCandidatesOnVulkanMeshRenderer",
+          "testName": "CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer",
           "legacyFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_legacy_uv.json",
           "candidateFixture": "experiments/ShaderGraphLab/dynamic_vector4_ramp_candidate.json",
           "formulaGoldenFixture": "tests/fixtures/shader-graph-rd/dynamic_ramp_formula_golden.json",
-          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy captures and one candidate capture",
+          "route": "Vulkan MeshRenderer RGBA32F render/readback; five constant-UV panels; five repeated legacy Ramp captures and one candidate capture; then legacy and projected UV-Math Roughness captures",
           "reportEvidence": {
             "inputSha256Fields": [
               "legacyFixtureSha256",
               "candidateFixtureSha256",
-              "formulaGoldenFixtureSha256"
+              "formulaGoldenFixtureSha256",
+              "fixtureSha256",
+              "projectionCandidateSha256"
             ],
             "outputSha256Fields": [
               "legacyRawCaptureSha256",
@@ -6234,24 +6236,42 @@
               "legacyBlackCompositeSha256",
               "legacyWhiteCompositeSha256",
               "candidateBlackCompositeSha256",
-              "candidateWhiteCompositeSha256"
+              "candidateWhiteCompositeSha256",
+              "legacyRawCaptureSha256",
+              "projectedRawCaptureSha256"
             ],
             "measurementFields": [
               "samplePixelCoordinates",
               "captureRegions",
               "candidateVsFormulaGoldenAbsoluteError",
-              "candidateVsFormulaGoldenRelativeError"
+              "candidateVsFormulaGoldenRelativeError",
+              "redChannelNumericSamples",
+              "comparisonScope"
             ],
             "renderOutputModeField": "renderOutputMode"
           },
           "analysisTool": "tools/shader_graph_rd/analyze_shader_graph_rgba32f.py",
-          "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate Vector4 output to the established graph material fields; no Core implementation change",
+          "adapterScope": "test-only host binding maps candidate In.UV.x to MeshRenderer In.UV and candidate scalar output to a diagnostic BaseColor AOV; the Core legacy graph is captured through setMaterialGraphJson. This is a shader/render comparison harness, not production graph integration.",
           "limitations": [
             "capture has not been run",
             "the candidate uses the MeshRenderer graph splice as a test adapter, not a production graph integration",
             "GPU adapter is recorded, but compiler version and build identity are not exposed by this harness",
             "exact duplicate-stop semantics remain observational until captures are reviewed"
-          ]
+          ],
+          "roughnessMathCapture": {
+            "legacyFixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
+            "projectionCandidate": "experiments/ShaderGraphLab/core_math_add_projection_candidate.json",
+            "sampleUv0X": [
+              0.0,
+              0.4999,
+              0.5,
+              0.5001,
+              1.0
+            ],
+            "expectedRed": "f32(f32(UV0.x * 0.5) + 0.125)",
+            "reportedSamplesField": "redChannelNumericSamples",
+            "comparisonScope": "Core legacy graph and projected typed HLSL through the same MeshRenderer shader compiler/draw/readback. BaseColor AOV red carries the scalar x response; this does not measure BRDF appearance or prove the Roughness clamp output."
+          }
         }
       },
       "semanticHashSha256": "E491B36CCAB5C93831D6B9E802E2CE9B58D97ED44DF5D6DE97FA6569B2BE1021",
@@ -6971,7 +6991,7 @@
         "compilerProbe": {
           "tool": "tools/shader_graph_rd/compile_legacy_core_projection_candidates.py",
           "targetEnvironment": "vulkan1.2",
-          "candidateSha256": "AF2735A46438C95D4A5F0D72831142AFA34134CBF4211E9F302BD3A3013ED096",
+          "candidateSha256": "1DD073667920036F7500C9115F25AEADCB1E460EB9DD790FA1C3403939DE02A8",
           "candidateCases": [
             "base_color_add",
             "nested_add",
@@ -7018,7 +7038,8 @@
               "duplicateInputWriter": "legacy.link.cardinality.invalid",
               "cycle": "legacy.graph.cycle"
             },
-            "nodeLinkStorageOrderInvariant": true
+            "nodeLinkStorageOrderInvariant": true,
+            "fixtureSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437"
           },
           "dynamicInputMath": {
             "tool": "tools/shader_graph_rd/probe_legacy_uv_math_projection.py",

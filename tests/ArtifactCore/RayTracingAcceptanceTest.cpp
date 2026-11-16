@@ -16050,7 +16050,7 @@ TEST_F(RayTracingAcceptanceTest, TracesUnindexedTriangleAndRejectsMalformedGeome
 }
 
 TEST_F(VulkanMeshRendererAcceptanceTest,
-       CapturesLegacyAndDynamicRampCandidatesOnVulkanMeshRenderer) {
+       CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer) {
     constexpr Uint32 width = 256;
     constexpr Uint32 height = 256;
     constexpr std::array<float, 5> factors{0.0f, 0.4999f, 0.5f, 0.5001f, 1.0f};
@@ -16364,6 +16364,70 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         }
     }
 
+    const auto roughnessMathFixturePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "texcoord_math_roughness.json";
+    QFile roughnessMathFixtureFile(
+        QString::fromStdString(roughnessMathFixturePath.string()));
+    ASSERT_TRUE(roughnessMathFixtureFile.open(QIODevice::ReadOnly))
+        << roughnessMathFixturePath.string();
+    const QByteArray roughnessMathFixtureBytes = roughnessMathFixtureFile.readAll();
+    ASSERT_TRUE(renderer.setMaterialGraphJson(std::string(
+        roughnessMathFixtureBytes.constData(),
+        static_cast<size_t>(roughnessMathFixtureBytes.size()))));
+    const auto legacyRoughnessMathPixels = capture();
+    const auto legacyRoughnessMathSamples =
+        samplesAtPanelCenters(legacyRoughnessMathPixels);
+
+    const auto roughnessMathCandidatePath = projectRoot / "experiments" /
+        "ShaderGraphLab" / "core_math_add_projection_candidate.json";
+    QFile roughnessMathCandidateFile(
+        QString::fromStdString(roughnessMathCandidatePath.string()));
+    ASSERT_TRUE(roughnessMathCandidateFile.open(QIODevice::ReadOnly))
+        << roughnessMathCandidatePath.string();
+    const QByteArray roughnessMathCandidateBytes =
+        roughnessMathCandidateFile.readAll();
+    const auto roughnessMathCandidateJson =
+        QJsonDocument::fromJson(roughnessMathCandidateBytes);
+    ASSERT_TRUE(roughnessMathCandidateJson.isObject());
+    const auto roughnessMathProjection = roughnessMathCandidateJson.object()
+        .value("dynamicRoughnessUvProjection").toObject();
+    QString roughnessMathCandidateBody =
+        roughnessMathProjection.value("candidateHlslBody").toString();
+    constexpr char roughnessReturnStatement[] =
+        "return n_roughness_result;\n";
+    ASSERT_TRUE(roughnessMathCandidateBody.endsWith(
+        QString::fromLatin1(roughnessReturnStatement)));
+    roughnessMathCandidateBody.chop(
+        static_cast<qsizetype>(sizeof(roughnessReturnStatement) - 1));
+    std::string roughnessMathCandidateBlock =
+        roughnessMathCandidateBody.toStdString();
+    roughnessMathCandidateBlock +=
+        "float4 graphBaseColor = float4(n_roughness_result, "
+        "n_roughness_result, n_roughness_result, 1.0f);\n"
+        "float graphMetallic = 0.0f;\n"
+        "float graphRoughness = n_roughness_result;\n"
+        "float3 graphEmission = float3(0.0f, 0.0f, 0.0f);\n"
+        "float graphAlpha = 1.0f;\n"
+        "float3 graphNormalSample = normalSample;\n"
+        "float graphOcclusion = occlusionSample;\n"
+        "float3 graphWorldNormal = float3(0.0f, 0.0f, 1.0f);\n"
+        "float graphUseWorldNormal = 0.0f;\n";
+    renderer.setMaterialGraphBlock(roughnessMathCandidateBlock);
+    const auto projectedRoughnessMathPixels = capture();
+    const auto projectedRoughnessMathSamples =
+        samplesAtPanelCenters(projectedRoughnessMathPixels);
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const float scaledUv = factors[panel] * 0.5f;
+        const float expected = scaledUv + 0.125f;
+        EXPECT_NEAR(legacyRoughnessMathSamples[panel][0], expected, 1.0e-5f)
+            << "Legacy Core UV→Math→Roughness x result at sample " << panel;
+        EXPECT_NEAR(projectedRoughnessMathSamples[panel][0], expected, 1.0e-5f)
+            << "Projected typed graph UV→Multiply→Add result at sample " << panel;
+        EXPECT_NEAR(projectedRoughnessMathSamples[panel][0],
+                    legacyRoughnessMathSamples[panel][0], 1.0e-5f)
+            << "Legacy and projected shader red channel at sample " << panel;
+    }
+
     const auto sha256Hex = [](const QByteArray& bytes) {
         const QByteArray digest =
             QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
@@ -16399,6 +16463,12 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
                              legacyPixels));
     ASSERT_TRUE(writeRgba32f(outputDir / "shader-graph-ramp-candidate-vulkan.rgba32f",
                              candidatePixels));
+    ASSERT_TRUE(writeRgba32f(
+        outputDir / "shader-graph-roughness-math-legacy-vulkan.rgba32f",
+        legacyRoughnessMathPixels));
+    ASSERT_TRUE(writeRgba32f(
+        outputDir / "shader-graph-roughness-math-projected-vulkan.rgba32f",
+        projectedRoughnessMathPixels));
     ASSERT_TRUE(writeDisplayComposite(
         outputDir / "shader-graph-ramp-legacy-vulkan-over-black.png",
         legacyPixels, 0.0f));
@@ -16447,6 +16517,43 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
                       legacyRepeatedRawCapturesJson);
     reportJson.insert(QStringLiteral("candidateRawCaptureSha256"),
                       rawCaptureSha256(candidatePixels));
+    QJsonArray roughnessMathSamplesJson;
+    for (size_t panel = 0; panel < factors.size(); ++panel) {
+        const float expected = factors[panel] * 0.5f + 0.125f;
+        roughnessMathSamplesJson.append(QJsonObject{
+            {QStringLiteral("uv0X"), factors[panel]},
+            {QStringLiteral("expected"), expected},
+            {QStringLiteral("legacyCoreRed"),
+             legacyRoughnessMathSamples[panel][0]},
+            {QStringLiteral("projectedCandidateRed"),
+             projectedRoughnessMathSamples[panel][0]},
+            {QStringLiteral("absoluteDifference"),
+             std::fabs(projectedRoughnessMathSamples[panel][0] -
+                       legacyRoughnessMathSamples[panel][0])},
+        });
+    }
+    reportJson.insert(QStringLiteral("dynamicRoughnessMath"), QJsonObject{
+        {QStringLiteral("fixture"),
+         QStringLiteral("tests/fixtures/shader-graph-rd/texcoord_math_roughness.json")},
+        {QStringLiteral("fixtureSha256"),
+         sha256Hex(roughnessMathFixtureBytes)},
+        {QStringLiteral("projectionCandidate"),
+         QStringLiteral("experiments/ShaderGraphLab/core_math_add_projection_candidate.json")},
+        {QStringLiteral("projectionCandidateSha256"),
+         sha256Hex(roughnessMathCandidateBytes)},
+        {QStringLiteral("legacyRawCapture"),
+         QStringLiteral("shader-graph-roughness-math-legacy-vulkan.rgba32f")},
+        {QStringLiteral("projectedRawCapture"),
+         QStringLiteral("shader-graph-roughness-math-projected-vulkan.rgba32f")},
+        {QStringLiteral("legacyRawCaptureSha256"),
+         rawCaptureSha256(legacyRoughnessMathPixels)},
+        {QStringLiteral("projectedRawCaptureSha256"),
+         rawCaptureSha256(projectedRoughnessMathPixels)},
+        {QStringLiteral("redChannelNumericSamples"),
+         roughnessMathSamplesJson},
+        {QStringLiteral("comparisonScope"),
+         QStringLiteral("BaseColor AOV red channel carries the scalar x response; this captures the selected Math-to-Roughness value path but does not measure BRDF appearance or roughness clamp response")},
+    });
     reportJson.insert(QStringLiteral("legacyBlackCompositeSha256"), fileSha256(
         outputDir / "shader-graph-ramp-legacy-vulkan-over-black.png"));
     reportJson.insert(QStringLiteral("legacyWhiteCompositeSha256"), fileSha256(
