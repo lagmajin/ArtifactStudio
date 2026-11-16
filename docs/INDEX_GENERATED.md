@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-16 13:27
+> Generated: 2026-11-16 13:30
 > Total documents: 1508
 
 ---
@@ -810,7 +810,7 @@
 | 194 | `docs/planned/MILESTONE_CAMERA_SHAKE_2026-07-09.md` | M-CS-1: Camera Shake System - 設計マイルストーン | 2026-08-04 | In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手） | 2026-10-23 | 9.8 KB | CAMERA, SHAKE |
 | 195 | `docs/planned/MILESTONE_CAPTION_SUBTITLE_2026-06-16.md` | M-CAPTION-1 Caption / Subtitle Milestone (SRT / WebVTT) | 2026-06-16 | --- | 2026-08-16 | 15.3 KB | CAPTION, SUBTITLE |
 | 196 | `docs/planned/MILESTONE_CHANNEL_BOX_2026-07-07.md` | M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone | 2026-07-07 | --- | 2026-08-20 | 10.7 KB | CHANNEL, BOX |
-| 197 | `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md` | Cinematic Looks 画像補正 R&D プロジェクト | 2026-11-16 | In Progress（評価計画・Python source mirror・4実写ケースの rd0 応答測定・ブラインド接触シート・float 契約プローブを作成。人手視覚判定・品質 gate・製品 runtime 検証は未実施） | 2026-11-16 | 19.2 KB | CINEMATIC, LOOKS, RND |
+| 197 | `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md` | Cinematic Looks 画像補正 R&D プロジェクト | 2026-11-16 | In Progress（評価計画・Python source mirror・4実写ケースの rd0 応答測定・ブラインド接触シート・float 契約プローブを作成。人手視覚判定・品質 gate・製品 runtime 検証は未実施） | 2026-11-16 | 20.8 KB | CINEMATIC, LOOKS, RND |
 | 198 | `docs/planned/MILESTONE_CLAP_HOST_COMPLETION_2026-07-25.md` | MILESTONE_CLAP_HOST_COMPLETION_2026-07-25 | 2026-07-25 | In Progress — loader、params、GUI、state stream API、複数バス／sidechain音声処理、thread-check host extension、要求元別host request callbackとmain-thread callback dispatch、AudioMixer結合スモークを実装。restart/process要求の実サービス処理と実プラグイン互換を含むruntime受入が残る。 | 2026-10-23 | 11.8 KB | CLAP, HOST, COMPLETION |
 | 199 | `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md` | M-CLI-1: CLI・Python 対話実行・自動化の統合 | 2026-09-23 | In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了） | 2026-09-23 | 16.8 KB | CLI, PYTHON, AUTOMATION |
 | 200 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-10-12 | 42.2 KB | CLONER, UNIFICATION |
@@ -1376,7 +1376,7 @@
 | 760 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-08-16 | 3.8 KB | WORKSPACE, MANAGER |
 | 761 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-08-04 | --- | 2026-11-10 | 5.3 KB | WORKSPACE, PRESETS |
 | 762 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-11-10 | 5.9 KB | ZOOM, FIT |
-| 763 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-16 | --- | 2026-11-16 | 301.2 KB | BACKLOG |
+| 763 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-11-16 | --- | 2026-11-16 | 301.3 KB | BACKLOG |
 | 764 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-11-10 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 765 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 21.9 KB | DESIGN, NOTES |
 | 766 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |
