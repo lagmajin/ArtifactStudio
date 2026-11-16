@@ -16479,6 +16479,7 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
     }};
     const std::array<int, 4> baseColorLegacyOperations{0, 1, 2, 3};
     constexpr char baseColorReturnStatement[] = "return n_math_result;\n";
+    constexpr float baseColorMathAbsoluteTolerance = 1.0e-5f;
     for (size_t variantIndex = 0; variantIndex < baseColorMathCaptures.size();
          ++variantIndex) {
         auto& record = baseColorMathCaptures[variantIndex];
@@ -16537,14 +16538,16 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         const auto projectedSamples = samplesAtPanelCenters(record.projectedPixels);
         for (size_t panel = 0; panel < factors.size(); ++panel) {
             for (size_t channel = 0; channel < record.expected.size(); ++channel) {
-                EXPECT_NEAR(legacySamples[panel][channel], record.expected[channel], 1.0e-5f)
+                EXPECT_NEAR(legacySamples[panel][channel], record.expected[channel],
+                            baseColorMathAbsoluteTolerance)
                     << record.variantId.toStdString() << " legacy Core channel "
                     << channel << " sample " << panel;
-                EXPECT_NEAR(projectedSamples[panel][channel], record.expected[channel], 1.0e-5f)
+                EXPECT_NEAR(projectedSamples[panel][channel], record.expected[channel],
+                            baseColorMathAbsoluteTolerance)
                     << record.variantId.toStdString() << " typed candidate channel "
                     << channel << " sample " << panel;
                 EXPECT_NEAR(projectedSamples[panel][channel], legacySamples[panel][channel],
-                            1.0e-5f)
+                            baseColorMathAbsoluteTolerance)
                     << record.variantId.toStdString() << " Core/candidate channel "
                     << channel << " sample " << panel;
             }
@@ -16706,6 +16709,8 @@ TEST_F(VulkanMeshRendererAcceptanceTest,
         {QStringLiteral("projectionCandidate"),
          QStringLiteral("experiments/ShaderGraphLab/core_math_add_projection_candidate.json")},
         {QStringLiteral("projectionCandidateSha256"), sha256Hex(roughnessMathCandidateBytes)},
+        {QStringLiteral("numericToleranceAbsolute"), baseColorMathAbsoluteTolerance},
+        {QStringLiteral("numericToleranceUnit"), QStringLiteral("linear RGBA32F channel value")},
         {QStringLiteral("comparisonScope"),
          QStringLiteral("same Vulkan MeshRenderer BaseColor AOV, Core legacy JSON lowering versus typed candidate HLSL injection; four RGBA lanes at five panel samples; no UI/persistence path")},
         {QStringLiteral("operationCaptures"), baseColorMathCaptureReports},

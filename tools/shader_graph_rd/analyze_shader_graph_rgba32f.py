@@ -268,6 +268,17 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
         raise ValueError("samplePixelCoordinates are required for BaseColor captures")
     if len(raw_coordinates) != 5:
         raise ValueError("BaseColor captures require exactly five sample coordinates")
+    dynamic_math = capture_report.get("dynamicBaseColorMath")
+    if not isinstance(dynamic_math, dict):
+        raise ValueError("dynamicBaseColorMath report section is missing")
+    try:
+        absolute_tolerance = float(dynamic_math["numericToleranceAbsolute"])
+    except (KeyError, TypeError, ValueError, OverflowError) as error:
+        raise ValueError("BaseColor numeric tolerance is missing or invalid") from error
+    tolerance_unit = dynamic_math.get("numericToleranceUnit")
+    if (not math.isfinite(absolute_tolerance) or absolute_tolerance < 0.0 or
+            tolerance_unit != "linear RGBA32F channel value"):
+        raise ValueError("BaseColor numeric tolerance metadata is invalid")
     coordinates: list[dict[str, object]] = []
     for index, item in enumerate(raw_coordinates, start=1):
         if not isinstance(item, dict):
@@ -316,6 +327,9 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
         max_legacy_golden_error = 0.0
         max_projected_golden_error = 0.0
         max_legacy_projected_error = 0.0
+        legacy_golden_exceedance_count = 0
+        projected_golden_exceedance_count = 0
+        legacy_projected_exceedance_count = 0
         for sample_index, (sample, coordinate) in enumerate(
                 zip(raw_samples, coordinates), start=1):
             if not isinstance(sample, dict):
@@ -349,6 +363,12 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
             max_legacy_golden_error = max(max_legacy_golden_error, *legacy_error)
             max_projected_golden_error = max(max_projected_golden_error, *projected_error)
             max_legacy_projected_error = max(max_legacy_projected_error, *paired_error)
+            legacy_golden_exceedance_count += sum(
+                error > absolute_tolerance for error in legacy_error)
+            projected_golden_exceedance_count += sum(
+                error > absolute_tolerance for error in projected_error)
+            legacy_projected_exceedance_count += sum(
+                error > absolute_tolerance for error in paired_error)
             samples.append({
                 "factor": sample_factor,
                 "x": coordinate["x"],
@@ -368,6 +388,9 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
             "maxLegacyVsGoldenAbsoluteError": max_legacy_golden_error,
             "maxProjectedVsGoldenAbsoluteError": max_projected_golden_error,
             "maxLegacyVsProjectedAbsoluteError": max_legacy_projected_error,
+            "legacyVsGoldenToleranceExceedanceCount": legacy_golden_exceedance_count,
+            "projectedVsGoldenToleranceExceedanceCount": projected_golden_exceedance_count,
+            "legacyVsProjectedToleranceExceedanceCount": legacy_projected_exceedance_count,
             "samples": samples,
         })
     if seen_variants != {"add", "subtract", "multiply", "dividePositiveFloor"}:
@@ -375,6 +398,8 @@ def _sampled_capture_comparisons(capture_report: dict[str, object],
     return {
         "sampleCountPerVariant": len(coordinates),
         "channelOrder": "RGBA",
+        "absoluteTolerance": absolute_tolerance,
+        "toleranceUnit": tolerance_unit,
         "status": "sampled-values-recomputed-from-hash-verified-raw-captures-no-quality-decision",
         "operationCaptures": comparisons,
     }

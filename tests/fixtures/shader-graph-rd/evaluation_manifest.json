@@ -6294,13 +6294,26 @@
             "sampleField": "numericSamples",
             "sampleCount": 5,
             "channels": "RGBA32F all four lanes",
+            "numericTolerance": {
+              "kind": "per-channel-absolute",
+              "value": 1e-05,
+              "unit": "linear RGBA32F channel value",
+              "comparisons": [
+                "Core legacy versus binary32 golden",
+                "typed candidate versus binary32 golden",
+                "typed candidate versus Core legacy"
+              ],
+              "rationale": "Predeclared numeric shader-regression tolerance for the same Vulkan draw/readback route and operation-specific binary32 golden; it is not an image-quality or cross-backend tolerance.",
+              "frozenBeforeCapture": true,
+              "status": "source-threshold-predeclared-runtime-unmeasured"
+            },
             "comparisonScope": "Each legacy op is written into the fixture Math node and captured via setMaterialGraphJson; the stored typed HLSL candidate is injected with setMaterialGraphBlock. Compare all RGBA channels against binary32 golden and legacy capture at five panel centers. This does not exercise UI, persistence, or production migration adapter.",
             "status": "source-added-not-run"
           },
           "sampledCaptureAnalysis": {
             "reportField": "baseColorMathSampleAnalysis",
             "sourceFunction": "_sampled_capture_comparisons",
-            "measurement": "recompute five RGBA center samples from SHA-256-verified raw files and compare them with report values and binary32 golden",
+            "measurement": "recompute five RGBA center samples from SHA-256-verified raw files, compare them with report values and binary32 golden, and report per-lane exceedance counts against the predeclared numeric tolerance",
             "qualityDecision": "none; report errors for review",
             "status": "analysis-source-added-not-run"
           }
