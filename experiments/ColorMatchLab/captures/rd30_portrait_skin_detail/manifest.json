@@ -1,0 +1,60 @@
+{
+  "rd": "rd30-portrait-skin-region-detail-response",
+  "status": "exploratory retrospective equation-mirror diagnostic; no acceptance gate",
+  "date": "2026-11-17",
+  "evaluation_plan": "EVALUATION_PLAN.md#rd30-cc0-portrait-skin-region-detail-response-predeclared-2026-11-17",
+  "source": {
+    "file": "source.png",
+    "sha256": "755b899038455696ad2093d014d91a43ccc2806541d0a29a976a80b37aae492c",
+    "size": [
+      1280,
+      851
+    ],
+    "provenance": "Wikimedia CC0 1.0; see RD9 prep manifest",
+    "assumption": "encoded sRGB; no ICC profile"
+  },
+  "reference_excluded": true,
+  "regions": {
+    "face_skin_candidate": {
+      "file": "roi_face_skin_reviewed.png",
+      "sha256": "ca03ad00ab751aef5f846c342a6f584d1cf7134dcbe3f26dbfa6b6835bbd27c6",
+      "pixels": 30913
+    },
+    "arm_skin_candidate": {
+      "file": "roi_arm_skin_reviewed.png",
+      "sha256": "2f419b9a3e39f56ff4db9c34ac2bff66e640a629c7196d321e1754ef08802822",
+      "pixels": 32661
+    }
+  },
+  "methods": [
+    "unchanged_source",
+    "Reinhard",
+    "MeanStddev",
+    "Histogram"
+  ],
+  "strengths": [
+    0.25,
+    0.5,
+    1.0
+  ],
+  "metrics": {
+    "luminance": "linear sRGB Rec.709",
+    "gradient": "centered one-pixel finite differences, magnitude percentiles",
+    "local_contrast": "3x3 box population standard deviation; center retained only if full window inside mask",
+    "clipping": "out-of-range channel fraction before display clipping"
+  },
+  "script_hashes": {
+    "run_rd1_source_mirror.py": "acaee59e2952164ed16c32d68262fcbef5865919a3117a475dbee66ce75526e3",
+    "run_rd9_real_skin_white_scene.py": "ce6f826e221fa4b29ef94430297768a34dcd09ac5ea250abc32862ddc6f14235",
+    "record_rd30_portrait_skin_detail.py": "c37dbd15f87eedfd1f110a8bd00e0b2df621670d574895a403685f7ea6d066ca"
+  },
+  "limitations": [
+    "one portrait; no paired photographic reference",
+    "hand-reviewed masks not independently annotated or accepted as ground truth",
+    "equation mirrors, not current compiled Core outputs",
+    "tone changes confound luminance-gradient response with texture visibility",
+    "no acceptance thresholds, ranking, or product-quality decision"
+  ],
+  "row_count": 30,
+  "csv_sha256": "8b065d3dfd6359ea0d5fc778226c8d301e920a2a2c94e2529bd8edc722fa0965"
+}

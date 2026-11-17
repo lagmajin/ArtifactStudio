@@ -1,0 +1,762 @@
+[
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      64,
+      64
+    ],
+    "patch_area": 1024,
+    "patch_area_ratio": 0.00625,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178819723,
+      0.8879231178819723,
+      0.8796223968878378
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "d4305f32145367885815f293eef9f14459272010158214a5e8323d6ce6c10796",
+    "reference_float_multiset_hash": "74e6df4b190d461bc0e1978a87d82444470f261ba993837fb853226f71834d36"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      64,
+      64
+    ],
+    "patch_area": 1024,
+    "patch_area_ratio": 0.00625,
+    "mean_deltaE76": 18.824892958659294,
+    "p95_deltaE76": 18.824892958659298,
+    "output_linear_mean": [
+      0.8879231178819723,
+      0.8879231178819723,
+      0.7454042095403943
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 224,
+      "mapped_reference_encoded": 0.8784313725490196,
+      "nearest_cdf_distance": 0.0020629882812499556,
+      "reference_bin_cdf": 0.91656494140625
+    },
+    "source_histogram_hashes": [
+      "cb056c76e98d8b59c487d94c31073dbac4a133f0b5cfb6d4e0222e02f346a37f",
+      "c559ed1d46a78c6c32bba77788d3b555fc091200b850340ab257d2b190d7f8bc",
+      "fa95bee7524e858e7e72d17b94c99f486f6f69f29cf100aeec662f2899996f14"
+    ],
+    "reference_histogram_hashes": [
+      "87075288550684aaa36809f7c00e51764a7ec087b0e7020574aad6e3c835ae98",
+      "838c5d86f80494002f33165d6351f8dc4d177e1baf6ae2d72eddd7de3ba81c80",
+      "441d16cb51a34368821a37027240a0037d5c73e057ff20ef162db56a72e2aaab"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      80,
+      80
+    ],
+    "patch_area": 2304,
+    "patch_area_ratio": 0.0140625,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178819289,
+      0.8879231178819289,
+      0.8796223968877824
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "d4305f32145367885815f293eef9f14459272010158214a5e8323d6ce6c10796",
+    "reference_float_multiset_hash": "74e6df4b190d461bc0e1978a87d82444470f261ba993837fb853226f71834d36"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      80,
+      80
+    ],
+    "patch_area": 2304,
+    "patch_area_ratio": 0.0140625,
+    "mean_deltaE76": 15.836812311758624,
+    "p95_deltaE76": 15.836812311758624,
+    "output_linear_mean": [
+      0.8879231178819289,
+      0.8879231178819289,
+      0.7681511472474711
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 227,
+      "mapped_reference_encoded": 0.8901960784313725,
+      "nearest_cdf_distance": 0.0017639160156250888,
+      "reference_bin_cdf": 0.920391845703125
+    },
+    "source_histogram_hashes": [
+      "8da7d7047db7e6f354e467ee7eae01d755f63c83067802f723e25a32949cc6f7",
+      "92a4ffbbdafd19fcd83e28ecf2a8eb17bf18ae73459dd754aaaae3831a678a1e",
+      "16711ee1663b885717215bba1b46bca2fb8a9f3926d0a7ca625360f7a4656ebd"
+    ],
+    "reference_histogram_hashes": [
+      "0b226048ffeb2a7956b08c81bd80bd6e75d98f29bf474d074212a0b393b3b2de",
+      "ea77afbc8a5885570cc2047a2580f2e97bad13d148a9440f7419b0b212e794cf",
+      "9731c2f641dc1db7576dd908d7f91ac133ceb5131cbbddbc9edabd0c370e181a"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      96,
+      96
+    ],
+    "patch_area": 4096,
+    "patch_area_ratio": 0.025,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178820081,
+      0.8879231178820081,
+      0.8796223968878557
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "d4305f32145367885815f293eef9f14459272010158214a5e8323d6ce6c10796",
+    "reference_float_multiset_hash": "74e6df4b190d461bc0e1978a87d82444470f261ba993837fb853226f71834d36"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      96,
+      96
+    ],
+    "patch_area": 4096,
+    "patch_area_ratio": 0.025,
+    "mean_deltaE76": 12.789418200591713,
+    "p95_deltaE76": 12.789418200591713,
+    "output_linear_mean": [
+      0.8879231178820081,
+      0.8879231178820081,
+      0.7912979403326698
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 230,
+      "mapped_reference_encoded": 0.9019607843137255,
+      "nearest_cdf_distance": 0.0002685546874999778,
+      "reference_bin_cdf": 0.918359375
+    },
+    "source_histogram_hashes": [
+      "c1a8df5c0e5205ca3d815bd5b1a8010361a611d444aed04b099c7d44a3479910",
+      "6ffa4952f792fb926320182410dfb34556a485052bfee15094826522fd8751e8",
+      "882b2e462193307d0c03cf751361f019f41095657bb614396ba4ea62868a2c21"
+    ],
+    "reference_histogram_hashes": [
+      "9479df3d5829a208d744f6af5e9b4d460ff3970c51e211f70489c0dfec88901b",
+      "a9ea96b3b3eb63e34daee6dcb45bdbc36e52b6cb8c9afc8ec5c51ee29861e50d",
+      "170ffdf54148f42347e0368b911c8f3cd600ed0a5a54f13248cdd41e962f5500"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      122,
+      122
+    ],
+    "patch_area": 8100,
+    "patch_area_ratio": 0.0494384765625,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178818627,
+      0.8879231178818627,
+      0.8796223968877105
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "d4305f32145367885815f293eef9f14459272010158214a5e8323d6ce6c10796",
+    "reference_float_multiset_hash": "74e6df4b190d461bc0e1978a87d82444470f261ba993837fb853226f71834d36"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      122,
+      122
+    ],
+    "patch_area": 8100,
+    "patch_area_ratio": 0.0494384765625,
+    "mean_deltaE76": 7.5812274226372995,
+    "p95_deltaE76": 7.5812274226372995,
+    "output_linear_mean": [
+      0.8879231178818627,
+      0.8879231178818627,
+      0.8307698767747977
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 235,
+      "mapped_reference_encoded": 0.9215686274509803,
+      "nearest_cdf_distance": 0.011846923828124911,
+      "reference_bin_cdf": 0.906781005859375
+    },
+    "source_histogram_hashes": [
+      "146e2e6095968e3856a93bafcad42577aad6cc91977441cd20dca4c9d44d47d3",
+      "a80ded513ff56bdd5b0dc18ab0b97dfbdfe262c6e8dd9dbae5593a27b3d89504",
+      "ea92492415549e41cac7810b3a57a378e29465dba14ec6697cf0c32259931ba7"
+    ],
+    "reference_histogram_hashes": [
+      "43007609cedd05d7c8c8ba9eb3d7756023dcfec8404207df2142ec6dfcd7d111",
+      "80a203d2b81410d1eeea7f567d6a8513e6a5f0ca122b10d139263687305eef12",
+      "76b4fbff138bb3d44bbfaeb78ec43dc82b124f2dcc566592eb4ab63bed793e3b"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      160,
+      160
+    ],
+    "patch_area": 16384,
+    "patch_area_ratio": 0.1,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178817579,
+      0.8879231178817579,
+      0.8796223968876032
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "d4305f32145367885815f293eef9f14459272010158214a5e8323d6ce6c10796",
+    "reference_float_multiset_hash": "74e6df4b190d461bc0e1978a87d82444470f261ba993837fb853226f71834d36"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.891,
+    "box_xyxy": [
+      32,
+      32,
+      160,
+      160
+    ],
+    "patch_area": 16384,
+    "patch_area_ratio": 0.1,
+    "mean_deltaE76": 1.1466372333682775,
+    "p95_deltaE76": 1.1466372333682773,
+    "output_linear_mean": [
+      0.8879231178817579,
+      0.8879231178817579,
+      0.8796223968876032
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 227,
+      "source_patch_cdf": 0.9186279296875,
+      "mapped_reference_bin": 241,
+      "mapped_reference_encoded": 0.9450980392156862,
+      "nearest_cdf_distance": 0.018634033203124956,
+      "reference_bin_cdf": 0.899993896484375
+    },
+    "source_histogram_hashes": [
+      "dae05085d0dab2459d695c141e92359d5058ee85eee2d2c3d98050a164fafc0b",
+      "288e2c63fc830d5272fb01865bd99e87f29ecaa4be7d41dc86c45af57e51e07a",
+      "29acce466103786a9b9d251a0c8681d44d0343f935b9b34c9e414ca21578408a"
+    ],
+    "reference_histogram_hashes": [
+      "0d9d950ccf6aa9f52fae3ebac45937826e1c70d17067f28c0ebd23173127fd17",
+      "7822f77ac3a7cf4f43600e702e53ff0fa495f3a3bbad90b025525c4223431eec",
+      "85b9fc776624432622dc71a455d7a2857a088cfb086274faa906890be69ebdb2"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      64,
+      64
+    ],
+    "patch_area": 1024,
+    "patch_area_ratio": 0.00625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178819723,
+      0.8879231178819723,
+      0.8879231178819723
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "c05c632af68fd1b4f88eea68a3523c5268765ebf4e56bb9469d0d46748d4a05b",
+    "reference_float_multiset_hash": "1f013645f8e5e36d50ae947f371f3c1ae2e17d5d6c65159048b354749b9f55ea"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      64,
+      64
+    ],
+    "patch_area": 1024,
+    "patch_area_ratio": 0.00625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178819723,
+      0.8879231178819723,
+      0.8879231178819723
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "cb056c76e98d8b59c487d94c31073dbac4a133f0b5cfb6d4e0222e02f346a37f",
+      "c559ed1d46a78c6c32bba77788d3b555fc091200b850340ab257d2b190d7f8bc",
+      "fa95bee7524e858e7e72d17b94c99f486f6f69f29cf100aeec662f2899996f14"
+    ],
+    "reference_histogram_hashes": [
+      "87075288550684aaa36809f7c00e51764a7ec087b0e7020574aad6e3c835ae98",
+      "838c5d86f80494002f33165d6351f8dc4d177e1baf6ae2d72eddd7de3ba81c80",
+      "441d16cb51a34368821a37027240a0037d5c73e057ff20ef162db56a72e2aaab"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      80,
+      80
+    ],
+    "patch_area": 2304,
+    "patch_area_ratio": 0.0140625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178819289,
+      0.8879231178819289,
+      0.8879231178819289
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "c05c632af68fd1b4f88eea68a3523c5268765ebf4e56bb9469d0d46748d4a05b",
+    "reference_float_multiset_hash": "1f013645f8e5e36d50ae947f371f3c1ae2e17d5d6c65159048b354749b9f55ea"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      80,
+      80
+    ],
+    "patch_area": 2304,
+    "patch_area_ratio": 0.0140625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178819289,
+      0.8879231178819289,
+      0.8879231178819289
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "8da7d7047db7e6f354e467ee7eae01d755f63c83067802f723e25a32949cc6f7",
+      "92a4ffbbdafd19fcd83e28ecf2a8eb17bf18ae73459dd754aaaae3831a678a1e",
+      "16711ee1663b885717215bba1b46bca2fb8a9f3926d0a7ca625360f7a4656ebd"
+    ],
+    "reference_histogram_hashes": [
+      "0b226048ffeb2a7956b08c81bd80bd6e75d98f29bf474d074212a0b393b3b2de",
+      "ea77afbc8a5885570cc2047a2580f2e97bad13d148a9440f7419b0b212e794cf",
+      "9731c2f641dc1db7576dd908d7f91ac133ceb5131cbbddbc9edabd0c370e181a"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      96,
+      96
+    ],
+    "patch_area": 4096,
+    "patch_area_ratio": 0.025,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178820081,
+      0.8879231178820081,
+      0.8879231178820081
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "c05c632af68fd1b4f88eea68a3523c5268765ebf4e56bb9469d0d46748d4a05b",
+    "reference_float_multiset_hash": "1f013645f8e5e36d50ae947f371f3c1ae2e17d5d6c65159048b354749b9f55ea"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      96,
+      96
+    ],
+    "patch_area": 4096,
+    "patch_area_ratio": 0.025,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178820081,
+      0.8879231178820081,
+      0.8879231178820081
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "c1a8df5c0e5205ca3d815bd5b1a8010361a611d444aed04b099c7d44a3479910",
+      "6ffa4952f792fb926320182410dfb34556a485052bfee15094826522fd8751e8",
+      "882b2e462193307d0c03cf751361f019f41095657bb614396ba4ea62868a2c21"
+    ],
+    "reference_histogram_hashes": [
+      "9479df3d5829a208d744f6af5e9b4d460ff3970c51e211f70489c0dfec88901b",
+      "a9ea96b3b3eb63e34daee6dcb45bdbc36e52b6cb8c9afc8ec5c51ee29861e50d",
+      "170ffdf54148f42347e0368b911c8f3cd600ed0a5a54f13248cdd41e962f5500"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      122,
+      122
+    ],
+    "patch_area": 8100,
+    "patch_area_ratio": 0.0494384765625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178818627,
+      0.8879231178818627,
+      0.8879231178818627
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "c05c632af68fd1b4f88eea68a3523c5268765ebf4e56bb9469d0d46748d4a05b",
+    "reference_float_multiset_hash": "1f013645f8e5e36d50ae947f371f3c1ae2e17d5d6c65159048b354749b9f55ea"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      122,
+      122
+    ],
+    "patch_area": 8100,
+    "patch_area_ratio": 0.0494384765625,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178818627,
+      0.8879231178818627,
+      0.8879231178818627
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "146e2e6095968e3856a93bafcad42577aad6cc91977441cd20dca4c9d44d47d3",
+      "a80ded513ff56bdd5b0dc18ab0b97dfbdfe262c6e8dd9dbae5593a27b3d89504",
+      "ea92492415549e41cac7810b3a57a378e29465dba14ec6697cf0c32259931ba7"
+    ],
+    "reference_histogram_hashes": [
+      "43007609cedd05d7c8c8ba9eb3d7756023dcfec8404207df2142ec6dfcd7d111",
+      "80a203d2b81410d1eeea7f567d6a8513e6a5f0ca122b10d139263687305eef12",
+      "76b4fbff138bb3d44bbfaeb78ec43dc82b124f2dcc566592eb4ab63bed793e3b"
+    ]
+  },
+  {
+    "arm": "fixed_global_histogram",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      160,
+      160
+    ],
+    "patch_area": 16384,
+    "patch_area_ratio": 0.1,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178817579,
+      0.8879231178817579,
+      0.8879231178817579
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "02035e224cdeb5b1411df8e1bec894a4679f3779ac492676873a9c1dd10af85a",
+      "d01da77591a5b8edd232e45d28474ccfdc9f22915af615e8908165fee2e6bfe8",
+      "f9d915b11336b4f45ccb84ae3893c85dbce60b080c42b0929b6064f81108a4b8"
+    ],
+    "reference_histogram_hashes": [
+      "38cd266d4993ff58c9a702c874d59b23bf047ad236c96fed5fe306e49f69e95a",
+      "299da0f3a976f480811d3f80592e2f93b05b5dc1a013b3b515715e6884277576",
+      "5a3964c2b7c4fe6edb83ad72c4e8bb4175b8a838f38b1f98b83b2bdbb13c9d2c"
+    ],
+    "source_float_multiset_hash": "c05c632af68fd1b4f88eea68a3523c5268765ebf4e56bb9469d0d46748d4a05b",
+    "reference_float_multiset_hash": "1f013645f8e5e36d50ae947f371f3c1ae2e17d5d6c65159048b354749b9f55ea"
+  },
+  {
+    "arm": "patch_replaces_background",
+    "target_linear": 0.892,
+    "box_xyxy": [
+      32,
+      32,
+      160,
+      160
+    ],
+    "patch_area": 16384,
+    "patch_area_ratio": 0.1,
+    "mean_deltaE76": 0.3665991296815933,
+    "p95_deltaE76": 0.3665991296815933,
+    "output_linear_mean": [
+      0.8879231178817579,
+      0.8879231178817579,
+      0.8879231178817579
+    ],
+    "blue_mapping": {
+      "source_patch_bin": 228,
+      "source_patch_cdf": 1.0,
+      "mapped_reference_bin": 242,
+      "mapped_reference_encoded": 0.9490196078431372,
+      "nearest_cdf_distance": 0.0,
+      "reference_bin_cdf": 1.0
+    },
+    "source_histogram_hashes": [
+      "dae05085d0dab2459d695c141e92359d5058ee85eee2d2c3d98050a164fafc0b",
+      "288e2c63fc830d5272fb01865bd99e87f29ecaa4be7d41dc86c45af57e51e07a",
+      "29acce466103786a9b9d251a0c8681d44d0343f935b9b34c9e414ca21578408a"
+    ],
+    "reference_histogram_hashes": [
+      "0d9d950ccf6aa9f52fae3ebac45937826e1c70d17067f28c0ebd23173127fd17",
+      "7822f77ac3a7cf4f43600e702e53ff0fa495f3a3bbad90b025525c4223431eec",
+      "85b9fc776624432622dc71a455d7a2857a088cfb086274faa906890be69ebdb2"
+    ]
+  }
+]

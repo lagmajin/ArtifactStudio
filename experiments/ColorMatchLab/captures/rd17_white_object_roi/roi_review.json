@@ -1,0 +1,24 @@
+{
+  "rd": "rd17-fridge-white-candidate-mask-review",
+  "status": "rejected before ROI-specific candidate scoring",
+  "source": "captures\\rd7_natural_scene_pair\\source_srgb_from_linear_raw.npy",
+  "source_sha256": "9926d6f9bdeb490c1ad3f00dcd7065ec6ca17156d3c982fd53681ee6ab2b5aca",
+  "roi_rect_xyxy": [
+    384,
+    228,
+    496,
+    435
+  ],
+  "source_channel_min_exclusive": [
+    0.36,
+    0.33,
+    0.3
+  ],
+  "source_max_channel_spread_exclusive": 0.16,
+  "mask_pixels": 15613,
+  "frame_fraction": 0.023407796101949027,
+  "mask_sha256": "e44079261f11ef180b94925ade81adcd062d9f7d3bd34f3064077780e436d855",
+  "overlay_sha256": "dc7d28eaa2cfb93172f2324efc954b24ff45643170b2a02665c8a1d1861ad36e",
+  "review": "The fixed source-only threshold includes visible magnets, printed photos/stickers, flowers/stems, and panel edges. It does not isolate the refrigerator's white surface, so the predeclared rejection rule applies. No candidate output was viewed or scored for this ROI.",
+  "next_action": "Do not tune this ROI after candidate review. A new independently predeclared ROI or another rights-cleared source is required for a new white-object measurement."
+}

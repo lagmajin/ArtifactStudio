@@ -1,0 +1,22 @@
+{
+  "status": "candidate_for_human_review_not_accepted_as_skin_ground_truth",
+  "source": "../../CinematicLooksLab/assets/portrait-2024-1536.jpg",
+  "source_sha256": "9c14e3c0206ad6fe080c349368bf29219071892002fc01f1b6fc947af3bd40e2",
+  "source_dimensions": [
+    1536,
+    1024
+  ],
+  "source_provenance": "CC0 1.0 per experiments/CinematicLooksLab/assets/SOURCES.md",
+  "roi_mask": "portrait_skin_roi_candidate.png",
+  "roi_mask_sha256": "64a252b1525bf0687fdd2014c9172ba770af367743f57549956a7917b53ebecf",
+  "roi_pixels": 14738,
+  "annotation_method": "hand-drawn face-skin polygon in source-image coordinates; eyelid/brow regions and mouth removed by manual ellipses; model-reviewed overlay is provided for further human acceptance",
+  "excluded": "hair, neck, eyes/brows, mouth; no semantic segmentation claim",
+  "limitations": [
+    "single portrait",
+    "strong mixed warm light and shadow",
+    "mask boundary needs independent human review",
+    "no neutral-white object ROI",
+    "no paired photographic reference"
+  ]
+}

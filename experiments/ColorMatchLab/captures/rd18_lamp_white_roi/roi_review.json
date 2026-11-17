@@ -1,0 +1,86 @@
+{
+  "rd": "rd18-lamp-white-roi-source-review",
+  "status": "accepted_for_candidate_scoring",
+  "source_path": "captures\\rd7_natural_scene_pair\\source_srgb_from_linear_raw.npy",
+  "source_sha256": "9926d6f9bdeb490c1ad3f00dcd7065ec6ca17156d3c982fd53681ee6ab2b5aca",
+  "polygons_xy": [
+    {
+      "name": "left_lampshade",
+      "vertices": [
+        [
+          384,
+          124
+        ],
+        [
+          426,
+          124
+        ],
+        [
+          437,
+          130
+        ],
+        [
+          437,
+          140
+        ],
+        [
+          427,
+          146
+        ],
+        [
+          388,
+          146
+        ],
+        [
+          379,
+          138
+        ],
+        [
+          379,
+          131
+        ]
+      ],
+      "pixels": 1222,
+      "mask_sha256": "2a2a87deb7179d5d6d070c960060a480fd41347cc8439a34383623e68397f3b8"
+    },
+    {
+      "name": "right_lampshade",
+      "vertices": [
+        [
+          700,
+          125
+        ],
+        [
+          741,
+          125
+        ],
+        [
+          755,
+          131
+        ],
+        [
+          757,
+          139
+        ],
+        [
+          749,
+          146
+        ],
+        [
+          708,
+          146
+        ],
+        [
+          700,
+          139
+        ]
+      ],
+      "pixels": 1141,
+      "mask_sha256": "7e9695504b5b479a9a5133f30e2feba6bbb4b1438da012292b233cea6b5ee913"
+    }
+  ],
+  "overlay_sha256": "16ee86a2db308710e61b8d945cbcfed56957441ab80f53e7020e4420297accfb",
+  "candidate_outputs_opened": true,
+  "source_only_review": "Both polygons lie within the visible white pendant shade surfaces in the source overlay. The sampled masks do not visibly include the hanging cords, background, or obvious scene edges. This is an analyst visual review, not independent annotation or proof of neutral material.",
+  "candidate_scoring_completed": true
+}

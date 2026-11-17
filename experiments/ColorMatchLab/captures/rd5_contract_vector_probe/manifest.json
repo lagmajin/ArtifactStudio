@@ -1,0 +1,33 @@
+{
+  "rd": "rd5-existing-contract-vector-probe",
+  "status": "offline equation-mirror consistency only; no Core test executed",
+  "test_source": {
+    "path": "tests/ArtifactCore/AutoColorMatcherContractTest.cpp",
+    "sha256": "aedc207bb286680f0c18e2932ccce931474e199c273d4a4d42e5d38502cd3aa2"
+  },
+  "core_source": {
+    "path": "ArtifactCore/src/Color/AutoColorMatch.cpp",
+    "sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab"
+  },
+  "runner_sha256": "acaee59e2952164ed16c32d68262fcbef5865919a3117a475dbee66ce75526e3",
+  "buffer_layout": "BGRA input converted to semantic RGB arrays for mirror call, then converted back for expected-value comparison",
+  "mean_stddev_dispatch_vector": {
+    "max_rgb_abs_error": 0.0,
+    "tolerance": 1e-06,
+    "pass": true,
+    "includes_values_above_one": true
+  },
+  "histogram_vector": {
+    "max_rgb_abs_error": 0.0029411762952804565,
+    "tolerance": 0.00392156862745098,
+    "pass": true
+  },
+  "alpha_preserved_by_probe_harness": true,
+  "scope_limits": [
+    "does not execute or compare C++",
+    "does not validate Reinhard",
+    "does not test actual alpha handling",
+    "one fixed vector per method"
+  ],
+  "result_sha256": "0cee538cf93b276785f081dd02de06bee865f5d92ac70b436943c7cd597f88fd"
+}

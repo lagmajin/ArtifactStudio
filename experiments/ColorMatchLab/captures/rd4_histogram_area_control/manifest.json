@@ -1,0 +1,37 @@
+{
+  "rd": "rd4-histogram-patch-area-control",
+  "status": "synthetic equation-mirror diagnostic only; no quality gate",
+  "levels_linear": [
+    0.891,
+    0.892
+  ],
+  "square_patch_sizes": [
+    32,
+    48,
+    64,
+    90,
+    128
+  ],
+  "fixed_histogram_arm": "same paired pixel multisets rearranged spatially for each ROI size",
+  "variable_histogram_arm": "patch grows by replacing the unchanged base chart",
+  "metric": "mean/p95 CIE Lab D65 2-degree DeltaE76 after sRGB decode; intensity 1.0",
+  "source_hashes": {
+    "core": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "runner": "7e63937bd9b3a9cbcbf58c765efb6a209d67dc0e1fb06a15139b3b5e69fd664b",
+    "sweep_script": "f185d223df711125b416f57eb0a3a048f4c3e97dabf4ce070026ee156e1e2cd3",
+    "control_script": "32180489748d4b82fe629b0ccff2eef0b456f3d409954d32c37d67bc2da1ab75",
+    "rd0_source": "b2ec9da18bff74df940afbade74b12527b7e9c26519062202819bea621bea3b8",
+    "rd0_reference": "2d31869e008f0daeafa5c2180e2b0c661f815f2125637210a9e22b3710b32689"
+  },
+  "limitations": [
+    "no compiled C++ differential",
+    "single base chart and cast",
+    "no natural white or skin ground truth",
+    "spatial rearrangement in fixed histogram arm",
+    "hard patch boundaries",
+    "no human visual assessment"
+  ],
+  "files": {
+    "results.json": "eded77d964e75e2c05ecb0e7685433f9f3650702a885cae47bf20283c7b1ab00"
+  }
+}

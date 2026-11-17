@@ -1,0 +1,73 @@
+{
+  "rd": "rd33-portrait-skin-candidate-lightness-response",
+  "status": "retrospective descriptive response; no acceptance gate",
+  "date": "2026-11-17",
+  "evaluation_plan": "EVALUATION_PLAN.md#rd33-actual-core-portrait-candidate-skin-lightness-response-predeclared-2026-11-17",
+  "source": {
+    "file": "source.png",
+    "sha256": "8babeb192b6dfd8b0cf2f79301ee3518ad3246a4d253815a3c2654416e4f6e5a",
+    "dimensions": [
+      1280,
+      851
+    ],
+    "role": "numeric baseline, not target skin brightness"
+  },
+  "upstream_manifests": {
+    "rd20_core_manifest_sha256": "75c5f8bdb84c84d3dc58714379b0bdfd669c2fea60491ede45b05ca17f78e54f",
+    "rd9_prep_manifest_sha256": "dca2ea42581023026fbfc49cfd4586025a3010d44ba79dbb8071d48bf20ba552",
+    "rd9_scored_mirror_manifest_sha256": "e1b6ddaced457b3f84464fb6a4231b8f89b549c87ff66f1b2d9e2181df5a0c45",
+    "rd32_color_response_manifest_sha256": "6391ea3c7019ccc461b74b5e4d93eb984785f5b5e1226b1ff0a40d10ac4fca7b"
+  },
+  "core_capture": {
+    "test": "AutoColorMatcherContractTest.CoreImageOverloadMeasuresRealPortraitSyntheticCast",
+    "core_source_sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "test_source_sha256": "1194b34873867e22b27df629563b5feb6b9920a7a5d5685432bb0eb39bc4fe94",
+    "asset_sha256": "f559dbf09e260237cd7f2ef6660ef5496b70f0ef9d8ddb943a8a4e26368953a2"
+  },
+  "regions": {
+    "face_skin_candidate": {
+      "file": "roi_face_skin_reviewed.png",
+      "sha256": "ca03ad00ab751aef5f846c342a6f584d1cf7134dcbe3f26dbfa6b6835bbd27c6",
+      "pixels": 30913
+    },
+    "arm_skin_candidate": {
+      "file": "roi_arm_skin_reviewed.png",
+      "sha256": "2f419b9a3e39f56ff4db9c34ac2bff66e640a629c7196d321e1754ef08802822",
+      "pixels": 32661
+    }
+  },
+  "outputs": {
+    "actual_core_preview/Reinhard_0.5.png": "0478c06796d548528c7ef953cd00ee424b9c02f3ca0d3cb80570dea37655d533",
+    "equation_mirror/Reinhard_i0.50.npy": "4c47894a0995dedab0213bd5f335979e099d408d8d2135a439ee492e5dcb59d2",
+    "actual_core_preview/Reinhard_1.0.png": "0bf8c1519a2c2094a4495f060a8b366e9dad20e9d1395ed66e6ec7640bf74309",
+    "equation_mirror/Reinhard_i1.00.npy": "0c0fdfde089795644f2a1bd432a633b182327ea6e839b98d00696892ed00ac86",
+    "actual_core_preview/MeanStddev_0.5.png": "7b233078873e12fd617601f8bb69527877130c2635fffb53d121a476c65549aa",
+    "equation_mirror/MeanStddev_i0.50.npy": "dc3c85028f5ec4eb91e2729b9b3f39e715bf647590c8ca6813c0f06630e9e43e",
+    "actual_core_preview/MeanStddev_1.0.png": "2004fb2bb60e18b55a6bf1dacd35b4b825dc73bb47a6accbb42186945e364430",
+    "equation_mirror/MeanStddev_i1.00.npy": "364eabc693ad9cad9a97bf9dd61b876d19cabc5c75caf263e4d84454d1974d94",
+    "actual_core_preview/Histogram_0.5.png": "d4bb964055b3825799653ccf2a766a33e549b4d1728792184e10d1bce4ac6fa0",
+    "equation_mirror/Histogram_i0.50.npy": "169110498cda0501968224c00a9caa4472e766d536a3d511f1b4d8888b52b9e9",
+    "actual_core_preview/Histogram_1.0.png": "17e986435b310e549d28437a78dc513581ed3ad084bce2d84c7f54d4278d0988",
+    "equation_mirror/Histogram_i1.00.npy": "9d03fa421d911a0d97c1d42b3ffb9146d7075da408d09cdaf505f56b5bc67a71"
+  },
+  "routes": [
+    "actual_core_preview",
+    "equation_mirror"
+  ],
+  "metrics": {
+    "space": "pinned RD9 rgb_to_lab D65/2 degree from clipped encoded-sRGB values",
+    "signed_delta": "per-pixel output L* minus common source L*",
+    "absolute_delta": "absolute per-pixel L* change",
+    "output_lightness": "per-pixel output L* distribution"
+  },
+  "analysis_script_sha256": "f2bb9e35f2590af08d6bda870d24886440b4678f70453e8ac2a9d91a70527cff",
+  "lab_conversion_script_sha256": "acaee59e2952164ed16c32d68262fcbef5865919a3117a475dbee66ce75526e3",
+  "limitations": [
+    "retrospective; output previews had already been viewed",
+    "one unpaired portrait and non-independent candidate masks",
+    "Core output is 8-bit preview; mirrors come from separately PIL-prepared input",
+    "not exposure preference, skin acceptance, measured colorimetry, white preservation, or float parity"
+  ],
+  "row_count": 24,
+  "csv_sha256": "6b6bca3c8cb4ac8f7bd81a502a4cf8dd8df05c9c84907c8f11465f1ed05331f9"
+}

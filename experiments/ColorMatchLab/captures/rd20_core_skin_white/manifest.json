@@ -1,0 +1,75 @@
+{
+  "rd": "rd22-core-portrait-synthetic-cast-strength-and-tail-sweep",
+  "status": "measured Core output; exploratory, no acceptance gate",
+  "test": "AutoColorMatcherContractTest.CoreImageOverloadMeasuresRealPortraitSyntheticCast",
+  "source": {
+    "path": "experiments/ColorMatchLab/assets/WikimediaCC0/Pexels-photo-707448-1280.jpg",
+    "sha256": "f559dbf09e260237cd7f2ef6660ef5496b70f0ef9d8ddb943a8a4e26368953a2",
+    "license": "CC0 1.0 per Wikimedia Commons file page",
+    "dimensions": [
+      1280,
+      851
+    ]
+  },
+  "reference": {
+    "generation": "clip(source_sRGB * scale + offset, 0, 1)",
+    "scale": [
+      0.94,
+      1.015,
+      1.075
+    ],
+    "offset": [
+      0.012,
+      0.006,
+      -0.008
+    ],
+    "role": "constructed cast; not a second photographic capture or physical illuminant ground truth"
+  },
+  "regions": {
+    "face_skin_reviewed": {
+      "pixels": 30913,
+      "mask_sha256": "ca03ad00ab751aef5f846c342a6f584d1cf7134dcbe3f26dbfa6b6835bbd27c6"
+    },
+    "arm_skin_reviewed": {
+      "pixels": 32661,
+      "mask_sha256": "2f419b9a3e39f56ff4db9c34ac2bff66e640a629c7196d321e1754ef08802822"
+    },
+    "skin_combined_reviewed": {
+      "pixels": 63574,
+      "mask_sha256": "b0efe51894b38473727be4d095ede992ada924b43d35da05fd1f2a5bff58dbd4"
+    },
+    "white_blouse_light_fabric_candidate": {
+      "pixels": 24062,
+      "mask_sha256": "d7b19513a1d227a573544d0c653ed6eb0f10d7325d90e084a7ed90bdb377c83e"
+    }
+  },
+  "inputs": {
+    "prep_manifest_sha256": "dca2ea42581023026fbfc49cfd4586025a3010d44ba79dbb8071d48bf20ba552",
+    "scored_mirror_manifest_sha256": "e1b6ddaced457b3f84464fb6a4231b8f89b549c87ff66f1b2d9e2181df5a0c45",
+    "core_source_sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "test_source_sha256": "1194b34873867e22b27df629563b5feb6b9920a7a5d5685432bb0eb39bc4fe94"
+  },
+  "evidence_scope": "actual Core image-overload output measurements on the loaded CC0 portrait and an in-memory synthetic cast reference; not a C++/Python numerical differential; visualization plots metrics only",
+  "files": {
+    "core_roi_test_output.log": "0f7913c0788193a12cb69a17dd76667c74a428d479efc889f975fc57ce9c35c1",
+    "metrics.json": "14198c9b73c86a3796b89300501961a82306e4c75edb80b28f007b5892db637a",
+    "strength_sweep_skin_curves.png": "b8d972a39343ec95ab08022942f4e66752b902928989ea5eede44a8c4bcc4517"
+  },
+  "metrics_sha256": "14198c9b73c86a3796b89300501961a82306e4c75edb80b28f007b5892db637a",
+  "core_png_outputs": {
+    "Histogram_0.0.png": "8babeb192b6dfd8b0cf2f79301ee3518ad3246a4d253815a3c2654416e4f6e5a",
+    "Histogram_0.5.png": "d4bb964055b3825799653ccf2a766a33e549b4d1728792184e10d1bce4ac6fa0",
+    "Histogram_1.0.png": "17e986435b310e549d28437a78dc513581ed3ad084bce2d84c7f54d4278d0988",
+    "MeanStddev_0.0.png": "8babeb192b6dfd8b0cf2f79301ee3518ad3246a4d253815a3c2654416e4f6e5a",
+    "MeanStddev_0.5.png": "7b233078873e12fd617601f8bb69527877130c2635fffb53d121a476c65549aa",
+    "MeanStddev_1.0.png": "2004fb2bb60e18b55a6bf1dacd35b4b825dc73bb47a6accbb42186945e364430",
+    "Reinhard_0.0.png": "8babeb192b6dfd8b0cf2f79301ee3518ad3246a4d253815a3c2654416e4f6e5a",
+    "Reinhard_0.5.png": "0478c06796d548528c7ef953cd00ee424b9c02f3ca0d3cb80570dea37655d533",
+    "Reinhard_1.0.png": "0bf8c1519a2c2094a4495f060a8b366e9dad20e9d1395ed66e6ec7640bf74309",
+    "source.png": "8babeb192b6dfd8b0cf2f79301ee3518ad3246a4d253815a3c2654416e4f6e5a",
+    "synthetic_reference.png": "47b205baf92a7dca2dffecd0d45fafb41650c8feed15a667b7d6cc04fad038ec"
+  },
+  "visual_review_protocol": {
+    "script_sha256": "4595f7b7d916f7d31c6fd2693f888c04dd617ea5c71fe85ec2760116a61580d8"
+  }
+}

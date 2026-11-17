@@ -1,0 +1,77 @@
+{
+  "template": "color-match-pair-intake-v2",
+  "status": "unfilled; no images accepted or scored",
+  "provided_by": "",
+  "pair_id": "",
+  "rights": {
+    "rights_holder_or_source": "",
+    "license_or_written_permission": "",
+    "evidence_location_or_url": "",
+    "reviewed_by": "",
+    "review_date": "",
+    "internal_product_rd_allowed": false,
+    "image_processing_and_measurement_allowed": false,
+    "derived_crops_masks_and_metrics_storage_allowed": false,
+    "redistribution_allowed": false,
+    "people_identifiable_or_consent_basis": ""
+  },
+  "source": {
+    "file": "",
+    "sha256": "",
+    "dimensions": [
+      0,
+      0
+    ],
+    "format": "",
+    "color_profile_or_assumption": "",
+    "alpha_association_or_not_applicable": ""
+  },
+  "reference": {
+    "file": "",
+    "sha256": "",
+    "dimensions": [
+      0,
+      0
+    ],
+    "format": "",
+    "color_profile_or_assumption": "",
+    "alpha_association_or_not_applicable": "",
+    "role": "neutral_wb | measured_target | camera_render | user_preference | other",
+    "role_evidence": ""
+  },
+  "capture_pair": {
+    "same_scene_and_capture_or_raw_derived_renditions": "",
+    "camera_and_lens": "",
+    "lighting_and_mixed_light_notes": "",
+    "exposure_and_tone_curve_match": "",
+    "white_balance_difference": "",
+    "registration_or_pixel_shift_notes": "",
+    "registration_mapping_resolved": false,
+    "registration_mapping_evidence": "",
+    "other_processing_differences": ""
+  },
+  "regions": {
+    "skin_roi_mask_or_coordinates": "",
+    "skin_roi_reviewed_before_candidate_outputs": false,
+    "neutral_or_white_roi_mask_or_coordinates": "",
+    "neutral_or_white_measurement_or_material_evidence": "",
+    "roi_reviewer": "",
+    "other_control_regions": ""
+  },
+  "evaluation": {
+    "unchanged_source_baseline_available": false,
+    "allowed_to_run_authorized_artifactcore_tests": true,
+    "display_conditions": "",
+    "reviewers_and_roles": "",
+    "blind_or_randomized_review_protocol": "",
+    "acceptance_thresholds_agreed_before_candidate_outputs": false,
+    "agreed_color_tolerance_and_measurement_space": "",
+    "skin_hue_chroma_and_detail_limits": "",
+    "neutral_white_limits": "",
+    "critical_visual_defects": "",
+    "reviewer_disagreement_resolution": "",
+    "matcher_input_route": "same_size_image_overload | explicit_dimensions_algorithm",
+    "matcher_input_route_evidence": "",
+    "notes": "2026-11-17: User explicitly authorized ArtifactCore tests for the rights-cleared source/reference pair they plan to provide. No pair is staged yet; do not treat this template flag as rights or candidate-scoring approval."
+  }
+}
