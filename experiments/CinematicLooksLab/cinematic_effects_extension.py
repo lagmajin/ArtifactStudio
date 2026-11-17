@@ -8,6 +8,7 @@ See EVALUATION_PLAN.md and EFFECT_SOURCE_CONTRACT.json before interpreting outpu
 from __future__ import annotations
 
 import json
+import argparse
 import platform
 import random
 import zlib
@@ -20,7 +21,7 @@ from cinematic_looks_lab import apply_look, load_cases, roi_stats, sha256, write
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
-OUT = ROOT / "captures" / "rd0_effect_extension"
+OUT = ROOT / "captures" / "rd2_effect_extension"
 CONTRACT = ROOT / "EFFECT_SOURCE_CONTRACT.json"
 SOURCES = {
     "ArtifactCore/src/ImageProcessing/ColorTransform/ColorBalance.cpp": "color_balance_processor",
@@ -31,7 +32,7 @@ SOURCES = {
     "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "tritone_effect",
 }
 LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-TRITONE_GPU_LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
+TRITONE_GPU_LUMA = LUMA
 
 
 def verify_sources() -> dict[str, str]:
@@ -43,6 +44,8 @@ def verify_sources() -> dict[str, str]:
 
 
 def smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
+    if edge0 == edge1:
+        return np.where(x < np.float32(edge0), np.float32(0.0), np.float32(1.0))
     t = np.clip((x - np.float32(edge0)) / np.float32(edge1 - edge0), 0.0, 1.0)
     return t * t * (np.float32(3.0) - np.float32(2.0) * t)
 
@@ -138,21 +141,21 @@ def tritone(rgb: np.ndarray, strength: float, preset: dict = TRITONE_CINEMATIC) 
 
 
 def tritone_gpu(rgb: np.ndarray, strength: float, preset: dict = TRITONE_CINEMATIC) -> np.ndarray:
-    """Mirror the current TritoneEffect HLSL equations, independent of CPU mirror."""
+    """Independent mirror of TritoneEffect HLSL, which follows CPU applyPixel."""
     source = rgb.astype(np.float32, copy=False)
     lum = source @ TRITONE_GPU_LUMA
     balance = preset["balance"]
     softness = preset["softness"]
-    shadow_w = smoothstep(balance - softness * 0.5, balance, lum)
-    highlight_w = smoothstep(balance, balance + softness * 0.5, lum)
+    shadow_w = 1.0 - smoothstep(balance - softness, balance, lum)
+    highlight_w = smoothstep(balance, balance + softness, lum)
     mid_w = np.clip(1.0 - shadow_w - highlight_w, 0.0, 1.0)
     colors = np.array([preset["shadow"], preset["midtone"], preset["highlight"]], dtype=np.float32)
     target = (shadow_w[..., None] * colors[0] + mid_w[..., None] * colors[1] +
-              highlight_w[..., None] * colors[2]) * np.float32(strength)
-    color_mix = np.float32(preset["color_mix"])
-    result = source * (np.float32(1.0) - color_mix) + target * color_mix
-    mixed_luma = result @ TRITONE_GPU_LUMA
-    result = result + (lum - mixed_luma)[..., None]
+              highlight_w[..., None] * colors[2])
+    target = np.clip(target, 0.0, 1.0)
+    mix = np.float32(np.float32(strength) * np.float32(preset["color_mix"]))
+    result = source * (np.float32(1.0) - mix) + target * mix
+    result = preserve_luma(lum, result, strength)
     return np.clip(result, 0.0, 1.0)
 
 
@@ -237,12 +240,18 @@ def float_contract_probe() -> dict:
     }
 
 
-def main() -> None:
+def main(output: Path = OUT, rd_name: str = "rd1_effect_extension",
+         overwrite: bool = False) -> None:
     source_hashes = verify_sources()
     cases, provenance = load_cases()
-    OUT.mkdir(parents=True, exist_ok=True)
-    images = OUT / "images"
-    blind = OUT / "blind"
+    if output.exists() and any(output.iterdir()) and not overwrite:
+        raise SystemExit(
+            f"Output already contains capture data: {output}. "
+            "Choose a new --output directory or pass --overwrite to replace it."
+        )
+    output.mkdir(parents=True, exist_ok=True)
+    images = output / "images"
+    blind = output / "blind"
     images.mkdir(exist_ok=True)
     blind.mkdir(exist_ok=True)
     candidate_functions = {
@@ -344,31 +353,30 @@ def main() -> None:
                 roi_draw.text((x + 6, y + 6), code, fill=(245, 245, 245))
             roi_path = blind / f"{case_name}__roi_{roi_name}_contact_sheet.png"
             save_png(roi_path, roi_sheet)
-            roi_sheets[roi_name] = roi_path.relative_to(OUT).as_posix()
+            roi_sheets[roi_name] = roi_path.relative_to(output).as_posix()
         review_key[case_name] = case_key
         review_materials[case_name] = {
             "shuffle_seed": seed,
             "shuffle_method": "random.Random(seed).shuffle; seed = 20261116 XOR crc32(case_name UTF-8)",
-            "contact_sheet": (blind / f"{case_name}_contact_sheet.png").relative_to(OUT).as_posix(),
+            "contact_sheet": (blind / f"{case_name}_contact_sheet.png").relative_to(output).as_posix(),
             "roi_contact_sheets": roi_sheets,
-            "full_resolution_blind_crops": crops_dir.relative_to(OUT).as_posix(),
+            "full_resolution_blind_crops": crops_dir.relative_to(output).as_posix(),
             "candidate_count_including_baseline": len(ordered),
             "candidate_to_id_mapping_separate": "blind_review_key.json",
         }
 
-    # Alpha sweep distinguishes ColorBalance's premultiplied-aware effect wrapper
-    # from Tritone's direct-RGB CPU wrapper. This remains source-equation evidence.
+    # Alpha sweep mirrors each effect wrapper's premultiplied-aware processing.
     alpha = {
         "color_balance_cinematic": alpha_association_probe(lambda x: color_balance(x, 1.0), True),
         "color_balance_gpu_cinematic": alpha_association_probe(lambda x: color_balance_gpu(x, 1.0), True),
-        "tritone_cinematic": alpha_association_probe(lambda x: tritone(x, 1.0), False),
-        "tritone_teal_orange": alpha_association_probe(lambda x: tritone(x, 1.0, TRITONE_TEAL_ORANGE), False),
-        "tritone_gpu_cinematic": alpha_association_probe(lambda x: tritone_gpu(x, 1.0), False),
-        "tritone_gpu_teal_orange": alpha_association_probe(lambda x: tritone_gpu(x, 1.0, TRITONE_TEAL_ORANGE), False),
-        "note": "Probe applies effect equations directly to premultiplied RGB, then unpremultiplies for comparison. It is not a C++ differential or runtime capture.",
+        "tritone_cinematic": alpha_association_probe(lambda x: tritone(x, 1.0), True),
+        "tritone_teal_orange": alpha_association_probe(lambda x: tritone(x, 1.0, TRITONE_TEAL_ORANGE), True),
+        "tritone_gpu_cinematic": alpha_association_probe(lambda x: tritone_gpu(x, 1.0), True),
+        "tritone_gpu_teal_orange": alpha_association_probe(lambda x: tritone_gpu(x, 1.0, TRITONE_TEAL_ORANGE), True),
+        "note": "Probe mirrors the CPU/GPU effect wrapper: premultiplied RGB is unpremultiplied, transformed, and premultiplied again when the descriptor is premultiplied. It is not a C++ differential or runtime capture.",
     }
     report = {
-        "rd": "rd0_effect_extension",
+        "rd": rd_name,
         "status": "source_mirror_response_characterization_only",
         "created_utc": __import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime()),
         "source_hashes": source_hashes,
@@ -387,25 +395,26 @@ def main() -> None:
         "alpha_association_probe": alpha,
         "float_contract_probe": float_contract_probe(),
         "assistant_visual_triage": {
-            "status": "blind_contact_sheet_and_selected_roi_triage_only_no_scores_no_gate",
-            "cases_opened": ["chart", "neon_streets", "street_lights", "portrait", "forest"],
+            "status": "assistant_blind_visual_triage_only_no_scores_no_gate",
+            "cases_opened": ["chart", "portrait", "forest", "street_lights"],
             "selected_roi_sheets_opened": [
-                "chart/skin_patches", "chart/smooth_gradient", "portrait/face_skin",
-                "forest/fine_branches", "neon_streets/intersection_lights", "street_lights/lamp_and_glare"
+                "chart_contact_sheet", "portrait/face_skin_contact_sheet",
+                "portrait/face_skin/POX-03", "forest/fine_branches/FOX-04",
+                "street_lights/lamp_and_glare/STX-05"
             ],
             "blind_key_opened": False,
             "observations": [
-                "Candidate outputs show clear color and tonal changes; portrait skin and warm light, foliage contrast, neon hues, and lamp highlights vary by candidate.",
-                "No obvious spatial artifacts are identifiable at contact-sheet scale for these pointwise transforms; full-resolution crops and runtime paths still require review.",
+                "Blind chart and portrait sheets show substantial candidate color and tonal variation, especially in skin, highlight warmth, and gradient hue.",
+                "The opened full-resolution face, fine-branch, and point-light crops show no obvious spatially localized defect in those samples; this does not establish general image quality.",
                 "No aesthetic ranking, technical-quality score, defect severity, or threshold was assigned."
             ],
-            "limitation": "Assistant visual triage only; not the planned manual review or product runtime image assessment."
+            "limitation": "Limited assistant visual triage only; not the planned human blind review, quality gate, or product runtime image assessment."
         },
         "quality_verdict": "not assigned; these transforms have no approved target images and no human blind review",
     }
-    write_json_lf(OUT / "blind_review_key.json", review_key)
+    write_json_lf(output / "blind_review_key.json", review_key)
     form = [
-        "# Color Effect rd0 Extension — blind review form", "", "**Status:** Blank review template; no aesthetic or quality verdict assigned.",
+        f"# Color Effect {rd_name} — blind review form", "", "**Status:** Blank review template; no aesthetic or quality verdict assigned.",
         "", "Review the contact sheets in `blind/` before opening `blind_review_key.json`. IDs are case-local; each case contains baseline plus six effect candidates.",
         "", "Scoring: technical quality 0–3/N/A; look consistency 1–4; preference 1–5. Record defects by region and severity. These effects have not been captured in Artifact runtime.",
         "", f"Reviewer: ______  Date: ______  Display conditions: ______", "",
@@ -416,14 +425,22 @@ def main() -> None:
         form.extend(["", "| Blind ID | Technical 0–3/N/A | Consistency 1–4 | Preference 1–5 | Defect / region / severity |", "|---|---:|---:|---:|---|"])
         form.extend(f"| {code} | | | | |" for code in case_key)
         form.append("")
-    (OUT / "BLIND_REVIEW_FORM.md").write_text("\n".join(form).rstrip() + "\n", encoding="utf-8", newline="\n")
+    (output / "BLIND_REVIEW_FORM.md").write_text("\n".join(form).rstrip() + "\n", encoding="utf-8", newline="\n")
     report["output_sha256"] = {
-        path.relative_to(OUT).as_posix(): sha256(path)
-        for path in sorted(OUT.rglob("*")) if path.is_file() and path.name not in {"metrics.json", "blind_review_key.json"}
+        path.relative_to(output).as_posix(): sha256(path)
+        for path in sorted(output.rglob("*")) if path.is_file() and path.name not in {"metrics.json", "blind_review_key.json"}
     }
-    write_json_lf(OUT / "metrics.json", report)
-    print(f"Wrote source-mirror response characterization for {len(cases)} cases to {OUT}")
+    write_json_lf(output / "metrics.json", report)
+    print(f"Wrote source-mirror response characterization for {len(cases)} cases to {output}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=OUT,
+                        help="capture directory (default: captures/rd2_effect_extension)")
+    parser.add_argument("--rd", default="rd2_effect_extension",
+                        help="run identifier recorded in metrics.json")
+    parser.add_argument("--overwrite", action="store_true",
+                        help="replace files in the selected output directory")
+    args = parser.parse_args()
+    main(args.output, args.rd, args.overwrite)

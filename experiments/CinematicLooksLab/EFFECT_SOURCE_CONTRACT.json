@@ -1,13 +1,13 @@
 {
   "contract": "Analytical source pins for ColorBalance/Tritone Python equation mirrors",
-  "reviewed_on": "2026-11-16",
+  "reviewed_on": "2026-11-17",
   "source_files": {
     "ArtifactCore/src/ImageProcessing/ColorTransform/ColorBalance.cpp": "7e51d33554b8874b125445b6d2c6bfa064b9cc9a60d839db9b08d251e04fd01a",
     "ArtifactCore/include/ImageProcessing/ColorTransform/ColorBalance.ixx": "9e10987101ccc55c4dcdc8b082d38861e703a63142bd43fba0e7ecf871b47ea7",
-    "Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cpp": "c25ea219ba5590cb85d59957cd3a0c89bd9273f9d208cf2b319360cc7407a90d",
+    "Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cpp": "6f88fa168dae808b2d8ae450c3405f59576ec3dbb35013f74ae337e33e4fa141",
     "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp": "64af14e97cfacfe1e38a9a0e5cf81390ec769e7baa1c26018fc9ecb8e9905d8c",
     "ArtifactCore/include/ImageProcessing/ColorTransform/Tritone.ixx": "d45edd40c7fc72ff45cc7de2cfb63d2a8a80a9a756b48d11f83f0a0c2fd1d7c8",
-    "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "6303eac9fe1e9ba8e752403ba8aac0905fae66549caede8a50ffb5489ca44cf2"
+    "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "e3ab919ed3b2f3d4617820f822888d82f445368b9e496f6ee5af0896654925f7"
   },
-  "scope_note": "Pins prevent stale mirrors from silently running after source edits. They do not prove C++ equivalence or product runtime behavior."
+  "scope_note": "Pins refreshed after source review of the Tritone formula, premultiplied-alpha CPU/GPU and GPU-CPU-fallback wrappers, and the HLSL constant-buffer layout. The independent source mirror's RGB equations did not change; this pin refresh allows future runs to verify the reviewed source revision. It does not prove C++ equivalence, shader compilation, runtime constant-buffer layout, or product behavior."
 }

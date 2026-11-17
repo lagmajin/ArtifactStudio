@@ -74,7 +74,26 @@
     "visual_review": "blind form remains blank; no candidate was ranked or quality gate established",
     "product_runtime": "not run; build, test, and GUI workflow were not executed"
   },
-  "next_step": "Complete both blind forms (LUT 95 IDs and effect extension 35 IDs) without opening the corresponding keys until scores/notes are saved; inspect full-resolution ROI crops; then define justified visual/technical thresholds. After that, run C++ differential and actual Composition preview/final plus available Render Queue CPU/GPU captures for alpha, HDR, Tritone parity and save/reload. Only then recommend adoption and map browser IDs as mapped or explicitly unmapped.",
+  "candidate_comparisons_to_date": "Exploratory source-mirror characterizations and contact-sheet triage only; not confirmatory candidate review, ranking, quality verdict, or gate evidence.",
+  "baseline_review": {
+    "status": "not_started",
+    "form": "experiments/CinematicLooksLab/captures/rd0/review/BASELINE_REVIEW_FORM.md",
+    "scope": "Input and unprocessed baseline images only; do not open candidate sheets or blind keys.",
+    "required_before": [
+      "locking visual/technical/performance gates",
+      "scoring candidate blind-review forms",
+      "confirmatory candidate comparison"
+    ]
+  },
+  "ai_baseline_preflight": {
+    "status": "completed_descriptive_only",
+    "report": "experiments/CinematicLooksLab/captures/rd0/review/AI_BASELINE_PREFLIGHT_2026-11-17.md",
+    "candidate_images_opened": false,
+    "blind_keys_opened": false,
+    "human_review_substitute": false,
+    "quality_verdict_or_gate": false
+  },
+  "next_step": "Complete the baseline-only review form without opening candidate sheets or blind keys. Use its recorded display conditions and pre-existing image characteristics to lock justified visual/technical/performance thresholds in this file. Only then score the LUT 95-ID and effect-extension 35-ID candidate forms, inspect full-resolution candidate crops, and open their keys after the scores/notes are saved. After candidate review and gate decisions, request explicit authorization before C++ differential, build/test, or product UI/runtime work; then capture Composition preview/final plus available Render Queue CPU/GPU paths for alpha, HDR, Tritone parity and save/reload. Only then recommend adoption and map browser IDs as mapped or explicitly unmapped.",
   "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
   "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
   "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)",

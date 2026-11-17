@@ -429,5 +429,46 @@
         "ArtifactCore/include/ImageProcessing/ColorTransform/Tritone.ixx"
       ]
     }
-  ]
+  ],
+  "product_followup_2026_11_17": {
+    "status": "implemented_source_path_runtime_unverified",
+    "entrypoint": "ArtifactInspectorWidget::Impl::handleAddEffectClicked adds a Cinematic Looks entry to the existing effect picker and opens LooksPresetBrowserDialog.",
+    "mapping": {
+      "browser_id": "teal_orange",
+      "effect_id": "effect.colorcorrection.tritone",
+      "preset_property": "Preset",
+      "preset_value": 2,
+      "preset_name": "TealAndOrange",
+      "strength_property": "Effect Mix",
+      "strength_source": "Intensity slider value divided by 100",
+      "mapping_basis": "Provisional product hypothesis from the browser and built-in preset labels; no source-backed mapping existed in the initial audit.",
+      "targets": ["current composition", "selected layer"],
+      "undo_behavior": "Construct effect and set properties before one undoable ProjectService add operation; close the modal after success to prevent duplicate clicks. Static source inspection only."
+    },
+    "remaining_browser_ids_unmapped": 23,
+    "near_name_candidates_not_effect_stack_mappings": [
+      {
+        "browser_id": "cross_process",
+        "candidate": "Artifact::FilmPresets::crossProcessed()",
+        "source": "Artifact/src/Effect/ArtifactFilmEffects.cpp",
+        "contract": "Returns FilmEffectPreset, a QObject consumed by FilmEffectProcessor; it is not an ArtifactAbstractEffect or ArtifactEffectService factory entry.",
+        "mapping_status": "not_connected; name similarity does not establish compatible ownership, persistence, or render path"
+      },
+      {
+        "browser_id": "cyberpunk",
+        "candidate": "ArtifactCore::TriChromaticTriad::cyberpunk()",
+        "source": "ArtifactCore/src/ImageProcessing/ColorTransform/TriChromaticShift.cpp",
+        "contract": "Returns a color-transform settings value consumed by TriChromaticProcessor; no ArtifactAbstractEffect / Inspector catalog integration was found in the source search.",
+        "mapping_status": "not_connected; adding it requires a product effect integration and a reviewed preset definition"
+      }
+    ],
+    "preview": "Placeholder/sample preview only; no effect-rendered before/after image.",
+    "runtime_verified": false,
+    "source_hashes": {
+      "Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp": "613fdf06822a3b9267fd60a83a5b181d1b51e6916ca34d35791a707cdccd8085",
+      "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "e3ab919ed3b2f3d4617820f822888d82f445368b9e496f6ee5af0896654925f7",
+      "Artifact/src/Widgets/ArtifactInspectorWidget.cpp": "41b0eabf9f9fc27d5e9d2632c7d33ee848cca3dc963333737ddfb7e6631ae3bc",
+      "Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx": "70b62f505fb68324194f212b738200f23e36bfa09a3b7b6570ca3cd18f8caabb"
+    }
+  }
 }
