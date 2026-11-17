@@ -1,9 +1,9 @@
 # Milestones Backlog
 
-**最終更新:** 2026-11-16
+**最終更新:** 2026-11-17
 
 ### Cinematic Looks 画像補正 R&D
-- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: LUT9種＋Color Balance / Tritone CPU/GPU source-mirror画像・ROI統計・blind sheets/crops・float/alpha probe・source hash pin を5素材で記録。Tritone CPU/GPU式差、alpha association / HDR strength-0 clamp / Composition restore候補を記録。人手画質/gate/C++ differential/runtime persistence/parity未検証。外部LUT file browserの部分実装とは別件）
+- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: rd0修正前、rd1 Tritone式更新後、rd2 Tritone alpha wrapper更新後のsource-mirrorを5素材で記録。3 familyの名前付きpreset選択、Composition concrete-effect restore（重複instance suffix対応）、Tritone HLSL/premultiplied-alpha wrapperとLUT CPU premultiplied-alpha wrapperを実装。Tritone mirror差0、alpha差は最大1.2e-7。LUT alpha fixture mirror差は最大2.3e-16未満（旧式最大1.321154）。shader/runtime未確認。HDR、人手画質/gate/C++ differential/runtime parityは未検証。外部LUT file browserの部分実装とは別件）
   - 既存 BuiltinLUTs と未接続の Looks browser preset 定義を区別し、決定論 chart と provenance 済み CC0 photo で応答・色/階調・細部・強度・性能を比較する。RD0で人物／肌・森林・夜景の素材カテゴリを確保した
   - 未確定ゲートを人の baseline review 後に固定し、候補比較と実アプリ経路の証拠を分けて記録する。R&D は UI・新規 LUT・既定値の実装承認ではない
   - 詳細: `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md`
@@ -84,6 +84,8 @@
   - 既存の画像バッファ、LayerMask、RotoBrush／AI基盤、GPU cutout、保存／再読込経路を再利用し、推定画素と元画像由来の画素を区別する
   - 動画・連番・時間伝播・完全な隠し領域復元は対象外とする
   - 詳細: `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md`
+
+
 
 ### Still Image / Super Resolution R&D
 
@@ -2246,3 +2248,12 @@ active milestone の重複名としては扱わない。
 
 
 
+### Image-to-Image Color Matching R&D
+- **Core契約実行:** 2026-11-17、Visual Studio 18 Debugで既存targetをbuildし、RD24追加後も10/10 GoogleTest pass。追加5ケースは固定小fixture、ColorChecker Core/float32 mirror比較、portrait synthetic cast経路一致、実CoreのRD22 165行・RD23 9行・RD24 27行測定。RD24はMiddlebury登録済みCanon EOS 20D WB1固定tungsten/WB2 auto-WB chart pairのskin-tone proxy 2 patch/white 1/neutral gray 5を中央60×60px ROIで測定。強度1のWB2への平均ΔE76はskin proxyでReinhard/MeanStddev/Histogramが6.88/3.00/1.67、白色票が3.02/3.10/1.26、neutral grayが4.49/2.41/2.24。WB2は測色ground truthではなく、人肌/自然白でもないため記述値に留める。RD9 testのcombined-skin C*abはsource 14.23、合成target 11.77、MeanStddev 11.75 / Histogram 11.78 / Reinhard 12.71。RD23は別CC0 portraitの顔候補ROI 25,913 pixelを3方式×強度0/0.5/1の9条件で実Core測定。さらにCore raw-buffer `match()`のDebug単回 timing（warm-up1＋各7 sample、source restore/IO除外）は1280×851で中央値43.93/14.28/217.06ms、1536×1024で58.08/21.53/326.27ms（Reinhard/MeanStddev/Histogram）。製品budget・Release/GPU・memoryを示す値ではない。いずれも方式順位・許容肌変化・品質合格ではない。ブラウス候補は実測白でなく、自然肌・実白の品質証拠は未取得。2 ΔE cutoffは記述用。詳細はRD22/RD23/RD24 captures。
+- **データ候補監査:** York/Adobe Rendered WB は技術的には有力だが、提供ページがpost-capture WB評価以外の目的・reasonable academic fair useと明記するため、書面許諾まで製品R&D利用から除外する。詳細は評価計画とマイルストーンを参照。
+- **取得フォールバック:** 外部素材の権利が確定しない場合に備え、同一RAWからWBのみ異なるsource/referenceを生成し、測色済み中立・白素材と同意済み人物を撮る社内撮影プロトコルを評価計画へ記録（未撮影）。
+- **M-IMG-COLOR-MATCH-RD-1** 画像間色合わせにおける肌色・白保持の評価（In Progress: synthetic chart rd0、CC0 portrait cast recovery rd1、neutral axis／Histogram境界・面積対照rd2–4、contract-vector mirror照合rd5、Middlebury ColorChecker WB pair rd6と自然風景RAW/JPEG rd7、肌/白Lab色相・彩度分解rd8、CC0実写portrait合成cast rd9、手動肌/柄物白布ROI strength tradeoff rd10、3方向・3強度cast感度rd11–12、透明画素hidden-RGB出力および面積感度rd13–14、transfer/HDR値域rd15–16、白ROI reject/採用rd17–18を記録。ISSAは画像pairでなくitem-level terms未確認のため未取得。DASTは肌露出stress-test候補として条件を事前固定したが、DAST-EX consentはdataset license agreementを要求。派生画像・ROI・metricsの製品R&D利用条件、example archive terms、測色spotの画像座標対応が未確認のため未取得。静的全repo検索ではapplication callerなし。PPR10K/FiveK/York-Adobe WB datasetは非商用・研究限定で除外、PolyU facial setおよびColor Constancy Using Facesは利用条件未確認で未取得。PolyU 2025は1,299 dual-illuminant face imagesを説明するがpixel illuminant map/修正target imageなし。global matcherの混合照明stress候補に限定し、許諾・照明/色票対応・ROI条件が確認できるまで不採用。Core 9/9契約テストとMiddlebury 606×404 ColorChecker pairの3方式×3強度Core/image-overload対float32 mirror比較はpass（肌tone chart proxyのみ）。float64旧Histogram mirrorとの差を解消しRD6/RD8 manifestを再検証。実撮影portrait+neutral/WB pair、明示的利用条件、解像度別比較、実経路性能、独立ROI注釈、測色済み実白、盲検視覚gateは未実施。時間安定性はstill-image範囲外、sequence適用は別ゲート）
+  - 既存 `ArtifactCore::AutoColorMatcher` の Reinhard / MeanStddev / Histogram を、無変更source baselineおよび合成chart referenceと区別して比較し、強度別の色移動と肌・中立白の保持を調べる
+  - ライセンスとprovenanceを確認した複数portrait／非portrait素材、レビュー済みROI、固定色・alpha条件を用意し、候補比較前に人手視覚レビューとbaselineから許容gateを固定する
+  - synthetic offline control / cast recovery / neutral-axis response のfixtureとROI別統計は `experiments/ColorMatchLab/`。いずれもCore出力や自然写真の画質を示すものではない
+  - **画像評価計画:** `docs/planned/MILESTONE_COLOR_MATCH_SKIN_WHITE_RND_2026-11-16.md`。品質評価開始条件、ROI指標、alpha・細部・性能評価、完了条件を規定。製品UI・runtime統合・既定値変更は対象外

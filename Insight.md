@@ -1,4 +1,32 @@
-**最終更新:** 2026-11-16
+**最終更新:** 2026-11-17
+
+## 2026-11-17: Histogram方式はpeak workspaceより累積allocation trafficが大きい
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`experiments/ColorMatchLab/captures/rd28_core_allocations/`、RD23 raw-buffer benchmark。
+- **確認できた事実:** MSVC Debug CRT hookでwarm-up後のraw `match()` 1回を2run取得した。1280×851 Histogramは両方24 events / 27,777,780 requested bytes。1536×1024はdirectが25 / 40,109,187、CTest repeatが24 / 40,108,788。ソース由来vector payloadとの差はHistogramで756〜1,155 bytes。Reinhard/MeanStddevは両runとも36 eventsで要求payloadとの差570 bytes。Histogramではチャンネルごとにsource/referenceフルフレームvectorを作り直すため、累積要求byteはlive peak workspaceより約3倍になる。
+- **価値または懸念:** allocation trafficはメモリ帯域負荷やallocator pressureに関係し得るが、ここで測った要求byteはpeak resident memoryや性能影響そのものではない。Debug CRT hookが見たevent countはThreadPool等を含み、Histogramの1536 event数はrun間で1件揺れた。
+- **次に確認すべきこと:** 実アプリcallerとRelease allocator/実解像度が特定された後、繰返し時間を含むallocation traceとpeak live/process memoryを観測し、必要なら品質を保つ範囲のbuffer reuse案を別途検討する。
+- **未検証:** request数の実装内訳、Release/allocator差、allocation trafficが時間へ与える因果影響、実アプリでのpeak memory・呼び出し頻度。
+
+## 2026-11-17: Middlebury自然シーンでCoreと色合わせ式ミラーがfloat精度で一致
+- **関連:** `tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/captures/rd27_core_natural_scene/`、RD18 lamp-shade masks。
+- **確認できた事実:** 登録済みEOS 5D warm-lit kitchen RAW/JPEG pairに対してCore image overloadと現在の式ミラーを3方式×3強度で比較し、各条件で2,001,000 RGB float値を取得した。Histogramのabsolute diffは全て0、Reinhardの最大は2.23e-6、MeanStddevは1.20e-7。既存source-only reviewed shade ROIのstrength-1 Core mean reference ΔE76は、left/rightでHistogram 1.62/1.31、Reinhard 4.81/5.18、MeanStddev 5.50/5.50。Middlebury提供元は利用と公開をcitation付きで許可している。
+- **価値または懸念:** 合成テストだけでなく自然画像対で、式ミラーが現在のCore実装を高いfloat精度で再現することを示す。camera JPEGは測色WB正解ではなく、shadeの中立度も測定していないためreference距離の小ささは正しさを意味しない。
+- **次に確認すべきこと:** 実画像の肌と測色済み中立・白を含む権利確認済みsource/referenceを受領したら、測色・色空間・mask・事前gateを確定し、同じCore出力/ミラー差分手順で測定する。
+- **未検証:** 別シーン・カメラへの一般化、肌・真のneutral white、独立blind review、アプリ経路、品質許容値。visual reviewは一人の非盲検確認に限られる。
+
+## 2026-11-17: AutoColorMatcherは解像度に比例する大きなCPU一時配列を作る
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`experiments/ColorMatchLab/EVALUATION_PLAN.md`、画像間色合わせR&D。
+- **確認できた事実:** 実装上、Reinhard/MeanStddevはsource/reference双方の3チャンネルfloat vectorを同時に保持し、Histogramはチャンネルごとにsource/referenceのfloat vectorを保持する。RD23 timingで使った等寸法の条件に当てはめると、明示vector payload下限はReinhard/MeanStddevが1280×851で24.93 MiB、1536×1024で36 MiB、Histogramが8.31 MiB/12 MiB。明示vectorのresize成長要求は1 invocationあたり前者18回、Histogram12回とソースから数えられる。これはsource-derivedな値であり、allocatorやprocess peakの測定値ではない。
+- **価値または懸念:** CPU時間に加えて一時メモリも入力解像度へ線形に増える。製品のcallerも予算も不明なため、現在の数字から受入可否は決められない。
+- **次に確認すべきこと:** 実際の呼び出し経路、入力解像度と同時実行数が定まった後に、allocation bytes/countとprocess peakを実測して適切な予算と比較する。
+- **未検証:** vector capacity差、thread-pool/runtime分、allocator peak、Release/GPU/アプリ経路での使用量と同時実行頻度。
+
+## 2026-11-16: York/Adobe WB pair set is technically strong but scope-restricted
+- **関連:** `experiments/ColorMatchLab/EVALUATION_PLAN.md`、`docs/planned/MILESTONE_COLOR_MATCH_SKIN_WHITE_RND_2026-11-16.md`。
+- **確認できた事実:** York/Adobe公式ページは62,535組のDSLR入力・chart-derived targetと、追加のcross-camera/Cube+ pairを説明する一方、データをpost-capture white-balance correctionの評価以外の目的で提供し、画像はreasonable academic fair useとする。
+- **価値または懸念:** 技術的には肌/中立パッチを含む強いWB評価候補だが、プロダクトR&Dの評価目的と提供範囲が合わない。研究限定のrepository説明だけでは目的制限や画像ごとの権利・派生物条件が解消しない。
+- **次に確認すべきこと:** このデータで評価を行う場合、提供者から目的とcrop/mask/output/metrics保存を含む書面許諾を得てから扱う。未許諾の間は利用候補から除外する。
+- **未検証:** 個別画像ライセンス、派生物の保存・共有条件、別目的の書面許諾。
 
 ## 2026-11-16: Runtime capture should compare full vector lanes for material math
 - **関連:** `tests/ArtifactCore/RayTracingAcceptanceTest.cpp::CapturesLegacyAndDynamicRampAndRoughnessMathCandidatesOnVulkanMeshRenderer`、`tests/fixtures/shader-graph-rd/math_add.json`、`experiments/ShaderGraphLab/core_math_add_projection_candidate.json`。
@@ -26,15 +54,68 @@
 - **関連:** `experiments/TimelineClipBarLab/`、`tools/TimelineClipBarPlayground/`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`。
 - **確認できた事実:** `ArtifactIRenderer` は Diligent 経由の矩形・パネル・線・文字描画APIを公開しており、タイムラインWidgetを使わない比較用ネイティブPlaygroundを構成できる。製品Timelineには別途 clip hit-test、選択、trim、サムネイル／波形のデータ供給がある。
 - **価値または懸念:** ブラウザーのデザイン探索とGPU描画確認を分離すれば、視覚案の比較結果を製品経路やGPU parityの証拠と誤認しにくい。
-- **次に確認すべきこと:** 許可されたビルド／実行時にDiligent初期化、3案の描画、選択枠・密度切替を確認し、製品Timelineへの採用は別レビューにする。
-- **未検証:** PlaygroundのビルドとGPU実機表示。
+- **確認結果:** `ArtifactTimelineClipBarPlayground` をDebug構成でビルドし、D3D12／NVIDIA GeForce RTX 4070 Tiで3案を含む1200×650 PNGをGPU描画・readbackできた。出力は `experiments/TimelineClipBarLab/captures/diligent_clip_bars.png`。
+- **次に確認すべきこと:** 製品Timelineへの採用は別レビューとし、実際のTimeline input・選択・trim経路は統合時に確認する。
+- **未検証:** Vulkan経路、実タイムライン連携、GPU性能計測。
+
+## 2026-11-17: LUT effects must grade straight RGB when surfaces are premultiplied
+- **関連:** `Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`, `experiments/CinematicLooksLab/contract_probe.py`, `experiments/CinematicLooksLab/captures/rd1_lut_alpha_wrapper/float_contract_probe.json`.
+- **確認できた事実:** Composition can pass a `Premultiplied` surface descriptor to the CPU LUT effect. The old wrapper sent premultiplied RGB directly into nonlinear LUT sampling and intensity mixing. The updated wrapper branches on the descriptor, unpremultiplies, grades/mixes straight RGB, and re-premultiplies; non-positive alpha keeps the copied pixel. The source mirror records <2.3e-16 maximum RGB recovery delta for all 9 LUTs across 8 colors, 6 alpha patches, and 3 strengths, versus 1.321154 for the prior equation.
+- **価値または懸念:** Nonlinear grading of premultiplied channels makes the recovered straight color depend on alpha and can create visible edge color shifts after compositing. This change is limited to the CPU implementation because LUTEffect currently selects CPU compute mode; runtime parity and image quality remain unverified.
+- **次に確認すべきこと:** Build/runtime authorization後、alpha fixtureを複数背景へ合成し、Composition preview/finalと利用可能なRender Queue経路で確認する。
+- **未検証:** C++ execution, live surface descriptor at each caller, PNG conversion, multi-background output, and backend/runtime quality.
+
+## 2026-11-16: Tritone wrappers should preserve premultiplied color association
+- **関連:** `Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp`, `Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cpp`, `experiments/CinematicLooksLab/captures/rd2_effect_extension/metrics.json`.
+- **確認できた事実:** Color Balance effect wrapper already checks the surface alpha descriptor, transforms straight RGB, and re-premultiplies. Tritone CPU/GPU wrappers were updated to follow that contract; the HLSL parameter block remains 80 bytes with an explicit premultiplied flag. rd2 source-mirror alpha sweeps measured maximum recovered-RGB deltas of about 1.2e-7 for Tritone CPU and GPU equations.
+- **価値または懸念:** Applying nonlinear color transforms directly to premultiplied channels makes the recovered straight color depend on alpha, which can expose halos after compositing. The mirror does not establish the live Composition descriptor or actual renderer behavior.
+- **次に確認すべきこと:** After an authorized build/runtime capture, compare transparent edges over multiple backgrounds and verify CPU/GPU output plus Composition save/reload.
+- **未検証:** C++ compilation, shader compilation, GPU pixels, live caller descriptor, and product quality.
 
 ## 2026-11-16: Looks browser presets and executable LUT presets are separate inventories
 - **関連:** `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`ArtifactCore/src/Color/ColorLUT.cpp`、`experiments/CinematicLooksLab/`。
 - **確認できた事実:** Looks browser owns a static name/category/pack list and generated placeholder thumbnails. Independently, LUTEffect selects built-in cinematic / vintage / cold / warm / contrast / desaturated / film-stock LUT implementations and exposes intensity. No adapter between the two registries was observed in the inspected source paths.
+- **追加確認:** `LooksPresetBrowserDialog` にリポジトリ内の生成 callsite はなく、Apply は `appliedId_` と画面 badge の更新だけで終わる。外部へ返るのは選択ID getterのみで、IDからeffect/presetへ変換する source-backed mapping もない。
+- **追加確認:** Composition `Impl::addEffect` は同種effectのinstance IDへ `-2`, `-3`, ... を付ける。color-effect deserializerのbase ID完全一致だけでは2個目以降をconcrete typeへ復元できないため、既知3 typeに限ってこの生成suffixを認識する分岐を追加した。project round-trip未実行。
 - **価値または懸念:** Preset identity can drift from actual effect behavior if both inventories evolve independently. The lab mirrors the existing 17³ table generation and trilinear sampling equations, but is not a direct C++ differential test or product render path.
-- **次に確認すべきこと:** During R&D integration tracing, verify effect-service serialization and Composition/final-render application, then propose a single authoritative preset mapping contract if product browser integration is pursued.
+- **次に確認すべきこと:** Product browser integration needs an explicit 24-ID-to-effect/preset mapping and an existing owner/caller for applying the selected state. Do not infer assignments from similar names; use an authoritative mapping source or a product decision. After authorized runtime, verify duplicate color-effect instance IDs and their properties survive Composition save/reload.
 - **未検証:** Full runtime registration, per-preset visual quality, and exact relationship between browser names and LUT candidates.
+
+## 2026-11-17: Looks Browserは未接続状態をApply済みと表示しない
+- **関連:** `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx`、`docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md`。
+- **確認できた事実:** ブラウザーApplyはeffectを生成・変更せず、以前は選択IDを`appliedId_`に保存してbadgeだけを適用済み表示にしていた。ダイアログの生成callsiteも見つからず、公開APIは選択画像設定と適用ID getterだけ。製品変更後はApplyボタンを無効化し、未接続を説明し、applied IDを空のままにする。
+- **価値または懸念:** 処理されないlookが適用済みと誤認される状態を避けられる。一方、これでブラウザーが製品機能として接続されたわけではなく、表示inventory、生成thumbnail、実画像previewとeffect適用は引き続き未実装。
+- **次に確認すべきこと:** 正式な24 ID→effect/preset/property mappingと適用先ownerを製品仕様として決定し、実行時Composition/Layer反映および画像評価計画を満たした上で再接続する。
+- **未検証:** コンパイル、画面上のdisable/status表現、既存呼び出し元からのdialog利用、effect mappingと画像品質。
+
+## 2026-11-17: Cinematic Looks probeのrun IDは出力先と同期させる
+- **関連:** `experiments/CinematicLooksLab/contract_probe.py`、`experiments/CinematicLooksLab/captures/rd3_lut_alpha_wrapper/float_contract_probe.json`。
+- **確認できた事実:** contract probeは任意の`--output` pathを受けて別runを出力できたが、JSON内の`rd`欄は`rd1_lut_alpha_wrapper`に固定されていた。rd3 pathへ出した直後のJSONが誤ったrun labelを含んだため、出力先parent directory名、または明示`--rd`をmanifestへ渡すよう修正し、rd3を再生成した。
+- **価値または懸念:** source hash・計測値が一致してもrun IDが誤ると異なるrevision/runの証跡を取り違える。再生成時はoutput pathとmanifest identity双方を確認する。
+- **次に確認すべきこと:** Cinematic Looks内の他recorderが出力先からmanifest IDを導出するか点検し、新規runを作る際には関連pathと内部IDの一致を照合する。
+- **未検証:** すべてのrecorderでのrun-ID整合性監査。
+
+## 2026-11-17: Looks Browserはeffect設定後にtargetへ追加する
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cpp`、`Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/src/Service/ArtifactEffectService.cpp`、`Artifact/src/Service/ArtifactProjectService.cpp`。
+- **確認できた事実:** Inspectorの既存Effect picker経路にLooks Browser entryを追加でき、既存のpicker選択callbackからdialogを起動できる。Effect ServiceのfactoryでTritoneを生成し、追加前にPresetとEffect Mixを設定した後、Project ServiceのCompositionまたはLayer undoable-add APIへ渡す構造を追加した。これによりpreset/intensity変更ごとの別property Undo commandを作らず、effect追加は1件のundoable mutationになる。
+- **製品仮説:** browser ID `teal_orange`をTritone `TealAndOrange`へ対応させた。これはラベルの直接一致から作った暫定1件であり、既存sourceに正式なID mappingがあったことや、美的品質の受入を意味しない。他23 IDは未対応。
+- **価値または懸念:** 既存の選択中Composition/Layerとeffect factory、既存picker callbackを再利用し、状態を完全に構成してから1回で追加できる。dialogの実表示、layer/Composition側の生成先、undo/redo、描画結果はまだ動作確認されていない。
+- **次に確認すべきこと:** 明示許可後にビルド・UI操作し、picker到達、Composition/Layer target、single-step undo/redo、save/reload、preview/final outputを検証する。ユーザーが正式mappingを示した場合は仮説tableを置き換える。
+- **未検証:** module integration、実UI到達、Composition/Layer追加、undo/redo、persist/reload、Tritoneのruntime画像品質とCPU/GPU parity。
+
+## 2026-11-17: 近いFilm/Core preset名だけではLooks Browserへ接続できない
+- **関連:** `Artifact/src/Effect/ArtifactFilmEffects.cpp`、`Artifact/include/Effect/ArtifactFilmEffects.ixx`、`ArtifactCore/include/ImageProcessing/ColorTransform/TriChromaticShift.ixx`、`experiments/CinematicLooksLab/REGISTRY_AUDIT.json`。
+- **確認できた事実:** `FilmPresets::crossProcessed()` は複数film処理設定を持つ `FilmEffectPreset` (`QObject`) を返し、`FilmEffectProcessor` がフレームbufferへ適用する。`TriChromaticTriad::cyberpunk()` はCoreの色変換設定値で、`TriChromaticProcessor` が適用する。両方とも現時点のソースでは `ArtifactAbstractEffect` / Inspector effect factoryとして登録された型ではない。
+- **価値または懸念:** `cross_process` や `cyberpunk` と近い表示名があっても、effect stackへの永続化・undo・Composition render経路が同じとは限らない。名称一致での暫定mappingも、対応型が別アーキテクチャの場合は機能実装を伴わない。
+- **次に確認すべきこと:** 正式なbrowser ID mappingを決める際、同じInspector/Effect Service/Project Service経路を持つか確認する。別processorを採用するなら、まず製品effect adapter・property・保存復元・render経路を設計してからmappingする。
+- **未検証:** FilmEffectProcessor / TriChromaticProcessorの現行製品UI到達、プロジェクト保存、GPU/CPU画像品質、Looks Browserからの適用可能性。
+
+## 2026-11-17: Tritoneの現在のGPU経路はフレームごとにreadbackで同期する
+- **関連:** `Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp::TritoneEffectGPUImpl::applyGPU`、`docs/technical/HOT_PATH_RULES.md`、Cinematic Looks R&D性能評価。
+- **確認できた事実:** 現在のGPU経路は各apply呼び出しで入力textureを作成し、出力textureからstaging textureを作成・copyし、`Flush()`と`WaitForIdle()`後にCPU readbackする。今回のTritone式/alpha差分との比較では、staging/readback構造は変更前のHEADにも存在し、今回の差分で追加されたものではない。
+- **価値または懸念:** Composition previewの反復適用でこの経路へ到達する場合、CPU/GPU同期とresource作成が性能・応答性の制約になり得る。これはTritoneの式mirrorが一致しても解消されず、R&Dの1080p/4K性能評価や製品GPU経路の判断を別途必要にする。
+- **次に確認すべきこと:** 明示されたrenderer/GPU改善の作業範囲で、実call frequency、resource reuse、readback要否を経路ごとに測り、backend-neutralな非同期/再利用設計を評価する。今回のsource equation修正に混ぜて大規模なGPU経路変更をしない。
+- **未検証:** GPU runtimeでの呼出回数、WaitForIdleのstall時間、各backendでのstaging allocation費用、再利用・readback削除の効果。
 
 ## 2026-11-15: UV mapping and image resources should remain graph-authored
 - **関連:** `experiments/ShaderGraphLab/registry.json`、`dynamic_graph_prototype.py`、`local_graph_lab.py`、`local_graph_lab.html`、`dynamic_generic_image_mapping.json`。
@@ -15026,3 +15107,279 @@
 - **価値または懸念:** Legacy material migration can carry a dynamic shader input without baking the current UV into a constant. This is still a narrow context adapter; coordinate conventions, GPU execution, renderer binding and project persistence are not proven.
 - **次に確認すべきこと:** Compare this host-context contract to the production mesh vertex input and Diligent resource/interface binding, then run the authorized renderer capture path before considering Core promotion.
 - **未検証:** GPU output, actual Core graph execution, Diligent compatibility and save/reload behavior.
+
+
+## 2026-11-16: Target closeness can increase skin-chart chroma
+- **関連:** `experiments/ColorMatchLab/run_rd8_skin_white_chroma.py`, RD6 ColorChecker WB pair, `AutoColorMatcher` equation mirrors.
+- **確認できた事実:** In the registered Canon EOS 20D ColorChecker pair, the camera WB2 target's combined skin-tone proxy mean-vector C*ab is 29.74 vs 15.23 in WB1. At intensity 1.0 the three mirrors produce C*ab 25.83 / 29.11 / 29.81 and mean-Lab ΔE76 to WB2 4.898 / 1.217 / 0.077. The bright patch hue moves from 11.73° in WB1 to 43.71° in WB2; the three outputs reach 40.16° / 40.88° / 42.37°. The white patch source and WB2 mean-Lab hue directions differ by 166°, so WB-target matching also changes white-patch chroma/direction.
+- **価値または懸念:** Lower error against a camera rendition target can require a large chroma increase on standardized skin colors. Matching and preserving skin are separate objectives; white preservation also depends on whether neutral axis or camera rendition is the desired target.
+- **次に確認すべきこと:** On a reviewed, consent/licensed human portrait pair and a separately reviewed real-white ROI, compare target-distance against source-relative hue/chroma change and blinded reviewer judgments; set acceptance limits before final candidate comparison.
+- **未検証:** These chart patches are not human skin or real white objects; WB2 is not calibrated truth. No C++/Core differential, independent human review, or acceptance threshold was used.
+
+
+## 2026-11-16: Skin protection is a regional target-error tradeoff
+- **関連:** `experiments/ColorMatchLab/captures/rd9_real_skin_white_scored/manifest.json`, `captures/rd10_roi_strength_tradeoff/manifest.json`, `ArtifactCore/src/Color/AutoColorMatch.cpp`。
+- **確認できた事実:** On a licensed CC0 real portrait with a known constructed RGB cast, intensity-1 Histogram mirror reduces skin ROI mean ΔE76 to that constructed reference from 2.944 to 0.007 while combined skin mean-vector C*ab shifts 14.23 to 11.77 and face hue shifts 42.33° to 48.50°. MeanStddev also exceeded 1.0 in 0.732% of full-frame RGB channel samples (1.481% of pixels) and in 6.281% of channel samples / 11.346% of pixels in the light-blouse ROI. In a separate fixed-mask post-match control, 0.5 skin blend factor yields skin source/target ΔE76 1.480/1.465 and C*ab 12.98; factor 1 yields 2.946/0.007 and C*ab 11.77. Full-frame target error moves only 0.098 to 0.013, so global averages attenuate this ROI-level tradeoff. Across cool / warm / green synthetic targets, target skin C*ab shifts to 11.77 / 15.87 / 13.69 from 14.23; target blouse C*ab shifts to 5.41 / 12.65 / 12.08 from 7.70. The paired-face dataset literature describes 472 manually marked face/card pairs, but the accessible page does not state data license or download; PPR10K explicitly restricts images and derived data to non-commercial research.
+- **価値または懸念:** Color-match accuracy and source skin preservation are independent objectives. A future safe candidate should expose or internally constrain regional influence only if users can inspect the source/target tradeoff; fixed-mask results are oracle upper bounds and do not imply automatic skin segmentation.
+- **次に確認すべきこと:** Compare reviewed masks and blind judgments on multiple people, lighting conditions and skin tones; test the actual Core path and define an accepted skin hue/chroma tolerance before considering implementation.
+- **未検証:** The target is synthetic rather than an actual second capture; the single blouse ROI is patterned/shaded; masks are analyst-reviewed, not independent; no Core differential, blind quality gate, or performance data exists.
+
+
+## 2026-11-16: Cast strength changes the apparent skin-preservation direction
+- **関連:** `experiments/ColorMatchLab/run_rd12_cast_strength_sensitivity.py`、`captures/rd12_cast_strength_sensitivity/manifest.json`、RD9 CC0 portrait masks。
+- **確認できた事実:** At the same fixed cool direction, increasing only the constructed RGB offset multiplier from 0.5 to 1.5 moves target skin C*ab 10.85→12.74 and blouse C*ab 4.90→6.02. For the fixed warm direction those values move 16.97→14.78 and 13.28→12.03; for green, skin stays near 13.6–13.8 while blouse falls 12.93→11.24. Histogram at intensity 1.0 remains close to each synthetic target (mean ROI ΔE76 below 0.42), but output distance from the original remains nonzero and varies by ROI and cast. These are encoded-sRGB synthetic transformations.
+- **価値または懸念:** A single target strength can make a global matching algorithm appear to either desaturate or increase skin chroma. Claims about preservation need target provenance and source-relative metrics shown together; closeness to an artificial reference is not a skin-quality score.
+- **次に確認すべきこと:** Obtain rights-cleared paired portraits under documented captures, annotate skin and actual neutral materials independently, then compare Core output and blind human ratings against predeclared regional limits.
+- **未検証:** Physical illuminant behavior, natural photo WB targets, perceptual preference, actual Core output, independent mask quality, and product integration.
+
+
+## 2026-11-16: AutoColorMatcher statistics ignore alpha but include hidden RGB
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/alpha_statistics_counterfactual.py`。
+- **確認できた事実:** Reinhard extracts Lab values from every source/reference pixel's RGB channels; MeanStddev and Histogram extract every RGB sample into their channel statistics/CDF. The alpha channel is not consulted in those statistics and is left unchanged during output mapping; existing contract tests cover alpha preservation. Consequently RGB stored under alpha 0 still affects the global match. The separate alpha counterfactual currently describes this mechanism but does not run the Core output.
+- **RD13で確認できた追加事実:** Source-equation mirrors were run on two portrait buffers with identical alpha and visible RGB, but black vs magenta RGB under a synthetic 20%-width alpha-zero strip. At intensity 1.0 the visible outputs differ by mean ΔE76 17.73 / 25.34 / 26.06 on combined skin and 8.28 / 37.61 / 54.33 on a light blouse for Reinhard / MeanStddev / Histogram. This proves visible propagation in the deliberately strong chosen fixture, not a typical-project defect rate or actual Core output.
+- **RD14で確認できた追加事実:** On the same portrait, the 0%-transparent paired control is identical. At a 1%-width strip, paired output mean ΔE76 is 1.69–6.21 on skin and 1.48–4.96 on blouse; at 10% it is 13.45–15.91 and 5.29–36.19. All three mirrors show increasing visible influence as this same synthetic strip grows, but its shape and hidden-color extremes are controlled fixtures.
+- **価値または懸念:** Color-match behavior can depend on invisible RGB in transparent pixels even though alpha itself is preserved. A correct image-effect evaluation should compare opaque-only and all-pixel statistic populations and measure visible composites over multiple backgrounds; the existing scalar contract tests do not answer that visual question.
+- **次に確認すべきこと:** Before proposing a product behavior change, use an authorized C++/Core differential fixture with paired buffers that differ only in alpha-zero RGB, then inspect output RGB/alpha and composite over the actual project alpha association plus black, white, and saturated backgrounds. Keep any API or implementation change out of this R&D proposal until that evidence and the expected contract are reviewed.
+- **未検証:** How often this occurs in real project assets, whether callers sanitize transparent RGB, alpha association in the actual consuming render route, and how often the effect runs in a hot path. Core-side runtime and performance measurement were not performed.
+
+
+## 2026-11-16: AutoColorMatcher has no checked-in application call site
+- **関連:** `ArtifactCore/include/Color/AutoColorMatch.ixx`、`ArtifactCore/src/Color/AutoColorMatch.cpp`、repository-wide search for `AutoColorMatcher` and `import Color.AutoMatch`。
+- **確認できた事実:** The repository search found the class declaration, Core definitions, one contract-test source, and R&D/docs mentions, but no application code importing or calling the API. The public API mutates either an `ImageF32x4_RGBA` source or caller-provided raw BGRA float pixels. This is source-search evidence, not proof against runtime reflection/dynamic loading.
+- **価値または懸念:** Product preview/export/backend/performance requirements cannot be evaluated as current behavior until a real caller exists. R&D of the algorithm should remain separated from product integration; otherwise offline mirror results could be mistaken for an editor feature assessment.
+- **次に確認すべきこと:** If a product-facing feature is requested, first identify its owning UI/editor and image-buffer lifecycle, then decide whether to create a caller only after explicit scope and review. For this R&D, record Core source equation observations and leave actual route parity/performance as open gates.
+- **未検証:** Dynamic/plugin-generated call sites, downstream consumers outside this workspace, and any intended editor path.
+
+## 2026-11-16: AutoColorMatcher output depends on float transfer encoding
+- **関連:** `experiments/ColorMatchLab/run_rd15_encoding_sensitivity.py`、`captures/rd15_encoding_sensitivity/manifest.json`、`ArtifactCore/src/Color/AutoColorMatch.cpp`、`ArtifactCore/src/Image/ImageF32x4_RGBA.cpp`。
+- **確認できた事実:** `ImageF32x4_RGBA::setColorDescriptor` はtransfer/primariesを保持してstorage/orderをcanonicalizeするが、画像版 `AutoColorMatcher` はdescriptorを読まず、同じsRGB色のencoded-float表現とlinear-float表現で別の値を処理する。固定合成色票の式ミラーでは強度1.0の表現間RGB MAEが全画面でReinhard 0.00778、MeanStddev 0.000712、Histogram 0.00247だった。
+- **価値または懸念:** ImageF32x4_RGBAに色記述子が存在しても、matcherがそれを参照しないため入力バッファのtransfer規約が結果を変える可能性がある。これは一つの小さなSDR合成fixtureに限定した式ミラー結果であり、通常の呼び出し元がどちらの表現を渡すか、実出力で差がどれほど見えるかは示さない。
+- **次に確認すべきこと:** 将来Core differentialを実施する際、同一色をencoded/linearで表すペアに正しいdescriptorを付け、各方式を実行してlinear出力を共通表示空間へ変換して比較する。閾値は複数の実素材と盲検レビュー前に設定しない。
+- **未検証:** C++/Core実行一致、呼び出し側descriptor設定、非sRGB primaries/ICC、HDR、実写肌・白、視覚品質、GPU/製品経路、性能。
+
+## 2026-11-16: AutoColorMatcherの各方式はHDR範囲を異なる形で扱う
+- **関連:** `experiments/ColorMatchLab/run_rd16_float_range_sensitivity.py`、`captures/rd16_float_range_sensitivity/manifest.json`、`ArtifactCore/src/Color/AutoColorMatch.cpp`。
+- **確認できた事実:** ソースではReinhardがLab変換前と逆変換後にRGBを0〜1へclampし、Histogramは値を256-binの0〜1 LUTへ写像し、MeanStddevは生float統計と無clamp出力を使う。有限値の固定合成fixtureにおける強度1ミラーは、Reinhard/Histogramが全出力を0〜1へ収め、MeanStddevはunderflow/1超の値を保持した。source/referenceをアフィン関係で構成したためMeanStddevがほぼ完全復元した。
+- **価値または懸念:** float型であることはHDR保持契約を意味しない。手法ごとの値域動作が異なり、SDR前提・Scene-Referred運用のどちらをmatcherに求めるかで結果解釈が変わる。ただしRD16は39画素の合成値列であり、実画像における望ましさや目立ちやすさは未検証。
+- **次に確認すべきこと:** Core differentialを許可された評価段階で、実際のlinear scene-referred画像と正しいdescriptorを用い、共通のdisplay transform前後で比較し、高輝度ディテールと肌/白ROIをレビューする。必要なHDR挙動と受入範囲をそのレビュー前に定める。
+- **未検証:** 実Core出力、HDR表示変換と見た目、実写高輝度ディテール、NaN/Inf・巨大値、primaries/ICC、alpha、性能、製品経路。
+
+## 2026-11-16: 自然画像の白ROIはsource-only色しきい値だけでは分離できなかった
+- **関連:** `experiments/ColorMatchLab/prepare_rd17_fridge_roi.py`、`captures/rd17_white_object_roi/roi_review.json`、Middlebury Canon EOS 5D kitchen pair。
+- **確認できた事実:** 冷蔵庫右扉の固定矩形内にsource-onlyの明度/chroma thresholdを適用したところ15,613画素が選ばれたが、mask overlayにはマグネット、写真/ステッカー、花/茎、扉境界が残った。事前登録したreject ruleに従いROI別候補評価は実行していない。
+- **価値または懸念:** 色だけのしきい値は白い物体と、その上にある明るい物・反射・境界を区別できない。汚染ROIの統計を「白保持」として扱うと誤った結論になるため、ROI採用の視覚ゲート自体が必要。
+- **次に確認すべきこと:** 次のROIを試すなら、baselineだけで物体領域を手動ポリゴン注釈し、候補出力を見ずに別ROI条件として固定してから測る。複数物体/場面と独立確認も必要。
+- **未検証:** 手動ポリゴンによるROIの再現性、実際のニュートラル度、別シーンへの代表性、Core出力、盲検レビュー、性能。
+
+## 2026-11-16: カメラJPEGへの白ROI一致は入力白の保持と異なる
+- **関連:** `experiments/ColorMatchLab/captures/rd18_lamp_white_roi/manifest.json`、Middlebury EOS 5D kitchen RAW-render/JPEG pair。
+- **確認できた事実:** source-onlyで採用した左右ペンダントシェードROI（1,222/1,141画素）のsource→camera-JPEG ΔE76は22.60/22.92。JPEG L*は84.25/85.13、source L*は61.76/62.37。Histogram強度1ミラーはJPEG ΔE76を1.62/1.31に下げる一方、source相対ΔE76は23.12/23.27、mean-vector C*abはsource 0.67/2.72から出力1.93/0.45へ動いた。カメラJPEGとの近さと白の保持は同じ尺度ではない。
+- **価値または懸念:** RAW render/JPEG pairにはWB以外の大きな露出・現像差が含まれる。ターゲット誤差を下げても入力の見た目は大きく変わり得るため、R&Dでは両距離を併記し、参照の由来を明確にする必要がある。ROI自体も未測色で、低chromaの色相は安定した保持指標にならない。
+- **次に確認すべきこと:** 露出/現像差を統制した同一カメラ・同一露出の実撮影WB対と測色済みニュートラル面を用い、source相対変化と目標一致の両方に対する受入範囲を独立レビュー前に定める。
+- **未検証:** 真のニュートラル度、実撮影別WBペアへの一般化、Core出力、独立盲検、性能、製品経路。
+
+## 2026-11-16: 肌スペクトル資料は画像間評価の代替にならない
+- **関連:** ISSA paper/figshare DOI、`experiments/ColorMatchLab/EVALUATION_PLAN.md`、ColorMatch R&D milestone。
+- **確認できた事実:** ISSA論文のデータ説明は2,113人由来の15,256件の皮膚スペクトル/測色値と表計算datasheetを記載するが、顔画像ペアや空間ROI付き画像は説明していない。Figshare item-level licenseは直接確認できず、データは取得していない。
+- **価値または懸念:** 多様な肌色の測色レンジや照明別色計算の背景資料にはなり得るが、画像合わせの局所保持・質感・照明応答を評価できない。論文のCC BY表示をデータ本体の利用許諾とみなさない。
+- **次に確認すべきこと:** item-level licenseと利用条件を確認し、明示的に許された場合のみ色彩参照用候補として扱う。画像品質評価には引き続き権利確認済みの実撮影paired portraitとROIが必要。
+- **未検証:** データファイルの内容・ライセンス・測色値再計算・ColorMatchへの適用可能性。
+
+## 2026-11-16: DASTはWBペアでなく肌露出ストレス素材候補
+- **関連:** DAST公式README、`experiments/ColorMatchLab/EVALUATION_PLAN.md`のDAST計画。
+- **確認できた事実:** 公式READMEは80人・960枚のsRGB TIFF顔画像、2カメラ、人物別12撮影、白カードWB校正、露出ブラケット、5測色部位を説明し、フルデータは申請制で商用利用可能と記載する。公開example archiveの個別条件は確認しておらず、データは未取得。
+- **価値または懸念:** 同一人・同一カメラの肌ROIで露出差に対するglobal matchingの応答と測色部位を調べられる可能性がある。一方、露出ブラケットは色温度WBペアでもpixel GTでもなく、照明/カメラtone曲線も残る。ニュートラルカードが各画像に見えなければ白保持は評価できない。
+- **次に確認すべきこと:** example/fullデータの利用条件と評価用使用許諾を確認してから取得可否を判断し、候補出力を見る前にsame-person/camera/EL3基準、ROI、指標を固定する。
+- **未検証:** 公開例の具体的素材構成、配布物のライセンス、局所ROIの対応と測色位置、matcherのCore出力・品質・一般化。
+
+## 2026-11-16: ColorMatchのデータ受入は派生成果物の権利も個別確認する
+- **関連:** `experiments/ColorMatchLab/EVALUATION_PLAN.md`素材適合性マトリクス、ColorMatch R&D milestone。
+- **確認できた事実:** 利用条件が比較的明確な素材も、その範囲/制約が別々。Middleburyは画像利用と公開を引用付きで許可、CC0 portraitは実写人物素材だがcast referenceは合成、DASTは申請で学術・商用利用可能と記載する一方、example archive個別条件は未確認、ISSA論文とdataset itemのtermsも別確認が必要。
+- **価値または懸念:** 元画像の取得許可とcrop・ROI mask・派生出力・メトリクスの保存/共有許可を一括推定すると再現用evidenceの保持が曖昧になる。利用許可と測色上のground truth性、pair task適合は独立軸としてゲート化すべき。
+- **次に確認すべきこと:** データ提供者への問い合わせ前に必要な利用目的・社内保管・共有・保持期間を具体化し、回答/契約を試料manifestへリンクする。現状、外部連絡はしていない。
+- **未検証:** DAST example/full dataの個別利用条件、ISSA item-level license、派生物保持権利、アプリ組込み用素材の適合。
+
+## 2026-11-16: DAST評価では契約条件と測色スポット対応を分けて扱う
+- **関連:** DAST README、[participant consent form](https://dasec.h-da.de/wp-content/uploads/2025/06/DAST-HDA-consent-form-250401.pdf)、2026-04-23 acquisition presentation、ColorMatch DAST evaluation plan。
+- **確認できた事実:** READMEはDAST-EXがHochschule Darmstadtとのdataset license agreementで研究者へ提供されると記し、参加者同意書は利用範囲を同契約で規定する。presentationはDSM-4が約50 mm²を測り、DAST取得を単一sessionの制約ありと説明する。顔画像ROIと測色器spotのpixel座標対応の具体的仕様は公開説明で確認できなかった。
+- **価値または懸念:** 利用可能性の一般表記だけではimage crop・rendered candidate・mask・metricsの製品R&D利用/保持を確定できない。またinstrument Labと広い画像ROIの色差はspatial matchがなければpixel-ground-truthにならず、単一sessionは一般化の限界になる。
+- **次に確認すべきこと:** 実データ取得前に契約文で用途と派生成果物の保持/共有条件を確認し、測色点の位置仕様または不確かさを取得する。候補画像を開く前にROIを固定する。
+- **未検証:** example/full archive個別条件、測色点から画像座標への対応、候補素材の色/露出実測、matcherのCore出力。
+
+## 2026-11-16: 多照明顔画像は全体色合わせの局所GTにならない
+- **関連:** PolyU Face Color Constancy Dataset (CIC 2025)、`experiments/ColorMatchLab/EVALUATION_PLAN.md`。
+- **確認できた事実:** CIC論文は8人・1,299画像の前景/背景dual-illuminant顔シーンを説明し、ColorChecker撮影から照明条件を定義する。paper本文でpixel-wise illuminant mapではなくforeground/background条件を提供すると区別している。dataset download URL/licenseは論文に見つからない。
+- **価値または懸念:** 同一場面内の照明が異なる顔・背景をストレス素材にできる可能性があるが、`AutoColorMatcher`はグローバル変換なので二つの領域に同時に一つの物理的正解を当てられるとは限らない。照明条件をpixel ground truthや修正済み参照画像と混同しない。
+- **次に確認すべきこと:** 提供者許諾後、ColorChecker設定とportraitの対応を検証し、source-only face/background ROIを手動注釈する。局所GTがない場合は参照誤差を設定せず、同時変化を限定的なストレス観察として記録する。
+- **未検証:** 配布/利用条件、画像と色票の対応、フレーム別データ、ROI mask、AutoColorMatcherとの採点妥当性。
+
+## 2026-11-16: 全画面統計の連番処理はフレーム構図変化に敏感な可能性
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`の全source/reference画素統計、`experiments/ColorMatchLab/EVALUATION_PLAN.md`必須評価項目監査。
+- **確認できた事実:** Reinhard/MeanStddev/Histogramは入力1枚ごとの全画素分布から変換を作る実装で、同一画面の各フレームを独立処理するAPI利用を仮定すると、frameごとに統計母集団が変化する余地がある。
+- **価値または懸念:** 連番で物体の出入り/構図が変わると固定物体の出力色まで揺れる可能性がある。静止画のsource/reference評価から時間安定性を外挿できない。
+- **次に確認すべきこと:** 動画/連番適用が明示スコープになる場合のみ、固定露出/照明の同期sequenceで静止ROIのframe-to-frame ΔEとglobal statistic driftを測る。単一画像R&Dでは時間安定性を対象外と記録する。
+- **未検証:** Matcherが実際にsequenceで呼ばれるか、frame stats driftの見えやすさ、変動が欠陥か意図した適応か、許容値。
+
+## 2026-11-17: AutoColorMatcher Core ROI計測は合成cast recoveryと肌彩度低下を同時に示す
+- **関連:** `tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`tests/ArtifactCore/CMakeLists.txt`、`tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`。
+- **確認できた事実:** full-core target `ArtifactCoreAutoColorMatcherContractTest`は元々5件の`float*` BGRA契約ケースを持つ。6件目では`ImageF32x4_RGBA` overloadとraw-buffer出力を全3方式×強度0.25/0.5/1.0、sRGB/linear straight descriptorで比較し、強度1.0固定6画素出力を独立Python式mirrorの期待値とも照合する。独立ColorSpaceStandaloneのmodule/implementation target listは`Color.AutoMatch`/`AutoColorMatch.cpp`を含めない。
+- **価値または懸念:** Debug実行は小さな固定fixtureで画像overload/raw-buffer経路と式mirrorの数値一致を確認する。descriptorを変えても値が同じなのは現状のdescriptor非参照を示し、色管理が正しい証拠ではない。自然画像の肌/白品質や実経路の証明にもならない。
+- **次に確認すべきこと:** 権利確認済みの撮影WB portrait pair、測色済み白、独立ROIレビューを用意して品質評価を続ける。単に契約テストを通しただけでR&D品質gateを閉じない。
+- **追加観測:** 同じ合成portrait/castでstrength 0.0–1.0を0.1刻みで3方式×5 ROI測定（165行）した。combined skinのsource C*ab 14.23 / synthetic target 11.77に対し、strength 1 outputはMeanStddev 11.75、Histogram 11.78、Reinhard 12.71。強度が上がるとsource相対ΔEが増しsynthetic target相対ΔEが下がる。これは同一画像から作った合成targetに対するCore挙動だけで、許容肌変化や自然WB品質の証拠ではない。
+- **追加観測:** 既存ImageF32x4_RGBA::save()境界でsource/referenceと3方式のCore出力PNGを保存し、全体/顔/腕の固定crop sheetを作成。単一unblinded reviewerの表示倍率確認では違いは微妙だが見え、明白な構造損失は見えなかった。これは受容判定・白保持証拠ではない。
+- **実行結果:** 2026-11-17にユーザー許可のもとVisual Studio 18 Debugで既存targetを再build、CTest 1/1・GoogleTest 9/9 pass。RD9拡張テストはCore出力の165 ROI strength sweep、pixelwise ΔE76 p95/max/閾値超過率、source/reference/output PNGを記録。test source SHA-256 `b2af3f825f8422b298c03b360270140d0e7a4b7d8ab38e95086609f166977866`。詳細: `experiments/ColorMatchLab/captures/rd20_core_skin_white/manifest.json`。
+- **未検証:** 自然画像ROIのCore出力と画質、人によるblind review、profile-aware behaviorの正しさ、実経路/performance、ユーザー提供画像pairの評価。
+
+## 2026-11-16: 公開AWBデータでも製品R&Dの肌ペア条件を満たさない
+- **関連:** `docs/planned/MILESTONE_COLOR_MATCH_SKIN_WHITE_RND_2026-11-16.md` の追加dataset調査。
+- **確認できた事実:** SamsungLabs S24 Raw-sRGBはRAWと複数sRGB rendition、neutral/preference illuminantラベルを説明するが、公開repoのLICENSE.mdはCC BY-NC-SA 4.0で、dataset READMEは顔等の個人情報をぼかすと記載する。READMEは別個の画像データライセンスを示していない。Color Constancy Using Faces論文は472人のカード有/無RAWペアと顔ラベルを説明する一方、アクセスできた資料からダウンロード条件・ライセンスは確認できなかった。
+- **価値または懸念:** AWB研究に有用なデータであっても、そのまま製品R&Dに再利用できるとは限らず、ぼかし済みデータは肌色評価に向かない。既存候補は権利・ROI・タスク適合性を別々に確認する必要がある。
+- **次に確認すべきこと:** 明示的に商用利用できる権利を確認した実撮影paired portraitと実中立ROIを探すか、利用許諾と同意を記録できる社内撮影セットを作る。
+- **未検証:** S24データの独立したdataset license、特定画像の内容、顔ぼかし前の元データ利用許諾、Faces datasetの配布・権利状態。
+
+
+## 2026-11-17: Histogram mirror CDF precision must follow Core float arithmetic
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`, `experiments/ColorMatchLab/run_rd1_source_mirror.py`, RD6/RD8/RD19 captures, `tests/ArtifactCore/AutoColorMatcherContractTest.cpp`.
+- **確認できた事実:** Full-resolution Core-vs-RD6 preview comparison initially failed only for Histogram. Core uses float channel binning, float CDF entries and sequential float accumulation; the prior Python mirror used a float64 cumulative sum. At intensities 0.25 / 0.5 / 1.0, the earlier maximum RGB differences were 0.012745 / 0.025490 / 0.047059. After changing the Python equation mirror to float32 arithmetic, RD6 and RD8 regenerated/validated, and all 7 Core contract tests pass, including the full 606×404 pair comparison for 3 methods × 3 intensities within 1.5/255 preview-decode tolerance. Follow-up route checks on 1000×667 RD7 and 1280×851 RD9 source/cast inputs also pass image-overload versus raw-buffer equivalence for all nine conditions; these checks do not validate the Python mirror.
+- **価値または懸念:** Numeric mirrors used to produce high-resolution evidence must preserve implementation precision and tie behavior; otherwise a mirror discrepancy can be mistaken for a product defect. The old untracked output arrays were not recoverable, so only previously measured maxima remain; no aggregate mean/p99 is claimed.
+- **次に確認すべきこと:** When building future Core differentials, preserve exact float/rounding behavior in both vector and image-scale fixtures, and keep preview quantization tolerance separate from float-buffer equality.
+- **未検証:** Natural portrait quality, measured real-white preservation, blind visual acceptance, app route/performance, and generalization beyond one chart pair.
+
+## 2026-11-17: Core image fixtures must distinguish logical RGBA input from BGRA backing
+- **関連:** `ArtifactCore/include/Image/ImageF32x4_RGBA.ixx` (`setFromRGBA32F` / `rgba32fData` contract)、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/captures/rd23_shadowed_portrait/`。
+- **確認できた事実:** `ImageF32x4_RGBA`の`rgba32fData()`はBGRA backingを返し、`setFromRGBA32F()`はlogical RGBA inputを受けてBGRA storageへ正規化する。RD23 fixture実装中に同じ配列順と誤認しかけたが、既存契約と照合してから数値を採り直した。最終テストではcast構築時にBGRA backingからlogical RGBへ明示対応し、Lab測定でもRGB順へ戻す。
+- **価値または懸念:** 画像版とraw buffer版のテストは、名前が似たアクセス関数でもチャンネル契約を別々に明記しないと、実装ではなくfixtureの順序誤りを測る恐れがある。中間測定は破棄し、修正後のCore runだけをmanifestへ記録した。
+- **次に確認すべきこと:** 新しいfloat画像fixtureでは、宣言コメントとセット/取得APIの両方を読み、非対称RGBの小さいチャンネル識別fixtureで順序を確定してから色差集計する。
+- **未検証:** 他の画像クラスの名称・channel orderが同じ契約を持つとは限らない。各型の定義ごとに確認する。
+
+## 2026-11-17: AutoColorMatcher方式ごとにCore処理時間が大きく異なる可能性
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/captures/rd23_shadowed_portrait/core_outputs/performance.csv`。
+- **確認できた事実:** 24 hardware threads表示のVisual Studio Debugで4回のraw-buffer `match()`測定を行った。直近runの7-sample中央値は1280×851のReinhard/MeanStddev/Histogramが44.02/14.72/220.33 ms、1536×1024が57.74/21.98/313.47 ms。前3 run中央値は43.93/14.28/217.06・58.08/21.53/326.27、44.66/14.24/219.45・55.51/21.46/319.13、44.62/14.33/218.08・58.07/22.35/327.08 ms。4 runではtail latencyや再現性を確立できない。実装にはHistogram用のpartial histogram/vectorとCDF scanがある。
+- **価値または懸念:** この1回の測定ではHistogramが他方式より遅いが、Debug build・マシン・並列backend・入力分布依存があり、実app pathの遅延や処理時間予算への適否を結論できない。処理時間差の原因をvector allocationだけに帰属できるプロファイル証拠もない。
+- **次に確認すべきこと:** 実callerとinteractive/final予算が決まった後、同じ入力/CPU affinity/Release buildで反復測定し、Profilerでinclusive/exclusive timeとallocation bytesを方式別に分解する。Histogram構成変更を検討するなら、出力 parityを保持して独立benchmarkで測る。
+- **未検証:** Release/GPU、アプリのpreview/export経路、CPU負荷変動時のp95/p99、peak memory/allocations、計測差の統計的有意性。
+
+## 2026-11-17: ColorChecker WB pairは肌/白の保持ではなく参照レンディションへの距離を示す
+- **関連:** `experiments/ColorMatchLab/captures/rd24_colorchecker_core/`、`ArtifactCore::AutoColorMatcher`。
+- **確認できた事実:** Middlebury ColorCheckerのCanon EOS 20D WB1固定tungstenとWB2 camera auto-WBのペアをCoreで処理し、skin-tone proxy、white、neutral grayの中央patch ROIを各3方式×3強度で測定した。strength 0.25から1.0へWB2距離は低下し、source距離は上昇する傾向があった。強度1ではHistogramが全3群のWB2平均Lab ΔE76を相対的に小さくしたが、目標WB2はカメラJPEGであり測色ground truthではない。全候補と2軸の非支配frontierを`captures/rd24_colorchecker_core/tradeoff_summary.json`へ記録した。追加の平均Lab chroma集計ではsource・WB2 reference・outputを同じCore float測定ループから算出し、保存PNGの8-bit量子化差を排除した。skin proxy C*abはsource 15.23から25.83/29.11/29.81へ増え、white patchはsource 7.85から6.93/12.24/9.77へ、neutral grayは5.70から8.08/7.97/7.96へ変化した（Reinhard/MeanStddev/Histogram、strength 1）。
+- **価値または懸念:** 実Coreでチャート群の色合わせ量とsource色変化量、平均chroma変化を同時に比較できる一方、WB2距離の低下やchartのC*abを肌/白保持やWB正解と解釈できない。色票は標準化patchで、人肌・自然白のテクスチャや材質を含まず、Lab値もunknown descriptorの画像に対するsRGB仮定である。
+- **次に確認すべきこと:** 製品品質評価には権利とWB pair semanticsが明確な実撮影source/reference、測色中立・自然白ROI、独立注釈と盲検baselineレビューを揃え、候補を開く前に受入範囲を固定する。
+- **未検証:** どの方式が自然肌/白に対して好ましいか、実撮影WB pair全般への一般化、独立画質レビュー、製品callerでの結果。
+
+## 2026-11-17: 公開AWB datasetのコードlicenseと画像データ利用権は別に確認する
+- **関連:** `experiments/ColorMatchLab/EVALUATION_PLAN.md`、Samsung S24 Raw-sRGB、DAST Skin Tone Database。
+- **確認できた事実:** S24 READMEは画像rendition、neutral/user-preference WB annotation、二次照明mask、個人情報blurを説明するがdataset-specific license欄がない。関連GitHub forkのCC BY-NC-SA 4.0 licenseはコードrepo側であり、画像データに適用されるとは確認できない。DAST公式READMEは80人・960枚、CST 1–9、5部位のCortex DSM-4測色、WB-card calibrated sRGBを記載し、全データはacademic/commercial use向けに申請可能とする。各subjectの12枚はnominal/under/over exposure各4枚で、WB-paired renderとは説明されていない。
+- **価値または懸念:** 有望なWB metadataや論文公開だけでは製品R&Dでの画像複製・変換・評価・保存の権利を確定できない。ソフトウェアlicenseとdataset/image licenseを混同すると、適切な評価素材と利用許諾の両方を誤認する。
+- **次に確認すべきこと:** ユーザーから権利確認済みの同一scene pairを受領するか、利用条件が明示されたprovider素材を選ぶ。問い合わせが必要なら許諾範囲（社内製品R&D、画像加工、派生crop/metrics保存、再配布）を明記する。
+- **未検証:** S24 datasetの独立した画像ライセンス、DASTの契約に基づく派生物保存条件・pair可用性、各候補がskinと測色neutral/whiteを同じimage pair内で満たすか。
+
+## 2026-11-17: Core image loadの色descriptorを実測ログへ残す
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cpp`、RD24、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`。
+- **確認できた事実:** RD24の実Core実行では、ロードしたMiddlebury source/referenceの`SurfaceColorDescriptor`がどちらも`transfer_known=0`、`primaries=0`だった。PNGファイルにも埋め込みICC profileはなかった。`ImageF32x4_RGBA::load`はOpenImageIO経路でunknown descriptorを設定する分岐と、QImage fallbackでsRGB/premultipliedを設定する分岐を持つ。ログで実測した今回のdescriptorは前者と整合する。
+- **価値または懸念:** encoded sRGBを仮定したLab結果はCore descriptorに裏付けられていない。別入力ではloader経路やprofile状態が変わり得るため、ファイル拡張子だけで測色変換を決めるとRGB値の意味を取り違える可能性がある。
+- **次に確認すべきこと:** pair受領ごとに元profileとload後descriptorを記録し、未確定な場合は色変換根拠を確定してから色差を計算する。将来loaderのdescriptor挙動を変える場合は、入力profileを含む専用契約評価を行う。
+- **未検証:** 他format/decoderでの実際のloader分岐、ICC profileが存在する画像の変換挙動、別primaries/transferを持つmatcher入力の妥当性。
+
+
+## 2026-11-17: AutoColorMatcherの可視RGB出力は完全透明画素のhidden RGBにも依存する
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/captures/rd25_core_alpha/`。
+- **確認できた事実:** 同一の可視RGB・alphaを持つCC0 portrait fixtureで、alpha=0 strip内のhidden RGBだけをblack/magentaに変え、同一cast referenceに対するCore image overloadを3方式×strength 0.5/1.0で実行した。可視領域のpaired-output mean Lab ΔE76はReinhard 7.42/14.82、MeanStddev 13.61/26.82、Histogram 12.65/24.83（strength 0.5/1.0）。各出力はfiniteでalphaは完全保存された。
+- **価値または懸念:** このfixtureではalpha=0画素のRGBが全画面source統計へ入り、表示上同一の入力でも可視出力が変わる。RGB MAE/p95と最大差もmanifestへ保存した。これは出力適合性の判断ではなく、透明色を含む画像でsource統計の対象画素をどう扱うかという未解決契約の証拠。
+- **次に確認すべきこと:** ユーザー提供の権利確認済みWB pairの受領後、別の自然画像と実ROIで主要評価を継続する。alpha評価を製品要件とする場合、straight/premultiplied、semitransparent edge、複数background上の可視結果を事前ゲート付きで確認する。
+- **未検証:** typical projectにおける発生頻度、semitransparent edge/premultiplied behavior、独立visual acceptance、許容差・製品閾値。
+
+
+## 2026-11-17: AutoColorMatcherはpremultiplied alphaのRGB範囲を保持しない
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`SurfaceColorDescriptor::canonicalLinearPremultipliedBgra`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、`experiments/ColorMatchLab/captures/rd26_core_premultiplied/`。
+- **確認できた事実:** 64×64のsynthetic linear premultiplied BGRA32F gradient/alpha rampをdescriptor付きimage overloadへ通した。全6条件で出力はfinite、alphaは不変だが、RGB<=alphaの範囲を超えたchannelはReinhard 155/229、MeanStddev 128/136、Histogram 64/64（各method strength 0.5/1.0）。alpha=0でnonzero RGB channelは128/128、192/192、64/64。MeanStddevは64 negative RGB channelsも出した。
+- **価値または懸念:** 実装はimage descriptor alpha modeを参照せず全RGB値へtransformを適用するため、このfixtureではpremultiplied数値不変条件を保たない。alphaを変更しないだけでは正しいpremultiplied画像処理を保証できず、後段compositeでhaloやgainが起きる可能性をcaller挙動と合わせて評価する必要がある。
+- **次に確認すべきこと:** 製品callerのbuffer alpha associationとcomposite経路が判明した後、実画像/ROI上でblack/mid-gray/white background compositeの差を測り、契約として許容範囲を決める。現段階では修正や合否を提案しない。
+- **未検証:** callerがstraightかpremultipliedを渡すか、core後にunpremultiply/re-premultiplyされるか、実materialへの表示差、解像度/alpha doseでの発生範囲。
+
+
+## 2026-11-17: AutoColorMatcherのimage overloadはtransfer descriptorを解釈しない
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp:417-420`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`の`ImageOverloadMatchesRawBufferAndEquationMirrorForTaggedDescriptors`。
+- **確認できた事実:** 同じ6画素BGRA float bufferをsRGB tagとlinear tagで画像化してimage overloadへ入力し、全3方式×strength 0.25/0.5/1.0で各floatが`EXPECT_FLOAT_EQ`一致する。image overloadはdescriptorを見ず、buffer pointerと寸法をraw APIへ渡す。
+- **価値または懸念:** 記述子が違っても同じnumeric valuesなら出力が同じことを確認した。これは異なるtransferで表現された同じ色を正規化する証拠ではなく、Coreが色符号化を解釈しないことを示す。RD15のsRGB/linear比較は式ミラーのみ。
+- **次に確認すべきこと:** caller契約が明らかになった後、入力を同一scene/色値から作ったprofile-known sRGB/linear representationへ揃え、Core image overloadの意味的同等性と各ROI結果を比較する。
+- **未検証:** 同一色を表す異符号化Core画像間の数値/parity差、ICC変換、primary adaptation、製品callerの実入力transfer。
+
+
+## 2026-11-17: AutoColorMatcherの公開APIは寸法とmethod選択に制約がある
+- **関連:** `ArtifactCore/include/Color/AutoColorMatch.ixx`、`ArtifactCore/src/Color/AutoColorMatch.cpp`、`tests/ArtifactCore/AutoColorMatcherContractTest.cpp`、Color Match Lab評価計画。
+- **確認できた事実:** 公開raw `match` dispatcherは`width,height`一組だけを受け取り、両方の入力寸法として3 algorithmを呼ぶ。`match(ImageF32x4_RGBA&, const ImageF32x4_RGBA&)`もsource寸法だけをdispatcherへ渡す。個別の`reinhardTransfer` / `meanStddevMatch` / `histogramMatch` raw overloadにはsource/reference別寸法があるが、既存の異寸法contract testは`meanStddevMatch`のみを確認している。さらに`computeMatch(..., Method)`はmethod引数を未使用にしており、既定値がReinhardでも常にRGB各channelのmean/stddevからscale/offsetを計算する。confidenceは平均`abs(scale-1)`のみから算出しoffsetを参照しない。
+- **価値または懸念:** source/reference寸法が違うペアでconvenience overloadを使う場合、reference側画素数が小さければ過読込、大きければ統計から一部が欠落する可能性がある（sourceからの推論で、実行再現はしていない）。`computeMatch`をmethod選択のpreviewとして使う場合も、返る変換は選択methodと一致しない。等しいsource/reference標準偏差と非zero mean offsetを仮定すればscale=1になりconfidence=1となるが、これは式からの推論で実行測定ではない。paired capture評価では寸法と呼び出しrouteを記録し、実際に測ったAPI semanticsを区別する。
+- **対応:** Pair intake template v2とvalidatorにmatcher input routeを追加し、寸法が異なるのに`same_size_image_overload`を選ぶ入力をpreflightで拒否する。別寸法対応algorithm routeを選ぶ場合も、route根拠と登録対応証拠を要求する。
+- **次に確認すべきこと:** 不一致サイズの意図されたAPI契約と、callerが異寸法画像または`computeMatch`を使うかを確認する。必要なら設計範囲と承認を得た上で、dispatcher/image overloadの寸法契約とcomputeMatchのmethod/confidence意味を安全なfixtureで検証する。
+- **未検証:** 異寸法の公開dispatcher実行結果、referenceの過読込有無、各algorithmで異寸法を許容すべきか、computeMatchの引数・confidence設計意図、将来のproduct caller挙動。
+
+
+## 2026-11-17: AutoColorMatcherの現行3方式は空間フィルターを使わない
+- **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`の`reinhardTransfer`、`meanStddevMatch`、`histogramMatch`と画像間色合わせR&D。
+- **確認できた事実:** 3方式はいずれも画像全体または各channelの統計/CDFを先に構築し、その後、各source pixelの同じ座標だけを読み書きする。近傍pixel参照、畳み込み、spatial resamplingは実装されていない。RD29ではRD27の保存Core PNGをsRGB→linear Rec.709 Yへ変換し、全画面・左右lamp masks・18px contextで勾配を集計した。全画面のsource/output p95勾配比はReinhard/MeanStddev/Histogramで2.478/2.440/2.528、強エッジ平均方向cosineは0.9912/0.9924/0.9995だった。lamp mask内の方向cosineはleft/right順にReinhard 0.481/0.522、MeanStddev 0.504/0.621、Histogram 0.9965/0.9981。保存PNG上のRGB端点値（どれかのchannelが0または255）の割合はsourceの2.263%から、全画面で10.653/10.023/0.027%、lamp maskでReinhard 26.76/27.87%、MeanStddev 22.67/23.23%、Histogram 0/0%になった。RD29初回のlamp edge thresholdはp90が0となる定義だったため、positive source gradientsのp90へ修正して15行を再計算した。RD30ではRD9のCC0 portrait equation-mirrorを使い、strength 1のface mask gradient p95比は1.020/1.011/1.013、3×3 RMS局所コントラストp95比は1.017/1.010/1.012。arm maskではそれぞれ1.020/1.010/1.014と1.020/1.013/1.017（Reinhard/MeanStddev/Histogram）だった。
+- **価値または懸念:** 現行経路がblur/haloをspatial kernelで発生させる構造ではない。一方、RD29では色変換と保存が混ざる勾配コントラスト変化を観測した。初回の`clipped_pixel_fraction`という名前は保存PNGから断定できないため`endpoint_pixel_fraction`へ直し、自然なendpointとclippingを区別できないとmanifestに記録した。endpoint occupancyはclippingそのものを証明せず、low-texture unmeasured lampshadeの小ROIでの方向差もdetail lossや方式優位の品質証拠ではない。pointwise実装だけから良好な見た目を結論できない。
+- **次に確認すべきこと:** 権利確認済みpairでは色保持と合わせて、source-onlyで固定した細線/低コントラスト/高輝度detail ROIにおけるfloat値域clip、gradient/edge contrast、階調段差を複数強度で測り、blind reviewで許容条件を決める。RD29のmanifestは`experiments/ColorMatchLab/captures/rd29_core_detail/manifest.json`、RD30は`experiments/ColorMatchLab/captures/rd30_portrait_skin_detail/manifest.json`。
+- **未検証:** 自然肌/測色白を含む各ROIでのedge/detail保持、Core float pathのclipping率、8-bit保存後のbanding、用途に応じた許容差。
+
+## 2026-11-17: AutoColorMatcherのportrait skin candidate上の色応答を方式別に記述できる
+- **関連:** `experiments/ColorMatchLab/record_rd31_portrait_skin_color_response.py`、RD9 CC0 portrait、RD31 manifest/CSV。
+- **確認できた事実:** 1枚のunpaired warm/mixed-light CC0 portraitとRD9の既存face/arm mask candidateで、3方式×3強度の式ミラー出力をunchanged sourceに対するper-pixel ΔE76、signed Lab a*/b*/C*ab変化、source/outputともC*ab≥5のpixelに限る絶対円環hue変化として記録した。strength 1 face-maskのmedian ΔE76/hue変化はReinhard 1.68/0.90°、MeanStddev 2.50/4.92°、Histogram 2.53/5.32°。arm-maskは1.63/0.32°、2.38/4.31°、2.17/4.67°。計20 ROI-condition rowsとinput/mask/script hashesがRD31 captureにある。
+- **価値または懸念:** 同一素材でmethod/intensityごとの数値色変化量を分布で比較できる。しかしsourceはdesired skin appearanceではなく、ΔE/hue変化の大小から許容肌色や自然さを判断できない。Hue eligibility cutoffは低chromaでの角度不安定を避ける計算条件だけで、skin classifierではない。出力はCore実測でなく式ミラー、maskは独立注釈されていない。
+- **次に確認すべきこと:** 権利確認済みpaired photographic source/referenceで肌・測色neutral/whiteを同時に固定し、候補表示前に独立ROIとblind review criteriaを合意して、色保持/detail/white preservationを実Core routeで評価する。
+- **未検証:** 意図した肌色、肌tone群を跨ぐ公平性、別人物・照明への一般化、Core出力とのcolor-response一致、測色ground truthへの誤差、独立盲検の許容判断。
+
+## 2026-11-17: 同じCore-saved sourceを共通基準にしてCore previewとmirrorを比較できる
+- **関連:** RD22 saved Core PNGs、RD9 equation mirrors、`experiments/ColorMatchLab/record_rd32_core_portrait_skin_color_response.py`。
+- **確認できた事実:** 同じCore-saved source PNGを基準に、RD22 strength 0.5/1.0 actual-Core PNG previewsとRD9 float equation mirrorsのface/arm ROIを再集計した。strength 1のface median ΔE76 Core/mirrorはReinhard 1.91/1.68、MeanStddev 2.55/2.50、Histogram 2.59/2.53、median hue deltaは2.35°/0.90°、5.18°/4.92°、6.37°/5.32°。armではmedian ΔE76 1.94/1.63、2.17/2.38、2.57/2.17、hue delta 1.96°/0.32°、4.48°/4.31°、5.71°/4.67°。RD32 manifestに24行、mask/source/output/test/Core hashesを記録した。
+- **価値または懸念:** 同じ数値source baselineに対する保存Core-previewと既存mirrorの分布を直接並べた。ただしCore側は8-bit PNG、mirrorは別に準備されたsource由来float outputを同じCore baselineに対して評価するため、量子化・入力作成経路・実装差が混ざる。数値差はfloat parity testでも画質不良証明でもない。
+- **次に確認すべきこと:** 必要なら同じexact float bufferをCoreとmirrorへ入力した差分captureを行い、表示変換/保存を介さずCore float parityを評価する。製品品質の肌・白判断には引き続き権利確認済みpair、測色白、独立ROI、事前合意blind reviewが必要。
+- **未検証:** 同一float inputに対する3方式全strengthのpixelwise Core/mirror parity、別portrait/illumination、適切な肌色保持、neutral-whiteとの相互作用、製品caller結果。
+
+## 2026-11-17: 候補肌ROIのsource-relative Lab lightness変化も出力route別に記録できる
+- **関連:** RD22 saved Core previews、RD9 equation mirrors、`experiments/ColorMatchLab/record_rd33_portrait_skin_lightness_response.py`。
+- **確認できた事実:** RD32と同じCore-saved source、face/arm mask、Core PNG preview/mirror出力を使い、Lab L* signed/absolute deltaとoutput L*分位点を24行記録した。strength 1 median signed ΔL*はfaceでCore/mirrorの順にReinhard +0.88/+0.79、MeanStddev +0.46/+0.44、Histogram +0.31/+0.47。armは+0.89/+0.79、+0.45/+0.39、+0.29/+0.45。Core previewのROI/method別absolute ΔL* p95は0.54–1.01、mirrorは0.63–0.80だった。
+- **価値または懸念:** 全strength-1条件のmedian lightness shiftが正であること、分布裾の範囲、Core-previewとmirrorの差を同じbaselineで記述できる。ただしsourceをdesired exposure/skin targetと見なせず、単一unpaired image・8-bit preview・異なるsource generationのmirrorを使うため自然さや正しさを意味しない。
+- **次に確認すべきこと:** 権利確認済みpaired captureが揃ったら、measured neutral/whiteに基づく露出/WB targetを事前に固定し、skin ROIでsource-relative detail/color変化とtarget-relative correctionを分けて盲検評価する。
+- **未検証:** 望ましいL*範囲、別人物・照明の肌明度、一貫した露出補正、測色白への誤差、float-output parity、製品画面での知覚。
+
+## 2026-11-17: 画像診断recordersは上流manifestのhashをpreflightすべき
+- **関連:** `experiments/ColorMatchLab/record_rd32_core_portrait_skin_color_response.py`、`record_rd33_portrait_skin_lightness_response.py`、RD20/RD9 capture manifests。
+- **確認できた事実:** RD32/RD33のrecordersはCore source/output PNG、mask、equation-mirror出力の実hashを、それぞれRD20/RD9 upstream manifestの期待値と照合してから集計するよう更新した。RD33はRD20/RD9/RD32 manifest hashes、Core/test/asset hashes、分析scriptとLab conversion script hashesもcaptureへ記録する。再実行後も両CSVの24 rowsと既存CSV SHA-256は変わらなかった。
+- **価値または懸念:** 同じファイル名の差し替え、古いmaskや別run outputの誤集計を数値処理前に検出できる。manifest一致はデータの品質・ライセンス・意味的適切さ自体を保証しない。
+- **次に確認すべきこと:** Color Match Labの他のrecordersにも期待hashのpreflightがあるか棚卸しし、手動の再現手順へ実用的な範囲で揃える。
+- **未検証:** 全RD recorderの入力改変検知網羅、外部素材provider状態、manifestを超えたpipeline決定性。
+
+## 2026-11-17: 2枚目のshadowed portraitでもCore skin responseを分布で追加できる
+- **関連:** RD23 shadowed CC0 portrait、`experiments/ColorMatchLab/record_rd34_second_portrait_core_skin_response.py`、RD34 capture。
+- **確認できた事実:** RD23の保存Core previewと25,913px face candidate maskでstrength 1のsource-relative median ΔE76はReinhard/MeanStddev/Histogramで5.18/2.96/3.16、median eligible absolute hue shiftは5.00°/1.90°/2.02°、median signed ΔL*は+0.69/−0.42/−0.59。保存8-bit endpoint occupancyは16.73%/2.01%/3.37%。mask・source baseline・各method PNG hashはRD23 manifestと一致することをpreflightで検証した。7 rowsを保存。
+- **価値または懸念:** 先のRD9 portraitとは異なるshadow/highlight構成の1例を同じ色・明度統計へ加えられた。応答の幅が素材/ROIに依存することが見える一方、単一追加例で一般化できず、constructed castは正解色でない。endpoint値はclippingの証拠ではない。
+- **次に確認すべきこと:** さらに異なる肌色・照明を含む権利確認済みpaired capturesと測色白を揃え、ROIを独立注釈してから実Core品質基準を事前合意する。
+- **未検証:** second portraitの望ましい肌色、別集団への妥当性、測色WB accuracy、neutral-white保持、blind acceptance、全float output pixel parity。
+
+## 2026-11-17: ポートレート間の色応答差は単一素材の要約値を一般化できないことを示す
+- **関連:** RD32/RD33 RD9 portrait、RD34 RD23 shadowed portrait、`summarize_rd35_two_portrait_core_skin_response.py`。
+- **確認できた事実:** Strength-1 actual-Core preview face ROIのmedian ΔE76はRD9→RD23でReinhard 1.91→5.18、MeanStddev 2.55→2.96、Histogram 2.59→3.16。Median signed ΔL*はMeanStddev +0.46→−0.42、Histogram +0.31→−0.59と符号が変わった。RD35は6行を独立portrait別に保持し、upstream manifests/CSVsと選択PNG hashesを確認した。
+- **価値または懸念:** 二画像でも応答値の範囲と符号が変わることを横並びできた。しかしportrait、lighting、source rendition、maskが異なるため因果をmethodに帰属できず、2例から人口集団のskin color傾向も推定できない。
+- **次に確認すべきこと:** Pair intake時は同一scene/reference targetに揃えつつ、照明と肌toneの異なる複数被写体を含め、ROIを独立注釈してtarget-relative/skin-preservation軸を事前合意する。
+- **未検証:** cross-portrait統計的ばらつき、肌tone/demographic公平性、real WB target accuracy、測色whiteとのtradeoff、盲検評価とacceptance。
+
+## 2026-11-17: 顔＋中立カードの公開研究データは利用権確認が先になる
+- **関連:** `experiments/ColorMatchLab/EVALUATION_PLAN.md`、`docs/planned/MILESTONE_COLOR_MATCH_SKIN_WHITE_RND_2026-11-16.md`、Color Constancy with Faces、Zenodo skin-colour workbook、DAST。
+- **確認できた事実:** Color Constancy with Facesの研究ページ/論文は472組の顔・neutral-card present/absent写真と手動ROIを記述するが、公開ページ上で画像利用ライセンスは確認できない。Zenodo記録はCM-2600dで測ったskin XYZとRAW/JPG由来RGBを含むworksheetを説明するが、dataset license欄を確認できず画像一式でもない。DASTは測色肌データを持つ一方、正式なdataset agreementを求め、公開cropで測色white/WB target pairを確認できない。
+- **価値または懸念:** 必要な「顔＋中立基準」の構成が研究データに存在する手がかりを得たが、公開研究物だから製品R&Dに自由利用できるとは限らない。取得前に利用範囲、商用利用、派生ROI/統計の保持、センシティブ画像の管理を確認する必要がある。
+- **次に確認すべきこと:** ユーザー提供の明示許諾済みpairを先に使う。外部セットを候補化する場合はproviderの明示的termsを確認し、測色skin targetとwhite/reference mappingが成立するかを画像取得前に確認する。
+- **未検証:** 当該データの具体的利用権、撮影/render条件のpair equivalence、測色ターゲットの座標対応、製品評価としての妥当性。
+
+## 2026-11-17: Color Match intake preflightは権利gateと素材gateを分ける
+- **関連:** `experiments/ColorMatchLab/validate_pair_intake.py`、`PAIR_INTAKE_TEMPLATE.json`。
+- **確認できた事実:** 一時生成の2×2合成PNGを使ったpreflightで、権利情報未入力時は画像を開かず停止すること、利用許可欄を満たした場合は画像のhash/寸法確認後にROI・評価条件不足を列挙することを確認した。寸法比較で `reference` recordをPillow image handleへ上書きする変数衝突も同じfixtureで露見し、修正した。候補PNGやCoreは実行していない。
+- **価値または懸念:** 権利がない素材に触れず、許諾済み素材の入力不備も一回のpreflightで診断できる。synthetic fixtureは分岐と例外修正の検証に限り、実際のライセンス審査や画像品質を証明しない。
+- **次に確認すべきこと:** 実ペア受領後に文書の利用範囲・被写体同意・mask保管可否を人手確認し、原本hash/format/profile、登録、独立ROI、閾値の全項目をpreflightとレビューで照合する。
+- **未検証:** 実素材での権利証跡確認、ICC/profile内容の自動検査、ROIsや測色値の意味的妥当性、候補採点・Core品質。
+
+## 2026-11-17: Cinematic Looks 仮mappingは正式表待ちに留める
+- **関連:** `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp`、`Artifact/src/Composition/ArtifactAbstractComposition.cpp`、`Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp`、`experiments/CinematicLooksLab/REGISTRY_AUDIT.json`。
+- **確認できた事実:** Cinematic Looksブラウザーはmapping descriptorを持つpresetだけApplyを有効化し、Layer/Compositionの追加をそれぞれProjectServiceのundo対応APIへ渡す。Composition復元実装から追加したLUT/ColorBalance/Tritone module importは見つかったが、確認した各effect interface/implementationからComposition Abstractへの直接importは見つからなかった。TritoneEffectのGPU CPU-fallbackは当初premultiplied alphaをそのまま色処理していたが、同じunpremultiply/process/re-premultiply契約へ修正した。GPU定数bufferはpremultiplied flag追加で76 byteになっていた箇所を、HLSLの80-byte cbuffer配置に合わせてpaddingを戻した（source-level field-size audit）。GPU経路には入力・staging texture生成および`Flush`/`WaitForIdle`を伴うreadbackが残る。
+- **価値または懸念:** preset inventory名と既存effect名の近さだけでは、見た目・意味・永続化の正式な対応根拠にならない。正式対応表が届くまではmapping候補を増やさず、現在のteal_orange仮mappingも製品仕様として承認済みとは扱わない。GPU readback経路はLook適用時の応答性に影響し得るが、発生条件と実測影響は未確認。
+- **次に確認すべきこと:** 正式mapping表を受領後に各Lookのparameter/value、合成位置、保存・再読込、undo要件を照合する。許可後にビルドと実アプリ経路を確認し、GPU preview負荷・同期readbackの発生条件を計測する。
+- **未検証:** コンパイル、アプリ実行、effect stateの保存・再読込、UI操作、画像品質、GPU/CPU parity、性能・アロケーション、GPU constant-buffer runtime layout、仮mappingの製品採用可否。
