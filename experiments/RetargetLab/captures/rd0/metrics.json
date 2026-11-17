@@ -1,0 +1,374 @@
+{
+  "rd": "rd0",
+  "seed": 20261116,
+  "source_size": [
+    384,
+    216
+  ],
+  "target_size": [
+    216,
+    216
+  ],
+  "generator_sha256": "0f44c8d1106aa1e385b77c61779ce15df925e605f9f2d5d2733f9c8a24cbfe3b",
+  "fixtures": {
+    "portrait": {
+      "kind": "portrait",
+      "subject_pixels": 6185
+    },
+    "facade": {
+      "kind": "facade",
+      "subject_pixels": 0
+    },
+    "horizon": {
+      "kind": "horizon",
+      "subject_pixels": 1009
+    },
+    "wires": {
+      "kind": "wires",
+      "subject_pixels": 1296
+    }
+  },
+  "candidates": [
+    "crop_center",
+    "stretch",
+    "seam_backward",
+    "seam_forward",
+    "seam_forward_oracle"
+  ],
+  "metrics": {
+    "portrait": {
+      "kind": "portrait",
+      "note": "off-center ellipse subject; measures retention and shape distortion",
+      "candidates": {
+        "crop_center": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 0.4,
+          "subject_retention": 0.621,
+          "subject_bbox": [
+            0,
+            50,
+            40,
+            166
+          ],
+          "subject_aspect": 0.3504,
+          "subject_aspect_error": 0.4022
+        },
+        "stretch": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 5.7,
+          "subject_retention": null,
+          "subject_bbox": [
+            32,
+            51,
+            69,
+            165
+          ],
+          "subject_aspect": 0.3304,
+          "subject_aspect_error": 0.4363
+        },
+        "seam_backward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 799.2,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            0,
+            50,
+            68,
+            166
+          ],
+          "subject_aspect": 0.5897,
+          "subject_aspect_error": 0.006
+        },
+        "seam_forward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 941.3,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            1,
+            50,
+            69,
+            166
+          ],
+          "subject_aspect": 0.5897,
+          "subject_aspect_error": 0.006
+        },
+        "seam_forward_oracle": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1008.7,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            1,
+            50,
+            69,
+            166
+          ],
+          "subject_aspect": 0.5897,
+          "subject_aspect_error": 0.006
+        }
+      }
+    },
+    "facade": {
+      "kind": "facade",
+      "note": "12 vertical + 8 horizontal lines; measures line survival and horizon bend",
+      "candidates": {
+        "crop_center": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 0.5,
+          "subject_retention": 1.0,
+          "vertical_lines": 6,
+          "vertical_line_width_mean": 3.0,
+          "vertical_line_integrity": 1.0
+        },
+        "stretch": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 5.1,
+          "subject_retention": null,
+          "vertical_lines": 12,
+          "vertical_line_width_mean": 1.0,
+          "vertical_line_integrity": 1.0
+        },
+        "seam_backward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1124.9,
+          "subject_retention": 1.0,
+          "vertical_lines": 7,
+          "vertical_line_width_mean": 2.0,
+          "vertical_line_integrity": 1.0
+        },
+        "seam_forward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1363.7,
+          "subject_retention": 1.0,
+          "vertical_lines": 12,
+          "vertical_line_width_mean": 2.0,
+          "vertical_line_integrity": 1.0
+        },
+        "seam_forward_oracle": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1443.4,
+          "subject_retention": 1.0,
+          "vertical_lines": 12,
+          "vertical_line_width_mean": 2.0,
+          "vertical_line_integrity": 1.0
+        }
+      }
+    },
+    "horizon": {
+      "kind": "horizon",
+      "note": "sharp horizon plus sun near the right edge; measures bend and sun retention",
+      "candidates": {
+        "crop_center": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 0.7,
+          "subject_retention": 0.4817,
+          "subject_bbox": [
+            198,
+            41,
+            215,
+            75
+          ],
+          "subject_aspect": 0.5143,
+          "subject_aspect_error": 0.4857
+        },
+        "stretch": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 7.0,
+          "subject_retention": null,
+          "subject_bbox": [
+            159,
+            41,
+            178,
+            75
+          ],
+          "subject_aspect": 0.5714,
+          "subject_aspect_error": 0.4286
+        },
+        "seam_backward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 976.9,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            114,
+            40,
+            150,
+            76
+          ],
+          "subject_aspect": 1.0,
+          "subject_aspect_error": 0.0
+        },
+        "seam_forward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1213.9,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            114,
+            40,
+            150,
+            76
+          ],
+          "subject_aspect": 1.0,
+          "subject_aspect_error": 0.0
+        },
+        "seam_forward_oracle": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1168.2,
+          "subject_retention": 1.0,
+          "subject_bbox": [
+            114,
+            40,
+            150,
+            76
+          ],
+          "subject_aspect": 1.0,
+          "subject_aspect_error": 0.0
+        }
+      }
+    },
+    "wires": {
+      "kind": "wires",
+      "note": "six 1-px wires; measures thin-structure survival",
+      "candidates": {
+        "crop_center": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 0.4,
+          "subject_retention": 0.6667,
+          "wires_surviving": 4,
+          "wire_width_mean": 1.0,
+          "wire_line_integrity": 1.0,
+          "wire_pixel_retention": 0.6667
+        },
+        "stretch": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 7.3,
+          "subject_retention": null,
+          "wires_surviving": 6,
+          "wire_width_mean": 1.0,
+          "wire_line_integrity": 1.0,
+          "wire_pixel_retention": 1.0
+        },
+        "seam_backward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 923.8,
+          "subject_retention": 0.0,
+          "wires_surviving": 0,
+          "wire_width_mean": 0.0,
+          "wire_line_integrity": 0.0,
+          "wire_pixel_retention": 0.0
+        },
+        "seam_forward": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1188.0,
+          "subject_retention": 0.0,
+          "wires_surviving": 0,
+          "wire_width_mean": 0.0,
+          "wire_line_integrity": 0.0,
+          "wire_pixel_retention": 0.0
+        },
+        "seam_forward_oracle": {
+          "size": [
+            216,
+            216
+          ],
+          "runtime_ms": 1090.7,
+          "subject_retention": 1.0,
+          "wires_surviving": 6,
+          "wire_width_mean": 1.0,
+          "wire_line_integrity": 1.0,
+          "wire_pixel_retention": 1.0
+        }
+      }
+    }
+  },
+  "outputs": {
+    "portrait_source": "51acf59469789d0fb8fe8e2e74e5cdfd7860bb1e601bef7e26c62592b02e7109",
+    "portrait_crop_center": "82d5e639878b275f69180aae5fb5a86f5c859ad02cac1291a64c67d58ccd337a",
+    "portrait_stretch": "98fd893ffa6fd61db7a3cb803486e30fbe5fab7fc228282dbe8c6819277add20",
+    "portrait_seam_backward": "efe1269b839aa6fadf0bf4e2f50d8a592a967cf89f7a3340900801c1791c1fc1",
+    "portrait_seam_forward": "c72f4dd49faa18e22302959ef6b7472154d5d8b2c8a2ee349ee93c947ae09a62",
+    "portrait_seam_forward_oracle": "c72f4dd49faa18e22302959ef6b7472154d5d8b2c8a2ee349ee93c947ae09a62",
+    "facade_source": "40aef4f591c90967160d3f994354ec077ce4d64bc219bff7a197e2c55d8668a4",
+    "facade_crop_center": "11e893c50f8c508f41f739fd75dc6d68b5c66567cbe8dd1a2ee7d9f22ece168c",
+    "facade_stretch": "31569af653d59b59c8c37b16a08a00389d165b71646386e02cb852b4653d1bb0",
+    "facade_seam_backward": "183d0e4468002868fd3c011a06112b33caaa17c588e566005588504d37abb33b",
+    "facade_seam_forward": "ab5ff19911dcee83a072684e26bc49caa65690f09925385e3e3c1eb043fe7fc2",
+    "facade_seam_forward_oracle": "ab5ff19911dcee83a072684e26bc49caa65690f09925385e3e3c1eb043fe7fc2",
+    "horizon_source": "a34f038a52007c801ba42e6cd6e41f427ac709277b9c144d96f15993952425b7",
+    "horizon_crop_center": "0db0c80c0ce11cd3a27692726f71ba3c51afa08ddf10c5ffcbce9ebedc493d29",
+    "horizon_stretch": "7efbb1178c8f5085378ce4161dddf4a04b8ed554d23e1c02e6f1cf393bac5c0b",
+    "horizon_seam_backward": "b211454273eaf4fa9c365b8f328d9d4e8fa39948c4358e6a51371e3e6cf46dd5",
+    "horizon_seam_forward": "b211454273eaf4fa9c365b8f328d9d4e8fa39948c4358e6a51371e3e6cf46dd5",
+    "horizon_seam_forward_oracle": "b211454273eaf4fa9c365b8f328d9d4e8fa39948c4358e6a51371e3e6cf46dd5",
+    "wires_source": "6bcbcfcb069fe16b2bd72c98c5f2d2ba00dd1d40f3091e0ac35b4121371d0d43",
+    "wires_crop_center": "dc08e72764dcd0ca5b336c8eca53173cb2d6329ec6dcfe220cea2d741b40545d",
+    "wires_stretch": "fc8cb4c641220d0b55ef2648e312873f24c94a0d50ee01a0ffaf029492713479",
+    "wires_seam_backward": "11c37aaef3e87f18108b5a00aacc30b9ca1157efe00d1d57ae058f62b40baaae",
+    "wires_seam_forward": "e941cb2f5b487701f6d4ced852fafcb50a0578c99100d7f784286463e50cc068",
+    "wires_seam_forward_oracle": "3d6d8470ac8b7f26f7cc6156d56a993386c943e13d516f46dc7ebfdecd98669b",
+    "contact_sheet": "1cdcd9b64a20cda56f84fb37adac2b5fa0b9f7a9c3a0d5ee73e499b2eac76802"
+  },
+  "notes": [
+    "Synthetic fixtures only; no real photography and no perceptual study.",
+    "stretch quantizes through uint8 sRGB before LANCZOS resize, so it is not a float reference.",
+    "subject_retention is exact for crop/seam lanes (removed columns are tracked) and not applicable to stretch.",
+    "seam_forward_oracle uses the ground-truth mask as an upper bound, not a deployable candidate.",
+    "Column-only transforms preserve row geometry exactly, so horizontal-line bend cannot discriminate lanes; continuity of vertical structures is measured instead.",
+    "Gate thresholds are declared in EVALUATION_PLAN.md; this script reports measurements only."
+  ]
+}
