@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
-if(NOT TARGET ArtifactAppRuntime)
+if(NOT TARGET ArtifactRender)
     message(FATAL_ERROR
         "ArtifactTimelineClipBarPlayground must be configured from the ArtifactStudio root project")
 endif()
@@ -11,7 +11,7 @@ set_target_properties(ArtifactTimelineClipBarPlayground PROPERTIES
     CXX_STANDARD_REQUIRED ON
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
-target_link_libraries(ArtifactTimelineClipBarPlayground PRIVATE ArtifactAppRuntime)
+target_link_libraries(ArtifactTimelineClipBarPlayground PRIVATE ArtifactRender)
 
 if(MSVC)
     target_compile_options(ArtifactTimelineClipBarPlayground PRIVATE

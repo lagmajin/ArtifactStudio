@@ -1,6 +1,6 @@
 # Timeline Clip Bar Diligent Playground
 
-`ArtifactIRenderer` の既存Diligent描画APIで、クリップバーの3つの表現を同一画面に描く独立Playground。タイムラインWidgetやプロジェクトデータは使用しない。
+`ArtifactIRenderer` の既存Diligent描画APIで、クリップバーの3つの表現を同一フレームへ描くヘッドレスGPUキャプチャ用Playground。タイムラインWidgetやプロジェクトデータは使用しない。
 
 ## Build and run
 
@@ -8,15 +8,13 @@ Configure the ArtifactStudio root project, then explicitly build this opt-in tar
 
 ```powershell
 cmake --build <build-directory> --config Debug --target ArtifactTimelineClipBarPlayground
-<build-directory>\bin\Debug\ArtifactTimelineClipBarPlayground.exe
+<build-directory>\bin\Debug\ArtifactTimelineClipBarPlayground.exe --capture <output.png>
 ```
 
 ## Controls
 
-- Click a comparison row to select its design
-- **1–3**: select a design
-- **D**: toggle dense row spacing
+The captured frame uses dense spacing and highlights design B as the selected candidate.
 
 ## Scope and evaluation
 
-This prototype uses Diligent GPU draw calls for panels, rectangles, lines, and labels. Bars and waveform marks are deterministic sample geometry. It does not exercise the production Timeline hit testing, trimming, selection synchronization, media thumbnails, or editing path. GPU initialization and runtime appearance have not been verified. Compare its captures with the browser lab for design only; do not treat this target as production timeline integration evidence.
+This prototype uses Diligent GPU draw calls for panels, rectangles, lines, and fixed bitmap labels. Bars and waveform marks are deterministic sample geometry. A Debug build and D3D12 capture were verified on an NVIDIA GeForce RTX 4070 Ti. It does not exercise the production Timeline hit testing, trimming, selection synchronization, media thumbnails, or editing path. Compare its captures with the browser lab for design only; do not treat this target as production timeline integration evidence.
