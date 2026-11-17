@@ -1,7 +1,7 @@
 # マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走）
 
-**最終更新:** 2026-10-19
-**ステータス:** Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ArtifactScript 系 5 テストのビルドと ctest 実行済み（全緑、164 件 PASS）
+**最終更新:** 2026-11-17
+**ステータス:** Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み。Phase B / D〜H もコード上は実装済み（registerMethod / ObjectInstance / new・this・OnConstruct / フィールドディスパッチ / 継承・複数クラス / `is`）。ArtifactScript 系 5 テストのビルドと ctest 実行済み（全緑、164 件 PASS）。2026-11-17 の静的監査でステータス表記を実コードに合わせた。
 **優先度:** High
 **関連:**
 - `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md`（全体計画。本書は Phase 2 残 / Phase 3 の具体的スライス）
@@ -13,6 +13,19 @@
 ## 目的
 
 既存 Phase 1（文法 C++/C# 寄せ）は 2026-08-22 時点で大半実装済み。残る **Phase 2（バインディング API 実用化）** と **Phase 3（ユーザークラス対応）** を、評価器を壊さずに段階的に実装する。**堅実路線**で、(1) 既存テストの回帰なし (2) 新規ユニットテスト追加 (3) スクリプト→C++ 単方向の最小実用 I/F の 3 つを各スライスで確認する。AGENTS.md 制約によりビルド・テスト実行はユーザー指示待ち。
+
+## Update 2026-11-17 — Phase B / D〜H のステータス修正（静的監査）
+
+旧ステータスは Phase B / D〜H を「未着手」としていたが、現行コードでは以下が実装済みである。
+
+- Phase B `registerMethod` / `obj.method()`: `ArtifactScript.ixx:506-516`、`ArtifactScript.cpp:5065-5093`、呼出しは評価器 `ArtifactScript.cpp:4104-4133`
+- Phase D `ObjectInstance`: `ArtifactScript.ixx:104`、`SharedPtr` alias `:81`
+- Phase E `new` / `this` / `OnConstruct`: `ArtifactScript.cpp:419, 2824, 3276, 3308`
+- Phase F フィールドアクセス／ディスパッチ: call-site 3-way cache と object method 解決
+- Phase G 継承／複数クラス: `ArtifactScript.ixx:290` の `classes` レジストリ、`ArtifactScript.cpp:3317, 5731`
+- Phase H `is` 演算子: `ArtifactScript.cpp:574-585, 2841, 3317`
+
+残作業は「どのテストがどの Phase をカバーしているか」の対応表を明らかにしてから、未カバー部分のテストを追加すること（2026-11-17 時点でビルド・テスト未実行）。
 
 ## Update 2026-10-19 — ビルド・テスト実行（ユーザー指示）
 

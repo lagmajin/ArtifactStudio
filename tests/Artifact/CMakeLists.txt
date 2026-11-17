@@ -2308,6 +2308,17 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 60
     )
 
+    artifact_add_test(ArtifactInpaintEffectContractTest
+        SOURCES
+            InpaintEffectContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactInpaintEffectContractTest PROPERTIES
+        LABELS "effect;inpaint;cpu;contract"
+        TIMEOUT 60
+    )
+
     artifact_add_test(ArtifactCreativeImageCleanupEffectContractTest
         SOURCES
             CreativeImageCleanupEffectContractTest.cpp

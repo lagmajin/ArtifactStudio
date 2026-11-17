@@ -1,0 +1,56 @@
+{
+  "review_date": "2026-11-17",
+  "reviewer": "AI observation only; final acceptance judgment is the user's",
+  "scope": "Display PNG contact sheets (source | candidate | ground truth). NPY is the measurement source. No Artifact runtime capture.",
+  "candidates": {
+    "telea_u8_r3": {
+      "numeric_gates": "G1 fail on all 14 fixtures",
+      "visual": "Not used for acceptance: 8-bit sRGB round-trip changes mask-out pixels before inpaint runs.",
+      "verdict": "reject"
+    },
+    "ns_u8_r3": {
+      "numeric_gates": "G1 fail on all 14 fixtures, G6 line ROI fail",
+      "visual": "Line ROI error increases; 8-bit quantization already violates the mask-out contract.",
+      "verdict": "reject"
+    },
+    "ns_f32_r1": {
+      "numeric_gates": "G1-G5 pass; G6 numeric pass (line ROI MAE 0.0000075 vs baseline 0.45)",
+      "visual": {
+        "thin_line": "Line reconnected cleanly; no visible smudge at the junction.",
+        "high_contrast_edge": "Edge continued with no visible seam; mask_in MAE 0.0.",
+        "hdr_highlight": "HDR disc is not reconstructed; candidate panel is flat where ground truth has a white disc.",
+        "alpha_edge": "Object removed, but alpha inside the mask remains 1.0 while ground truth is 0.5."
+      },
+      "verdict": "leading candidate for opaque / non-HDR case; unresolved HDR and alpha contracts"
+    },
+    "ns_f32_r3": {
+      "numeric_gates": "G1-G5 pass; G6 numeric pass (line ROI MAE 0.4425 vs baseline 0.45)",
+      "visual": "Thin line reconnects but shows a light smudge at both junctions; high-contrast edge shows a dark blob at the continuation. Larger radius than r1 degrades visible continuity.",
+      "verdict": "inferior to ns_f32_r1"
+    },
+    "ns_f32_r5": {
+      "numeric_gates": "G1-G5 pass; G6 line ROI fail (0.4529 >= 0.45)",
+      "visual": "Smudge at line junctions remains; numeric line gate fails.",
+      "verdict": "reject"
+    },
+    "ns_f32_r7": {
+      "numeric_gates": "G1-G5 pass; G6 line ROI fail (0.4579 >= 0.45)",
+      "visual": "Smudge at line junctions remains; numeric line gate fails.",
+      "verdict": "reject"
+    },
+    "telea_f32_r3": {
+      "numeric_gates": "G4, G5, G6 fail",
+      "visual": "Severe artifacts at line and edge fixtures; error exceeds the no-inpaint baseline.",
+      "verdict": "reject"
+    }
+  },
+  "open_contracts": [
+    "HDR highlight reproduction: candidate cannot recover linear values above 1.0 in the filled region.",
+    "Alpha behavior inside the mask: candidate copies source alpha; expected value relative to the surrounding 0.5 region is undefined.",
+    "No Artifact GPU/CPU runtime path, preview/final parity, or performance measurement was performed."
+  ],
+  "limitations": [
+    "Visual review used display PNGs with clamped sRGB OETF; HDR values are clipped in the panels.",
+    "No pass/fail verdict is declared for product adoption."
+  ]
+}

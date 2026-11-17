@@ -1,7 +1,7 @@
 # Fog and Atmospheric Scattering R&D
 
 **最終更新:** 2026-11-13
-**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、惑星大気sample配置の太陽高度／camera高度robustness・局所fog froxel CPU proxy・light count sweep・log/linear depth distribution sweep・camera translation temporal CPU proxy・froxel XY spatial resolution / fine-volume stress sweep・hard-edged volume boundary・subsample injection・integration convergence decomposition・hard-box ray-interval oracle convergence・projected-box coverage negative result・per-froxel ray-box depth occupancy・multi-box overlap/transmittance sweep、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
+**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、惑星大気sample配置の太陽高度／camera高度robustness・局所fog froxel CPU proxy・light count sweep・log/linear depth distribution sweep・camera translation temporal CPU proxy・froxel XY spatial resolution / fine-volume stress sweep・hard-edged volume boundary・subsample injection・integration convergence decomposition・hard-box ray-interval oracle convergence・projected-box coverage negative result・per-froxel ray-box depth occupancy・multi-box overlap/transmittance・Gaussian analytic optical-depth sweep、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
 
 ## 目的
 
@@ -778,6 +778,14 @@ centered boxのtile4×32 fog-only relative L2はsubsteps 1/2/4/8で`0.592 / 0.61
 
 従ってこのstress fixtureでは、主要誤差は1 sample/sliceの単純な積分不足より、既に構築された粗いgrid representationとinterpolationの寄与が大きい。ただしsample integrationを細分するとgrid近似誤差との相殺が外れ、direct referenceに対する誤差が増える場合もあるため「substeps増で誤差が減らない=純粋な空間誤差」と断定はしない。CPU operation countも1/2/4/8倍に増える。`manifest.json`は全image/fog-only RGB RMSEとrelative L2を保存する。製品GPUでは実測しておらず、hard box proxyの診断である。
 
+### F5 Gaussian analytic optical-depth CPU sweep
+
+`tools/fog_local_froxel_gaussian_optical_depth_rd.py`でGaussian densityをray parameterに沿ってerf閉形式積分し、pixel-rayのexact optical depth / Beer–Lambert transmittanceを作った。各froxel depth sliceでもGaussianを各XY subrayに沿って解析積分し、line-integralのslice平均密度をgridへ注入する方式をcenter-point density gridと比較した。single baseline、depth方向thin sigma=0.35、overlapする2 Gaussianの各条件を32/64 slicesで評価した。
+
+volume-affected pixelのT RMSEはcenter-sample 32 slicesに対しanalytic line-integral gridのXY1×1で、baseline`0.00227→0.00112`、thin`0.00607→0.000261`、two-overlap`0.00306→0.00152`。thin条件はtau RMSE`0.00614→0.000267`、最大tau誤差`0.0305→0.00230`。2×2/4×4 XY raysはこのfixtureで全scenarioのtau/T RMSEを1×1より増やし、slice数32→64もline-integral候補のmetricをほぼ変えなかった。これはdepth方向Gaussian profileを点sampleせず各slice内積分する利益と、XY froxel代表sample誤差を分けて示す。
+
+解析line integralはGaussian媒体だけに成立し、各cell/slice/subray/volumeあたりerf評価が必要になる。評価回数はmanifestに保存するが、CPU/GPU wall time、特殊関数のGPUコスト、arbitrary density textureへの応用、散乱源と透過率を同時に正しく積分することは未検証。これは解析可能な媒体向けCPU candidateであり、一般froxel実装の採用推奨ではない。詳細は`docs/worklog/artifacts/fog-local-froxel-gaussian-optical-depth-rd-2026-11-13/manifest.json`。
+
 ### R&D通過条件
 
 - F1は解析透過率参照と数値誤差が一致し、near/far・start distance・無効depthの境界条件が明文化される。
@@ -877,6 +885,7 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 - `tools/fog_local_froxel_box_coverage_rd.py` — projected AABB screen-rectangle × view-Z overlap率によるfroxel density近似をray-interval oracleと比較するCPU-only negative-result probe。
 - `tools/fog_local_froxel_ray_box_coverage_rd.py` — stratified XY raysと厳密ray/AABB区間からslice occupancyを作るCPU-only probe。
 - `tools/fog_local_froxel_multi_box_coverage_rd.py` — additive densityの2-box重複/分離条件でcenter-sampleとray-box slice coverageを比較するCPU-only probe。
+- `tools/fog_local_froxel_gaussian_optical_depth_rd.py` — Gaussian line densityのerf解析積分を用いてfroxel slice平均密度と透過率誤差を比較するCPU-only probe。
 - `tools/fog_local_froxel_injection_sampling_rd.py` — hard box volumeに対するfroxel内XY injection 1×1/2×2/4×4平均の画質と評価数を比較するCPU-only driver。
 - `tools/fog_local_froxel_integration_convergence_rd.py` — grid構築を固定し、log-depth slice内ray integration substep数を増やしてrepresentation/integration誤差寄与を診断するCPU-only driver。
 - `docs/worklog/artifacts/fog-atmosphere-rd-2026-11-12/manifest.json` / `docs/worklog/artifacts/planetary-atmosphere-rd-2026-11-12/manifest.json` — capture契約、hash、誤差／輝度summary。

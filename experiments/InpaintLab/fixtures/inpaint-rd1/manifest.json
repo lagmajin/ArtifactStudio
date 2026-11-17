@@ -1,0 +1,662 @@
+{
+  "bundle": "inpaint-rd1",
+  "generator": "build_inpaint_fixtures.py",
+  "generator_version": "0.1.0",
+  "seed": 20261117,
+  "environment": {
+    "numpy_version": "2.4.4",
+    "opencv_version": "4.13.0"
+  },
+  "color_contract": {
+    "measurement_format": "float32 RGBA NPY",
+    "color_space": "linear scene-referred",
+    "alpha": "straight",
+    "display_format": "8-bit BGRA PNG, clamped [0,1] then sRGB OETF",
+    "view_transform": "none (Artifact active view transform is not used)"
+  },
+  "groups": {
+    "sequence_moving_object": [
+      "sequence_moving_object_000",
+      "sequence_moving_object_001",
+      "sequence_moving_object_002",
+      "sequence_moving_object_003",
+      "sequence_moving_object_004",
+      "sequence_moving_object_005",
+      "sequence_moving_object_006",
+      "sequence_moving_object_007"
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "flat_gradient",
+      "description": "linear RGB gradient with a solid rectangular object",
+      "purpose": "flat-region continuity, color banding inside the filled area",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 4096,
+      "source_value_range": {
+        "min": 0.05000000074505806,
+        "max": 0.949999988079071,
+        "non_finite": 0
+      },
+      "limitations": [
+        "Synthetic gradient; not a photograph. Ground truth is the clean plate, not a naturalness proof."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "40315f54b49d3173fbfe794ceff47ff04734c783cf2a50a1ab6c6129311e5a7e",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "33e17303b74e0be1224b15b51a61fa58ed8a8ffd52271cc0ffb34e4bda48d4d0",
+          "bytes": 48475
+        },
+        "mask.npy": {
+          "sha256": "834c488a81d25314a8b6927eeaa593e34bb88353fc9c09f0d869b2f133a0c7df",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "3855bb7df9ed75fc954f6087ae4b3eb0f40d10a4afc6b554cc8930265d37d2aa",
+          "bytes": 681
+        },
+        "source.npy": {
+          "sha256": "d8cfebb56d241d0018077c566d297236d9ed29f3c80c94bd1f2734cc16b6110f",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "3406b8aca9a3323e182bfcda64cf02d0e57df35bde9ce66a98ccb4e21d1e7242",
+          "bytes": 46056
+        }
+      }
+    },
+    {
+      "id": "textured_wall",
+      "description": "deterministic filtered noise with periodic mortar lines",
+      "purpose": "texture stitching, unnatural repetition, line continuation",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 2821,
+      "source_value_range": {
+        "min": 0.0,
+        "max": 0.8500000238418579,
+        "non_finite": 0
+      },
+      "limitations": [
+        "Exact noise reconstruction is not required; judge continuity and naturalness visually."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "61af049977034c15c7a726358353bb761b4df56d04c5150578866329d8e4d312",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "b6de57cd3a4d8825539f2a05b969eede106f91a2330d36173ac9715ed470abe4",
+          "bytes": 91393
+        },
+        "mask.npy": {
+          "sha256": "71e4b3325099f3a04d1d98b8f43b15da45d1ca51cae8c0c35a0f0fde742b080c",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "853af8a89979f3a8e5d87cfcc7c9b28483489a3767519cb3b38fd5b712fab2b8",
+          "bytes": 704
+        },
+        "source.npy": {
+          "sha256": "e31006cf0894b03efe37c441b8928bcf13da68f989880e8dfba5a3cda275bf23",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "55793e5c73e9b6782f41d1cdf051e3bb9420a525d3844f5431b580ab2bdcfd75",
+          "bytes": 88174
+        }
+      }
+    },
+    {
+      "id": "high_contrast_edge",
+      "description": "vertical dark/bright boundary crossed by a tall object",
+      "purpose": "edge disappearance, edge drift, halo at the boundary",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 7889,
+      "source_value_range": {
+        "min": 0.03999999910593033,
+        "max": 0.9200000166893005,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate defines the expected edge position; inpaint cannot know the edge shape."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "40a936663bf673f44936f1395f100954d0542d263d97c3fd1fb965adf924d048",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "6b356ebbaa782fc06ff3a3e3f1cd19d2a7de997780e7d39a1e42876752acaea9",
+          "bytes": 2101
+        },
+        "mask.npy": {
+          "sha256": "3a4d9df8b22baaa91d4e8c16430d0f3a90b4de5d513de3c1e5801b5dfcdfa612",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "6a52f7cb20e7e50cb790ca55eb45a960c37a6d5c913b6119b22004f43bdcd161",
+          "bytes": 964
+        },
+        "source.npy": {
+          "sha256": "8bc64cf86fed07f4dcc36ab40c8d387fe0cf1b4c39bcc24b5ca537b21b8ec603",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "bfa8fd11eac03060bc90b3dff8b5993ab346249cdb435a8c960ca8fa0ece657f",
+          "bytes": 2899
+        }
+      }
+    },
+    {
+      "id": "thin_line",
+      "description": "four-pixel bright line interrupted by an object",
+      "purpose": "broken, thickened, or recolored thin structures",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 3185,
+      "source_value_range": {
+        "min": 0.10000000149011612,
+        "max": 0.949999988079071,
+        "non_finite": 0
+      },
+      "limitations": [
+        "Line preservation is a structural check, not a pixel-exactness check."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "5259fdf93ecbb8d5caabc7e892e82efe7ed2c5ab8f7cf295b27dd1e9c0a0158f",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "f50b50d3d477c036e6ef4f249ce0f5b9bbee4eb4ab1f0e0a7bd2afd37f144fc8",
+          "bytes": 1337
+        },
+        "mask.npy": {
+          "sha256": "99951adddbf512d886b36ab73c2b7e7efd62e71a8d0a05976f5931b090fcdeb0",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "ae7138b0ee9371d9f96f034526589952fe3b69422034b19ae87132d7099b2202",
+          "bytes": 630
+        },
+        "source.npy": {
+          "sha256": "1e916626d427f370875f1089a9a7f9b3e971b748721b890a253a8735ece2201f",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "9dd19a95f530ada3d78a75e9c8f2fb2d0feb4d92530e4359068f5b112ca55604",
+          "bytes": 1771
+        }
+      }
+    },
+    {
+      "id": "alpha_edge",
+      "description": "opaque left half, 0.5-alpha right half, object crossing both",
+      "purpose": "alpha change outside the mask, transparent RGB changes, composite edge",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 6561,
+      "source_value_range": {
+        "min": 0.10000000149011612,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "Expected alpha behavior for inpaint inside the mask is not yet defined.",
+        "Composite PNGs use a simple linear composite; the app view transform is not applied."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "e5eb9b8a1ac9927302a664c4e3814bf28d42e2f33bae9f9595582d1d754239e6",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "2ffaef9c45f33994068283fe71cebc539312555202095b0f99ca74fa2de783d6",
+          "bytes": 1778
+        },
+        "mask.npy": {
+          "sha256": "f53f2a4c3bf4f0f21567e00372afd02126527437deb08520b6acb6b52f6243cb",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "58a684be12c8af8412529d83c35b47f36719ff0d3981d633cf5f2beda74becbd",
+          "bytes": 748
+        },
+        "source.npy": {
+          "sha256": "c6d1e8a4403698feff3ad98639e8e12ac133ce60fed9ce3604207f90763cea43",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "5d692c6f7e148ad0d781e933121df4577ea5cff950411e05f440e3d0aa525362",
+          "bytes": 2382
+        }
+      }
+    },
+    {
+      "id": "hdr_highlight",
+      "description": "linear RGB values up to 4.0 covered by an object",
+      "purpose": "clipping to 0-1, highlight loss, non-finite values",
+      "resolution": [
+        256,
+        256
+      ],
+      "mask_pixels": 1681,
+      "source_value_range": {
+        "min": 0.019999999552965164,
+        "max": 0.5,
+        "non_finite": 0
+      },
+      "limitations": [
+        "Display PNG clamps HDR; NPY is the measurement source.",
+        "An implementation that clamps cannot reproduce this ground truth; judge as a contract question."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "06f937f8078e3dfe25ed0a68a7d9ff3e96ca401fdaad3ecf5f20e0a73a194a75",
+          "bytes": 1048704
+        },
+        "ground_truth.png": {
+          "sha256": "f043e3603fd75d5bca7743f2bafb960172e54472394e53504f07190127d63a12",
+          "bytes": 1486
+        },
+        "mask.npy": {
+          "sha256": "fdad29d21e0b799b61d6aeea32943201249d45178eda353b2776e5f2c5d18220",
+          "bytes": 65664
+        },
+        "mask.png": {
+          "sha256": "751683628fc69ac4a7aa02c6000fe84c50087be6e84a8d39480d2dee96eff38c",
+          "bytes": 615
+        },
+        "source.npy": {
+          "sha256": "7a5b625f3058123c5ee2b673b1bc2b1bf0aa64c6d84c353dc7fddd782d68e2c4",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "ec2abfd55cc43c2bdbc722c4b574edd487be697c9c1984bf63c86e3774eea96c",
+          "bytes": 1650
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_000",
+      "description": "frame 0: a bright object at x=20 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "a1d0ac869fb56e8e5aa7af8c79100eac6e73a03f7fc43598e28386c193874430",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "f6c5578ed433500b379a897002dc14d807ed910cdcada0687aa4a84b4e83c2e9",
+          "bytes": 429
+        },
+        "source.npy": {
+          "sha256": "f215e7af982aa062ccc38bcbc65b22d5d0ee2d095556400586c008e94edfc07c",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "6ca7f965cf9056416b13cc50d367c11f5634fd178a5acbf0e3b42050df9b5da7",
+          "bytes": 42989
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_001",
+      "description": "frame 1: a bright object at x=34 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "b17782e558f824bac1a9bb9fafe80134585633cb3c9fb8b30f935d10a27ca9c2",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "97980f2ae4b1becca93626c88f74add814d2d12d60abc4b7a8625a1a1967dede",
+          "bytes": 429
+        },
+        "source.npy": {
+          "sha256": "6530b8a482faf34e480412f3b699a3341fa1da20253c86b3b9f62b52fff6636a",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "e1a90ee577626f62a03101f328a6138e0e5647ffe9c7c66d7479c72634c0abee",
+          "bytes": 43080
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_002",
+      "description": "frame 2: a bright object at x=48 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "766b73f7aa8c5c6324ebe4476c6addcecefe74a30ad7c290815d067d85b98204",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "9ac71c9b4c7c5b940ce4cef28d11185d75c63282d95ed0ffee9d62b804ed1c28",
+          "bytes": 434
+        },
+        "source.npy": {
+          "sha256": "3fc3b431cf88c582aba9003a9c5197749b7488a9265f740a1f5a508aa49543b5",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "29b0de1017bdab86c1a8c26149b248d17b9690dce2985802e00a7e08bb2229ee",
+          "bytes": 43088
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_003",
+      "description": "frame 3: a bright object at x=62 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "d26a980eedd9c69b15ddae3c9a61d2d4757babb46eddad427b7760ed56b22bdd",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "a8a09bdbe1505e47059fb79caa6138f42d26899bd276ce4eaa5847d83bb77e3b",
+          "bytes": 433
+        },
+        "source.npy": {
+          "sha256": "bc8fb6f9caf69ce1f05bb3beff97a21068b5296137ac2f7ff2894e03b527c375",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "7bc9f59375fb72b88730343d94066007b4c9228468f35b4bea7c49a678990655",
+          "bytes": 43161
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_004",
+      "description": "frame 4: a bright object at x=76 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "886b6d39ec8f2605b94bfe98c6951bea7aecc207503556702ff85bf3e33d230f",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "7fe798edcc388d1cb9961bbadb29fad3152a0ea71c5a6c6ce1da331dc85655ef",
+          "bytes": 433
+        },
+        "source.npy": {
+          "sha256": "d6427e041fb8d63a2e2fdc879556c17730dd16027f5962232692181412544a3f",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "54462f3ce2f879f42162ec57756c316cda646086794725dad3be2a5ebab3bac5",
+          "bytes": 43122
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_005",
+      "description": "frame 5: a bright object at x=90 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "976b329e40b5e33ff4e6dbeb847fb7ecb41c16e8d2a1f345c112b125e6ae7cf2",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "5231bebd44d4628a389c1ba4d66c9579b4a35850e33ad485fec8d6ca824f8869",
+          "bytes": 433
+        },
+        "source.npy": {
+          "sha256": "5f63c02f17611feafbe1073305c01d14c6204a6e7a1eb8fb8817869f7f7eade0",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "2b63eb83facee9dbed9660e89d5467d7ef6a22d94a5fc47623924313e4f614d8",
+          "bytes": 43104
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_006",
+      "description": "frame 6: a bright object at x=104 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "3133b43660c1066cdd7b7dc94c837bc1fd6071e8e1acb06ba04be8d845d486a6",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "b37eadebe7989288c6070e09518da6668f1cf64bce557acc844c014e3d435c75",
+          "bytes": 428
+        },
+        "source.npy": {
+          "sha256": "ddf423296ea84db0e06e62d23e4fc2f59cbd567232ae7fe7d3b77bb0f852f718",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "f0bc11a19e1da3a9d4db8fee1692907fea2fc122d264478314bdc066f3a5e3ce",
+          "bytes": 43039
+        }
+      }
+    },
+    {
+      "id": "sequence_moving_object_007",
+      "description": "frame 7: a bright object at x=118 over a static textured background",
+      "purpose": "temporal stability of the static background (flicker / shimmer)",
+      "resolution": [
+        160,
+        160
+      ],
+      "mask_pixels": 957,
+      "source_value_range": {
+        "min": 0.09038034826517105,
+        "max": 0.8999999761581421,
+        "non_finite": 0
+      },
+      "limitations": [
+        "The clean plate is identical in all frames; object motion is not flicker.",
+        "No camera motion or optical flow is modeled in this fixture set."
+      ],
+      "files": {
+        "ground_truth.npy": {
+          "sha256": "74ad39cce6eed59c665809b330e3bb15f05603ed4fc0a7004082597a9be9a096",
+          "bytes": 409728
+        },
+        "ground_truth.png": {
+          "sha256": "b0c72c19d00ef8f5648a1eced79b91e562ba4691816afed06c5a92fe759712dd",
+          "bytes": 44224
+        },
+        "mask.npy": {
+          "sha256": "87e89409cb73d433c9f3e6d9c060d9b72192b569a6cbf47aa593fd05f1d27272",
+          "bytes": 25728
+        },
+        "mask.png": {
+          "sha256": "66d6338afd2e8d3438f1be147f07ee356e10b9e90a535be70f1612ae2b4fb58a",
+          "bytes": 424
+        },
+        "source.npy": {
+          "sha256": "1ec8c750d884868a1b0ef6fac825a4b99da962245381978b7a1a6ea726050077",
+          "bytes": 409728
+        },
+        "source.png": {
+          "sha256": "99c83289f859d8ab82fbeb3c034aa3d9d1610991c5e31fe54aee07589f2cd04f",
+          "bytes": 43031
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "All fixtures are synthetic. Ground truth is a clean plate, not a naturalness proof.",
+    "No Artifact code is executed, no GPU dispatch, no runtime capture, no performance measurement.",
+    "No threshold or pass/fail verdict is derived from these fixtures alone."
+  ]
+}
