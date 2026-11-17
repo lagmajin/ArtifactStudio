@@ -1,4 +1,63 @@
-**最終更新:** 2026-11-13
+**最終更新:** 2026-11-17
+
+## 2026-11-17: 連番の「受入れ契約未固定」は実際には分散定義済みで未実行が本質
+- **関連:** `docs/analysis/IMAGE_SEQUENCE_ACCEPTANCE_MATRIX_2026-11-17.md`、`docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md`、`docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`、`tests/ArtifactCore/ImageAssetMetadataContractTest.cpp`。
+- **確認できた事実:** `REPORT_DCC_GAP_UPDATE_2026-08-15.md` は「欠番・開始番号・fps・保存再読込・キャッシュ・フレーム外参照を受入条件として固定する必要がある」と記載するが、実コード照合では `ImageSequenceSourceContractTest`（20+ 件）と M-SRC-RELOC-1 の解決優先順位／保存キー棚卸しで大部分が既に固定されている。真の残課題は app 側の runtime 受入れ（E-1〜E-4/F-1〜F-3/C-5/A-7）と、16bit 連番が `QImage` 経由で 8bit 化される点（10-04 レポート B-10、未着手）だけである。
+- **価値または懸念:** 旧ギャップ表の文言だけを根拠に「契約を新規作成」すると既存の Core 契約テスト／Undo／JSON／relink 導線を二重定義し、保守コストを増やす。逆にコード接続のみを「完成」と誤認すると未受入 runtime 項目を除外してしまう。
+- **未検証:** runtime 受入れ（ビルド・実機禁止のため未実施）。16bit 連番の実素材での挙動も未確認。
+- **次に確認すべきこと:** ビルド許可が得られたら受入表の RT-未 ケースを順に実行し、失敗段階を source/decode/color/cache/composite で分類する。B-6 は別途「QImage を経由しない連番デコード経路」の設計レビューを先に行う。
+
+## 2026-11-17: 透過 PNG の素材移設・再リンク・書き出し受入プロジェクト
+
+- **関連:** [静止画レイヤー受入マイルストーン](docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md)、`tests/Artifact/StillImageLayerRoundTripTest.cpp`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`。
+- **確認できた事実:** 保存・再読込、欠落・再リンク、実素材による Preview／Render Queue の比較はマイルストーン上で実機受入が残っている。
+- **提案:** 半透明の縁と非対称な模様を持つ sRGB PNG 1 枚を、明暗の背景に重ねる。クロップとマスクを適用した 1 コンポジションの `.artifact` と素材を同梱し、確認対象は 1 フレームに絞る。
+- **価値:** 同じフレームを各操作後に比較することで、素材パスの復元、欠落からの復旧、クロップ位置・マスク境界・半透明の縁の描画差を切り分けられる。
+- **次に確認すべきこと:** 元素材への参照を切ってプロジェクト一式を移設し、相対パスで復元する。次に移設先の素材をリネームして欠落表示を確認し、再リンクする。移設前・再読込後・再リンク後の同一フレームを、色空間と出力条件をそろえて Preview／Render Queue で比較する。
+- **未検証:** プロジェクト・素材の作成と実機受入は未実施。
+
+## 2026-11-17: モーショングラフィックス機能のギャップ文書が実コードより大幅に古い
+- **関連:** `docs/analysis/GAP_AE_NUKE_2026-08-01.md`、`docs/spec/SPEC_TEXT_TOOL_REQUIREMENTS_2026-07-31.md`、`docs/planned/MILESTONE_SHAPE_SVG_EXPORT_AND_KEYFRAME_VERIFY_2026-08-22.md`、`Artifact/src/Layer/ArtifactShapeLayer.cpp`、`Artifact/src/Widgets/CompositionTextEditor.cpp`、`ArtifactCore/src/Script/Expression/ExpressionEvaluator.cpp`。
+- **確認できた事実:** ソース直読では、パスモーフ評価（`evaluatePathAt` の `ShapePath::interpolate` 経由）、フラットな複数シェイプ／コンテンツとスタック、TextTool のキャンバス生成、`ToolType::Text`、ダブルクリック→ダイアログ編集（Ctrl+Enter/Esc＋Undo）、TextAnimator 配線、`wiggle/loopOut/loopIn/smooth` の実装・登録・エディタ補完まで存在する。一方ギャップ文書は Text Tool 20% / VP編集 5% / Wiggle・loopOut 0% / パスモーフィングUI未着手と記載しておりコードと食い違う。
+- **価値または懸念:** 古いギャップ表から工数を見積もると「新規実装」を繰り返し、既存の Undo／JSON／レンダリング導線を壊す恐れがある。逆に実コードだけを根拠にすると未受入の runtime 項目（ビルド・実機・Undo往復）を実装済みと誤認する。両方を照合して残作業を定義すべき。
+- **未検証:** runtime 受入（今回はビルド禁止のため未実行）。差分が意図的な廃止か追記漏れかも未確認。
+- **次に確認すべきこと:** ギャップ文書の該当行を実コード照合で更新する独立タスクを立てる。今回のシェイプ／テキスト作業では仕様書のチェックボックスをそのまま受入条件に使わない。
+
+## 2026-11-17: layer→layerFloatの明示数式にはsRGB decodeがなく順序はSRV Load依存
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx:106-137`、`Artifact/src/Render/ArtifactRenderLayerPipeline.cpp:3611,1249-1251`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx:240-268`、`docs/planned/MILESTONE_BUFFER_PRECISION_ALPHA_CHAIN_RD_2026-11-17.md:15`。
+- **確認できた事実:** GPU昇格シェーダーはunpremultiplyと`saturate`、straight保存、BGRAスワizzleを行い、明示的なsRGB decodeとlinear再premultiplyは行わない。sRGB decodeはsRGB SRVの暗黙挙動に依存しD3D12/Vulkanで異なる可能性がある。CPU側SurfacePixelConversionは正しい順序を実行する。layerのpremultiplyがencoded/linearのどちらかもソースから確定しない。
+- **価値または懸念:** 「順序違反を修正すれば直る」と断定できない。GPUとCPUで契約が違うためparityも未証明。実機captureなしに製品判断すべきではない。
+- **未検証:** 実GPUのsRGB SRV Load挙動、backend差、実アプリの合成結果、premultiply領域。
+- **次に確認すべきこと:** `experiments/PrecisionLab/capture_adapter_draft.cpp`をもとに既存headlessテストへ1件追加し、RGBA8 sRGB premultiplied入力→RGBA32F出力を実測する。ビルドブロッカー(ScopeComputer.cpp:388 C2511)の解消と実行許可が必要。
+
+## 2026-11-17: 精度誤差は順序・クランプ・量子化で支配要因が別れる
+- **関連:** `experiments/PrecisionLab/separate_contributions.py`、`experiments/PrecisionLab/captures/contributions-rd2/contributions.json`。
+- **確認できた事実:** reference→clamp→order→quantの段階差で分離。alpha_fringeのalpha境界はorder 0.06932に対しclamp 0.00225/quant 0.00051、chromatic_edgeもorder 0.06943が支配。hdr_rampはclamp 0.76451でorder 0、banding_rampはquant 0.001で他0。freeze済みgateはG1/G2/G3すべてpass、G4/G5は記録のみ。
+- **価値または懸念:** 同じ「精度不良」でも原因が3つに分かれるため、単一のMAE閾値や「floatにすれば直る」という判断は誤り。部分alphaは順序、HDRはクランプ、平坦rampは量子化を狙う必要がある。
+- **未検証:** 実アプリのlayer→layerFloat順序、CPU/GPU parity、知覚許容差。段階MAEは加算的でないため残差は誤差予算にならない。
+- **次に確認すべきこと:** 実アプリ経路のcapture adapterを用意し、各支配要因に対応する修正候補を同じfixtureで比較する。
+
+## 2026-11-17: premultiplied sRGBの順序違反が部分alphaエッジの主因、隠れRGBは主因ではない
+- **関連:** `experiments/PrecisionLab/analyze_precision_chain.py`、`experiments/PrecisionLab/captures/chain-rd1/chain-metrics.json`、`docs/analysis/IMAGE_BUFFER_PRECISION_AUDIT_2026-08-13.md:58-66`。
+- **確認できた事実:** 監査弱点2の連鎖を数式モデルで比較。18%灰背景でnaive8（premultiplied sRGBをそのままlinearデコード）はalpha_fringe full MAE 0.04762／alpha境界0.07186、chromatic_edge 0.02621／0.06939。正しい順序（unpremultiply→decode→premultiply）は0.00280／0.00356、0.00094／0.00131。8bit量子化単独の誤差はbanding_rampで0.001。HDR rampは全連鎖で0.76495、クリップ率0.6732。alpha=0/0.01下の隠れRGBは順序違反でも可視リークしなかった。
+- **価値または懸念:** 部分alphaの黒縁・色ずれは隠れRGBではなく変換順序で説明できる。HDRクランプと8bit量子化は独立した誤差で、順序を直しても改善しない。
+- **未検証:** 現行実装が実際にどの順序を使うか、GPU/実アプリ経路、知覚上の許容差。数式モデルでありruntime画像ではない。
+- **次に確認すべきこと:** gate承認後にR2で順序・量子化・クランプの寄与を分離し、実アプリのlayer→layerFloat経路をcaptureして照合する。
+
+## 2026-11-17: OpenCV inpaintの8-bit往復はマスク外不変契約を壊す
+- **関連:** `experiments/InpaintLab/compare_inpaint_candidates.py`、`experiments/InpaintLab/captures/candidates-rd2/candidate-metrics.json`、`docs/planned/MILESTONE_INPAINT_CONTENT_AWARE_FILL_RD_2026-11-17.md`。
+- **確認できた事実:** cv2.inpaint 4.13は8-bit 3-channelと32-bit float 1-channelのみ対応。8-bit sRGB往復の候補は14 fixtureすべてでマスク外RGB/alphaが変化しG1失敗。per-channel float32 NSはG1-G5通過でradius1が細線・エッジに最良（line ROI MAE 7.5e-6）。Telea float32は定数フィールドで半径依存の値（0.1→1.39、2.5→2.999、10→10.499、NSは一定保持）を出しG4/G5/G6失敗。NS float32でもHDRディスクは再現できず領域MAE 2.98、マスク内alphaはsourceコピーでGT差0.5。
+- **価値または懸念:** 8-bit表示経由のinpaintは見た目が近くてもマスク外を変えるため契約違反。HDR/alphaの期待値を定義せずに実装へ進むと受入で破綻する。
+- **未検証:** Artifact runtime経路、preview/final parity、性能、Telea float32不安定挙動の原因。
+- **次に確認すべきこと:** R3でHDR/alphaの期待契約を先に定義し、ns_f32_r1を実装候補として受入条件を決める。
+
+## 2026-11-17: 画像エフェクトR&Dのfixture規約はblur-rdに集約されつつある
+- **関連:** `experiments/blur-rd/build_gaussian_fixture_bundle.py`、`docs/planned/MILESTONE_BLUR_EFFECTS_RD_2026-11-12.md`、`docs/planned/MILESTONE_CONTENT_AWARE_FILL_2026-07-08.md`。
+- **確認できた事実:** Blur R&Dはfloat32 RGBA NPYを測定源、PNGを表示用と分け、fixture／スクリプト／解析器／設定にSHA-256を付けるmanifest方式を使っている。inpaintは`MILESTONE_CONTENT_AWARE_FILL_2026-07-08.md`でDRAFT／未実装が繰り返し確認されており、実装より先に評価計画を置く余地がある。
+- **価値または懸念:** 新規エフェクトR&Dが独自形式のfixtureを作るとalpha associationと表示変換の前提が案件ごとに割れ、横断比較ができなくなる。測定用floatと表示用PNGの分離、hash付きmanifest、未検証項目の明示は再利用すべき規約。
+- **未検証:** inpaint R&Dでこの規約を実際に運用した結果、Artifact runtime captureとの接続方法は未確認。
+- **実行結果（2026-11-17）:** fixture生成を実行し、14 fixture／84ファイルのmanifest hash不一致0、別ディレクトリ再実行でhash集合完全一致を確認。thin_lineの表示用PNG目視も実施。アルゴリズム適用・閾値・runtime captureは未実施。
+- **次に確認すべきこと:** R1の統計と目視用contact sheetを追加し、実装段階のcapture adapterを設計する。
 
 ## 2026-11-13: 局所fogの全画像誤差は細いvolumeの消失を隠し得る
 - **関連:** `tools/fog_local_froxel_spatial_resolution_rd.py`、`tools/fog_local_froxel_hard_boundary_rd.py`、F5 froxel CPU proxy。
@@ -14331,3 +14390,32 @@
 - **価値 / 懸念:** 不透明度 API 追加は係数差し替えだけで済む低コスト変更。ただし 3D の depth 共有条件 `opacity >= 0.9999f` は減衰係数 <1 で外れるため、不透明度化しても係数既定 0.35 維持なら挙動変化は起きない（現行と同一）。複数選択時の挙動と Blender 型「全体半透明」の対応は未決。
 - **次に確認すること:** P1-1（Isolate 状態復元）/ P1-2（Ghosted）と一緒に X-Ray の選択基準・複数選択仕様を設計する。
 - **未検証:** 減衰が RAM preview キャッシュ・depth 共有経路へ与える現行の実際の影響範囲、スライダ UI の使い勝手。
+
+## 2026-11-13: Gaussian fog slice occupancyで透過率誤差を減らせる
+- **関連:** `tools/fog_local_froxel_gaussian_optical_depth_rd.py`、F5 froxel CPU proxy。
+- **確認できた事実:** erf閉形式line integralでdepth slice平均密度を作ると、thin Gaussianのaffected-pixel T RMSEは32-slice center sample`0.00607`からline-integral XY1×1`0.000261`へ低下。2×2/4×4 XY sampleはこのfixtureで誤差を増やし、32/64 slices差も小さかった。
+- **価値または懸念:** 密度profileが解析可能なら高密度marchingより低slice数で透過率を保てる可能性がある。erf特殊関数のGPU costと任意fieldへの一般化は別途評価が必要。
+- **未検証:** 点光源散乱と透過率を同時に解析積分した画質、GPU時間、arbitrary density textureや時間変動mediumでの安定性。
+
+## 2026-11-17: 3スクリプト基盤の「世界への窓口」に共通のギャップがある
+- **関連:** `Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`、`Artifact/src/Export/Python/ArtifactPythonAPI.cpp`、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cpp`、`docs/planned/DESIGN_REVIEW_SCRIPT_API_P2_2026-11-17.md`。
+- **確認できた事実:** C# は `Time`/`DeltaTime`/`Frame` のみで composition・selection への API が無い。Python は `WorkspaceAutomation` の 100 超の操作の一部しか露出していない。ArtifactScript は property/keyframe はあるが Transport とエフェクトが未バインド。戻り値契約も基盤ごとに異なる。
+- **価値 / 懸念:** 今回は P0/P1（参照解決、構造化エラー、AE ラッパー再帰、数値プロパティ、文字列／配列ユーティリティ）を実装し、P2 は設計レビュー資料に留めた。P2 のうち C# の `ArtifactApi` facade は delegate 寿命と例外・停止ポリシーの定義が先決で、コルーチンは評価器の根幹に触れるため最後に回すべき。
+- **追加の既知リスク（未修正）:** C# の `_session` / `_globals` は static 1 つなので、複数レイヤー／composition の同時実行で状態が衝突する。session ID 付き辞書化が必要。
+- **次に確認すること:** 設計レビュー資料の承認後、項目3（Transport read-only）から着手する。ビルド・hostfxr 有効環境での実機確認はユーザー明示指示待ち。
+- **未検証:** いずれも静的調査のみ。Roslyn の実参照解決、hostfxr 実行、CTest は未実施。
+
+## 2026-11-17: FSR1 の既存シェーダは「配線するだけ」ではなく、埋め込み前に移植が必要
+- **関連:** `Artifact/shaders/fsr_upscalingCS.hlsl`、`fsr_sharpenCS.hlsl`、`ArtifactCore/src/Graphics/Compute.cpp:63-73`、`ArtifactCore/include/FSR/ffx_fsr1.h`、`docs/planned/MILESTONE_FSR1_SPATIAL_UPSCALE_RD_2026-11-17.md`。
+- **確認できた事実:** 両 HLSL は Wicked Engine の `CONSTANTBUFFER` マクロ、`sampler_linear_clamp : s100`、`globals.hlsli` / `ffx-*.h` の include、`register(spaceN)` を前提とする。`ComputeExecutor::build()` は `ShaderCreateInfo` に include ハンドラを設定せず生文字列を渡すため、そのまま埋め込めない。さらに `[numthreads(64,1,1)]` で 1 グループ 16×16px のため、`makeDispatchAttribs(w,h,1,8,8,1)` は誤り。Resolve 後の `accumSRV` は preview 解像度かつ BGRA で、全解像度 RT と色契約の整理も必要。
+- **事実（訂正）:** 既存の「動的解像度」`ArtifactIRenderer::setUpscaleConfig()` は源代码に呼び出し元ゼロ。実プレビューの低解像度化は `previewDownsample_` が駆動している。旧調査の「setUpscaleConfig の拡大パスに接続」という想定はそのままでは使えない。
+- **価値 / 懸念:** シェーダ資産の存在だけで「低リスク・すぐ配線可」と判断すると、ffx ヘッダ展開・全解像度 RT のホットパス外確保・BGRA→RGBA 契約・backend parity を低估する。画像評価計画が必須なのもこの種の変更。
+- **未検証:** 実 GPU でのシェーダコンパイル、D3D12/Vulkan parity、画質、性能。ビルド・キャプチャ禁止のため未実施。
+- **次に確認すること:** ビルド許可が得られたら、自己完結 HLSL のコンパイルを最初に確認し、その後 baseline A/B を取得して閾値を確定する。定数生成は `tools/fsr_constants_rd.py --self-test` で静的に検証済み。
+
+## 2026-11-17: Configure Render Passes は名前だけを書き戻して per-pass 設定を捨てていた
+- **関連:** `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cpp` の `configurePassesButton` ハンドラ（旧 :1773-1780）、`Artifact/src/Render/ArtifactRenderQueueService.cpp` の `setJobSelectiveSettingsAt()`。
+- **確認できた事実:** ダイアログは `QInputDialog::getText` で名前だけを編集するのに、受け取り側が `pass` を毎回作り直して `layerFilter=0` / `enabled=true` をハードコードしていた。JSON インポートや API で設定した `layerIds` が、名前の再設定を通すだけで消える。
+- **価値 / 懸念:** データモデルと永続化が正しくても、UI の書き戻し一环で設定が失われる。新規 per-pass フィールドを追加する際は、既存値をマージする書き戻しに同時に直さないと同じバグを繰り返す。
+- **次に確認すること:** 今回マージ処理を入れたので、名前変更・並べ替え・重複名で既存設定が保持されることを実機 UI で確認する（ビルド禁止のため未実施）。
+

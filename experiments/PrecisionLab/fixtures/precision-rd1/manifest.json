@@ -1,0 +1,163 @@
+{
+  "bundle": "precision-rd1",
+  "generator": "build_precision_fixtures.py",
+  "generator_version": "0.1.0",
+  "seed": 20261117,
+  "environment": {
+    "numpy_version": "2.4.4",
+    "opencv_version": "4.13.0"
+  },
+  "color_contract": {
+    "measurement_format": "float32 RGBA NPY",
+    "color_space": "linear scene-referred",
+    "alpha": "straight",
+    "display_format": "8-bit BGRA PNG, clamped [0,1] then sRGB OETF",
+    "view_transform": "none (Artifact active view transform is not used)"
+  },
+  "fixtures": [
+    {
+      "id": "alpha_fringe",
+      "description": "multi-level alpha edge with asymmetric color and hidden RGB",
+      "purpose": "black fringe / color shift at partial alpha",
+      "resolution": [
+        256,
+        256
+      ],
+      "rgb_min": -0.20000000298023224,
+      "rgb_max": 3.0,
+      "alpha_min": 0.0,
+      "alpha_max": 1.0,
+      "non_finite": 0,
+      "limitations": [
+        "fixed seed 20261117; fixture geometry is deterministic",
+        "Synthetic fixture; not a photograph or a runtime capture."
+      ],
+      "files": {
+        "source.npy": {
+          "sha256": "64bac061c9b5ae91ccf64a6cdcf8415b41d941cd354b8aae042ca9d336a33573",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "84157ccbf7ca8ae3380da0e0b8038cd033b10d023867a21faa556a35afd19ae7",
+          "bytes": 1365
+        }
+      }
+    },
+    {
+      "id": "chromatic_edge",
+      "description": "diagonal alpha ramp across a complementary RGB edge",
+      "purpose": "order-dependent hue shift on translucent boundaries",
+      "resolution": [
+        256,
+        256
+      ],
+      "rgb_min": 0.05000000074505806,
+      "rgb_max": 0.8999999761581421,
+      "alpha_min": 0.0,
+      "alpha_max": 1.0,
+      "non_finite": 0,
+      "limitations": [
+        "fixed seed 20261117; fixture geometry is deterministic",
+        "Synthetic fixture; not a photograph or a runtime capture."
+      ],
+      "files": {
+        "source.npy": {
+          "sha256": "35ac7775f613ab8a5c580c0a7275b8e60491d99ea80de1e25e3d9a51ce651a8f",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "7558e1ede6563aabbeb1862264ad68f18a761bfe9c815041f89e112e440343be",
+          "bytes": 37744
+        }
+      }
+    },
+    {
+      "id": "transparent_hidden_rgb",
+      "description": "alpha=0 field with HDR / negative hidden RGB and an opaque disc",
+      "purpose": "invisible RGB leaking into composite",
+      "resolution": [
+        256,
+        256
+      ],
+      "rgb_min": -0.20000000298023224,
+      "rgb_max": 1.5,
+      "alpha_min": 0.0,
+      "alpha_max": 1.0,
+      "non_finite": 0,
+      "limitations": [
+        "fixed seed 20261117; fixture geometry is deterministic",
+        "Synthetic fixture; not a photograph or a runtime capture."
+      ],
+      "files": {
+        "source.npy": {
+          "sha256": "6a7a1e3297548226cdba9795a996e5032d6f72d3e603c7945f9e3479b09ec19d",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "4c6beb7439109819df187d3e64eb39730595642f781d0cba807498029ef4163e",
+          "bytes": 2021
+        }
+      }
+    },
+    {
+      "id": "hdr_ramp",
+      "description": "linear ramp from 0 to 4",
+      "purpose": "clipping and highlight flattening at 8-bit ingress",
+      "resolution": [
+        256,
+        256
+      ],
+      "rgb_min": 0.0,
+      "rgb_max": 4.0,
+      "alpha_min": 1.0,
+      "alpha_max": 1.0,
+      "non_finite": 0,
+      "limitations": [
+        "fixed seed 20261117; fixture geometry is deterministic",
+        "Synthetic fixture; not a photograph or a runtime capture."
+      ],
+      "files": {
+        "source.npy": {
+          "sha256": "9864d7d9c0bd88b3f817f3563365cc5caa684bc1f18a4e5b6f9fd4212efa5a25",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "d94ab194b647590c6646e5d29f8a1359e4566d6e42b66c93cd1b1852cc952d2b",
+          "bytes": 1420
+        }
+      }
+    },
+    {
+      "id": "banding_ramp",
+      "description": "slow 0.2-0.3 linear ramp with small wave",
+      "purpose": "banding after 8-bit quantization",
+      "resolution": [
+        256,
+        256
+      ],
+      "rgb_min": 0.19200000166893005,
+      "rgb_max": 0.2998231053352356,
+      "alpha_min": 1.0,
+      "alpha_max": 1.0,
+      "non_finite": 0,
+      "limitations": [
+        "fixed seed 20261117; fixture geometry is deterministic",
+        "Synthetic fixture; not a photograph or a runtime capture."
+      ],
+      "files": {
+        "source.npy": {
+          "sha256": "69882c06852425e29efe00115487cff2bc60d70a9d8a82a5c1e126f2c37ef14e",
+          "bytes": 1048704
+        },
+        "source.png": {
+          "sha256": "6aff92e90d31e00d77df2f8a04ad4dff00ef6876ed50c50196e82ebda8cc8c28",
+          "bytes": 24598
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "No Artifact code is executed; no GPU dispatch, runtime capture, or performance measurement.",
+    "No pass/fail threshold is derived from these fixtures alone."
+  ]
+}
