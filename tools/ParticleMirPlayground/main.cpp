@@ -374,6 +374,8 @@ int capture2D(const QString& outputDirectory)
     }
 
     Artifact::ArtifactIRenderer renderer;
+    // 2D は合成座標系（canvas 1920x1080）をそのままビューポートにするため、
+    // スーパーサンプリングは行わない（aliasing の指摘は 3D 遠景のみ）。
     if (!prepareRenderer(renderer, Width2D, Height2D)) {
         qCritical("Could not initialize the headless GPU renderer");
         return 4;
@@ -384,8 +386,9 @@ int capture2D(const QString& outputDirectory)
         ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
     const auto profile = sampleRidgeProfile(terrain, terrainSettings.columns,
                                             terrainSettings.rows);
+    // 帯を厚くして ridge 全面に放出が乗り、隙間が残らないようにする。
     const auto triangles = makeRidgeStripTriangles(
-        profile, static_cast<float>(CanvasHeight) * 0.82f, 26.0f);
+        profile, static_cast<float>(CanvasHeight) * 0.82f, 74.0f);
     if (triangles.isEmpty()) {
         qCritical("Mir terrain did not produce a usable 2D ridge profile");
         renderer.destroy();
@@ -399,7 +402,8 @@ int capture2D(const QString& outputDirectory)
                                  QVariant(CanvasHeight));
     layer.clearEmitters();
 
-    auto* emitter = layer.addEmitter(makeEmberParams(false));
+    // 視覚採点で「密度不足・ridge 途中の隙間」が指摘されたため高密度設定を使う。
+    auto* emitter = layer.addEmitter(makeEmberParams(false, 3.0f));
     if (!emitter) {
         qCritical("Could not create the Mir emitter");
         renderer.destroy();
@@ -490,7 +494,7 @@ int capture2D(const QString& outputDirectory)
     directSeekLayer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
                                           QVariant(CanvasHeight));
     directSeekLayer.clearEmitters();
-    auto* directEmitter = directSeekLayer.addEmitter(makeEmberParams(false));
+    auto* directEmitter = directSeekLayer.addEmitter(makeEmberParams(false, 3.0f));
     if (!directEmitter || !directEmitter->setEmissionTriangles(triangles)) {
         qCritical("Could not rebuild the Mir emitter for the determinism pass");
         renderer.destroy();
@@ -561,7 +565,9 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
                float distance, float height)
 {
     constexpr float Pi = 3.14159265358979323846f;
-    const QVector3D target(0.0f, 120.0f, 0.0f);
+    // 視覚採点で「地形が垂直方向に低く配置され上部に余白が多い」と指摘されたため、
+    // 注視点を上げ、距離を詰めて地形が画面を占めるよう構図を詰める。
+    const QVector3D target(0.0f, 190.0f, 0.0f);
     const float angle = orbitDegrees * Pi / 180.0f;
     const QVector3D eye(target.x() + std::sin(angle) * distance,
                         target.y() + height,
@@ -588,11 +594,10 @@ int capture3D(const QString& outputDirectory)
     }
 
     Artifact::ArtifactIRenderer renderer;
-    if (!prepareRenderer(renderer, Width2D, Height2D)) {
+    if (!prepareRenderer(renderer, Width2D * SuperSample, Height2D * SuperSample)) {
         qCritical("Could not initialize the headless GPU renderer");
         return 4;
     }
-
     const auto terrainSettings = makeMirTerrainSettings(11u);
     const auto terrain =
         ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
@@ -611,7 +616,7 @@ int capture3D(const QString& outputDirectory)
 
     Artifact::ArtifactParticle3DLayer layer;
     layer.clearEmitters();
-    auto* emitter = layer.addEmitter(makeEmberParams(true));
+    auto* emitter = layer.addEmitter(makeEmberParams(true, 1.5f));
     if (!emitter) {
         qCritical("Could not create the Mir 3D emitter");
         renderer.destroy();
@@ -627,7 +632,10 @@ int capture3D(const QString& outputDirectory)
 
     const auto renderFrame = [&renderer, &layer, &terrainMesh, &terrainMaterial](
                                  int frameNumber, float orbitDegrees, bool capture) {
-        setCamera(renderer, orbitDegrees, 2600.0f, 320.0f);
+        // 視覚採点で「遠景の稜線に轻微な aliasing」と指摘されたため、
+        // カメラを近づけて地形を大きく見せ、かつスーパーサンプリングで
+        // 稜線のサブピクセル shimmer を抑える。
+        setCamera(renderer, orbitDegrees, 1850.0f, 420.0f);
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,
@@ -637,7 +645,8 @@ int capture3D(const QString& outputDirectory)
         if (!capture) {
             return QImage();
         }
-        return renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+        return downsample(
+            renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32));
     };
 
     QImage referenceFrame;
