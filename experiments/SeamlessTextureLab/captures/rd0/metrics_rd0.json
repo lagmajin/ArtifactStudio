@@ -1,0 +1,246 @@
+{
+  "lab": "SeamlessTextureLab",
+  "rd": "rd0",
+  "stage": "naive_tile_baseline",
+  "gates": "unset; no pass/fail judgment or quality ranking performed",
+  "definitions": {
+    "baseline": "the source image repeated as a tile; no synthesis",
+    "seam_energy_ratio": "gradient energy on the tile border lines / gradient energy inside the tiles",
+    "luminance_step": "mean |luma| difference across the tile border",
+    "boundary_mode_energy": "share of the spectrum on the tile border frequencies",
+    "repetition_peak_ratio": "self-similarity peak at 8%-50% lag / zero-lag autocorrelation"
+  },
+  "repeats": 3,
+  "fixtures": {
+    "checker_small": {
+      "seam": {
+        "seam_energy_ratio": 11.741837212772646,
+        "seam_energy": 0.07686968639047215,
+        "interior_energy": 0.0065466489611058585,
+        "luminance_step": 0.16291390831755298,
+        "rgb_step": 0.216565702163886,
+        "boundary_mode_energy": 0.011929365440344846,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.5056894329699251,
+        "repetition_peak_abs": 1498.003630765141
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.9060808420181274,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "radial_small": {
+      "seam": {
+        "seam_energy_ratio": 10.261900160709132,
+        "seam_energy": 0.030842972243321963,
+        "interior_energy": 0.0030055810093937425,
+        "luminance_step": 0.05589565246736776,
+        "rgb_step": 0.08039598903075482,
+        "boundary_mode_energy": 0.21215210073984309,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.9565558551522159,
+        "repetition_peak_abs": 4429.715643830867
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.8005618453025818,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "clouds_small": {
+      "seam": {
+        "seam_energy_ratio": 20.32477197736838,
+        "seam_energy": 0.10588363033754505,
+        "interior_energy": 0.005209585153301912,
+        "luminance_step": 0.20493459229411673,
+        "rgb_step": 0.21216145828366278,
+        "boundary_mode_energy": 0.028223579885602156,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.5252588810812316,
+        "repetition_peak_abs": 868.6872955447927
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.8700000047683716,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "blobs_small": {
+      "seam": {
+        "seam_energy_ratio": 10.935888172551154,
+        "seam_energy": 0.06303172639025163,
+        "interior_energy": 0.005763750085563231,
+        "luminance_step": 0.11062255646148289,
+        "rgb_step": 0.14215899127011652,
+        "boundary_mode_energy": 0.034146200919858524,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.4789794932263733,
+        "repetition_peak_abs": 1664.7103977873367
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.7927549481391907,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "alpha_patch_small": {
+      "seam": {
+        "seam_energy_ratio": NaN,
+        "seam_energy": 0.0,
+        "interior_energy": 0.0,
+        "luminance_step": 0.0,
+        "rgb_step": 0.0,
+        "boundary_mode_energy": 0.0,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": NaN,
+        "repetition_peak_abs": 0.0
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.550000011920929,
+        "near_transparent_max": 0.550000011920929,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 0.0,
+        "alpha_max": 1.0
+      }
+    },
+    "checker_large": {
+      "seam": {
+        "seam_energy_ratio": 28.462373760012305,
+        "seam_energy": 0.0905382678851714,
+        "interior_energy": 0.0031809809205854606,
+        "luminance_step": 0.18675486877870234,
+        "rgb_step": 0.2417554039671409,
+        "boundary_mode_energy": 0.011917504253043653,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.43904821811596073,
+        "repetition_peak_abs": 12398.586763197902
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.9071029424667358,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "radial_large": {
+      "seam": {
+        "seam_energy_ratio": 15.13947293311897,
+        "seam_energy": 0.029528837224129034,
+        "interior_energy": 0.001950453450696558,
+        "luminance_step": 0.0544107642248821,
+        "rgb_step": 0.0796493402611102,
+        "boundary_mode_energy": 0.22005205954145307,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.952296532971802,
+        "repetition_peak_abs": 41697.539268871784
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.8034661412239075,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "clouds_large": {
+      "seam": {
+        "seam_energy_ratio": 62.59533680956699,
+        "seam_energy": 0.10490940509200794,
+        "interior_energy": 0.0016759939388324167,
+        "luminance_step": 0.2046317755805202,
+        "rgb_step": 0.21185868907438513,
+        "boundary_mode_energy": 0.02819136341392564,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.5254893507027735,
+        "repetition_peak_abs": 8336.231078461215
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.8700000047683716,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "blobs_large": {
+      "seam": {
+        "seam_energy_ratio": 24.838029005998784,
+        "seam_energy": 0.06181453228029183,
+        "interior_energy": 0.002488705213499937,
+        "luminance_step": 0.11053930418679275,
+        "rgb_step": 0.1405958284756505,
+        "boundary_mode_energy": 0.033910321086775434,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": 0.46855094514786094,
+        "repetition_peak_abs": 15571.39007150988
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.7932135462760925,
+        "near_transparent_max": null,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 1.0,
+        "alpha_max": 1.0
+      }
+    },
+    "alpha_patch_large": {
+      "seam": {
+        "seam_energy_ratio": NaN,
+        "seam_energy": 0.0,
+        "interior_energy": 0.0,
+        "luminance_step": 0.0,
+        "rgb_step": 0.0,
+        "boundary_mode_energy": 0.0,
+        "repeats": 3
+      },
+      "repetition": {
+        "repetition_peak_ratio": NaN,
+        "repetition_peak_abs": 0.0
+      },
+      "absolute_probe": {
+        "nonfinite_count": 0,
+        "visible_max": 0.550000011920929,
+        "near_transparent_max": 0.550000011920929,
+        "near_transparent_channels_gt_1": 0,
+        "alpha_min": 0.0,
+        "alpha_max": 1.0
+      }
+    }
+  }
+}

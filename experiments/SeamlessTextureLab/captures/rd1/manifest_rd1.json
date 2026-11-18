@@ -1,0 +1,231 @@
+{
+  "lab": "SeamlessTextureLab",
+  "rd": "rd1",
+  "stage": "seamless_candidates",
+  "date": "2026-11-18",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "blind_seed": 20261818,
+  "outputs": {
+    "checker_small_st_mirror": {
+      "npy": "checker_small_st_mirror.npy",
+      "npy_sha256": "fec4d716815511159eda48dd44bf520c4ac0f284ee521f777395895621dfe9c9",
+      "png": "checker_small_st_mirror.png",
+      "png_sha256": "34e16b38d1543f561b38b47ec42f8786548cab0b5d6a6651686e16d6d703b943"
+    },
+    "checker_small_st_quilt": {
+      "npy": "checker_small_st_quilt.npy",
+      "npy_sha256": "768eefcba38852cf86d5b0f0b01e9a9fc8e036920a67937c71af26a00136b8ab",
+      "png": "checker_small_st_quilt.png",
+      "png_sha256": "f133592e875cca9a89d0e3a29d829f2c5a034150d242a02db7306eb8ac3daf23"
+    },
+    "checker_small_st_periodic": {
+      "npy": "checker_small_st_periodic.npy",
+      "npy_sha256": "cd92909e45ba8868a34701d7aa1ca77800fb68ecaa3933e51091cdd5571cf26e",
+      "png": "checker_small_st_periodic.png",
+      "png_sha256": "d3bdaeb4134553d29437b31459baa0cbdb013db29b6b66e60b5becde2438a1a6"
+    },
+    "radial_small_st_mirror": {
+      "npy": "radial_small_st_mirror.npy",
+      "npy_sha256": "220d1827b5ad3981bedabe74fa5cbb2540caf234690035fd9ba0979ff63de63d",
+      "png": "radial_small_st_mirror.png",
+      "png_sha256": "115a6757a5c3417ef5b7f5bc7aae4c64ba044abb5f0fba74a37508361894cd01"
+    },
+    "radial_small_st_quilt": {
+      "npy": "radial_small_st_quilt.npy",
+      "npy_sha256": "6c6daaf22d1296425bf6a84033d29ebb29cc05520439a1de1c6855d799f180d9",
+      "png": "radial_small_st_quilt.png",
+      "png_sha256": "b0312ec22d213b153e8f183e06a24f3eae4b4631173308afa84dcb452c993a52"
+    },
+    "radial_small_st_periodic": {
+      "npy": "radial_small_st_periodic.npy",
+      "npy_sha256": "9c841ce861ce81cd38ec362b6f5e36dadb98564f469d6adf7c5ff71d60a6d763",
+      "png": "radial_small_st_periodic.png",
+      "png_sha256": "7186e177e4425c9a3594b6c212a22abafcfa2bdae9f871b6930a84193cec49bb"
+    },
+    "clouds_small_st_mirror": {
+      "npy": "clouds_small_st_mirror.npy",
+      "npy_sha256": "6a2d1ac55ac1cd1a03d8201a8f0d744f81b93b414b26e99bb2fe423ac58e8355",
+      "png": "clouds_small_st_mirror.png",
+      "png_sha256": "816f16aad9c242801f068ec89c82462429c10140d94f464f5fddb200448fd1b4"
+    },
+    "clouds_small_st_quilt": {
+      "npy": "clouds_small_st_quilt.npy",
+      "npy_sha256": "5d87fe3474418c9291ae67069c4ab40f10610623e8557e276012cdb67d80933e",
+      "png": "clouds_small_st_quilt.png",
+      "png_sha256": "04423a904ec8808e6556e881903db0d761bec333b17b7cccf1b185e4ff29c8c6"
+    },
+    "clouds_small_st_periodic": {
+      "npy": "clouds_small_st_periodic.npy",
+      "npy_sha256": "be3af40d139b747c6f9615c55e4b07ffb628c15aea7c9baeaef82828d8b4ebea",
+      "png": "clouds_small_st_periodic.png",
+      "png_sha256": "c7ee98aa8ab5d411be93150edca5856d3e0ab5ec92441364b40cffdd0ccc116e"
+    },
+    "blobs_small_st_mirror": {
+      "npy": "blobs_small_st_mirror.npy",
+      "npy_sha256": "aa20760d09d6bb70700a82eb8abc0a802e24e9894d311f747b56ecd828ecc8b0",
+      "png": "blobs_small_st_mirror.png",
+      "png_sha256": "404befda9ff53661c83d1644c65b52d1c130b170bf9f3189372ef7f1cccdf63c"
+    },
+    "blobs_small_st_quilt": {
+      "npy": "blobs_small_st_quilt.npy",
+      "npy_sha256": "3cdb2b29baf05ccb4e46afd0c03f2776174910605212380d227de34f730e7d8f",
+      "png": "blobs_small_st_quilt.png",
+      "png_sha256": "a7c9574ec8642a69c1592562ebe360fe3e22a0f5ca5f7a5bf58ebc60a1213e28"
+    },
+    "blobs_small_st_periodic": {
+      "npy": "blobs_small_st_periodic.npy",
+      "npy_sha256": "0b6bdbfecfbaa06db93fc471ad34629e32ad551f3dcb6e8481a0cc93249e03a9",
+      "png": "blobs_small_st_periodic.png",
+      "png_sha256": "1058a9e847ff8877d37da0e6a1f4d0d3336e63df0ccab12dc0301008722dd37d"
+    },
+    "alpha_patch_small_st_mirror": {
+      "npy": "alpha_patch_small_st_mirror.npy",
+      "npy_sha256": "80a632788597866ca59e0d0e0658a46110d1fd027a44648528a11b07a73b4dc5",
+      "png": "alpha_patch_small_st_mirror.png",
+      "png_sha256": "bdd375add6bd3ab4cf0c61bb12ca5cdac30391dfc53c9fb3cf90699ce6ab407a"
+    },
+    "alpha_patch_small_st_quilt": {
+      "npy": "alpha_patch_small_st_quilt.npy",
+      "npy_sha256": "327f38c17f9591f9e3e6bf0fe6f99b75b8f7e0d33587a67dc17d1ecf8532e3e8",
+      "png": "alpha_patch_small_st_quilt.png",
+      "png_sha256": "d087a1dae457c6e3c940d25cc3d4c988958647c83e92599859977684b68c1208"
+    },
+    "alpha_patch_small_st_periodic": {
+      "npy": "alpha_patch_small_st_periodic.npy",
+      "npy_sha256": "30b20cbdd25c1ae8e13b1852bd16d50721896128bf0413b5b9bfb72bf9d8d8e8",
+      "png": "alpha_patch_small_st_periodic.png",
+      "png_sha256": "ccd4894abe8f01729042cfdae619c9580ce8a22e462392bce99124e3cb8214ad"
+    },
+    "checker_large_st_mirror": {
+      "npy": "checker_large_st_mirror.npy",
+      "npy_sha256": "8d6ed103c593ff8761e146715410175f22f4f1ed48024998a28ed66be76296c1",
+      "png": "checker_large_st_mirror.png",
+      "png_sha256": "eacd5ce1946becd4259e7847a7f87b48b9391a926ba24e2bd082a096cf15952e"
+    },
+    "checker_large_st_quilt": {
+      "npy": "checker_large_st_quilt.npy",
+      "npy_sha256": "e80d069e86c86f68fd6da56a2036527214401f2dfea68b56d37c83eadd830271",
+      "png": "checker_large_st_quilt.png",
+      "png_sha256": "486d8f3e9a040ed8790c0ee26ef90636a7f81bd6c207d972e78be79069793a0b"
+    },
+    "checker_large_st_periodic": {
+      "npy": "checker_large_st_periodic.npy",
+      "npy_sha256": "4153b1e9f68aac80684832ba7f4d2ca413cb8471e17de2d3db924d1f2d238c4d",
+      "png": "checker_large_st_periodic.png",
+      "png_sha256": "fe395ae0674220984263b6119ea34b74e8f618da2af65860108aec566adfbe8d"
+    },
+    "radial_large_st_mirror": {
+      "npy": "radial_large_st_mirror.npy",
+      "npy_sha256": "1bab1e726aaf4f1e719095454b3e55db6519204403170e241ad3434a8ac8fef0",
+      "png": "radial_large_st_mirror.png",
+      "png_sha256": "c3baec7022cf933fd35890e95e338d9f85917f8d92fe8881b0f070f44676c148"
+    },
+    "radial_large_st_quilt": {
+      "npy": "radial_large_st_quilt.npy",
+      "npy_sha256": "9c19ac4f573b806faf9fe57501b134dd8c5fdb0b061af35956bdd98caa365951",
+      "png": "radial_large_st_quilt.png",
+      "png_sha256": "e1b8338a581860d675cb5dcec9d920f2a178647bcdf5833a050bbfb9aa7e240e"
+    },
+    "radial_large_st_periodic": {
+      "npy": "radial_large_st_periodic.npy",
+      "npy_sha256": "90432575401cbab10dc32f477846db205331bcf49a338dfea136970df62aabed",
+      "png": "radial_large_st_periodic.png",
+      "png_sha256": "0008a9f19ba89a9ec7a92234720699be5d9e56ad947af07d57cb1b4fff553baa"
+    },
+    "clouds_large_st_mirror": {
+      "npy": "clouds_large_st_mirror.npy",
+      "npy_sha256": "e83a41f90652b0095e6d0311097b06cd43df6a2fc59e6a9dd1f1c9fd5db9fa08",
+      "png": "clouds_large_st_mirror.png",
+      "png_sha256": "086718dea0c7c4cdaa01789c63a24162fe9e0ac762843d414d6965713876b18f"
+    },
+    "clouds_large_st_quilt": {
+      "npy": "clouds_large_st_quilt.npy",
+      "npy_sha256": "1e38b1d8295e2e8b908475f8e45ae41ea3a0b83d99791c3e2b935d5482766763",
+      "png": "clouds_large_st_quilt.png",
+      "png_sha256": "f8c93dab86357699fa91383c96785a3d45dc362db5e079a32179c9c3666f046f"
+    },
+    "clouds_large_st_periodic": {
+      "npy": "clouds_large_st_periodic.npy",
+      "npy_sha256": "2b265894b6bc0eb5aaf70695b84e001a347bf6b3feb2bd620f4ea7e9d6f5857f",
+      "png": "clouds_large_st_periodic.png",
+      "png_sha256": "0df8027f17e8d38dca85e5a911191fed9ec14d5126f3a1bcd929b9f63c306948"
+    },
+    "blobs_large_st_mirror": {
+      "npy": "blobs_large_st_mirror.npy",
+      "npy_sha256": "9c63d7b7ded8743edfc9028813787066ac9ab804812dba445cd6b4098aeb3f23",
+      "png": "blobs_large_st_mirror.png",
+      "png_sha256": "514b5e392ef1edc473778779132af1d50209ec9b225eb84e3400e06428f948bc"
+    },
+    "blobs_large_st_quilt": {
+      "npy": "blobs_large_st_quilt.npy",
+      "npy_sha256": "86c6570782e6913293b7112611b32d00cb1bd24231c03ee6964765829d8a1f7d",
+      "png": "blobs_large_st_quilt.png",
+      "png_sha256": "3b020de0fe5c4bca72b626b8c030850716d9e7999feaa2f4d4c054c945fb35b9"
+    },
+    "blobs_large_st_periodic": {
+      "npy": "blobs_large_st_periodic.npy",
+      "npy_sha256": "eed90028c697472d741d507ec680a65e43fee898974858c7252c43fde8b5fa52",
+      "png": "blobs_large_st_periodic.png",
+      "png_sha256": "7764f5cfd2659f0a16908c480bb77b405a3c938fd680244db5b892da4a2954a0"
+    },
+    "alpha_patch_large_st_mirror": {
+      "npy": "alpha_patch_large_st_mirror.npy",
+      "npy_sha256": "ac84b4e15ce37d757c5d192e8cce3be49a8ca01c857a7abeb3dcd7e5b3e3df74",
+      "png": "alpha_patch_large_st_mirror.png",
+      "png_sha256": "66d541cd3271b336e0f7d947aef8b719ec8819d63305920b5321db32a26de3ef"
+    },
+    "alpha_patch_large_st_quilt": {
+      "npy": "alpha_patch_large_st_quilt.npy",
+      "npy_sha256": "14c95dd92d004034e0d651ae5a9dc0d2b395b077b2e83b79af3c6398467d4d0f",
+      "png": "alpha_patch_large_st_quilt.png",
+      "png_sha256": "4c966a647aec649a44da23d39a9a16e3fb11c7f696de7c03516fca466e42f530"
+    },
+    "alpha_patch_large_st_periodic": {
+      "npy": "alpha_patch_large_st_periodic.npy",
+      "npy_sha256": "db07c2bc118ddd66897e2bbb6781a9371c8a6dabc61ce97d8726e1aeb37c7223",
+      "png": "alpha_patch_large_st_periodic.png",
+      "png_sha256": "c22a0f312efd939158abb23fe08089f7718ab02b0d2bdcf705429a44fb732338"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd1.json",
+      "sha256": "8310e7de5e5334599c0fa31bd4f0dd6bf33807a33ba35b95bc29ed38e81c774d"
+    },
+    "tables": {
+      "file": "review/RD1_TABLES.md",
+      "sha256": "4afd8df6f9efa1c04a12feb9702440e4a40be9792595cba52f1fffcab749ec39"
+    },
+    "blind_sheet": {
+      "file": "review/rd1_candidate_blind_sheet.png",
+      "sha256": "34aa9f0fd3d50e5ac54bd236d9b3fe0f7e5f4b55c0ee67f6274558ab9fa0472c"
+    },
+    "blind_key": {
+      "file": "blind_key.json",
+      "sha256": "8610e8d5e81eeb70a004e1b713adfa302939184b3755756cee6d4f08dd720bf8"
+    },
+    "form": {
+      "file": "review/GATE_FORM.md",
+      "sha256": "acb0ba419d7142eab92da4e662e84c0f5e1dd6329798d2d8e02189026aad813c"
+    },
+    "gate_form": {
+      "file": "review/GATE_FORM.md",
+      "sha256": "acb0ba419d7142eab92da4e662e84c0f5e1dd6329798d2d8e02189026aad813c"
+    }
+  },
+  "gates": "unset; no judgment or quality ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "real photo textures and their licences",
+    "perceived duplication and blend band quality",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}
