@@ -1,6 +1,6 @@
 # Material Separation Lab
 
-**最終更新:** 2026-11-18
+**最終更新:** 2026-11-19
 **ステータス:** RD0（決定論的 fixture 11 件・baseline 30 出力）と RD1（候補 5 種の出力・記述的測定・blank blind シート）まで実施。**gate（合否閾値）は未設定**、人手レビュー・順位付け・製品経路は未実施
 
 質感分離（マテリアル分離）のオフライン R&D ラボ。静止画を低周波の base（色・トーンマップ）と高周波の detail（質感・テクスチャ）に分離し、両者を独立に調整できる状態を検証する。製品アルゴリズムの移植ではない。評価計画は [`EVALUATION_PLAN.md`](EVALUATION_PLAN.md)、候補メモは `docs/planned/MILESTONE_NEW_IMAGE_RND_IDEAS_2026-11-16.md` の 18 番。
@@ -85,3 +85,7 @@ python rd1_candidates.py --rd0 captures/rd0 --output captures/rd1
 - 実写素材（質感を持つ実画像）は未取得。実写での品質判定は未検証
 - HDR、OCIO、製品 preview / final、D3D12 / Vulkan parity、実アプリ経路、製品性能（1080p / 4K）、Undo / 保存・再読込は未検証
 - 実行時間は Python のオフライン reference model のみで、GPU 実装の予算ではない
+
+## Blind review key
+
+RD1 の captures/rd1/blind_key.json は誤って Git に含まれたため、現行ツリーから削除した。鍵は Git 履歴に残るため、この RD1 の割当てを新しい blind review に再利用しない。独立レビューを行う場合は、新しいランダム割当てを生成し、鍵は Git の外に保管する。
