@@ -153,6 +153,71 @@ int countPixelsMatching(const QImage& source,
     return count;
 }
 
+struct ParticleImageStats {
+    int occupiedPixels = 0;
+    int minX = std::numeric_limits<int>::max();
+    int minY = std::numeric_limits<int>::max();
+    int maxX = -1;
+    int maxY = -1;
+    double centroidX = 0.0;
+    double centroidY = 0.0;
+    int uniqueColors = 0;
+    double meanHighPass = 0.0;
+};
+
+ParticleImageStats measureParticleImage(const QImage& image, QRgb background)
+{
+    const QImage frame = image.convertToFormat(QImage::Format_ARGB32);
+    ParticleImageStats stats;
+    double weightSum = 0.0;
+    std::vector<QRgb> observedColors;
+    for (int y = 0; y < frame.height(); ++y) {
+        for (int x = 0; x < frame.width(); ++x) {
+            const QRgb pixel = frame.pixel(x, y);
+            const int distance = std::max({std::abs(qRed(pixel) - qRed(background)),
+                                           std::abs(qGreen(pixel) - qGreen(background)),
+                                           std::abs(qBlue(pixel) - qBlue(background))});
+            if (distance <= 6) {
+                continue;
+            }
+            ++stats.occupiedPixels;
+            stats.minX = std::min(stats.minX, x);
+            stats.minY = std::min(stats.minY, y);
+            stats.maxX = std::max(stats.maxX, x);
+            stats.maxY = std::max(stats.maxY, y);
+            weightSum += distance;
+            stats.centroidX += x * distance;
+            stats.centroidY += y * distance;
+            if (std::find(observedColors.begin(), observedColors.end(), pixel) ==
+                observedColors.end()) {
+                observedColors.push_back(pixel);
+            }
+        }
+    }
+    if (weightSum > 0.0) {
+        stats.centroidX /= weightSum;
+        stats.centroidY /= weightSum;
+    }
+    stats.uniqueColors = static_cast<int>(observedColors.size());
+
+    double highPass = 0.0;
+    for (int y = 1; y < frame.height(); ++y) {
+        for (int x = 1; x < frame.width(); ++x) {
+            const QRgb pixel = frame.pixel(x, y);
+            const QRgb left = frame.pixel(x - 1, y);
+            const QRgb top = frame.pixel(x, y - 1);
+            highPass += std::abs(qRed(pixel) - qRed(left)) +
+                        std::abs(qGreen(pixel) - qGreen(left)) +
+                        std::abs(qBlue(pixel) - qBlue(left)) +
+                        std::abs(qRed(pixel) - qRed(top)) +
+                        std::abs(qGreen(pixel) - qGreen(top)) +
+                        std::abs(qBlue(pixel) - qBlue(top));
+        }
+    }
+    stats.meanHighPass = highPass / static_cast<double>(frame.width() * frame.height());
+    return stats;
+}
+
 QString isolatedOutputPath(const QString& fileName)
 {
     const QString captureRoot = qEnvironmentVariable(
@@ -1612,6 +1677,149 @@ TEST(RenderQueueLayerImageIntegrationTest,
                         qBlue(pixel) > 40);
             }) > 4;
         }, &failure)) << failure.toStdString();
+}
+
+// Visual R&D capture: a deterministic multi-emitter plume used to review
+// smoke-like detail, particle grain and blend behaviour across frames.
+// See docs/planned/MILESTONE_RENDER_QUEUE_PARTICLE_VISUAL_RND_2026-11-18.md.
+TEST(RenderQueueLayerImageIntegrationTest, ParticlePlumeVisualCapture)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    constexpr int lastFrame = 8;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueParticlePlumeTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("ParticlePlume")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(lastFrame);
+    compositionParams.setBackgroundColor(
+        ArtifactCore::FloatColor(0.012f, 0.018f, 0.032f, 1.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams layerParams(QStringLiteral("Plume"),
+                                                 Artifact::LayerType::Particle);
+    const auto layer = projects.addLayerToComposition(composition.id, layerParams);
+    ASSERT_TRUE(layer.success);
+    auto* particleLayer = dynamic_cast<Artifact::ArtifactParticleLayer*>(
+        layer.layer.get());
+    ASSERT_NE(particleLayer, nullptr);
+    ASSERT_FALSE(particleLayer->particleSystem()->emitters().empty());
+
+    auto emitterParams = particleLayer->particleSystem()->emitters().front()->params();
+    emitterParams.rate = 220.0f;
+    emitterParams.lifeMin = 1.6f;
+    emitterParams.lifeMax = 2.6f;
+    emitterParams.speedMin = 26.0f;
+    emitterParams.speedMax = 62.0f;
+    emitterParams.direction = QVector3D(0.0f, -1.0f, 0.0f);
+    emitterParams.directionSpread = 46.0f;
+    emitterParams.scaleMin = 6.0f;
+    emitterParams.scaleMax = 14.0f;
+    emitterParams.scaleEndMin = 0.0f;
+    emitterParams.scaleEndMax = 0.0f;
+    emitterParams.colorStart = QColor(255, 238, 214, 235);
+    emitterParams.colorMid = QColor(255, 120, 40, 170);
+    emitterParams.colorEnd = QColor(96, 24, 12, 0);
+    emitterParams.colorMidPosition = 0.45f;
+    emitterParams.opacityMin = 0.85f;
+    emitterParams.opacityMax = 1.0f;
+    emitterParams.opacityEndMin = 0.0f;
+    emitterParams.opacityEndMax = 0.0f;
+    emitterParams.turbulenceFrequency = 0.045f;
+    emitterParams.turbulenceAmplitude = 22.0f;
+    emitterParams.turbulenceEvolution = 0.6f;
+    emitterParams.gravity = QVector3D(0.0f, -4.0f, 0.0f);
+    emitterParams.drag = 0.08f;
+    emitterParams.deterministic = true;
+    emitterParams.preWarm = true;
+    emitterParams.texturePath.clear();
+
+    particleLayer->clearEmitters();
+    for (int index = 0; index < 3; ++index) {
+        auto params = emitterParams;
+        params.position = QVector3D(width * (0.38f + 0.06f * index),
+                                    height * 0.78f, 0.0f);
+        params.randomSeed = 1337u + 91u * static_cast<unsigned int>(index);
+        ASSERT_NE(particleLayer->addEmitter(params), nullptr);
+    }
+    particleLayer->setParticleBlendMode(Artifact::ParticleBlendMode::Normal);
+
+    QString failure;
+    const QString output = isolatedOutputPath(
+        QStringLiteral("render_queue_particle_plume.png"));
+    ASSERT_TRUE(addAndRender(queue, composition.id, QStringLiteral("ParticlePlume"),
+                             output, width, height,
+                             [](const QImage&) { return true; },
+                             &failure, lastFrame, QStringLiteral("gpu")))
+        << failure.toStdString();
+
+    const QFileInfo outputInfo(output);
+    const QDir outputDir(outputInfo.absolutePath());
+    QImage firstFrame;
+    ParticleImageStats firstStats;
+    int totalOccupied = 0;
+    for (int frame = 1; frame <= lastFrame; ++frame) {
+        const QString framePath = outputDir.filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputInfo.completeBaseName())
+                .arg(frame, 4, 10, QLatin1Char('0')));
+        const QImage image(framePath);
+        ASSERT_FALSE(image.isNull()) << framePath.toStdString();
+        const QRgb background = image.pixel(0, 0);
+        const ParticleImageStats stats = measureParticleImage(image, background);
+        totalOccupied += stats.occupiedPixels;
+        if (frame == 1) {
+            firstFrame = image;
+            firstStats = stats;
+        }
+        std::printf("[plume] frame=%d occupied=%d bbox=[%d,%d]-[%d,%d] "
+                    "centroid=(%.1f,%.1f) colors=%d highpass=%.4f\n",
+                    frame, stats.occupiedPixels, stats.minX, stats.minY,
+                    stats.maxX, stats.maxY, stats.centroidX, stats.centroidY,
+                    stats.uniqueColors, stats.meanHighPass);
+    }
+
+    EXPECT_GT(totalOccupied, 150 * lastFrame)
+        << "the plume should occupy a meaningful area in every frame";
+    EXPECT_GT(firstStats.maxX - firstStats.minX, 20)
+        << "the plume should be wider than a single round sprite";
+    EXPECT_GT(firstStats.maxY - firstStats.minY, 25)
+        << "the plume should be taller than a single round sprite";
+    EXPECT_LT(firstStats.centroidY, height * 0.78)
+        << "the plume should rise above its emitters";
+    EXPECT_GT(firstStats.uniqueColors, 8)
+        << "the plume should show colour variation over particle life";
+    EXPECT_GT(firstStats.meanHighPass, 0.02)
+        << "the plume should carry visible fine detail";
+    EXPECT_FALSE(firstFrame.isNull());
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
