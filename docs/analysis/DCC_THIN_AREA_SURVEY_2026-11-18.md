@@ -1,6 +1,6 @@
 # DCC ツールとして実装が薄い分野 継続サーベイ
 
-**最終更新:** 2026-11-18
+**最終更新:** 2026-11-19
 **目的:** 既存の DCC ギャップ分析がカバー済みの分野を避け、現行ソースから「実装が薄い／存在しない」分野を継続的に見つけて記録する。1 回の調査で完了させず、発見次第追記する。
 **方法:** `docs/analysis/` の既存文書でカバー済み分野を整理し、その上で `Artifact/` / `ArtifactCore/` のヘッダ・ソースを grep / read して実-code で裏取りする。ビルド・実機検証は行わない。
 
@@ -108,5 +108,3 @@
 - シーン依存グラフを `AssetDatabase` / Problem View とどう接続できるか（`assets_` は id→path、`pathToId_` は path→id のみで参照元を持たない）
 - カスタムツールの「実行履歴」ではなく「再利用可能なパラメータ付き操作」の保存先（effect preset とは別）
 - `ArtifactProjectService::createComposition` 以外の composition 生成経路を追い、Undo 履歴の実態を確定する
-
-
