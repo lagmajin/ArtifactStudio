@@ -18,7 +18,8 @@ Mir 風の手続き地形を粒子放出ソースとして使う単体テスト�
   - 2D キャプチャ: Mir 地形の中央行から ridge プロファイルを取り出し、
     ridge の両端を含む 48 点に Point エミッターを置いて分布を均す。
     `ArtifactParticleLayer` を headless GPU で描画する。
-    各エミッターは density 0.42 / rise 4.6 / radius 26 / 最大 4,000 粒子。
+    各エミッターは density 0.18 / radius 26 / 最大 1,500 粒子。
+    初速・寿命・重力を抑え、画面上端へ抜けずに持ち上がって落ちる弧を作る。
   - 3D キャプチャ: 地形メッシュ全体を 3D 合成座標系（Y up, Z = depth）に写し、
     `ArtifactParticle3DLayer` の `EmitterShape::Surface` 放出ソースにする。
     地形本体は `drawMesh`、粒子は `draw` で同じフレームに描く。

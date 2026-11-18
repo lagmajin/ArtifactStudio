@@ -402,11 +402,23 @@ int capture2D(const QString& outputDirectory)
     layer.clearEmitters();
 
     for (const auto& position : emitterPositions) {
-        auto params = makeEmberParams(false, 0.18f, 2.6f);
+        auto params = makeEmberParams(false, 0.18f, 1.0f);
         params.shape = Artifact::EmitterShape::Point;
         params.position = position;
         params.radius = 26.0f;
-        params.directionSpread = 44.0f;
+        params.directionSpread = 40.0f;
+        // 2D 合成座標系（Y -down）では初速 upwards、重力 downwards。
+        // 速すぎると画面上端の外へ抜けて「短い帯」に見えるため、
+        // 持ち上がって落下する弧になる範囲に収める。
+        params.speedMin = 22.0f;
+        params.speedMax = 68.0f;
+        params.lifeMin = 2.4f;
+        params.lifeMax = 4.6f;
+        params.gravity = QVector3D(0.0f, 105.0f, 0.0f);
+        params.drag = 0.18f;
+        params.turbulenceAmplitude = 34.0f;
+        params.scaleMin = 2.6f;
+        params.scaleMax = 7.0f;
         params.maxParticles = 1500;
         auto* emitter = layer.addEmitter(params);
         if (!emitter) {
@@ -496,11 +508,20 @@ int capture2D(const QString& outputDirectory)
                                           QVariant(CanvasHeight));
     directSeekLayer.clearEmitters();
     for (const auto& position : emitterPositions) {
-        auto params = makeEmberParams(false, 0.18f, 2.6f);
+        auto params = makeEmberParams(false, 0.18f, 1.0f);
         params.shape = Artifact::EmitterShape::Point;
         params.position = position;
         params.radius = 26.0f;
-        params.directionSpread = 44.0f;
+        params.directionSpread = 40.0f;
+        params.speedMin = 22.0f;
+        params.speedMax = 68.0f;
+        params.lifeMin = 2.4f;
+        params.lifeMax = 4.6f;
+        params.gravity = QVector3D(0.0f, 105.0f, 0.0f);
+        params.drag = 0.18f;
+        params.turbulenceAmplitude = 34.0f;
+        params.scaleMin = 2.6f;
+        params.scaleMax = 7.0f;
         params.maxParticles = 1500;
         if (!directSeekLayer.addEmitter(params)) {
             qCritical("Could not rebuild the Mir ridge emitters for the determinism pass");
@@ -573,10 +594,10 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
                float distance, float height)
 {
     constexpr float Pi = 3.14159265358979323846f;
-    // 視覚採点で「地形が垂直方向に低く配置され上部に余白が多い」と指摘された。
-    // 地形は Y=0 付近の平坦な面なので、注視点を地形面へ寄せたうえで
-    // カメラを低く構図して地形が画面下部を埋め、上部の空きを減らす。
-    const QVector3D target(0.0f, 40.0f, 0.0f);
+    // 視覚採点で「地形が垂直方向に低く配置され上部に大きな余白がある」と
+    // 指摘されたため、注視点を地形面へ寄せ、カメラを looming させて
+    // 地平線を画面上端付近まで上げる（地形が画面下部を埋める）構図にする。
+    const QVector3D target(0.0f, -60.0f, 0.0f);
     const float angle = orbitDegrees * Pi / 180.0f;
     const QVector3D eye(target.x() + std::sin(angle) * distance,
                         target.y() + height,
@@ -584,7 +605,7 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
     QMatrix4x4 view;
     view.lookAt(eye, target, QVector3D(0.0f, 1.0f, 0.0f));
     QMatrix4x4 projection;
-    projection.perspective(52.0f, static_cast<float>(Width2D) / Height2D,
+    projection.perspective(58.0f, static_cast<float>(Width2D) / Height2D,
                            10.0f, 20000.0f);
     renderer.set3DCameraMatrices(view, projection);
 }
@@ -644,7 +665,7 @@ int capture3D(const QString& outputDirectory)
         // 視覚採点で「遠景の稜線に轻微な aliasing」と指摘されたため、
         // カメラを近づけて地形を大きく見せ、かつスーパーサンプリングで
         // 稜線のサブピクセル shimmer を抑える。
-        setCamera(renderer, orbitDegrees, 1450.0f, 330.0f);
+        setCamera(renderer, orbitDegrees, 1150.0f, 620.0f);
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,
