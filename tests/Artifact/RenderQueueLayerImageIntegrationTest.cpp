@@ -1823,6 +1823,158 @@ TEST(RenderQueueLayerImageIntegrationTest, ParticlePlumeVisualCapture)
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     ShapeTargetChangesParticleOutputThroughRenderQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    constexpr int lastFrame = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueParticleShapeTargetTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("ParticleShapeTarget")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(lastFrame);
+    compositionParams.setBackgroundColor(
+        ArtifactCore::FloatColor(0.012f, 0.018f, 0.032f, 1.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams shapeParams(QStringLiteral("Target"),
+                                                 Artifact::LayerType::Shape);
+    const auto shapeResult = projects.addLayerToComposition(
+        composition.id, shapeParams);
+    ASSERT_TRUE(shapeResult.success);
+    auto* shapeTarget = dynamic_cast<Artifact::ArtifactShapeLayer*>(
+        shapeResult.layer.get());
+    ASSERT_NE(shapeTarget, nullptr);
+    Artifact::ShapeContent targetContent;
+    targetContent.name = QStringLiteral("Target Ellipse");
+    targetContent.geometry.type = Artifact::ShapeType::Ellipse;
+    targetContent.geometry.width = 100;
+    targetContent.geometry.height = 64;
+    targetContent.transform.position = QPointF(width * 0.7, height * 0.5);
+    targetContent.fill.color = ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f);
+    ASSERT_GE(shapeTarget->addShapeContent(targetContent), 0);
+    shapeTarget->setVisible(false);
+
+    Artifact::ArtifactLayerInitParams particleParams(QStringLiteral("Particles"),
+                                                    Artifact::LayerType::Particle);
+    const auto particleResult = projects.addLayerToComposition(
+        composition.id, particleParams);
+    ASSERT_TRUE(particleResult.success);
+    auto* particleLayer = dynamic_cast<Artifact::ArtifactParticleLayer*>(
+        particleResult.layer.get());
+    ASSERT_NE(particleLayer, nullptr);
+    ASSERT_FALSE(particleLayer->particleSystem()->emitters().empty());
+
+    auto emitter = particleLayer->particleSystem()->emitters().front()->params();
+    emitter.position = QVector3D(width * 0.25f, height * 0.5f, 0.0f);
+    emitter.rate = 180.0f;
+    emitter.lifeMin = 3.0f;
+    emitter.lifeMax = 3.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+    emitter.drag = 0.0f;
+    emitter.turbulenceAmplitude = 0.0f;
+    emitter.scaleMin = 4.0f;
+    emitter.scaleMax = 4.0f;
+    emitter.colorStart = QColor(70, 220, 255, 255);
+    emitter.colorMid = emitter.colorStart;
+    emitter.colorEnd = emitter.colorStart;
+    emitter.opacityMin = 1.0f;
+    emitter.opacityMax = 1.0f;
+    emitter.opacityEndMin = 1.0f;
+    emitter.opacityEndMax = 1.0f;
+    emitter.deterministic = true;
+    emitter.preWarm = false;
+    emitter.texturePath.clear();
+    particleLayer->clearEmitters();
+    ASSERT_NE(particleLayer->addEmitter(emitter), nullptr);
+
+    ASSERT_TRUE(particleLayer->setLayerPropertyValue(
+        QStringLiteral("particle.shapeTarget.layerId"),
+        shapeTarget->id().toString()));
+    ASSERT_TRUE(particleLayer->setLayerPropertyValue(
+        QStringLiteral("particle.shapeTarget.strength"), 2200.0));
+    ASSERT_TRUE(particleLayer->setLayerPropertyValue(
+        QStringLiteral("particle.shapeTarget.enabled"), true));
+
+    QString failure;
+    const auto renderFrame = [&](const QString& outputPath) {
+        return addAndRender(
+            queue, composition.id, QStringLiteral("ParticleShapeTarget"),
+            outputPath, width, height,
+            [](const QImage&) { return true; },
+            &failure, lastFrame, QStringLiteral("gpu"));
+    };
+    const QString targetedOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_particle_shape_target.png"));
+    ASSERT_TRUE(renderFrame(targetedOutput)) << failure.toStdString();
+
+    ASSERT_TRUE(particleLayer->setLayerPropertyValue(
+        QStringLiteral("particle.shapeTarget.enabled"), false));
+    const QString baselineOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_particle_shape_target_disabled.png"));
+    ASSERT_TRUE(renderFrame(baselineOutput)) << failure.toStdString();
+
+    const auto framePath = [](const QString& outputPath) {
+        const QFileInfo info(outputPath);
+        return QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(info.completeBaseName())
+                .arg(lastFrame - 1, 4, 10, QLatin1Char('0')));
+    };
+    const QImage targeted(framePath(targetedOutput));
+    const QImage baseline(framePath(baselineOutput));
+    ASSERT_FALSE(targeted.isNull());
+    ASSERT_FALSE(baseline.isNull());
+    ASSERT_EQ(targeted.size(), baseline.size());
+
+    const QImage targetedRgba = targeted.convertToFormat(QImage::Format_RGBA8888);
+    const QImage baselineRgba = baseline.convertToFormat(QImage::Format_RGBA8888);
+    int differingPixels = 0;
+    for (int y = 0; y < height; ++y) {
+        const auto* targetedRow = targetedRgba.constScanLine(y);
+        const auto* baselineRow = baselineRgba.constScanLine(y);
+        for (int x = 0; x < width; ++x) {
+            const int offset = x * 4;
+            if (std::memcmp(targetedRow + offset, baselineRow + offset, 4) != 0) {
+                ++differingPixels;
+            }
+        }
+    }
+    EXPECT_GT(differingPixels, 20)
+        << "the Render Queue image should change when Shape attraction is enabled";
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      FluidSmokeUsesSharedStateInCpuAndGpuRenderQueue)
 {
     QTemporaryDir projectRoot;
