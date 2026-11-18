@@ -78,3 +78,4 @@ compile_commands.json
 /experiments/*/captures/**/*.exr
 /experiments/*/captures/**/*.avi
 /experiments/*/captures/**/*.mp4
+/experiments/*/captures/**/*blind*key*.json

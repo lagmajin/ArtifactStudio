@@ -76,6 +76,7 @@ AI が UI 名称やウィジェット責務で迷ったら、まず [docs/WIDGET
 - ビルド・shader compile の中間物（`.obj` / `.ifc` / `.pdb` / `.dxil` / `.spv` / `.log` 等）、一時画像・配列（`.pfm` / `.npy` 等）、キャッシュ、scratch output は commit 対象外とする。
 - R&D の再現に必要な入力 fixture、評価計画、スクリプト、manifest は各 `experiments/<Lab>/` 配下へ置く。capture ディレクトリ内の生成画像・配列は `.gitignore` で既定除外し、手動で選んだ最終証跡だけ対象、条件、取得日、出所、hash を manifest に記録したうえで個別に `git add -f` する。大きな一時 fixture や全 sweep 出力は追加しない。
 - ignore 対象でも、ユーザーが明示した再配布・提出要件がある個別成果物は例外として内容と再生成性を確認し、`git add -f <path>` でそのファイルだけ追跡する。ディレクトリ全体を force-add しない。
+- blind review の割当て鍵（`*blind*key*.json`）は独立レビュー完了まで Git に追加しない。公開 manifest には hash と保管条件だけを記録する。
 - push 前に `git status --short` と `git diff --cached --stat` を見て、ローカル設定・cache・生成物が stage されていないことを確認する。
 
 ### ドキュメント更新日の記録
