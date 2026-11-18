@@ -1,0 +1,297 @@
+{
+  "lab": "WatercolorLab",
+  "rd": "rd0",
+  "stage": "baseline",
+  "date": "2026-11-17",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "seed": 20262017,
+  "controls": {
+    "baseline_raw": {
+      "description": "input unchanged"
+    },
+    "control_gaussian": {
+      "description": "uniform Gaussian blur on RGB",
+      "sigma": 2.0
+    },
+    "control_noise": {
+      "description": "single additive Gaussian noise on RGB",
+      "sigma_linear": 0.02
+    }
+  },
+  "outputs": {
+    "color_ramp_small_baseline_raw": {
+      "npy": "color_ramp_small_baseline_raw.npy",
+      "npy_sha256": "dabb1019c56ab78c98cf3891c05dbe18909c7fd613e4e8da0acaa2559ab727e9",
+      "png": "color_ramp_small_baseline_raw.png",
+      "png_sha256": "64aaaf3685ed0fc51d1426852388d722e98a0456b45ea38f0ad2a2f483091782"
+    },
+    "color_ramp_small_control_gaussian": {
+      "npy": "color_ramp_small_control_gaussian.npy",
+      "npy_sha256": "d548feaec3da35c21611b95140f3e6d973300562b6c84854d6b57e285e25b7b6",
+      "png": "color_ramp_small_control_gaussian.png",
+      "png_sha256": "c6a0e455841619638ad112412950f1ee12bf7d668bd642f5155502b490cb86a8"
+    },
+    "color_ramp_small_control_noise": {
+      "npy": "color_ramp_small_control_noise.npy",
+      "npy_sha256": "971ac72c8dc112996a7f6fb46ffcd9e38b64aef62bb8edbbaed246d7c4f9339a",
+      "png": "color_ramp_small_control_noise.png",
+      "png_sha256": "bc6981b17b494b3be1f079baff195412cd46956cf70c357322ff6e4fdd958665"
+    },
+    "thin_lines_small_baseline_raw": {
+      "npy": "thin_lines_small_baseline_raw.npy",
+      "npy_sha256": "caf2823297845c326770b517070e2238f4d58947314d7d5cc570208cd78d4ecb",
+      "png": "thin_lines_small_baseline_raw.png",
+      "png_sha256": "88c420257c687c349fd0927db7b688eb4b5d5cb61bdb5af6bb45b14b29a6d98b"
+    },
+    "thin_lines_small_control_gaussian": {
+      "npy": "thin_lines_small_control_gaussian.npy",
+      "npy_sha256": "a2bd3ed477fbfe0135729b9e4c8923e5ae5209d17b5609507417ce17c14ceaac",
+      "png": "thin_lines_small_control_gaussian.png",
+      "png_sha256": "e9dc1db65fa35a4aebfcf13bd5b7b8f2fdbe5fd6d9e3347d3650176374a44cc4"
+    },
+    "thin_lines_small_control_noise": {
+      "npy": "thin_lines_small_control_noise.npy",
+      "npy_sha256": "62485618d25a9451a3af5a1804f88eba0cf027abaffb94569902ff5a101c7e35",
+      "png": "thin_lines_small_control_noise.png",
+      "png_sha256": "49deeb8e61e595b82350c0c1b74d60a11c3199e1580d2c2cebc51b0bfe0c70ce"
+    },
+    "alpha_boundary_small_baseline_raw": {
+      "npy": "alpha_boundary_small_baseline_raw.npy",
+      "npy_sha256": "8e24f303c55db24652beb9b9c6bae12aaed12f7d3be6c60d68c836ee6baf1294",
+      "png": "alpha_boundary_small_baseline_raw.png",
+      "png_sha256": "443574fad02cc23986c4a22119ef994b06f64bf4e92127e9acff99e891071b37"
+    },
+    "alpha_boundary_small_control_gaussian": {
+      "npy": "alpha_boundary_small_control_gaussian.npy",
+      "npy_sha256": "2355fbe13a693127e95b8ad35d4cfcd5abede1c62c2059db819cd3e2cacf2824",
+      "png": "alpha_boundary_small_control_gaussian.png",
+      "png_sha256": "f727c1b1f1bf4b3c194b7c2df268e2c6fbdb853ce74195ccd29c1a54d2f24d16"
+    },
+    "alpha_boundary_small_control_noise": {
+      "npy": "alpha_boundary_small_control_noise.npy",
+      "npy_sha256": "7ec4a26966ca4f495490233cc073fd20705119e6778dd88d60ed44776b1aece3",
+      "png": "alpha_boundary_small_control_noise.png",
+      "png_sha256": "e89852073df73b9b923627a201fc8e78dfd27daa755465df683c153886bb376d"
+    },
+    "flat_highlight_small_baseline_raw": {
+      "npy": "flat_highlight_small_baseline_raw.npy",
+      "npy_sha256": "98b697e5db005136ae33f3d51c510052dba8661f56c4d65405adc1e9f8c49d48",
+      "png": "flat_highlight_small_baseline_raw.png",
+      "png_sha256": "ea97c4441fdfd88f1df868ce89652e51dc0218a87a31a6dde8ba034ba17806f8"
+    },
+    "flat_highlight_small_control_gaussian": {
+      "npy": "flat_highlight_small_control_gaussian.npy",
+      "npy_sha256": "9232c4a8de629cb301ffb88caa53f7944f2075a6afaa4575a6fbd9f793f6ee7f",
+      "png": "flat_highlight_small_control_gaussian.png",
+      "png_sha256": "9730fc770d19abc1c3e331576f56e4a6715539e4e8bf1cf2ed8dd0f7185debcc"
+    },
+    "flat_highlight_small_control_noise": {
+      "npy": "flat_highlight_small_control_noise.npy",
+      "npy_sha256": "b5ec3097c8cdd95cc3564bc603fffc9b2d41577f007f221d743274ea716752d8",
+      "png": "flat_highlight_small_control_noise.png",
+      "png_sha256": "9a707794e9af61c9c7e0983efef9e3aeb861c3775bf7143c4d5a3afd0efee3fb"
+    },
+    "color_ramp_large_baseline_raw": {
+      "npy": "color_ramp_large_baseline_raw.npy",
+      "npy_sha256": "37e6e85c9ca91be1845fc7e8a517f6cc7fcd7888eae36dd829234d39abb12315",
+      "png": "color_ramp_large_baseline_raw.png",
+      "png_sha256": "4d87abfcb66ae11cbe392f0bc55c01d930b8cde6eec49d74a8f4408ca88d4f70"
+    },
+    "color_ramp_large_control_gaussian": {
+      "npy": "color_ramp_large_control_gaussian.npy",
+      "npy_sha256": "e6293353defc5daf0837820ce64ab5e44dffee1a853110ee971b9946619e8735",
+      "png": "color_ramp_large_control_gaussian.png",
+      "png_sha256": "03bd1579d7771f181efbd728258c5dd7519c47390e31f832005a73ff170e7817"
+    },
+    "color_ramp_large_control_noise": {
+      "npy": "color_ramp_large_control_noise.npy",
+      "npy_sha256": "1db4831b58fb753e52c6027d445ea4fd855855cd6d121da7d9ecf6aecf4eb5c2",
+      "png": "color_ramp_large_control_noise.png",
+      "png_sha256": "19b12c672642a7a75175ea5464cd21f870ac98fe3a00cd4c7001333c875a4f25"
+    },
+    "thin_lines_large_baseline_raw": {
+      "npy": "thin_lines_large_baseline_raw.npy",
+      "npy_sha256": "9b9f6f71f975837b30d7e4eb568138d0436d095c0971bc1ac0469edbf3e5511e",
+      "png": "thin_lines_large_baseline_raw.png",
+      "png_sha256": "631ee2bf04ab62e24676f5f57c21960dddc13debdb6c7115c22310b1bd0f5021"
+    },
+    "thin_lines_large_control_gaussian": {
+      "npy": "thin_lines_large_control_gaussian.npy",
+      "npy_sha256": "f6bad5eeda118be2078bccf38c7bbc43029258eb599334f9ddd7a8e234b635da",
+      "png": "thin_lines_large_control_gaussian.png",
+      "png_sha256": "ac5c78d5d5d957a252e2321b7be39099eeeff6148c2b98770d839b6b6256276f"
+    },
+    "thin_lines_large_control_noise": {
+      "npy": "thin_lines_large_control_noise.npy",
+      "npy_sha256": "6b131aa44507163b98a37dc7a51034d5f713df8a34e7ff0cd79d14b2340db1de",
+      "png": "thin_lines_large_control_noise.png",
+      "png_sha256": "028ef79b0c8bc9644be87129c2a3f07665dc18e81e5fc856ad7aa55da9d3b4bb"
+    },
+    "alpha_boundary_large_baseline_raw": {
+      "npy": "alpha_boundary_large_baseline_raw.npy",
+      "npy_sha256": "85d245fc3c540a67bf34a8f9d37d68bae829da3522a9d5039244412d73f13c78",
+      "png": "alpha_boundary_large_baseline_raw.png",
+      "png_sha256": "78e200701089316e6652e617a98d3c0ffed02731a6c3dc75e1232de90d9bba10"
+    },
+    "alpha_boundary_large_control_gaussian": {
+      "npy": "alpha_boundary_large_control_gaussian.npy",
+      "npy_sha256": "15ed6dee14cb0bccff599f05ace41da0cde54edd5a095481d61d6643bdd1f166",
+      "png": "alpha_boundary_large_control_gaussian.png",
+      "png_sha256": "5c79d7451e96a72121890be3c68008a96baa55143b12d7ad68eb2281bf93c5d8"
+    },
+    "alpha_boundary_large_control_noise": {
+      "npy": "alpha_boundary_large_control_noise.npy",
+      "npy_sha256": "2dae0ff3b311c8e9e24300772397609dc8fab0f8b850bee835ce216a692b8c3e",
+      "png": "alpha_boundary_large_control_noise.png",
+      "png_sha256": "202d339b58a351021464cdd9d41c84c611a4b76b6e2620d2aeb96a8ca5c38b58"
+    },
+    "flat_highlight_large_baseline_raw": {
+      "npy": "flat_highlight_large_baseline_raw.npy",
+      "npy_sha256": "4520b3a7c49f4d0b6e73f4f3d5f8e454ce5f74edd0324535a0b2a7841dce5f4b",
+      "png": "flat_highlight_large_baseline_raw.png",
+      "png_sha256": "65097d217d0b816e880cff6a4e02b78094562607d30d529772c45bbeecb96521"
+    },
+    "flat_highlight_large_control_gaussian": {
+      "npy": "flat_highlight_large_control_gaussian.npy",
+      "npy_sha256": "91dd4381d5304e4cbcaa39a6f00bb0308773140053e8a4d365f132020d559589",
+      "png": "flat_highlight_large_control_gaussian.png",
+      "png_sha256": "5f315ed2943539ea611e4063b902715243e73ccb547813a04722056b3b4a5aa8"
+    },
+    "flat_highlight_large_control_noise": {
+      "npy": "flat_highlight_large_control_noise.npy",
+      "npy_sha256": "76ca200cabf144c1040436fd108d6c4168268203eed48761928b00a4c75ad2df",
+      "png": "flat_highlight_large_control_noise.png",
+      "png_sha256": "37d3081c1a7bd39f0a3c8a701df81a56b499767c2342a20eee09bf6093271f67"
+    }
+  },
+  "timings": {
+    "color_ramp_small_baseline_raw": {
+      "seconds": 0.0003623999946285039,
+      "pixels": 163840
+    },
+    "color_ramp_small_control_gaussian": {
+      "seconds": 0.002114100003382191,
+      "pixels": 163840
+    },
+    "color_ramp_small_control_noise": {
+      "seconds": 0.006398900004569441,
+      "pixels": 163840
+    },
+    "thin_lines_small_baseline_raw": {
+      "seconds": 0.0004033000150229782,
+      "pixels": 163840
+    },
+    "thin_lines_small_control_gaussian": {
+      "seconds": 0.0020494999771472067,
+      "pixels": 163840
+    },
+    "thin_lines_small_control_noise": {
+      "seconds": 0.006341100001009181,
+      "pixels": 163840
+    },
+    "alpha_boundary_small_baseline_raw": {
+      "seconds": 0.00043360001291148365,
+      "pixels": 163840
+    },
+    "alpha_boundary_small_control_gaussian": {
+      "seconds": 0.002036700025200844,
+      "pixels": 163840
+    },
+    "alpha_boundary_small_control_noise": {
+      "seconds": 0.006508100021164864,
+      "pixels": 163840
+    },
+    "flat_highlight_small_baseline_raw": {
+      "seconds": 0.0004885999951511621,
+      "pixels": 163840
+    },
+    "flat_highlight_small_control_gaussian": {
+      "seconds": 0.002170399995520711,
+      "pixels": 163840
+    },
+    "flat_highlight_small_control_noise": {
+      "seconds": 0.006521700008306652,
+      "pixels": 163840
+    },
+    "color_ramp_large_baseline_raw": {
+      "seconds": 0.003605899983085692,
+      "pixels": 1572864
+    },
+    "color_ramp_large_control_gaussian": {
+      "seconds": 0.02098410000326112,
+      "pixels": 1572864
+    },
+    "color_ramp_large_control_noise": {
+      "seconds": 0.07946269999956712,
+      "pixels": 1572864
+    },
+    "thin_lines_large_baseline_raw": {
+      "seconds": 0.004979000019375235,
+      "pixels": 1572864
+    },
+    "thin_lines_large_control_gaussian": {
+      "seconds": 0.028222200024174526,
+      "pixels": 1572864
+    },
+    "thin_lines_large_control_noise": {
+      "seconds": 0.08583100000396371,
+      "pixels": 1572864
+    },
+    "alpha_boundary_large_baseline_raw": {
+      "seconds": 0.005047299986472353,
+      "pixels": 1572864
+    },
+    "alpha_boundary_large_control_gaussian": {
+      "seconds": 0.03205929999239743,
+      "pixels": 1572864
+    },
+    "alpha_boundary_large_control_noise": {
+      "seconds": 0.08919989998685196,
+      "pixels": 1572864
+    },
+    "flat_highlight_large_baseline_raw": {
+      "seconds": 0.006036299979314208,
+      "pixels": 1572864
+    },
+    "flat_highlight_large_control_gaussian": {
+      "seconds": 0.03168069999082945,
+      "pixels": 1572864
+    },
+    "flat_highlight_large_control_noise": {
+      "seconds": 0.09432289999676868,
+      "pixels": 1572864
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics.json",
+      "sha256": "901c2731429e86041aa03d2bf56c243af981884f8c6eaa6ceb5bac864314927d"
+    },
+    "full_sheet": {
+      "file": "review/rd0_full_sheet.png",
+      "sha256": "274dc9da57c3dd8de7d3d8a2a07b9519b5072f689b7efd6ca40e47ef6f22c41c"
+    },
+    "roi_sheet": {
+      "file": "review/rd0_roi_sheet.png",
+      "sha256": "b8ca9d47fde54ecc20425cde8d57eb6962104eff825aec5787116537c6d868ae"
+    },
+    "forms": [
+      "BASELINE_REVIEW_FORM.md",
+      "BLIND_REVIEW_FORM.md",
+      "GATE_FORM.md"
+    ]
+  },
+  "gates": "unset; separate reviewer must fix tolerances before candidate comparison",
+  "unverified": [
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "D3D12 / Vulkan parity",
+    "HDR quality above 1.0",
+    "production performance at 1080p / 4K"
+  ]
+}

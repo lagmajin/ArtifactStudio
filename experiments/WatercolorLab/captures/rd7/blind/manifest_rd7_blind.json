@@ -1,0 +1,316 @@
+{
+  "lab": "WatercolorLab",
+  "rd": "rd3",
+  "stage": "v5_blind_candidates",
+  "date": "2026-11-17",
+  "model": "v5 (tuned fast shared-weight bilateral approximation, alpha-consistent)",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "candidate_seed_base": 20262117,
+  "blind_seed": 20266617,
+  "candidates": {
+    "wc_a": {
+      "bleed": "bilateral",
+      "paper": "value_noise",
+      "edge": "softstep",
+      "strength": 1.0
+    },
+    "wc_b": {
+      "bleed": "quantize_gauss",
+      "paper": "value_noise",
+      "edge": "wobble",
+      "strength": 1.0
+    },
+    "wc_c": {
+      "bleed": "edge_weighted",
+      "paper": "fibers",
+      "edge": "softstep",
+      "strength": 1.0
+    },
+    "only_bleed": {
+      "bleed": "bilateral",
+      "paper": null,
+      "edge": null,
+      "strength": 1.0
+    },
+    "only_paper": {
+      "bleed": null,
+      "paper": "value_noise",
+      "edge": null,
+      "strength": 1.0
+    },
+    "only_edge": {
+      "bleed": null,
+      "paper": null,
+      "edge": "softstep",
+      "strength": 1.0
+    }
+  },
+  "outputs": {
+    "color_ramp_small_wc_a": {
+      "npy": "color_ramp_small_wc_a.npy",
+      "npy_sha256": "8b827c399b30347fc108f609bef36d31f0cbe199b5cf32c12b24f8473ebe3413",
+      "png": "color_ramp_small_wc_a.png",
+      "png_sha256": "21d29c7c832ce12d351d02b4eab19a4e9ca53d42a1d120fcebb0a76ec3b6fb75"
+    },
+    "color_ramp_small_wc_b": {
+      "npy": "color_ramp_small_wc_b.npy",
+      "npy_sha256": "7600fb167ae49b9b4761ae2d02d7ad51e836dac3d2ef3626bbd9014838980c0b",
+      "png": "color_ramp_small_wc_b.png",
+      "png_sha256": "a1e6b8b5a98a91a67d9392b05ceb9ba983a084c6556de951878b2351f4b7efd6"
+    },
+    "color_ramp_small_wc_c": {
+      "npy": "color_ramp_small_wc_c.npy",
+      "npy_sha256": "7b5348e8f79eeee9231acc289c84212749e81a4dc0e800b2c4da25d3f627a223",
+      "png": "color_ramp_small_wc_c.png",
+      "png_sha256": "e3d45b83b677e10499f0575334082ec6e3ff03181d0b3a73238b09df5c4cefac"
+    },
+    "color_ramp_small_only_bleed": {
+      "npy": "color_ramp_small_only_bleed.npy",
+      "npy_sha256": "851a9fb16eded9c59f769eaf7d116f3b41f05d0525f03312f53b17a2e605e2e6",
+      "png": "color_ramp_small_only_bleed.png",
+      "png_sha256": "0f11509151a0561a638b096d7d53e0823b2cef48579e7986b7251bbbe93366b2"
+    },
+    "color_ramp_small_only_paper": {
+      "npy": "color_ramp_small_only_paper.npy",
+      "npy_sha256": "03f6a6fb381e68361de4ce878933c975e3b1e2cf19ec135db097dd5a6fdb2fc2",
+      "png": "color_ramp_small_only_paper.png",
+      "png_sha256": "afe18b7d8bb16a962f5818708d273dee6456ebc3d80d103edfcb1171da91660a"
+    },
+    "color_ramp_small_only_edge": {
+      "npy": "color_ramp_small_only_edge.npy",
+      "npy_sha256": "bc2661df3a641f94bc361647edd99c2fb98400d42c068d6993be0539e6a42fdf",
+      "png": "color_ramp_small_only_edge.png",
+      "png_sha256": "836b9d1089a5363dfd34f152d9e6efc0a0d3661425e4a853269f4c2ca473daa5"
+    },
+    "thin_lines_small_wc_a": {
+      "npy": "thin_lines_small_wc_a.npy",
+      "npy_sha256": "b9f76268bec7802c45d31c4acd334ea6e52ff6619ccd904fd0d001eea99c5fa5",
+      "png": "thin_lines_small_wc_a.png",
+      "png_sha256": "6c32583f9dc831ab98506e36f0c45bcbd9c36d088b9b3611c2e104dda011360f"
+    },
+    "thin_lines_small_wc_b": {
+      "npy": "thin_lines_small_wc_b.npy",
+      "npy_sha256": "e8a83d739d4aeb917bb2a50528bab603f80b40c5e8f29f5bfb9b671cf7dfd0f5",
+      "png": "thin_lines_small_wc_b.png",
+      "png_sha256": "0e1cf76637f18084bc27ecacbc5d5505cbb32da8af54716acc1fbe801e90511b"
+    },
+    "thin_lines_small_wc_c": {
+      "npy": "thin_lines_small_wc_c.npy",
+      "npy_sha256": "9b02a213a1a5f0476886ea9493280373d074044871d4282cc0e489b3e3cc8479",
+      "png": "thin_lines_small_wc_c.png",
+      "png_sha256": "f9b6b77e11843a30ab888adeeef384f27c594fe246984692cc107578cbdfd97c"
+    },
+    "thin_lines_small_only_bleed": {
+      "npy": "thin_lines_small_only_bleed.npy",
+      "npy_sha256": "c5692a447b6b0f0db0a1b37c3fef8bc7f27a09086e25909f6a39efa3a5dbcf9d",
+      "png": "thin_lines_small_only_bleed.png",
+      "png_sha256": "c1a78ffcf4dbd7c998735f0b6bb995ce84a965954c795fe740358a4c700386f4"
+    },
+    "thin_lines_small_only_paper": {
+      "npy": "thin_lines_small_only_paper.npy",
+      "npy_sha256": "d9d38cb1980c577aa3f2538cd0cd2c30b9ba6019667d311904f5a45aa933e9f4",
+      "png": "thin_lines_small_only_paper.png",
+      "png_sha256": "29d44e66ce05202d49b16be9945c6fc2fee9e875b1a638d1f71ad913265ff682"
+    },
+    "thin_lines_small_only_edge": {
+      "npy": "thin_lines_small_only_edge.npy",
+      "npy_sha256": "50d9dd765358fd229f0ec48b55349c53fb9d6525b6352ebb2d86a977195237a4",
+      "png": "thin_lines_small_only_edge.png",
+      "png_sha256": "db9d47774b2785f535ecd1fc4981cb76928ffcd7c5e1067e2d08dddbb267ab58"
+    },
+    "alpha_boundary_small_wc_a": {
+      "npy": "alpha_boundary_small_wc_a.npy",
+      "npy_sha256": "300030d4567cce073dd58dee7b293ad09045c7e6d24cfed075dccbd534ed2ff7",
+      "png": "alpha_boundary_small_wc_a.png",
+      "png_sha256": "14a2daef6f51ffe7b79d390178c194180b95336169aea24b8f560e44fc4f0e45"
+    },
+    "alpha_boundary_small_wc_b": {
+      "npy": "alpha_boundary_small_wc_b.npy",
+      "npy_sha256": "8a8b9b8578362eb71fcf4656827b1aa5be5ee72864822ac272c96bf0ccbbf9e5",
+      "png": "alpha_boundary_small_wc_b.png",
+      "png_sha256": "b33220abcd5d99dea3f7af794c9b60c03da4826abde5f7c5da020c694bae58ed"
+    },
+    "alpha_boundary_small_wc_c": {
+      "npy": "alpha_boundary_small_wc_c.npy",
+      "npy_sha256": "dcfa0d811384e50d06b713285d84ec89ad6bdf01fafb906a3ee0028d3a6f957a",
+      "png": "alpha_boundary_small_wc_c.png",
+      "png_sha256": "045dd4a6f50eecb4a5f077e75ebe9d5ed53910e76c9d6724344c0522709e1335"
+    },
+    "alpha_boundary_small_only_bleed": {
+      "npy": "alpha_boundary_small_only_bleed.npy",
+      "npy_sha256": "b75e5bb1fc1055681cb1e5f76b8a565f3b6189a2a19a4e048130336f27ff5099",
+      "png": "alpha_boundary_small_only_bleed.png",
+      "png_sha256": "55684da30aef92aa0a24bf82089cb3d0d961320091f564bf4a96577bc427fe56"
+    },
+    "alpha_boundary_small_only_paper": {
+      "npy": "alpha_boundary_small_only_paper.npy",
+      "npy_sha256": "aa21ef400d773c387477fd4bc3068e6fabb3b6d07535d5e6886041f434545a83",
+      "png": "alpha_boundary_small_only_paper.png",
+      "png_sha256": "98ddc85170865494627e2a607dd2e4b7ca0f4bc04361f0c44c97a3b117291de7"
+    },
+    "alpha_boundary_small_only_edge": {
+      "npy": "alpha_boundary_small_only_edge.npy",
+      "npy_sha256": "144c64492da0158a0cc2a810a05159e9681fce3f8cb77ac513f47e87e9fb5d6f",
+      "png": "alpha_boundary_small_only_edge.png",
+      "png_sha256": "7aa1afff277a4b57c55f1873c323f99a234fda7407c5f569c27fb7de2c2dd23c"
+    },
+    "flat_highlight_small_wc_a": {
+      "npy": "flat_highlight_small_wc_a.npy",
+      "npy_sha256": "1ddb1ea5ca4b93003a0dd550b1d1b4628c45551edcd6872e9d414b3740bf5460",
+      "png": "flat_highlight_small_wc_a.png",
+      "png_sha256": "14b038948fa16b0ad0134b1151d927f23dafae6b6f7e478a4429ee2652a9db14"
+    },
+    "flat_highlight_small_wc_b": {
+      "npy": "flat_highlight_small_wc_b.npy",
+      "npy_sha256": "ea12d6ff48d4253421a893db06e8997f66c5803bbfbd0dac09d26c9a54e3ecb5",
+      "png": "flat_highlight_small_wc_b.png",
+      "png_sha256": "dcd25a9695f0e910b90d0ce2e9bab8669ee7d76d53f5a53aac8e217ca2bc0e9b"
+    },
+    "flat_highlight_small_wc_c": {
+      "npy": "flat_highlight_small_wc_c.npy",
+      "npy_sha256": "3677485797d7677a2703c3f59ae3a6657b4c1cc5811538fd00ba15f743240025",
+      "png": "flat_highlight_small_wc_c.png",
+      "png_sha256": "8de441d77aeae3c8ac3efeece3b5394316003faaacb7a6b3e44a2cb40eeb52e5"
+    },
+    "flat_highlight_small_only_bleed": {
+      "npy": "flat_highlight_small_only_bleed.npy",
+      "npy_sha256": "23d49f0c882abdf150337c401e5a7e995de2167c858751b00510a8f284354628",
+      "png": "flat_highlight_small_only_bleed.png",
+      "png_sha256": "e15e865d54e20b3c97e81c0a66b1a0359645205913d218fa99285c3f247486f3"
+    },
+    "flat_highlight_small_only_paper": {
+      "npy": "flat_highlight_small_only_paper.npy",
+      "npy_sha256": "63a5d7124a50590bac024c1e9dda4f364e7ba3ed8734caf62ddf58f1ffc78fff",
+      "png": "flat_highlight_small_only_paper.png",
+      "png_sha256": "05d38dac9731afad351f956acb0e49ef0300dfa3f14b255d66ac11ff919a69e4"
+    },
+    "flat_highlight_small_only_edge": {
+      "npy": "flat_highlight_small_only_edge.npy",
+      "npy_sha256": "90f45b8c6fad2ddd0bbe7141b600b94c7864241d40620640d8b6f98efbcfff8d",
+      "png": "flat_highlight_small_only_edge.png",
+      "png_sha256": "dd559aee0d50ff1de99b1fd37092eb3037de2e32e9f2c4a7a4f71c710172f43a"
+    },
+    "color_ramp_large_wc_a": {
+      "npy": "color_ramp_large_wc_a.npy",
+      "npy_sha256": "f11c0b51ccc6d35edc042e6227e11f7b2256f7a642b476551cc0972437ac9258",
+      "png": "color_ramp_large_wc_a.png",
+      "png_sha256": "6910f5b77d30ba3c810dd9bde0371abc014e8c63f47ceb12e3d81ba051c88a82"
+    },
+    "color_ramp_large_wc_b": {
+      "npy": "color_ramp_large_wc_b.npy",
+      "npy_sha256": "5fe8f4fd94403243f4ea00f77677f9dcf1b36c890aa7aa001344dd1ff000de25",
+      "png": "color_ramp_large_wc_b.png",
+      "png_sha256": "cf3a4263c8da8a970669b8fa1bcdab1179fe50c425ce71f22c30e5b2f60f0e45"
+    },
+    "color_ramp_large_wc_c": {
+      "npy": "color_ramp_large_wc_c.npy",
+      "npy_sha256": "433740807ad617be6abeaa046af44fb43bce62795808c5cf8f6d2a4a1071d757",
+      "png": "color_ramp_large_wc_c.png",
+      "png_sha256": "3e90a623fc65ff74d24b170b1162612a03d6bf7ad555efe98a99a62ad4ef3c62"
+    },
+    "thin_lines_large_wc_a": {
+      "npy": "thin_lines_large_wc_a.npy",
+      "npy_sha256": "5953cc9d2d411e2ee50b74c662b256ac04e311edef7096d26f87bec51c0806cf",
+      "png": "thin_lines_large_wc_a.png",
+      "png_sha256": "8c12e4ca752048b6050d527dccb8b77e5efa26e173be2e751ed9389f09cb33dd"
+    },
+    "thin_lines_large_wc_b": {
+      "npy": "thin_lines_large_wc_b.npy",
+      "npy_sha256": "f8b24a224cacd30524facdc566d1754c6956bf798bb285fe3b06beb6a3e1be1d",
+      "png": "thin_lines_large_wc_b.png",
+      "png_sha256": "5d22acdee562f73f50d6ad6bc1f12e630b861dff79f75672eab386eefe902a6e"
+    },
+    "thin_lines_large_wc_c": {
+      "npy": "thin_lines_large_wc_c.npy",
+      "npy_sha256": "161b55fcf06f6264ee29833ce607b55e9f96bdcb210714a3eb53ab5fdffdb728",
+      "png": "thin_lines_large_wc_c.png",
+      "png_sha256": "02a622893a6db77d1724a925549cde64a13135dd5e8e9787b943dd4d03b76cb7"
+    },
+    "alpha_boundary_large_wc_a": {
+      "npy": "alpha_boundary_large_wc_a.npy",
+      "npy_sha256": "9749df8eff647b8d06eae78538aec79a11d47df1ab9032513e1c594ac9420082",
+      "png": "alpha_boundary_large_wc_a.png",
+      "png_sha256": "57fb7731390fad126b1b3aa989e7067fe517636df4d329a630e22185ace82896"
+    },
+    "alpha_boundary_large_wc_b": {
+      "npy": "alpha_boundary_large_wc_b.npy",
+      "npy_sha256": "2cbf1f8e913dd31f675cd38de71e31cbe4d8694a237501cdd00c1cd1780974f0",
+      "png": "alpha_boundary_large_wc_b.png",
+      "png_sha256": "84f56fba1c0a4163da26b674fefd0cdc2a5c2c2086816f97de1f08c06b88f244"
+    },
+    "alpha_boundary_large_wc_c": {
+      "npy": "alpha_boundary_large_wc_c.npy",
+      "npy_sha256": "272e5d1bb83dc7d715d81b585c88fcf1d7d65a00443512fdba09b1cd54b0f56f",
+      "png": "alpha_boundary_large_wc_c.png",
+      "png_sha256": "f8bc82a57f6d4edf90ac639fcc9932da6efe67507b1e37d763a3fe462917ea7a"
+    },
+    "flat_highlight_large_wc_a": {
+      "npy": "flat_highlight_large_wc_a.npy",
+      "npy_sha256": "4bb6071d11c2e6d3a13277c12cf2f9e69ca0cb979718c2d99297dcc8dfa9e90a",
+      "png": "flat_highlight_large_wc_a.png",
+      "png_sha256": "ecb2bc338240aa4219c8480ae71c3db71e870b81a3669cd3b12ff67ceeb34eae"
+    },
+    "flat_highlight_large_wc_b": {
+      "npy": "flat_highlight_large_wc_b.npy",
+      "npy_sha256": "31d172322a0f86e7c790ca26d76722abdb19a1aadc558c2331ee50b9d6d8340c",
+      "png": "flat_highlight_large_wc_b.png",
+      "png_sha256": "4e35b87d04d3fd292edd36d6be9201a29810b6b626aaa02b8eb6b641630cbfad"
+    },
+    "flat_highlight_large_wc_c": {
+      "npy": "flat_highlight_large_wc_c.npy",
+      "npy_sha256": "b23e5195b681f537b54f4087dfe2204c35d8f4d6ac863817c7b3f660a015ebca",
+      "png": "flat_highlight_large_wc_c.png",
+      "png_sha256": "97000cb5f62fd2eb1ad5ec4708143918d849ca4dc420c6f9c14d036564b0f6a5"
+    },
+    "sequence_small_wc_a": {
+      "npy": "sequence_small_wc_a.npy",
+      "npy_sha256": "f3f02277fca35c46cf79c049026dace3d97d9c91b2012f1e2f87b89f61adf36c",
+      "png": "sequence_small_wc_a.png",
+      "png_sha256": "a218f930a873803dc8521ee6e0cbe4f377e0e785701bb4c3698af618f2fad3c1"
+    },
+    "sequence_small_wc_b": {
+      "npy": "sequence_small_wc_b.npy",
+      "npy_sha256": "9c139f7eb9362bedeef92e6033bf47a0dca823bd4a80084d33b45209d81433d6",
+      "png": "sequence_small_wc_b.png",
+      "png_sha256": "b05f9af93d565382be78e5e178f780149b8decc25a3ed88bd20d0988f77a652e"
+    },
+    "sequence_small_wc_c": {
+      "npy": "sequence_small_wc_c.npy",
+      "npy_sha256": "1103da90035478bdb93720c201914074810d8d70e1783fddf34abd527deca145",
+      "png": "sequence_small_wc_c.png",
+      "png_sha256": "96c81cfda968e803647379bb385abe21e202e0f521f961b5a1f97fc0a7a20d22"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd3.json",
+      "sha256": "9c0c1bc9b142799d2e579c959e3ca6908bfba1b54ec7f901e127361a801662a3"
+    },
+    "blind_sheet": {
+      "file": "review/rd7_v5_blind_sheet.png",
+      "sha256": "a321621dece05eada1278d6748d7aea4672e5667a8a649bd535be8100f52c600"
+    },
+    "blind_key": {
+      "file": "blind_key.json",
+      "sha256": "d403c6e659b21cacfc26b4f1bb5b3231133f59100159f7cd4712f2da00d02f0e"
+    },
+    "review_form": {
+      "file": "review/CANDIDATE_BLIND_FORM.md",
+      "sha256": "4ac7fafbb13e241238f90763f56b5d43d14af4aaff4f641ea6d93571acaed117"
+    }
+  },
+  "gates": "unset; no judgment or ranking performed",
+  "predecessor": "RD3 blind set uses v2 and is retained as history; do not use it as v3 evidence",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference watercolor images (license not confirmed)",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

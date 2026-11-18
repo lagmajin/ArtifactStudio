@@ -1,0 +1,206 @@
+{
+  "lab": "WatercolorLab",
+  "rd": "rd5",
+  "stage": "temporal_and_perf",
+  "date": "2026-11-17",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "temporal_blind_seed": 20264617,
+  "outputs": {
+    "sequence_small_v3_wc_a_frame03": {
+      "npy": "sequence_small_v3_wc_a_frame03.npy",
+      "npy_sha256": "4b6a5ed0c036e279397b167d3deeec7e17a17f30e5bc87780651680cf0b299ad",
+      "png": "sequence_small_v3_wc_a_frame03.png",
+      "png_sha256": "22133bd8c4d48721033ebc9e9ac1dc8b79d3ebf40a8e40edc44a565d2cf47eb9"
+    },
+    "sequence_small_v3_wc_b_frame03": {
+      "npy": "sequence_small_v3_wc_b_frame03.npy",
+      "npy_sha256": "9c139f7eb9362bedeef92e6033bf47a0dca823bd4a80084d33b45209d81433d6",
+      "png": "sequence_small_v3_wc_b_frame03.png",
+      "png_sha256": "b05f9af93d565382be78e5e178f780149b8decc25a3ed88bd20d0988f77a652e"
+    },
+    "sequence_small_v3_wc_c_frame03": {
+      "npy": "sequence_small_v3_wc_c_frame03.npy",
+      "npy_sha256": "1103da90035478bdb93720c201914074810d8d70e1783fddf34abd527deca145",
+      "png": "sequence_small_v3_wc_c_frame03.png",
+      "png_sha256": "96c81cfda968e803647379bb385abe21e202e0f521f961b5a1f97fc0a7a20d22"
+    },
+    "sequence_small_v3_only_bleed_frame03": {
+      "npy": "sequence_small_v3_only_bleed_frame03.npy",
+      "npy_sha256": "5a8247af8231be62c6571e7a6c7c71ae7da76343d7a1748ea4bbd2197182cd12",
+      "png": "sequence_small_v3_only_bleed_frame03.png",
+      "png_sha256": "7081d041df91c59bfd45fdbb1c6c05a8fd79494f9bbc1b924d7594ae195eda26"
+    },
+    "sequence_small_v3_only_paper_frame03": {
+      "npy": "sequence_small_v3_only_paper_frame03.npy",
+      "npy_sha256": "1187fee1cbdb6beda2d94e251096dad5a0a0eb91e85f6846b68812c6f62f046f",
+      "png": "sequence_small_v3_only_paper_frame03.png",
+      "png_sha256": "1e7c1104514286cdfaf8880281d15445b526e41d265e3370338e8d01690f91b5"
+    },
+    "sequence_small_v3_only_edge_frame03": {
+      "npy": "sequence_small_v3_only_edge_frame03.npy",
+      "npy_sha256": "4ba8e3b3bba4c1187de33ba86a7d6033866c1ca6783f1e10324bfb9b79816586",
+      "png": "sequence_small_v3_only_edge_frame03.png",
+      "png_sha256": "3996badab8bf631d37355938348da0c6e1e9492229b4ac1204f9872fa6844430"
+    },
+    "sequence_small_v3_wc_c_frame00": {
+      "npy": "sequence_small_v3_wc_c_frame00.npy",
+      "npy_sha256": "abec1b1b61635e821f1ae9281cee825417d0f569f1bfd5c3d9c4bd9d24c497a8",
+      "png": "sequence_small_v3_wc_c_frame00.png",
+      "png_sha256": "2aa4f45400f76c25ebff5c0a16af3a6e784bfc17c62ccdf1d030bdf9ea7d4706"
+    },
+    "sequence_small_v3_wc_c_frame02": {
+      "npy": "sequence_small_v3_wc_c_frame02.npy",
+      "npy_sha256": "d7463447a75494e01d06181c68f4a9da9c562e53c3e13d60713f928b9cb2c5fa",
+      "png": "sequence_small_v3_wc_c_frame02.png",
+      "png_sha256": "ecca6b4cb3024d871a5366b7e9dc946923f2a0c4040db3dae2e2c33cc92beefa"
+    },
+    "sequence_small_v3_wc_b_frame07": {
+      "npy": "sequence_small_v3_wc_b_frame07.npy",
+      "npy_sha256": "10acc6f7e61fc053608e4dc77ff648b8958f6936567c7c4f62a68b77a94188f2",
+      "png": "sequence_small_v3_wc_b_frame07.png",
+      "png_sha256": "09d165d8f9260967f0a85ae281efc4306ab36c511ea769345227cab2129c01a9"
+    },
+    "sequence_small_v3_wc_b_frame06": {
+      "npy": "sequence_small_v3_wc_b_frame06.npy",
+      "npy_sha256": "c88e90cc1a8db5999fdb77dcf2e88ae68b4f63a575b88d103df4177073f13104",
+      "png": "sequence_small_v3_wc_b_frame06.png",
+      "png_sha256": "312ce579b2df3cfb96bdb9b9be0b3999c0deb886e5eaefd6b80f117a9d05b52d"
+    },
+    "sequence_small_v3_wc_b_frame02": {
+      "npy": "sequence_small_v3_wc_b_frame02.npy",
+      "npy_sha256": "fcf8cef50455bb780d138a4a28fb1546204a6f50eba89566d0c92211af3750ba",
+      "png": "sequence_small_v3_wc_b_frame02.png",
+      "png_sha256": "be2468c76474770f731a71192cee63308d7c2ccc914645650096d9c76e1ca44b"
+    },
+    "sequence_small_v3_wc_b_frame04": {
+      "npy": "sequence_small_v3_wc_b_frame04.npy",
+      "npy_sha256": "adc7b0c866e6b15b176ab62561742a31dea452ba9ddc1d09989a32833617781e",
+      "png": "sequence_small_v3_wc_b_frame04.png",
+      "png_sha256": "dd86452786dd4a00673918fc655083c1becfa1fd538c19725a41430b4803feaf"
+    },
+    "sequence_small_v3_wc_c_frame01": {
+      "npy": "sequence_small_v3_wc_c_frame01.npy",
+      "npy_sha256": "0fc862e55a296d7a0817cdf5efda13230c89ed1fd1d78891e1074b2079389ef6",
+      "png": "sequence_small_v3_wc_c_frame01.png",
+      "png_sha256": "c244d1916ebf61729b299529000db8bb0195174609111434075089e7b4062933"
+    },
+    "sequence_small_v3_wc_c_frame06": {
+      "npy": "sequence_small_v3_wc_c_frame06.npy",
+      "npy_sha256": "3b518a9c6259441b82374b096f91f43aa372af4f7b50d37c8f0a08802ff2103f",
+      "png": "sequence_small_v3_wc_c_frame06.png",
+      "png_sha256": "c4c5e7f7e80f1cc7cb33ae6699a0cddfba32fd32f1eabf68eedf891c6bb3b538"
+    },
+    "sequence_small_v3_wc_a_frame02": {
+      "npy": "sequence_small_v3_wc_a_frame02.npy",
+      "npy_sha256": "c1480e12f03dfab1b7a1c20a9364e833a7143eec2f932f251bbb7cd15a7beb26",
+      "png": "sequence_small_v3_wc_a_frame02.png",
+      "png_sha256": "072df1b0ca5b504d0c8d6807d495cc17f670ecd475c94b229aa0a2c325db53c7"
+    },
+    "sequence_small_v3_wc_a_frame07": {
+      "npy": "sequence_small_v3_wc_a_frame07.npy",
+      "npy_sha256": "1fb97a82f030da7bfc8cc2d16163d3bc08de77991ecd3c196ecf431fcc29b1e8",
+      "png": "sequence_small_v3_wc_a_frame07.png",
+      "png_sha256": "8cd85e44e6169fc9808fc342a1331a334e30de57702c9bba99a934cc140299d2"
+    },
+    "sequence_small_v3_wc_b_frame01": {
+      "npy": "sequence_small_v3_wc_b_frame01.npy",
+      "npy_sha256": "e1f5c092684098dc28d08a3b5c0a644b4bacba1b9b5d780ff108aa8684d6b457",
+      "png": "sequence_small_v3_wc_b_frame01.png",
+      "png_sha256": "f679e69f6333e1e9008bed6584179aa6138269cc896aa9733ac02c7b07ebddd1"
+    },
+    "sequence_small_v3_wc_a_frame04": {
+      "npy": "sequence_small_v3_wc_a_frame04.npy",
+      "npy_sha256": "92b07576027efa3141db677420f1470bd25bcd0a0cda305dbd78bea18674f16a",
+      "png": "sequence_small_v3_wc_a_frame04.png",
+      "png_sha256": "6d43f3a88397392355febce5b4d181ac8762889344939aa93f21f6478ec963cc"
+    },
+    "sequence_small_v3_wc_a_frame01": {
+      "npy": "sequence_small_v3_wc_a_frame01.npy",
+      "npy_sha256": "50da10a2da2f42670f2af7c915ceec611587f3a670c1eeb35c3dff08f498f8d4",
+      "png": "sequence_small_v3_wc_a_frame01.png",
+      "png_sha256": "bc0c546d26e36ec26d4e1d2eea8fbbf54fa86a9cb168d0c99438dfe49f94997c"
+    },
+    "sequence_small_v3_wc_b_frame00": {
+      "npy": "sequence_small_v3_wc_b_frame00.npy",
+      "npy_sha256": "6a22d30a53c0e0d40ed2372a6f30211edc5f2ef07e14e07cca6326bd0584e066",
+      "png": "sequence_small_v3_wc_b_frame00.png",
+      "png_sha256": "e715664b5daf8f80444a9b54a2b541f72efbaf341600965c20210791984ab3c5"
+    },
+    "sequence_small_v3_wc_b_frame05": {
+      "npy": "sequence_small_v3_wc_b_frame05.npy",
+      "npy_sha256": "590cf6e94c40651ac8487025d26b330965190eca39f2ca991f5eec5c46ed1e88",
+      "png": "sequence_small_v3_wc_b_frame05.png",
+      "png_sha256": "bac52b5ceea965da39dd58246ee71aa6ee2e68590a00ea45984160f51278a222"
+    },
+    "sequence_small_v3_wc_c_frame04": {
+      "npy": "sequence_small_v3_wc_c_frame04.npy",
+      "npy_sha256": "751dd986a1cdb190f352e013c5232f2cc57c514ee79876d3cd838e53d12bc042",
+      "png": "sequence_small_v3_wc_c_frame04.png",
+      "png_sha256": "92fabbc7cbbae14918f2e10e3b3561fca3a51a53588b78515a0351200d64c7e6"
+    },
+    "sequence_small_v3_wc_a_frame05": {
+      "npy": "sequence_small_v3_wc_a_frame05.npy",
+      "npy_sha256": "5899e1440815ebcbf488d002410729cf14e6d1dd620dda2c617da869e853f0ea",
+      "png": "sequence_small_v3_wc_a_frame05.png",
+      "png_sha256": "76d4a5d1d2233c90c987971fbb8799a472493f3b1d02b583c22e6109cf59bfcd"
+    },
+    "sequence_small_v3_wc_c_frame07": {
+      "npy": "sequence_small_v3_wc_c_frame07.npy",
+      "npy_sha256": "945bd295c6a488aafedfbfaa6792d1a5097f99a296cf33ae6d4e0c13e78e5a12",
+      "png": "sequence_small_v3_wc_c_frame07.png",
+      "png_sha256": "98a71e2ef2b273f129b895a08a364230c50b37def19771de93ec32a9bbbf58db"
+    },
+    "sequence_small_v3_wc_a_frame06": {
+      "npy": "sequence_small_v3_wc_a_frame06.npy",
+      "npy_sha256": "3b5d3f0faf58c77d12c800507d482e3e079a878a9a2d5715b6f91a4a53d006aa",
+      "png": "sequence_small_v3_wc_a_frame06.png",
+      "png_sha256": "51b09e5bfbdb3bf03c6fd975513dec2cf6587b819d788c1e4bcd4e0b28e55bef"
+    },
+    "sequence_small_v3_wc_a_frame00": {
+      "npy": "sequence_small_v3_wc_a_frame00.npy",
+      "npy_sha256": "d0165019e2e9b1d81a0e3a330f44a4d852f94fc090d9b83d525250b7613c9fc7",
+      "png": "sequence_small_v3_wc_a_frame00.png",
+      "png_sha256": "a44a1a0063795813b6655c27963891db92b1016ca6536c16b2c6088777f81818"
+    },
+    "sequence_small_v3_wc_c_frame05": {
+      "npy": "sequence_small_v3_wc_c_frame05.npy",
+      "npy_sha256": "7d2cace457227e5f3f6574766d92929e2b8664caba5d73851255ced15c11d382",
+      "png": "sequence_small_v3_wc_c_frame05.png",
+      "png_sha256": "96593881b80eb328699934bf7c2b8501e43b0156d9121aa281e7f15e0150e3a9"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd5.json",
+      "sha256": "86d12f0f54e1a86c059d08b6643bb34acaef04bba525325e01824a5a5443bdd1"
+    },
+    "tables": {
+      "file": "review/RD5_TABLES.md",
+      "sha256": "52a3d56c11c472de8c41f41ca8b660a3fbe6194bf2ff4b49c64eb36635ebc86d"
+    },
+    "blind_sheet": {
+      "file": "review/rd5_v3_temporal_blind_sheet.png",
+      "sha256": "31c8afc0b77bb82bc2fbbc1edec39b0afdb8036676e99e1f09f23cdf181da46b"
+    },
+    "blind_key": {
+      "file": "temporal_blind_key.json",
+      "sha256": "193dedeced07687854e2af7714febeadea1dc4f570f22589dbe563cc64216792"
+    },
+    "blind_form": {
+      "file": "review/TEMPORAL_BLIND_FORM.md",
+      "sha256": "90273601c10c7a099f90b5ff103a92dc1c783e7e239d7f522c633e7442659ef3"
+    }
+  },
+  "gates": "unset; no judgment or ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "product performance at 1080p / 4K",
+    "native OpenCV allocation footprint (tracemalloc is Python-heap only)",
+    "GPU/CPU parity, D3D12/Vulkan",
+    "product effect / UI / undo / save-reload"
+  ]
+}

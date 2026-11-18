@@ -1,0 +1,316 @@
+{
+  "lab": "WatercolorLab",
+  "rd": "rd3",
+  "stage": "v2_blind_candidates",
+  "date": "2026-11-17",
+  "model": "v2 (premultiplied-space processing)",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "candidate_seed_base": 20262117,
+  "blind_seed": 20264017,
+  "candidates": {
+    "wc_a": {
+      "bleed": "bilateral",
+      "paper": "value_noise",
+      "edge": "softstep",
+      "strength": 1.0
+    },
+    "wc_b": {
+      "bleed": "quantize_gauss",
+      "paper": "value_noise",
+      "edge": "wobble",
+      "strength": 1.0
+    },
+    "wc_c": {
+      "bleed": "edge_weighted",
+      "paper": "fibers",
+      "edge": "softstep",
+      "strength": 1.0
+    },
+    "only_bleed": {
+      "bleed": "bilateral",
+      "paper": null,
+      "edge": null,
+      "strength": 1.0
+    },
+    "only_paper": {
+      "bleed": null,
+      "paper": "value_noise",
+      "edge": null,
+      "strength": 1.0
+    },
+    "only_edge": {
+      "bleed": null,
+      "paper": null,
+      "edge": "softstep",
+      "strength": 1.0
+    }
+  },
+  "outputs": {
+    "color_ramp_small_wc_a": {
+      "npy": "color_ramp_small_wc_a.npy",
+      "npy_sha256": "9e1c5ffa9be954def6e7d732d603c0596bed9419bd122ebcfce8af2ab13825ba",
+      "png": "color_ramp_small_wc_a.png",
+      "png_sha256": "80d6e2c7bfd62c700ed5855a068fb2aa954747fa010b2fce6cffc6103c26c6d0"
+    },
+    "color_ramp_small_wc_b": {
+      "npy": "color_ramp_small_wc_b.npy",
+      "npy_sha256": "c4b2f7fceca3716398f42eb060dcfb204549a52b67df30a3abfcb063c3a774ec",
+      "png": "color_ramp_small_wc_b.png",
+      "png_sha256": "a1e6b8b5a98a91a67d9392b05ceb9ba983a084c6556de951878b2351f4b7efd6"
+    },
+    "color_ramp_small_wc_c": {
+      "npy": "color_ramp_small_wc_c.npy",
+      "npy_sha256": "7b5348e8f79eeee9231acc289c84212749e81a4dc0e800b2c4da25d3f627a223",
+      "png": "color_ramp_small_wc_c.png",
+      "png_sha256": "e3d45b83b677e10499f0575334082ec6e3ff03181d0b3a73238b09df5c4cefac"
+    },
+    "color_ramp_small_only_bleed": {
+      "npy": "color_ramp_small_only_bleed.npy",
+      "npy_sha256": "1126d8c4cbd4d92e9e49ca103039a15d51ff095ab86ed682f51c22bead5fbd0a",
+      "png": "color_ramp_small_only_bleed.png",
+      "png_sha256": "002433bb36653654eae0c0485fa66085815238cd892033ef4abdfef19f050ecb"
+    },
+    "color_ramp_small_only_paper": {
+      "npy": "color_ramp_small_only_paper.npy",
+      "npy_sha256": "03f6a6fb381e68361de4ce878933c975e3b1e2cf19ec135db097dd5a6fdb2fc2",
+      "png": "color_ramp_small_only_paper.png",
+      "png_sha256": "afe18b7d8bb16a962f5818708d273dee6456ebc3d80d103edfcb1171da91660a"
+    },
+    "color_ramp_small_only_edge": {
+      "npy": "color_ramp_small_only_edge.npy",
+      "npy_sha256": "bc2661df3a641f94bc361647edd99c2fb98400d42c068d6993be0539e6a42fdf",
+      "png": "color_ramp_small_only_edge.png",
+      "png_sha256": "836b9d1089a5363dfd34f152d9e6efc0a0d3661425e4a853269f4c2ca473daa5"
+    },
+    "thin_lines_small_wc_a": {
+      "npy": "thin_lines_small_wc_a.npy",
+      "npy_sha256": "405ff55755a5592f385eed97bdc4ac11a951e122ff931cdcd9b29a3770e4aad5",
+      "png": "thin_lines_small_wc_a.png",
+      "png_sha256": "53e33ac59c2a30e7d27904813f18ea2765df9adfb993ea3646bb6492c4a7492f"
+    },
+    "thin_lines_small_wc_b": {
+      "npy": "thin_lines_small_wc_b.npy",
+      "npy_sha256": "f47e5e738e2796a4c26d0f272c75ec5d6197adc98741234f71ba573188bbe3e5",
+      "png": "thin_lines_small_wc_b.png",
+      "png_sha256": "0e1cf76637f18084bc27ecacbc5d5505cbb32da8af54716acc1fbe801e90511b"
+    },
+    "thin_lines_small_wc_c": {
+      "npy": "thin_lines_small_wc_c.npy",
+      "npy_sha256": "9b02a213a1a5f0476886ea9493280373d074044871d4282cc0e489b3e3cc8479",
+      "png": "thin_lines_small_wc_c.png",
+      "png_sha256": "f9b6b77e11843a30ab888adeeef384f27c594fe246984692cc107578cbdfd97c"
+    },
+    "thin_lines_small_only_bleed": {
+      "npy": "thin_lines_small_only_bleed.npy",
+      "npy_sha256": "9a75529dccefe916f4a6b17779f1de5ff70fce04bea5e40c0d86c061aa072c6f",
+      "png": "thin_lines_small_only_bleed.png",
+      "png_sha256": "dcf9d0f36d0e9d55d6235a5366be14ed781c82dff85a5a64d9bb9d0e8ff21837"
+    },
+    "thin_lines_small_only_paper": {
+      "npy": "thin_lines_small_only_paper.npy",
+      "npy_sha256": "d9d38cb1980c577aa3f2538cd0cd2c30b9ba6019667d311904f5a45aa933e9f4",
+      "png": "thin_lines_small_only_paper.png",
+      "png_sha256": "29d44e66ce05202d49b16be9945c6fc2fee9e875b1a638d1f71ad913265ff682"
+    },
+    "thin_lines_small_only_edge": {
+      "npy": "thin_lines_small_only_edge.npy",
+      "npy_sha256": "50d9dd765358fd229f0ec48b55349c53fb9d6525b6352ebb2d86a977195237a4",
+      "png": "thin_lines_small_only_edge.png",
+      "png_sha256": "db9d47774b2785f535ecd1fc4981cb76928ffcd7c5e1067e2d08dddbb267ab58"
+    },
+    "alpha_boundary_small_wc_a": {
+      "npy": "alpha_boundary_small_wc_a.npy",
+      "npy_sha256": "5a59b7cf6d3947f4e58233cd15970e6fd461819f3c621a05fac638f6b11d32b4",
+      "png": "alpha_boundary_small_wc_a.png",
+      "png_sha256": "0fb3a70e7674b70f5a0987db3a4d6d307840e19dd01f0dbd98df6880ed52444c"
+    },
+    "alpha_boundary_small_wc_b": {
+      "npy": "alpha_boundary_small_wc_b.npy",
+      "npy_sha256": "cdcd54e9322f8093dc7554190001122ba9c99f230e55b7abf96201544ee7120b",
+      "png": "alpha_boundary_small_wc_b.png",
+      "png_sha256": "9b63530475e999cee45b206c4644cc4ed2c8b7b2256b1af63be7627ab0ac45e2"
+    },
+    "alpha_boundary_small_wc_c": {
+      "npy": "alpha_boundary_small_wc_c.npy",
+      "npy_sha256": "dcfa0d811384e50d06b713285d84ec89ad6bdf01fafb906a3ee0028d3a6f957a",
+      "png": "alpha_boundary_small_wc_c.png",
+      "png_sha256": "045dd4a6f50eecb4a5f077e75ebe9d5ed53910e76c9d6724344c0522709e1335"
+    },
+    "alpha_boundary_small_only_bleed": {
+      "npy": "alpha_boundary_small_only_bleed.npy",
+      "npy_sha256": "1857d1bac82103c1eb896333343f169a0990f58e0dcb4ffe7d6ebe5862b5cfa7",
+      "png": "alpha_boundary_small_only_bleed.png",
+      "png_sha256": "42466d2a5c7ca1ceefbbfb9c80051464b51808603a4064357079838fab859494"
+    },
+    "alpha_boundary_small_only_paper": {
+      "npy": "alpha_boundary_small_only_paper.npy",
+      "npy_sha256": "aa21ef400d773c387477fd4bc3068e6fabb3b6d07535d5e6886041f434545a83",
+      "png": "alpha_boundary_small_only_paper.png",
+      "png_sha256": "98ddc85170865494627e2a607dd2e4b7ca0f4bc04361f0c44c97a3b117291de7"
+    },
+    "alpha_boundary_small_only_edge": {
+      "npy": "alpha_boundary_small_only_edge.npy",
+      "npy_sha256": "144c64492da0158a0cc2a810a05159e9681fce3f8cb77ac513f47e87e9fb5d6f",
+      "png": "alpha_boundary_small_only_edge.png",
+      "png_sha256": "7aa1afff277a4b57c55f1873c323f99a234fda7407c5f569c27fb7de2c2dd23c"
+    },
+    "flat_highlight_small_wc_a": {
+      "npy": "flat_highlight_small_wc_a.npy",
+      "npy_sha256": "7651742fc32d475217e7bc003804bd554dcd6e4843b1b1a31cfc5ed41d69bfdc",
+      "png": "flat_highlight_small_wc_a.png",
+      "png_sha256": "41a190d71a7fcd6df6878b6d36cb76addadb7032443b7a81aef76d67af6e3ed0"
+    },
+    "flat_highlight_small_wc_b": {
+      "npy": "flat_highlight_small_wc_b.npy",
+      "npy_sha256": "ea12d6ff48d4253421a893db06e8997f66c5803bbfbd0dac09d26c9a54e3ecb5",
+      "png": "flat_highlight_small_wc_b.png",
+      "png_sha256": "dcd25a9695f0e910b90d0ce2e9bab8669ee7d76d53f5a53aac8e217ca2bc0e9b"
+    },
+    "flat_highlight_small_wc_c": {
+      "npy": "flat_highlight_small_wc_c.npy",
+      "npy_sha256": "3677485797d7677a2703c3f59ae3a6657b4c1cc5811538fd00ba15f743240025",
+      "png": "flat_highlight_small_wc_c.png",
+      "png_sha256": "8de441d77aeae3c8ac3efeece3b5394316003faaacb7a6b3e44a2cb40eeb52e5"
+    },
+    "flat_highlight_small_only_bleed": {
+      "npy": "flat_highlight_small_only_bleed.npy",
+      "npy_sha256": "625ccf76a80123587f6b5de2224afa986c29bfc7fd9e2d35571979dadd57541a",
+      "png": "flat_highlight_small_only_bleed.png",
+      "png_sha256": "2eb68d7bc4445b67ac8eefcac89f8286a4810c69239b7cbfd3daa0a9c2f8a199"
+    },
+    "flat_highlight_small_only_paper": {
+      "npy": "flat_highlight_small_only_paper.npy",
+      "npy_sha256": "63a5d7124a50590bac024c1e9dda4f364e7ba3ed8734caf62ddf58f1ffc78fff",
+      "png": "flat_highlight_small_only_paper.png",
+      "png_sha256": "05d38dac9731afad351f956acb0e49ef0300dfa3f14b255d66ac11ff919a69e4"
+    },
+    "flat_highlight_small_only_edge": {
+      "npy": "flat_highlight_small_only_edge.npy",
+      "npy_sha256": "90f45b8c6fad2ddd0bbe7141b600b94c7864241d40620640d8b6f98efbcfff8d",
+      "png": "flat_highlight_small_only_edge.png",
+      "png_sha256": "dd559aee0d50ff1de99b1fd37092eb3037de2e32e9f2c4a7a4f71c710172f43a"
+    },
+    "color_ramp_large_wc_a": {
+      "npy": "color_ramp_large_wc_a.npy",
+      "npy_sha256": "796597d73ce3f623f405d35529d18e131f1dcf317e5b2afa35e1f56adb1cce30",
+      "png": "color_ramp_large_wc_a.png",
+      "png_sha256": "b674e4d49215e64fb43fd82148110ac9ffa7d95e35e2669b94d5ff7d8cd0186d"
+    },
+    "color_ramp_large_wc_b": {
+      "npy": "color_ramp_large_wc_b.npy",
+      "npy_sha256": "bde029f649ed2d00ada0309eeb99547b7198235b6e592cbdff641acd1a37baee",
+      "png": "color_ramp_large_wc_b.png",
+      "png_sha256": "cf3a4263c8da8a970669b8fa1bcdab1179fe50c425ce71f22c30e5b2f60f0e45"
+    },
+    "color_ramp_large_wc_c": {
+      "npy": "color_ramp_large_wc_c.npy",
+      "npy_sha256": "433740807ad617be6abeaa046af44fb43bce62795808c5cf8f6d2a4a1071d757",
+      "png": "color_ramp_large_wc_c.png",
+      "png_sha256": "3e90a623fc65ff74d24b170b1162612a03d6bf7ad555efe98a99a62ad4ef3c62"
+    },
+    "thin_lines_large_wc_a": {
+      "npy": "thin_lines_large_wc_a.npy",
+      "npy_sha256": "a1c69e0eced1963cb28a5517211a17522624a927059c1e2717bc3a23b842e22f",
+      "png": "thin_lines_large_wc_a.png",
+      "png_sha256": "d3b29695fbd1324e34fa94b712bb42ea7496d189e64b9c8218ba5e8f03e9885d"
+    },
+    "thin_lines_large_wc_b": {
+      "npy": "thin_lines_large_wc_b.npy",
+      "npy_sha256": "71c871854cb4f39dd2d6a6d33e203628f1ec3e36b739a4a7ddfeaa551ca4c13d",
+      "png": "thin_lines_large_wc_b.png",
+      "png_sha256": "5d22acdee562f73f50d6ad6bc1f12e630b861dff79f75672eab386eefe902a6e"
+    },
+    "thin_lines_large_wc_c": {
+      "npy": "thin_lines_large_wc_c.npy",
+      "npy_sha256": "161b55fcf06f6264ee29833ce607b55e9f96bdcb210714a3eb53ab5fdffdb728",
+      "png": "thin_lines_large_wc_c.png",
+      "png_sha256": "02a622893a6db77d1724a925549cde64a13135dd5e8e9787b943dd4d03b76cb7"
+    },
+    "alpha_boundary_large_wc_a": {
+      "npy": "alpha_boundary_large_wc_a.npy",
+      "npy_sha256": "9eb95f8fbd4492833a4072a38df4ce5af1309aa6af7abf244052415d2e70e136",
+      "png": "alpha_boundary_large_wc_a.png",
+      "png_sha256": "843015d17e5b94ec396e80926ad239af5cdd8c0c123f50d1f359f73dcd093dc9"
+    },
+    "alpha_boundary_large_wc_b": {
+      "npy": "alpha_boundary_large_wc_b.npy",
+      "npy_sha256": "a93239041819e38bfa827165c57101c293ff4f3bdaa9edcdd016408ee05f9c88",
+      "png": "alpha_boundary_large_wc_b.png",
+      "png_sha256": "a9df1de01cb463bbbfc34a1d743e0edaf63078b21f8ca94d985b233014e6d76a"
+    },
+    "alpha_boundary_large_wc_c": {
+      "npy": "alpha_boundary_large_wc_c.npy",
+      "npy_sha256": "272e5d1bb83dc7d715d81b585c88fcf1d7d65a00443512fdba09b1cd54b0f56f",
+      "png": "alpha_boundary_large_wc_c.png",
+      "png_sha256": "f8bc82a57f6d4edf90ac639fcc9932da6efe67507b1e37d763a3fe462917ea7a"
+    },
+    "flat_highlight_large_wc_a": {
+      "npy": "flat_highlight_large_wc_a.npy",
+      "npy_sha256": "ed849952e04fa676eab3a82047a636c1efbb53c56485de76f20ce47da5625456",
+      "png": "flat_highlight_large_wc_a.png",
+      "png_sha256": "b1c0f1a0c51e3d2167084243575f67c12c2dd92873c582fc1efbdfeee0e72d7d"
+    },
+    "flat_highlight_large_wc_b": {
+      "npy": "flat_highlight_large_wc_b.npy",
+      "npy_sha256": "da38af22c097279b8f969a717e6f97a16a1993ec76c6490051d08d145e753fa7",
+      "png": "flat_highlight_large_wc_b.png",
+      "png_sha256": "72248b05d0d371e3bb055a2ef124639e5ab3fb256c34e65a9ef9c873db38a480"
+    },
+    "flat_highlight_large_wc_c": {
+      "npy": "flat_highlight_large_wc_c.npy",
+      "npy_sha256": "b23e5195b681f537b54f4087dfe2204c35d8f4d6ac863817c7b3f660a015ebca",
+      "png": "flat_highlight_large_wc_c.png",
+      "png_sha256": "97000cb5f62fd2eb1ad5ec4708143918d849ca4dc420c6f9c14d036564b0f6a5"
+    },
+    "sequence_small_wc_a": {
+      "npy": "sequence_small_wc_a.npy",
+      "npy_sha256": "3740c785503b286c6e3075a97f1c5bac3bcd32b142bd21ab1d49df217b0c775b",
+      "png": "sequence_small_wc_a.png",
+      "png_sha256": "7a498a5ed45ce8a15a8a1860a6dcf97f8af0cb5beea483cba2926d35860c80ae"
+    },
+    "sequence_small_wc_b": {
+      "npy": "sequence_small_wc_b.npy",
+      "npy_sha256": "9c139f7eb9362bedeef92e6033bf47a0dca823bd4a80084d33b45209d81433d6",
+      "png": "sequence_small_wc_b.png",
+      "png_sha256": "b05f9af93d565382be78e5e178f780149b8decc25a3ed88bd20d0988f77a652e"
+    },
+    "sequence_small_wc_c": {
+      "npy": "sequence_small_wc_c.npy",
+      "npy_sha256": "1103da90035478bdb93720c201914074810d8d70e1783fddf34abd527deca145",
+      "png": "sequence_small_wc_c.png",
+      "png_sha256": "96c81cfda968e803647379bb385abe21e202e0f521f961b5a1f97fc0a7a20d22"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd3.json",
+      "sha256": "2f648f2975038c0288936b5db598ef6532ae771177cb1e9648021aa5dd7b748b"
+    },
+    "blind_sheet": {
+      "file": "review/rd3_v2_blind_sheet.png",
+      "sha256": "543bdadbecf9e1095534fede58fc55b4c3b4ab5a7e5ad749d15bf665a26fc6a0"
+    },
+    "blind_key": {
+      "file": "blind_key.json",
+      "sha256": "058a6553b8c7da5b8f424cb2d8ddd7ba6d12821eec342f8b98b5029260a5d76a"
+    },
+    "review_form": {
+      "file": "review/CANDIDATE_BLIND_FORM.md",
+      "sha256": "580ceee3c400592bdf57c8d32aa29bc169fa092edafe8ddb004c5c43f4cc7c6f"
+    }
+  },
+  "gates": "unset; no judgment or ranking performed",
+  "predecessor": "RD1 blind set uses v1 and is retained as history; do not use it as v2 evidence",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference watercolor images (license not confirmed)",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}
