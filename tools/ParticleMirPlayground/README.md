@@ -1,4 +1,4 @@
-**最終更新:** 2026-11-18
+**最終更新:** 2026-11-19
 
 # Artifact Mir Particle Playground
 
@@ -15,11 +15,14 @@ Mir 風の手続き地形を粒子放出ソースとして使う単体テスト�
 
 - `main.cpp`
   - 2D キャプチャ: Mir 地形の中央行から ridge プロファイルを取り出し、
-    キャンバス X 方向の帯（ridge strip）を作���して `EmitterShape::Surface`
+    キャンバス X 方向の帯（ridge strip）を作って `EmitterShape::Surface`
     の放出ソースにする。`ArtifactParticleLayer` を headless GPU で描画する。
+    粒子は密（density 3.5）で立ち上がり量も大きく（rise 3.0）取る設定。
   - 3D キャプチャ: 地形メッシュ全体を 3D 合成座標系（Y up, Z = depth）に写し、
     `ArtifactParticle3DLayer` の `EmitterShape::Surface` 放出ソースにする。
     地形本体は `drawMesh`、粒子は `draw` で同じフレームに描く。
+    カメラは距離を詰めて構図を詰め、2 倍解像度で描画してからダウンサンプルして
+    遠景稜線の aliasing を抑える。
   - 各キャプチャは PNG と `*_report.txt`（可視ピクセル数、差分ピクセル数、
     決定性許容差との比較）を書き出す。契約違反があれば非ゼロ終了する。
 
