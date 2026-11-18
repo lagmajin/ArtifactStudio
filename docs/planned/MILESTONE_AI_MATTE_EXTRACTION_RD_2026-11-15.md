@@ -1,6 +1,6 @@
 # AI マット抽出（静止画レイヤー化）R&D
 
-**最終更新:** 2026-11-15
+**最終更新:** 2026-11-17
 **ステータス:** In Progress（R0 / rd0、R1 / rd1・rd3・rd4、R2 の併用経路 / rd2・後処理 / rd5 を実行済み。解像度依存・spill・実写人物 fixture は未実施）
 **マイルストン ID:** M-IMG-MATTE-RD-1
 **ラボ:** `experiments/MatteLab/`
@@ -13,7 +13,7 @@
 
 ## なぜ今か
 
-- 開発優先方針（`AGENTS.md`）で静止画レイヤーの完成度が上位。`M-IMG-LAYER-1`（単一画像レイヤー化, Not Started）が「前景候補をマスク付きレイヤーへ変換する」段階で止まっている。
+- 開発優先方針（`AGENTS.md`）で静止画レイヤーの完成度が上位。`M-IMG-LAYER-1`（単一画像レイヤー化）は Phase 0A の standalone CLI を実装済みで、Phase 0 の受入素材・モデル境界とアプリ統合が未着手。R&D結果を製品統合の判断材料にする。
 - 現行の Roto Brush は `ArtifactCore::OpenCVRotoBrushEngine` の GrabCut 初期セグメンテーション + optical flow 伝播で、出力は実質二値マスクである。境界の軟らかさ・半透明は表現できない。
 - `ArtifactCore/src/AI/OnnxImageSegmenter.cpp` に ONNX + DirectML のセグメンテーション推論基盤（マスクのバイリニアサンプリングと sigmoid）が既にあり、新規ネイティブ依存なしで学習型マットを検証できる。
 - ラボ側にはマット品質を測る fixture と指標が無い。先に測れる状態を作る。
