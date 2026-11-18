@@ -100,13 +100,25 @@ python tools/Particle2DPlayground/compare_shape_target_backends.py `
 
 It checks fixture metadata, all five frames, and particle positions where
 captured. Generated output files are ignored by Git and can be recreated.
+To regenerate RGBA distribution and black/white composite summaries for the same
+frames, run:
+
+```powershell
+python tools/Particle2DPlayground/analyze_shape_target_images.py `
+  --d3d12 output\particle-shape-target\d3d12 `
+  --vulkan output\particle-shape-target\vulkan `
+  --output output\particle-shape-target\image_statistics.json
+```
 The capture covers this controlled static Shape/Text fixture; it does not cover
 animated targets, stroke-only Shape targets, export color management, or all
 font backends. Each baseline/Shape/Text case also reports five warmed
 `ParticleSystem::update()` timing batches at 360 live particles and sampled process
 working-set growth. That timer excludes rendering, GPU readback, and PNG work;
 the working-set sample is CPU process memory, not GPU memory, and can miss
-short peaks.
+short peaks. The Playground source also measures the first `sampleFillPoints()`
+call and five warmed sampler calls, separating glyph sampling from the broader
+target-preparation plus layer-draw timer. Rebuild the executable before those
+fields appear in `shape_target_report.json`.
 
 Check the option's default, JSON round trip, and legacy JSON defaults with:
 

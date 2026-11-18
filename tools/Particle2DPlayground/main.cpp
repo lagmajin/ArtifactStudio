@@ -1227,14 +1227,41 @@ static int captureShapeTarget(const QString& outputDirectory)
     std::array<QPointF, 4096> textSamplePoints{};
     std::size_t textSampleCount = 0;
     const bool textSamplingSupported = text->supportsStaticShapeTargetSampling();
+    QElapsedTimer textSampleTimer;
+    textSampleTimer.start();
     const bool textSamplesGenerated = text->sampleFillPoints(
         textSamplePoints.data(), textSamplePoints.size(), textSampleCount,
         20261118u);
+    const qint64 textSampleFirstCallNanoseconds = textSampleTimer.nsecsElapsed();
+    std::array<qint64, 5> textSampleSteadyNanoseconds{};
+    for (auto& elapsed : textSampleSteadyNanoseconds) {
+        textSampleCount = 0;
+        textSampleTimer.restart();
+        if (!text->sampleFillPoints(textSamplePoints.data(),
+                                    textSamplePoints.size(), textSampleCount,
+                                    20261118u) || textSampleCount == 0) {
+            return 16;
+        }
+        elapsed = textSampleTimer.nsecsElapsed();
+    }
+    auto sortedTextSampleNanoseconds = textSampleSteadyNanoseconds;
+    std::sort(sortedTextSampleNanoseconds.begin(),
+              sortedTextSampleNanoseconds.end());
     const auto textGeometry = text->textGlyphGeometry();
     report.insert(QStringLiteral("text_sampling_supported"), textSamplingSupported);
     report.insert(QStringLiteral("text_samples_generated"), textSamplesGenerated);
     report.insert(QStringLiteral("text_sample_count"),
                   static_cast<qint64>(textSampleCount));
+    report.insert(QStringLiteral("text_sample_fill_points_first_call_nanoseconds"),
+                  textSampleFirstCallNanoseconds);
+    report.insert(QStringLiteral("text_sample_fill_points_steady_median_nanoseconds"),
+                  sortedTextSampleNanoseconds[sortedTextSampleNanoseconds.size() / 2]);
+    QJsonArray textSampleSteadyMilliseconds;
+    for (const qint64 elapsed : textSampleSteadyNanoseconds) {
+        textSampleSteadyMilliseconds.append(static_cast<double>(elapsed) / 1.0e6);
+    }
+    report.insert(QStringLiteral("text_sample_fill_points_steady_runs_ms"),
+                  textSampleSteadyMilliseconds);
     report.insert(QStringLiteral("text_glyph_count"),
                   static_cast<qint64>(textGeometry.glyphs.size()));
     QJsonArray textGlyphs;
