@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-11-19
 
-**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-6 / P1-10 は以前の記録どおり。P1-4 と P1-14 は renderer / controller backend のみ追加済みで、Shading メニュー操作は未実装・未検証のため部分実装。現在の HEAD は未ビルド・実機未確認。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-3 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手または一部実装（分析完了）。
+**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-6 / P1-10 は以前の記録どおり。P1-4 と P1-14 は renderer / controller backend と Shading メニュー操作を追加済み。メニュー状態は hide event で適用し、新しい signal/slot 接続は使わない。変更は未ビルド・実機未確認のため部分実装。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-3 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手または一部実装（分析完了）。
 C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 ## 目的
@@ -31,7 +31,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-1 | Isolate Select の状態復元 | Not Started | 同上 |
 | P1-2 | Ghosted context display | Not Started | 同上 |
 | P1-3 | Per-viewport 設定 + Apply to all split views | Not Started | `PaneState` / 表示設定 |
-| P1-4 | Maya 風シェーディングトグル | **部分実装** — Shaded / Wireframe / Wireframe on Shaded / Bounding Box / X-Ray 不透明度は既存。Backface Culling の renderer/controller backend は追加済みだがメニュー操作は未実装・未検証。Cycle rig display は対象外 | 同上。詳細設計は `DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md` |
+| P1-4 | Maya 風シェーディングトグル | **部分実装** — Shaded / Wireframe / Wireframe on Shaded / Bounding Box / Backface Culling / X-Ray 不透明度の renderer/controller とメニュー操作を追加。状態適用は menu hide event を使い、新規 signal/slot 接続なし。未ビルド・未検証。Cycle rig display は対象外 | 同上。詳細設計は `DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md` |
 | P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | **実装済み（コード変更のみ、ビルド・実機未確認、2026-09-26）** | 表示専用 compute 段（`ArtifactIRenderer` / `ViewerHelperShaders`） |
 | P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **実装済み（2026-11-18、ビルド成功・実機未確認）** — 3 モードとも presenter 経由で表示 SRV に接続 | `ViewportChannelDisplayMode` / `LayerBlendComputeShader` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
@@ -41,7 +41,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-11 | スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — 4 スコープの表示は**既に存在**（`ArtifactColorSciencePanel` の 2×2 ダッシュボード、`ArtifactCompositionEditor` の dialog）。GPU 版 `ScopeComputer` / `Histogram` はソース完全だが `.cppm` がビルド除外。**残るのは ROI 集計と部分 readback のみ**。GPU 化は submodule 変更を要する | 既存 4 スコープ widget / `ArtifactColorSciencePanel` |
 | P1-12 | カラーサンプルバー（ソース RGBA 生値、HieroPlayer 由来） | **✅ 実装済み（2026-09-26 実コード照合）** — 再実装不要。`updateColorSamplerOverlay` がカーソル下 1px を `captureCurrentFrameImage()` から読み、RGB / HSL / hex / Layer ID / canvas XY / image pixel を HUD 表示。トグルと状態復元は `ArtifactCompositionEditor` に既存。`finalPresentReadbackSRV_` を読むため今回の露出（P1-5）の影響を受けない |
 | P1-13 | OCIO 表示色空間切替（Viewer color transform、HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — OCIO は実依存として**統合済み**、`bakeViewTransformLUT` による 33³ LUT も存在する。ただし適用は `applyDisplayColorTransform` 経由で **composition-space cache 経路の 2 か所だけ**で、メインの `finalizeGpuRenderToViewport` には入っていない。**残るのは present 経路への適用・per-pane 状態・UI 接続**。`setOCIOConfig` は未実装（文書の通り） | `ViewportColorPipeline` / `PaneState` |
-| P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | **部分実装** — controller / overlay backend を追加。Shading メニュー操作は未実装・未検証 | overlay / safe-area |
+| P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | **部分実装** — controller / overlay backend と Off / 1:1 / 4:3 / 16:9 / 2.39:1 の Shading メニュー操作を追加。状態適用は submenu hide event。未ビルド・未検証 | overlay / safe-area |
 | P2-1 | C4D HUD 相当のパラメータ常設表示 | Not Started | オーバーレイ / 既存 modal gizmo |
 | P2-2 | Hardware fog / volumetric fog / bloom | Not Started | Diligent パス |
 | P2-3 | Viewport tear-off copy | Not Started | ペイン管理 |
@@ -172,7 +172,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 - 16:9 / 1.85:1 等の表示専用マスクを既存 safe-area overlay の派生として追加する。
   最終出力・合成結果には影響しない。
-- **2026-11-19 backend 追加:** `CompositionViewportAspectMask`（Off / Square / FourByThree / SixteenByNine / Cinemascope=2.39:1）を controller の VP 専用状態として追加（既定 Off・非永続）。`ViewportOverlay::drawAspectMask()` は canvas 空間の 4 quad で外側を暗くし、pan / zoom / canvas rotation に追従する。`finalizeGpuRenderToViewport()` と Render Queue には波及しない。Shading メニュー操作は未実装・未検証。新規 Qt signal/slot 接続を禁止する `AGENTS.md` に従い、操作経路の設計レビュー待ち。
+- **2026-11-19 backend / menu 追加:** `CompositionViewportAspectMask`（Off / Square / FourByThree / SixteenByNine / Cinemascope=2.39:1）を controller の VP 専用状態として追加（既定 Off・非永続）。`ViewportOverlay::drawAspectMask()` は canvas 空間の 4 quad で外側を暗くし、pan / zoom / canvas rotation に追従する。Shading メニューにプリセットを追加し、submenu hide event で適用する。`finalizeGpuRenderToViewport()` と Render Queue には波及しない。新規 Qt signal/slot 接続は追加していない。未ビルド・未検証。
 
 ### P1-15 Fly / Walk navigation（実験実装・ビューポート専用）
 
