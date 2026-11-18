@@ -292,17 +292,20 @@ ArtifactCore::Mesh makeRenderMesh(const ArtifactCore::Procedural3DMeshData& gene
 // yUp = true は 3D の Y-up ワールド、false は 2D の Y-down 合成座標系。
 // density は ridge 上の粒子密度を調整するスケール。視覚採点で挙げられた
 // 「ridge 途中の隙間・密度不足」を解消するため 2D は高密度側を使う。
-Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f)
+// rise は立ち上がり量（初速と寿命）。視覚採点で「鉛直方向の分散が乏しい」と
+// 指摘されたため、2D は rise を大きく取る。
+Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f,
+                                        float rise = 1.0f)
 {
     Artifact::EmitterParams params;
     params.shape = Artifact::EmitterShape::Surface;
     params.mode = Artifact::EmissionMode::Continuous;
     params.rate = 900.0f * density;
     params.burstCount = 0;
-    params.lifeMin = 1.4f;
-    params.lifeMax = 3.2f;
-    params.speedMin = 60.0f;
-    params.speedMax = 190.0f;
+    params.lifeMin = 1.4f * rise;
+    params.lifeMax = 3.2f * rise;
+    params.speedMin = 60.0f * rise;
+    params.speedMax = 190.0f * rise;
     params.directionSpread = 28.0f;
     params.direction = yUp ? QVector3D(0.0f, 1.0f, 0.0f) : QVector3D(0.0f, -1.0f, 0.0f);
     params.gravity = yUp ? QVector3D(0.0f, -55.0f, 0.0f) : QVector3D(0.0f, 55.0f, 0.0f);
@@ -310,10 +313,10 @@ Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f)
     params.windDirection = QVector3D(1.0f, 0.0f, 0.0f);
     params.windStrength = 45.0f;
     params.turbulenceFrequency = 0.35f;
-    params.turbulenceAmplitude = 55.0f;
+    params.turbulenceAmplitude = 55.0f * rise;
     params.turbulenceEvolution = 0.8f;
-    params.scaleMin = 3.0f * std::max(1.0f, density * 0.75f);
-    params.scaleMax = 9.0f * std::max(1.0f, density * 0.75f);
+    params.scaleMin = 2.2f * std::max(1.0f, density * 0.75f);
+    params.scaleMax = 6.5f * std::max(1.0f, density * 0.75f);
     params.scaleEndMin = 0.0f;
     params.scaleEndMax = 1.0f;
     params.colorStart = QColor(255, 214, 138, 255);
@@ -402,8 +405,9 @@ int capture2D(const QString& outputDirectory)
                                  QVariant(CanvasHeight));
     layer.clearEmitters();
 
-    // 視覚採点で「密度不足・ridge 途中の隙間」が指摘されたため高密度設定を使う。
-    auto* emitter = layer.addEmitter(makeEmberParams(false, 3.0f));
+    // 視覚採点で「ridge 途中の隙間・密度不足」「鉛直方向の分散が乏しい」と
+    // 指摘されたため、帯を厚くし、粒子数と立ち上がり量を引き上げる。
+    auto* emitter = layer.addEmitter(makeEmberParams(false, 3.5f, 3.0f));
     if (!emitter) {
         qCritical("Could not create the Mir emitter");
         renderer.destroy();
@@ -494,7 +498,7 @@ int capture2D(const QString& outputDirectory)
     directSeekLayer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
                                           QVariant(CanvasHeight));
     directSeekLayer.clearEmitters();
-    auto* directEmitter = directSeekLayer.addEmitter(makeEmberParams(false, 3.0f));
+    auto* directEmitter = directSeekLayer.addEmitter(makeEmberParams(false, 3.5f, 3.0f));
     if (!directEmitter || !directEmitter->setEmissionTriangles(triangles)) {
         qCritical("Could not rebuild the Mir emitter for the determinism pass");
         renderer.destroy();
@@ -567,7 +571,7 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
     constexpr float Pi = 3.14159265358979323846f;
     // 視覚採点で「地形が垂直方向に低く配置され上部に余白が多い」と指摘されたため、
     // 注視点を上げ、距離を詰めて地形が画面を占めるよう構図を詰める。
-    const QVector3D target(0.0f, 190.0f, 0.0f);
+    const QVector3D target(0.0f, 90.0f, 0.0f);
     const float angle = orbitDegrees * Pi / 180.0f;
     const QVector3D eye(target.x() + std::sin(angle) * distance,
                         target.y() + height,
@@ -635,7 +639,7 @@ int capture3D(const QString& outputDirectory)
         // 視覚採点で「遠景の稜線に轻微な aliasing」と指摘されたため、
         // カメラを近づけて地形を大きく見せ、かつスーパーサンプリングで
         // 稜線のサブピクセル shimmer を抑える。
-        setCamera(renderer, orbitDegrees, 1850.0f, 420.0f);
+        setCamera(renderer, orbitDegrees, 1750.0f, 560.0f);
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,
