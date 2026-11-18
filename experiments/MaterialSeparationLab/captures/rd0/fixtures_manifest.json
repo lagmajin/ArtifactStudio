@@ -1,0 +1,539 @@
+{
+  "lab": "MaterialSeparationLab",
+  "rd": "rd0",
+  "stage": "fixtures",
+  "date": "2026-11-18",
+  "seed": 20261118,
+  "convention": "linear float RGBA, straight alpha unless suffixed _premultiplied; sRGB OETF for PNG",
+  "resolutions": {
+    "small": {
+      "h": 320,
+      "w": 512
+    },
+    "large": {
+      "h": 1024,
+      "w": 1536
+    }
+  },
+  "fixtures": {
+    "color_ramp_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "patch_0": [
+          45,
+          23,
+          83,
+          41
+        ],
+        "patch_1": [
+          173,
+          23,
+          211,
+          41
+        ],
+        "patch_2": [
+          301,
+          23,
+          339,
+          41
+        ],
+        "patch_3": [
+          429,
+          23,
+          467,
+          41
+        ],
+        "patch_4": [
+          45,
+          87,
+          83,
+          105
+        ],
+        "patch_5": [
+          173,
+          87,
+          211,
+          105
+        ],
+        "patch_6": [
+          301,
+          87,
+          339,
+          105
+        ],
+        "patch_7": [
+          429,
+          87,
+          467,
+          105
+        ],
+        "gray_ramp": [
+          40,
+          153,
+          471,
+          236
+        ],
+        "flat_bg": [
+          10,
+          250,
+          154,
+          301
+        ]
+      },
+      "seed": 20261119,
+      "npy": "color_ramp_small.npy",
+      "npy_sha256": "c47b12fc393e10b7474d6302142b55a7d9246c561fc8f7ba555c8564c8e6ce69",
+      "png": "color_ramp_small.png",
+      "png_sha256": "44fa4adc209ce5de5f495eaa47f1813dec56b4c849f955a822740265c7a3c933"
+    },
+    "thin_lines_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "thin_lines": [
+          26,
+          32,
+          486,
+          179
+        ],
+        "branches": [
+          41,
+          176,
+          410,
+          243
+        ],
+        "flat_bg": [
+          10,
+          256,
+          154,
+          304
+        ]
+      },
+      "seed": 20261120,
+      "npy": "thin_lines_small.npy",
+      "npy_sha256": "fe6feaef0296c66c1242fe093c537b8aa330b141a47ca4efc37736f6c5fb3701",
+      "png": "thin_lines_small.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "texture_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "texture_region": [
+          204,
+          38,
+          450,
+          281
+        ],
+        "flat_region": [
+          20,
+          64,
+          153,
+          256
+        ],
+        "texture_coarse": [
+          204,
+          38,
+          450,
+          98
+        ]
+      },
+      "seed": 20261121,
+      "note": "multi-octave value noise; coarse octave is 'low frequency tone', fine octaves are 'texture'",
+      "npy": "texture_small.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "flat_highlight_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "flat_low": [
+          26,
+          38,
+          154,
+          83
+        ],
+        "flat_mid": [
+          26,
+          166,
+          154,
+          211
+        ],
+        "highlight": [
+          343,
+          77,
+          394,
+          115
+        ]
+      },
+      "seed": 20261122,
+      "npy": "flat_highlight_small.npy",
+      "npy_sha256": "ab99108b5a5762612d50b554922048081eaf0a4215220a1819560eb8c407deed",
+      "png": "flat_highlight_small.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "alpha_boundary_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "boundary": [
+          205,
+          64,
+          307,
+          256
+        ],
+        "semi_transparent": [
+          230,
+          80,
+          282,
+          240
+        ],
+        "transparent_hidden_rgb": [
+          10,
+          6,
+          51,
+          45
+        ],
+        "opaque_foreground": [
+          77,
+          80,
+          179,
+          240
+        ]
+      },
+      "seed": 20261123,
+      "alpha_contract": "straight RGBA; fully transparent pixels keep hidden RGB = 0.5 linear",
+      "npy": "alpha_boundary_small.npy",
+      "npy_sha256": "43f986b2e59335a98e57628f27b117a88b54b2c225b0e5128f32ec47b1c98367",
+      "png": "alpha_boundary_small.png",
+      "png_sha256": "443574fad02cc23986c4a22119ef994b06f64bf4e92127e9acff99e891071b37",
+      "premultiplied": {
+        "npy": "alpha_boundary_small_premultiplied.npy",
+        "npy_sha256": "b04bc7baa351d4cb01baee977c06160eab83500e7335e1cb360513364db763f8",
+        "png": "alpha_boundary_small_premultiplied.png",
+        "png_sha256": "21d7090874e33cddd51485a8f6685716b6e7045c9a6538773b2773233662d928"
+      }
+    },
+    "color_ramp_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "rois": {
+        "patch_0": [
+          133,
+          71,
+          251,
+          133
+        ],
+        "patch_1": [
+          517,
+          71,
+          635,
+          133
+        ],
+        "patch_2": [
+          901,
+          71,
+          1019,
+          133
+        ],
+        "patch_3": [
+          1285,
+          71,
+          1403,
+          133
+        ],
+        "patch_4": [
+          133,
+          276,
+          251,
+          338
+        ],
+        "patch_5": [
+          517,
+          276,
+          635,
+          338
+        ],
+        "patch_6": [
+          901,
+          276,
+          1019,
+          338
+        ],
+        "patch_7": [
+          1285,
+          276,
+          1403,
+          338
+        ],
+        "gray_ramp": [
+          122,
+          491,
+          1413,
+          757
+        ],
+        "flat_bg": [
+          31,
+          799,
+          461,
+          963
+        ]
+      },
+      "seed": 20261119,
+      "npy": "color_ramp_large.npy",
+      "npy_sha256": "b5bbd8faefdc6d086686bcd29e79f751589a34dfbeb2932c5dfbb5d7af7950bd",
+      "png": "color_ramp_large.png",
+      "png_sha256": "a825c161f0fd8b06b90cca7f2bd311b4b6a5ab1d0220d5211659bdd19a169ece"
+    },
+    "thin_lines_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "rois": {
+        "thin_lines": [
+          77,
+          102,
+          1459,
+          573
+        ],
+        "branches": [
+          123,
+          563,
+          1229,
+          778
+        ],
+        "flat_bg": [
+          31,
+          819,
+          461,
+          973
+        ]
+      },
+      "seed": 20261120,
+      "npy": "thin_lines_large.npy",
+      "npy_sha256": "1d51559fc5a5637c0aa6f63bde90523db4c1c3ccc64dca8d8d6b4821f2e606f4",
+      "png": "thin_lines_large.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "texture_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "rois": {
+        "texture_region": [
+          614,
+          122,
+          1351,
+          901
+        ],
+        "flat_region": [
+          61,
+          204,
+          460,
+          819
+        ],
+        "texture_coarse": [
+          614,
+          122,
+          1351,
+          316
+        ]
+      },
+      "seed": 20261121,
+      "note": "multi-octave value noise; coarse octave is 'low frequency tone', fine octaves are 'texture'",
+      "npy": "texture_large.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "flat_highlight_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "rois": {
+        "flat_low": [
+          77,
+          123,
+          461,
+          266
+        ],
+        "flat_mid": [
+          77,
+          532,
+          461,
+          676
+        ],
+        "highlight": [
+          1029,
+          246,
+          1183,
+          369
+        ]
+      },
+      "seed": 20261122,
+      "npy": "flat_highlight_large.npy",
+      "npy_sha256": "e79d8ebc710b3aedc657d88b8d2458aa2246f18a7f6fa611a2cf478ea46fd386",
+      "png": "flat_highlight_large.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "alpha_boundary_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "rois": {
+        "boundary": [
+          614,
+          205,
+          922,
+          819
+        ],
+        "semi_transparent": [
+          691,
+          256,
+          845,
+          768
+        ],
+        "transparent_hidden_rgb": [
+          31,
+          20,
+          154,
+          143
+        ],
+        "opaque_foreground": [
+          230,
+          256,
+          538,
+          768
+        ]
+      },
+      "seed": 20261123,
+      "alpha_contract": "straight RGBA; fully transparent pixels keep hidden RGB = 0.5 linear",
+      "npy": "alpha_boundary_large.npy",
+      "npy_sha256": "cec4f5a68737ac1927bbfd7486fe5eb9359bd1382c6248b9738529676848f359",
+      "png": "alpha_boundary_large.png",
+      "png_sha256": "78e200701089316e6652e617a98d3c0ffed02731a6c3dc75e1232de90d9bba10",
+      "premultiplied": {
+        "npy": "alpha_boundary_large_premultiplied.npy",
+        "npy_sha256": "b9775a2df2f5e9241420b91cd3d4f36a194d67ac8a215aecb83aefeb871966cd",
+        "png": "alpha_boundary_large_premultiplied.png",
+        "png_sha256": "ab9bb3d2289571312a4760d5246690b6bbcb5d435b40f442b1c4c9d6126046ae"
+      }
+    },
+    "sequence_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "rois": {
+        "moving_patch": [
+          128,
+          96,
+          307,
+          224
+        ],
+        "static_flat": [
+          10,
+          6,
+          102,
+          51
+        ]
+      },
+      "seed": 20261124,
+      "translation_per_frame_px": 0.5,
+      "frames": [
+        {
+          "npy": "sequence_00_small.npy",
+          "npy_sha256": "bc4bb86929edb9eabbfa8c74e2b22c27b4509f6a841fe23edb4d2a88b800c178",
+          "png": "sequence_00_small.png",
+          "png_sha256": "ab4e48f1ae85e3ee70bbd9216a3c4b66a11107f93b4a4e87ad8489e95ed19529"
+        },
+        {
+          "npy": "sequence_01_small.npy",
+          "npy_sha256": "88017934c33243c05004359d1c8a873fbd0159cb6abacd24dbcbe97a585ffa42",
+          "png": "sequence_01_small.png",
+          "png_sha256": "228ca717d51dae4bda3d4ee15b60a54d0c539234a7a8be0eb6c0634547b7abd7"
+        },
+        {
+          "npy": "sequence_02_small.npy",
+          "npy_sha256": "96a5690358f942e780c2e9a00e2d2cd1b3f89297c3ae5a71962e7c5cc5b49966",
+          "png": "sequence_02_small.png",
+          "png_sha256": "b9f5fd929d1d0ee52bac26b1fd626de06f678bb2be2ae8be17c07c5a09139ac3"
+        },
+        {
+          "npy": "sequence_03_small.npy",
+          "npy_sha256": "c76ea0632310f40058086e7af849613a653af99f162ade2a54a675bcf06f85b8",
+          "png": "sequence_03_small.png",
+          "png_sha256": "74c12745b0c92ad53f33b3edc983e041391869993f611179abbe7e3b13054d79"
+        },
+        {
+          "npy": "sequence_04_small.npy",
+          "npy_sha256": "b6c10e1a934fc480ca02d029a0f7b8d957fc108521da4849fa27bd0cbbdbc3f2",
+          "png": "sequence_04_small.png",
+          "png_sha256": "37d5d6106f3d874321fb96e6a5838021c586d645ac9a91f5c046c31394e7c28e"
+        },
+        {
+          "npy": "sequence_05_small.npy",
+          "npy_sha256": "ad81ade95d90913439f83169ab9c441a8ce602a0076521ad50a041a9f8c020d0",
+          "png": "sequence_05_small.png",
+          "png_sha256": "4fbc91c211f456638d40f594f24e30878edfb0460dc0d25a2ab349fbeffe169a"
+        },
+        {
+          "npy": "sequence_06_small.npy",
+          "npy_sha256": "9f42a186dd85006f39291e518eab02d9204aeef504908b5605a1ddac77b77174",
+          "png": "sequence_06_small.png",
+          "png_sha256": "7c03a9d521fb83db60cf5a6dbf5521e3b5f32f15cd395c697ce40c46127180eb"
+        },
+        {
+          "npy": "sequence_07_small.npy",
+          "npy_sha256": "70d2f2c75d2a5c95297c0e6b8d1b736424d0cc6c537672b8ce1d1677fff102bd",
+          "png": "sequence_07_small.png",
+          "png_sha256": "6e47a0a1e30457c5d46a1b7d48cb5d41d7b11fbb6affafc86b2559f996a538f1"
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Sequence frames are generated at 512x320 only; resolution comparisons use still fixtures."
+  ]
+}

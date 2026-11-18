@@ -1,0 +1,978 @@
+{
+  "lab": "MaterialSeparationLab",
+  "rd": "rd1",
+  "stage": "candidate_outputs",
+  "date": "2026-11-18",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "blind_seed": 20262618,
+  "candidates": {
+    "ms_a_guided": {
+      "model": "A",
+      "radius": 4,
+      "eps": 0.0001
+    },
+    "ms_a_guided_wide": {
+      "model": "A",
+      "radius": 10,
+      "eps": 0.0001
+    },
+    "ms_b_freq": {
+      "model": "B",
+      "sigma": 2.0
+    },
+    "ms_c_emphasis": {
+      "model": "C",
+      "radius_fine": 2,
+      "radius_coarse": 10,
+      "eps": 0.0001,
+      "coarse_gain": 1.0,
+      "fine_gain": 1.0
+    },
+    "ms_c_emphasis_boost": {
+      "model": "C",
+      "radius_fine": 2,
+      "radius_coarse": 10,
+      "eps": 0.0001,
+      "coarse_gain": 1.4,
+      "fine_gain": 1.8
+    }
+  },
+  "outputs": {
+    "color_ramp_small_ms_a_guided": {
+      "npy": "color_ramp_small_ms_a_guided.npy",
+      "npy_sha256": "c47b12fc393e10b7474d6302142b55a7d9246c561fc8f7ba555c8564c8e6ce69",
+      "png": "color_ramp_small_ms_a_guided.png",
+      "png_sha256": "44fa4adc209ce5de5f495eaa47f1813dec56b4c849f955a822740265c7a3c933"
+    },
+    "color_ramp_small_ms_a_guided_base": {
+      "png": "color_ramp_small_ms_a_guided_base.png",
+      "png_sha256": "1cd2732c2b33dd2b00704920224c75bd03798e9593668cdd7cc3828668e66ae7"
+    },
+    "color_ramp_small_ms_a_guided_detail": {
+      "png": "color_ramp_small_ms_a_guided_detail.png",
+      "png_sha256": "fa8f9e447ef486d0892096dcced1c3f6eb8918c7716b64307a25a179671a699b"
+    },
+    "color_ramp_small_ms_a_guided_baseonly": {
+      "png": "color_ramp_small_ms_a_guided_baseonly.png",
+      "png_sha256": "1cd2732c2b33dd2b00704920224c75bd03798e9593668cdd7cc3828668e66ae7"
+    },
+    "color_ramp_small_ms_a_guided_wide": {
+      "npy": "color_ramp_small_ms_a_guided_wide.npy",
+      "npy_sha256": "c47b12fc393e10b7474d6302142b55a7d9246c561fc8f7ba555c8564c8e6ce69",
+      "png": "color_ramp_small_ms_a_guided_wide.png",
+      "png_sha256": "44fa4adc209ce5de5f495eaa47f1813dec56b4c849f955a822740265c7a3c933"
+    },
+    "color_ramp_small_ms_a_guided_wide_base": {
+      "png": "color_ramp_small_ms_a_guided_wide_base.png",
+      "png_sha256": "a47397965468434a7fe6d7222e52bfd20ceb96a69f4e6b0be2aae8be841e8ca1"
+    },
+    "color_ramp_small_ms_a_guided_wide_detail": {
+      "png": "color_ramp_small_ms_a_guided_wide_detail.png",
+      "png_sha256": "36cbcf28fc1872b506cf7aa907589cde1cae6db64472bc27ff86bb2f56a3b95b"
+    },
+    "color_ramp_small_ms_a_guided_wide_baseonly": {
+      "png": "color_ramp_small_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "a47397965468434a7fe6d7222e52bfd20ceb96a69f4e6b0be2aae8be841e8ca1"
+    },
+    "color_ramp_small_ms_b_freq": {
+      "npy": "color_ramp_small_ms_b_freq.npy",
+      "npy_sha256": "cde69146e2eec03a71a88e69ea707925bcbc25b9b02ec9b64187ceb2f8fd10ff",
+      "png": "color_ramp_small_ms_b_freq.png",
+      "png_sha256": "d954454cf72e5880bd74900b16358d72d8cd2cdb0a935634c0c5eb39cb8521b9"
+    },
+    "color_ramp_small_ms_b_freq_base": {
+      "png": "color_ramp_small_ms_b_freq_base.png",
+      "png_sha256": "f938302198e006cf1aecd7f0acbbca4e170c8b05dd660784aafdd9495bdf434f"
+    },
+    "color_ramp_small_ms_b_freq_detail": {
+      "png": "color_ramp_small_ms_b_freq_detail.png",
+      "png_sha256": "271dbcb5f904bf9b8ce818f143989136041ca61feadffbb9b7b43df24f1cc0a0"
+    },
+    "color_ramp_small_ms_b_freq_baseonly": {
+      "png": "color_ramp_small_ms_b_freq_baseonly.png",
+      "png_sha256": "f938302198e006cf1aecd7f0acbbca4e170c8b05dd660784aafdd9495bdf434f"
+    },
+    "color_ramp_small_ms_c_emphasis": {
+      "npy": "color_ramp_small_ms_c_emphasis.npy",
+      "npy_sha256": "c47b12fc393e10b7474d6302142b55a7d9246c561fc8f7ba555c8564c8e6ce69",
+      "png": "color_ramp_small_ms_c_emphasis.png",
+      "png_sha256": "44fa4adc209ce5de5f495eaa47f1813dec56b4c849f955a822740265c7a3c933"
+    },
+    "color_ramp_small_ms_c_emphasis_base": {
+      "png": "color_ramp_small_ms_c_emphasis_base.png",
+      "png_sha256": "3ef4b7b67bf75f4d790a13e536cab59186df273a94fbee1adb569d86b96a3981"
+    },
+    "color_ramp_small_ms_c_emphasis_detail": {
+      "png": "color_ramp_small_ms_c_emphasis_detail.png",
+      "png_sha256": "ce87082cfd084c5d6bc2a24a984df8ce3f9e89f2354e40d8c8422f046b39b3c8"
+    },
+    "color_ramp_small_ms_c_emphasis_baseonly": {
+      "png": "color_ramp_small_ms_c_emphasis_baseonly.png",
+      "png_sha256": "3ef4b7b67bf75f4d790a13e536cab59186df273a94fbee1adb569d86b96a3981"
+    },
+    "color_ramp_small_ms_c_emphasis_boost": {
+      "npy": "color_ramp_small_ms_c_emphasis_boost.npy",
+      "npy_sha256": "15e8d034358e0a73ae6ea7005235edca59272c7aa68ad695a7af4295bfef6fe9",
+      "png": "color_ramp_small_ms_c_emphasis_boost.png",
+      "png_sha256": "a32ad7933057640b8ca0ee4277d395ee37ac2dcbaee7d9f9478c22a23c44b0d3"
+    },
+    "color_ramp_small_ms_c_emphasis_boost_base": {
+      "png": "color_ramp_small_ms_c_emphasis_boost_base.png",
+      "png_sha256": "3ef4b7b67bf75f4d790a13e536cab59186df273a94fbee1adb569d86b96a3981"
+    },
+    "color_ramp_small_ms_c_emphasis_boost_detail": {
+      "png": "color_ramp_small_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "ce87082cfd084c5d6bc2a24a984df8ce3f9e89f2354e40d8c8422f046b39b3c8"
+    },
+    "color_ramp_small_ms_c_emphasis_boost_baseonly": {
+      "png": "color_ramp_small_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "3ef4b7b67bf75f4d790a13e536cab59186df273a94fbee1adb569d86b96a3981"
+    },
+    "thin_lines_small_ms_a_guided": {
+      "npy": "thin_lines_small_ms_a_guided.npy",
+      "npy_sha256": "fe6feaef0296c66c1242fe093c537b8aa330b141a47ca4efc37736f6c5fb3701",
+      "png": "thin_lines_small_ms_a_guided.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "thin_lines_small_ms_a_guided_base": {
+      "png": "thin_lines_small_ms_a_guided_base.png",
+      "png_sha256": "eb61dc2b95982f4d1414ba909cfd02596aa055ca233623d5b2f1e1e375bb6579"
+    },
+    "thin_lines_small_ms_a_guided_detail": {
+      "png": "thin_lines_small_ms_a_guided_detail.png",
+      "png_sha256": "684c4af4774ca0e38e82feb27a833c86a52b0db727a5c6fe2083bb4987eb0f75"
+    },
+    "thin_lines_small_ms_a_guided_baseonly": {
+      "png": "thin_lines_small_ms_a_guided_baseonly.png",
+      "png_sha256": "eb61dc2b95982f4d1414ba909cfd02596aa055ca233623d5b2f1e1e375bb6579"
+    },
+    "thin_lines_small_ms_a_guided_wide": {
+      "npy": "thin_lines_small_ms_a_guided_wide.npy",
+      "npy_sha256": "fe6feaef0296c66c1242fe093c537b8aa330b141a47ca4efc37736f6c5fb3701",
+      "png": "thin_lines_small_ms_a_guided_wide.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "thin_lines_small_ms_a_guided_wide_base": {
+      "png": "thin_lines_small_ms_a_guided_wide_base.png",
+      "png_sha256": "927737798ac36357fd3b21d0da40bd0cd243bdc7f333a974f89afe8f1f7cf493"
+    },
+    "thin_lines_small_ms_a_guided_wide_detail": {
+      "png": "thin_lines_small_ms_a_guided_wide_detail.png",
+      "png_sha256": "6104cf25c71a3823ea31a6c3467131693e2e21046df43d5e049d1bb967ae69a6"
+    },
+    "thin_lines_small_ms_a_guided_wide_baseonly": {
+      "png": "thin_lines_small_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "927737798ac36357fd3b21d0da40bd0cd243bdc7f333a974f89afe8f1f7cf493"
+    },
+    "thin_lines_small_ms_b_freq": {
+      "npy": "thin_lines_small_ms_b_freq.npy",
+      "npy_sha256": "76566a4e34669e53df215fb40cacbf43a58ecb90bd0a5b92fb2965c08e40c96e",
+      "png": "thin_lines_small_ms_b_freq.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "thin_lines_small_ms_b_freq_base": {
+      "png": "thin_lines_small_ms_b_freq_base.png",
+      "png_sha256": "47bf36fd867a25d11c4d82adaacab338232da55342ac527e4253feaa2f595007"
+    },
+    "thin_lines_small_ms_b_freq_detail": {
+      "png": "thin_lines_small_ms_b_freq_detail.png",
+      "png_sha256": "896f6a60ec9547b0457591065067095fc5c6fb2b658deefec010033cbd8ffaec"
+    },
+    "thin_lines_small_ms_b_freq_baseonly": {
+      "png": "thin_lines_small_ms_b_freq_baseonly.png",
+      "png_sha256": "47bf36fd867a25d11c4d82adaacab338232da55342ac527e4253feaa2f595007"
+    },
+    "thin_lines_small_ms_c_emphasis": {
+      "npy": "thin_lines_small_ms_c_emphasis.npy",
+      "npy_sha256": "fe6feaef0296c66c1242fe093c537b8aa330b141a47ca4efc37736f6c5fb3701",
+      "png": "thin_lines_small_ms_c_emphasis.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "thin_lines_small_ms_c_emphasis_base": {
+      "png": "thin_lines_small_ms_c_emphasis_base.png",
+      "png_sha256": "3c0a49bfeedac1ed63d8b754da901c0c7254ca9c91fff37a8b537f81f653c69e"
+    },
+    "thin_lines_small_ms_c_emphasis_detail": {
+      "png": "thin_lines_small_ms_c_emphasis_detail.png",
+      "png_sha256": "5fec55702aeaca8d53e88cc190fe091cca858479488f8ec181b1399542d37ae1"
+    },
+    "thin_lines_small_ms_c_emphasis_baseonly": {
+      "png": "thin_lines_small_ms_c_emphasis_baseonly.png",
+      "png_sha256": "3c0a49bfeedac1ed63d8b754da901c0c7254ca9c91fff37a8b537f81f653c69e"
+    },
+    "thin_lines_small_ms_c_emphasis_boost": {
+      "npy": "thin_lines_small_ms_c_emphasis_boost.npy",
+      "npy_sha256": "cc34b8443c3c77407b64f79678d3f5885abf099da613f95dcbc90ea1799fd099",
+      "png": "thin_lines_small_ms_c_emphasis_boost.png",
+      "png_sha256": "7e4acf2786cc00231d1654de09e85b2c649fa966e9a4d6ac40bb5ce97a400ad5"
+    },
+    "thin_lines_small_ms_c_emphasis_boost_base": {
+      "png": "thin_lines_small_ms_c_emphasis_boost_base.png",
+      "png_sha256": "3c0a49bfeedac1ed63d8b754da901c0c7254ca9c91fff37a8b537f81f653c69e"
+    },
+    "thin_lines_small_ms_c_emphasis_boost_detail": {
+      "png": "thin_lines_small_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "5fec55702aeaca8d53e88cc190fe091cca858479488f8ec181b1399542d37ae1"
+    },
+    "thin_lines_small_ms_c_emphasis_boost_baseonly": {
+      "png": "thin_lines_small_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "3c0a49bfeedac1ed63d8b754da901c0c7254ca9c91fff37a8b537f81f653c69e"
+    },
+    "texture_small_ms_a_guided": {
+      "npy": "texture_small_ms_a_guided.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small_ms_a_guided.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "texture_small_ms_a_guided_base": {
+      "png": "texture_small_ms_a_guided_base.png",
+      "png_sha256": "dca04d010e30a8ebe00bd85af0db08055ab54b0fa3f0ee711a30c6317ae7e65e"
+    },
+    "texture_small_ms_a_guided_detail": {
+      "png": "texture_small_ms_a_guided_detail.png",
+      "png_sha256": "f49661113ad5cf0603eac76aac488e3505b2780585702039834fb4cddccbdc62"
+    },
+    "texture_small_ms_a_guided_baseonly": {
+      "png": "texture_small_ms_a_guided_baseonly.png",
+      "png_sha256": "dca04d010e30a8ebe00bd85af0db08055ab54b0fa3f0ee711a30c6317ae7e65e"
+    },
+    "texture_small_ms_a_guided_wide": {
+      "npy": "texture_small_ms_a_guided_wide.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small_ms_a_guided_wide.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "texture_small_ms_a_guided_wide_base": {
+      "png": "texture_small_ms_a_guided_wide_base.png",
+      "png_sha256": "a92cda3c9ef95cc35bfa7b49f8a12dc61a2be84d567fc78838fb4edb9dd60283"
+    },
+    "texture_small_ms_a_guided_wide_detail": {
+      "png": "texture_small_ms_a_guided_wide_detail.png",
+      "png_sha256": "a6e44e43f81213fa3671e947bfc71d98acd6b6a43a906e96709467a1675b5724"
+    },
+    "texture_small_ms_a_guided_wide_baseonly": {
+      "png": "texture_small_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "a92cda3c9ef95cc35bfa7b49f8a12dc61a2be84d567fc78838fb4edb9dd60283"
+    },
+    "texture_small_ms_b_freq": {
+      "npy": "texture_small_ms_b_freq.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small_ms_b_freq.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "texture_small_ms_b_freq_base": {
+      "png": "texture_small_ms_b_freq_base.png",
+      "png_sha256": "f3723d4e27bc98dc975485e9056906a9ad35bba077a8b39efc0e1f7c0d2f0a7b"
+    },
+    "texture_small_ms_b_freq_detail": {
+      "png": "texture_small_ms_b_freq_detail.png",
+      "png_sha256": "76a1970d231d002b59cb6335a967ea2369c04d0127d5514c44a063178c24b223"
+    },
+    "texture_small_ms_b_freq_baseonly": {
+      "png": "texture_small_ms_b_freq_baseonly.png",
+      "png_sha256": "f3723d4e27bc98dc975485e9056906a9ad35bba077a8b39efc0e1f7c0d2f0a7b"
+    },
+    "texture_small_ms_c_emphasis": {
+      "npy": "texture_small_ms_c_emphasis.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small_ms_c_emphasis.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "texture_small_ms_c_emphasis_base": {
+      "png": "texture_small_ms_c_emphasis_base.png",
+      "png_sha256": "decda3dd7c72271d87183c560b944efc5500ed8d3e8f696d559487a68b380578"
+    },
+    "texture_small_ms_c_emphasis_detail": {
+      "png": "texture_small_ms_c_emphasis_detail.png",
+      "png_sha256": "95262df068a97781f5947bfcd5f903681ac2795b5f856c4f5d4ee712b8ed5f45"
+    },
+    "texture_small_ms_c_emphasis_baseonly": {
+      "png": "texture_small_ms_c_emphasis_baseonly.png",
+      "png_sha256": "decda3dd7c72271d87183c560b944efc5500ed8d3e8f696d559487a68b380578"
+    },
+    "texture_small_ms_c_emphasis_boost": {
+      "npy": "texture_small_ms_c_emphasis_boost.npy",
+      "npy_sha256": "834dce577204b9c171bb7be8990b48cdf0a21e126854b748fa6e949f6ebcb24e",
+      "png": "texture_small_ms_c_emphasis_boost.png",
+      "png_sha256": "2987b21f7ee63b919a11c8adb1acdd6b290b48f1bddd0d743da8c28f1c8a6bea"
+    },
+    "texture_small_ms_c_emphasis_boost_base": {
+      "png": "texture_small_ms_c_emphasis_boost_base.png",
+      "png_sha256": "decda3dd7c72271d87183c560b944efc5500ed8d3e8f696d559487a68b380578"
+    },
+    "texture_small_ms_c_emphasis_boost_detail": {
+      "png": "texture_small_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "95262df068a97781f5947bfcd5f903681ac2795b5f856c4f5d4ee712b8ed5f45"
+    },
+    "texture_small_ms_c_emphasis_boost_baseonly": {
+      "png": "texture_small_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "decda3dd7c72271d87183c560b944efc5500ed8d3e8f696d559487a68b380578"
+    },
+    "flat_highlight_small_ms_a_guided": {
+      "npy": "flat_highlight_small_ms_a_guided.npy",
+      "npy_sha256": "082da0c7d6b51068fa1041f6e9d2818ce06562ade3f4314299d947670f0967cf",
+      "png": "flat_highlight_small_ms_a_guided.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "flat_highlight_small_ms_a_guided_base": {
+      "png": "flat_highlight_small_ms_a_guided_base.png",
+      "png_sha256": "b41286b1a32174db39e910bde96c8db91b9dfed7a4553269398024983a1e6143"
+    },
+    "flat_highlight_small_ms_a_guided_detail": {
+      "png": "flat_highlight_small_ms_a_guided_detail.png",
+      "png_sha256": "e9bebb078ba3e7dae8a8dda8df0543ce71484f9ba9b02be87c237b3b560fb50b"
+    },
+    "flat_highlight_small_ms_a_guided_baseonly": {
+      "png": "flat_highlight_small_ms_a_guided_baseonly.png",
+      "png_sha256": "b41286b1a32174db39e910bde96c8db91b9dfed7a4553269398024983a1e6143"
+    },
+    "flat_highlight_small_ms_a_guided_wide": {
+      "npy": "flat_highlight_small_ms_a_guided_wide.npy",
+      "npy_sha256": "5fb123c2b2dd694e9f363558a3d95e5323a51e677675f531449a0a6fb9cb8f04",
+      "png": "flat_highlight_small_ms_a_guided_wide.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "flat_highlight_small_ms_a_guided_wide_base": {
+      "png": "flat_highlight_small_ms_a_guided_wide_base.png",
+      "png_sha256": "2e3e0751bd1691afbc8c20dd797af0a894a79fd4d98c617b5d480152f6df2a50"
+    },
+    "flat_highlight_small_ms_a_guided_wide_detail": {
+      "png": "flat_highlight_small_ms_a_guided_wide_detail.png",
+      "png_sha256": "74ad6c9d3253a69d58f0643030a00f18c6be76af93b2d7552a3f428d955a9081"
+    },
+    "flat_highlight_small_ms_a_guided_wide_baseonly": {
+      "png": "flat_highlight_small_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "2e3e0751bd1691afbc8c20dd797af0a894a79fd4d98c617b5d480152f6df2a50"
+    },
+    "flat_highlight_small_ms_b_freq": {
+      "npy": "flat_highlight_small_ms_b_freq.npy",
+      "npy_sha256": "f1eb851972d6bc8f197b01d43663e871ba3fc3983b4bac3d073546f82db15aec",
+      "png": "flat_highlight_small_ms_b_freq.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "flat_highlight_small_ms_b_freq_base": {
+      "png": "flat_highlight_small_ms_b_freq_base.png",
+      "png_sha256": "eef3a710e464af2d6b5688326e1b4f380662f4617b78a5aded5ecc868d2b68b4"
+    },
+    "flat_highlight_small_ms_b_freq_detail": {
+      "png": "flat_highlight_small_ms_b_freq_detail.png",
+      "png_sha256": "31206a697c3342070deb799baae5e3138baf4e32f148db680f061175169c572c"
+    },
+    "flat_highlight_small_ms_b_freq_baseonly": {
+      "png": "flat_highlight_small_ms_b_freq_baseonly.png",
+      "png_sha256": "eef3a710e464af2d6b5688326e1b4f380662f4617b78a5aded5ecc868d2b68b4"
+    },
+    "flat_highlight_small_ms_c_emphasis": {
+      "npy": "flat_highlight_small_ms_c_emphasis.npy",
+      "npy_sha256": "59af5e9d2bc7d54c6b9fdc47cdeff42ca639cb40410118ec5fae8db4b1b9e09f",
+      "png": "flat_highlight_small_ms_c_emphasis.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "flat_highlight_small_ms_c_emphasis_base": {
+      "png": "flat_highlight_small_ms_c_emphasis_base.png",
+      "png_sha256": "9db4cad1bca095db817221b25a0c3794cc2febb9c9158a1aa1186083d39b19e8"
+    },
+    "flat_highlight_small_ms_c_emphasis_detail": {
+      "png": "flat_highlight_small_ms_c_emphasis_detail.png",
+      "png_sha256": "811f0b2f2457a3a70c68c57f838536c9f0ded6058cf288bfc34cde9bf3385cee"
+    },
+    "flat_highlight_small_ms_c_emphasis_baseonly": {
+      "png": "flat_highlight_small_ms_c_emphasis_baseonly.png",
+      "png_sha256": "9db4cad1bca095db817221b25a0c3794cc2febb9c9158a1aa1186083d39b19e8"
+    },
+    "flat_highlight_small_ms_c_emphasis_boost": {
+      "npy": "flat_highlight_small_ms_c_emphasis_boost.npy",
+      "npy_sha256": "e9f16ddfbbf5588b81d261de8772d978067f66feeffc073e248601b3b2464835",
+      "png": "flat_highlight_small_ms_c_emphasis_boost.png",
+      "png_sha256": "3a2fff83772880152b4293eb5cdb4958d9df3873460a096ad51e7b7143fdc9cb"
+    },
+    "flat_highlight_small_ms_c_emphasis_boost_base": {
+      "png": "flat_highlight_small_ms_c_emphasis_boost_base.png",
+      "png_sha256": "9db4cad1bca095db817221b25a0c3794cc2febb9c9158a1aa1186083d39b19e8"
+    },
+    "flat_highlight_small_ms_c_emphasis_boost_detail": {
+      "png": "flat_highlight_small_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "811f0b2f2457a3a70c68c57f838536c9f0ded6058cf288bfc34cde9bf3385cee"
+    },
+    "flat_highlight_small_ms_c_emphasis_boost_baseonly": {
+      "png": "flat_highlight_small_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "9db4cad1bca095db817221b25a0c3794cc2febb9c9158a1aa1186083d39b19e8"
+    },
+    "alpha_boundary_small_ms_a_guided": {
+      "npy": "alpha_boundary_small_ms_a_guided.npy",
+      "npy_sha256": "41ea81af407ee5e1d867ea0c1f0311bcd497e5007ff23fce7afc5755b032a92d",
+      "png": "alpha_boundary_small_ms_a_guided.png",
+      "png_sha256": "00fdffb9b722a6971e734f6b1aa80ab1a12c7a3936e4b54ed42376f873f2f9a4"
+    },
+    "alpha_boundary_small_ms_a_guided_base": {
+      "png": "alpha_boundary_small_ms_a_guided_base.png",
+      "png_sha256": "1cef83fa63b71fcef15b750d204d487e54b8eddd558fe1d98c66536984c208bd"
+    },
+    "alpha_boundary_small_ms_a_guided_detail": {
+      "png": "alpha_boundary_small_ms_a_guided_detail.png",
+      "png_sha256": "3c8fc67536e1c3fd00dcf7cda4c85284f3f3223c22026400d3100586fe85852b"
+    },
+    "alpha_boundary_small_ms_a_guided_baseonly": {
+      "png": "alpha_boundary_small_ms_a_guided_baseonly.png",
+      "png_sha256": "1d3e907e5e6d57d93bf1a18bf3c10f2fab7a829e4710fb02551e1de1f203f0cd"
+    },
+    "alpha_boundary_small_ms_a_guided_wide": {
+      "npy": "alpha_boundary_small_ms_a_guided_wide.npy",
+      "npy_sha256": "d737d1668d0dedff961a093104d192f621f50426a66f4d17d1de3941f74448f8",
+      "png": "alpha_boundary_small_ms_a_guided_wide.png",
+      "png_sha256": "00fdffb9b722a6971e734f6b1aa80ab1a12c7a3936e4b54ed42376f873f2f9a4"
+    },
+    "alpha_boundary_small_ms_a_guided_wide_base": {
+      "png": "alpha_boundary_small_ms_a_guided_wide_base.png",
+      "png_sha256": "478cd4abaced95a3f4f9519491163f580a1a2eb190b12941350436a0aed55a22"
+    },
+    "alpha_boundary_small_ms_a_guided_wide_detail": {
+      "png": "alpha_boundary_small_ms_a_guided_wide_detail.png",
+      "png_sha256": "c74e955642e29b6a3e0c40385a79487ecaad7ea6846270aea0e3d4ffcac146cd"
+    },
+    "alpha_boundary_small_ms_a_guided_wide_baseonly": {
+      "png": "alpha_boundary_small_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "2320f6d494f8f69c04c782b4251a3647981bd3a6075634d3b0bd955a747d564f"
+    },
+    "alpha_boundary_small_ms_b_freq": {
+      "npy": "alpha_boundary_small_ms_b_freq.npy",
+      "npy_sha256": "fa62cb68ca42c75239320b0a7cc27f52c1efd581b4bf64409d28ed6aa7f1676e",
+      "png": "alpha_boundary_small_ms_b_freq.png",
+      "png_sha256": "aa9144612abd160789700715e7d3325287bea76c00e5e0217e790e0b9d155ce9"
+    },
+    "alpha_boundary_small_ms_b_freq_base": {
+      "png": "alpha_boundary_small_ms_b_freq_base.png",
+      "png_sha256": "2d98cbe5538ad832c4518c984f5b0bd7f0df686b55a42116142ef083b3041484"
+    },
+    "alpha_boundary_small_ms_b_freq_detail": {
+      "png": "alpha_boundary_small_ms_b_freq_detail.png",
+      "png_sha256": "279d3a5eab2ad1b08590ebebfa655abe04ef358787875fef6758d1f2a285d503"
+    },
+    "alpha_boundary_small_ms_b_freq_baseonly": {
+      "png": "alpha_boundary_small_ms_b_freq_baseonly.png",
+      "png_sha256": "4aedd59df3f03ee964ced2e6ba1b7b484e613354f38d7d3c0f08decae6d07a20"
+    },
+    "alpha_boundary_small_ms_c_emphasis": {
+      "npy": "alpha_boundary_small_ms_c_emphasis.npy",
+      "npy_sha256": "be24e86c61041680ad567463dc99642589c8db4778f7c7d8cba6154a72a83e80",
+      "png": "alpha_boundary_small_ms_c_emphasis.png",
+      "png_sha256": "00fdffb9b722a6971e734f6b1aa80ab1a12c7a3936e4b54ed42376f873f2f9a4"
+    },
+    "alpha_boundary_small_ms_c_emphasis_base": {
+      "png": "alpha_boundary_small_ms_c_emphasis_base.png",
+      "png_sha256": "dd11775fe14eb7738335c562921629d6b7b77b7120c1deb485350d4b7d83198a"
+    },
+    "alpha_boundary_small_ms_c_emphasis_detail": {
+      "png": "alpha_boundary_small_ms_c_emphasis_detail.png",
+      "png_sha256": "ef06826e1606c1a4fabca73df5470db65085b3075b0b1b7ab458d7ed1daa2dd4"
+    },
+    "alpha_boundary_small_ms_c_emphasis_baseonly": {
+      "png": "alpha_boundary_small_ms_c_emphasis_baseonly.png",
+      "png_sha256": "cf0c894a135ec9419a57823352cb5eced018dbf408d77863b75a1d3285b9c05e"
+    },
+    "alpha_boundary_small_ms_c_emphasis_boost": {
+      "npy": "alpha_boundary_small_ms_c_emphasis_boost.npy",
+      "npy_sha256": "b786554ec28722be00b381791cddf8b4bea25df4b2f1369d202635d469aeee21",
+      "png": "alpha_boundary_small_ms_c_emphasis_boost.png",
+      "png_sha256": "f0854ea62c4c0cb3a80fd82b8a5b114c8c5108be6429e46fddcc5e1c2e87c00a"
+    },
+    "alpha_boundary_small_ms_c_emphasis_boost_base": {
+      "png": "alpha_boundary_small_ms_c_emphasis_boost_base.png",
+      "png_sha256": "dd11775fe14eb7738335c562921629d6b7b77b7120c1deb485350d4b7d83198a"
+    },
+    "alpha_boundary_small_ms_c_emphasis_boost_detail": {
+      "png": "alpha_boundary_small_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "ef06826e1606c1a4fabca73df5470db65085b3075b0b1b7ab458d7ed1daa2dd4"
+    },
+    "alpha_boundary_small_ms_c_emphasis_boost_baseonly": {
+      "png": "alpha_boundary_small_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "cf0c894a135ec9419a57823352cb5eced018dbf408d77863b75a1d3285b9c05e"
+    },
+    "color_ramp_large_ms_a_guided": {
+      "npy": "color_ramp_large_ms_a_guided.npy",
+      "npy_sha256": "b5bbd8faefdc6d086686bcd29e79f751589a34dfbeb2932c5dfbb5d7af7950bd",
+      "png": "color_ramp_large_ms_a_guided.png",
+      "png_sha256": "a825c161f0fd8b06b90cca7f2bd311b4b6a5ab1d0220d5211659bdd19a169ece"
+    },
+    "color_ramp_large_ms_a_guided_base": {
+      "png": "color_ramp_large_ms_a_guided_base.png",
+      "png_sha256": "455107ff03cc809393a39a4180e35acb09e7b54e72d9150899137ebd4fa149f5"
+    },
+    "color_ramp_large_ms_a_guided_detail": {
+      "png": "color_ramp_large_ms_a_guided_detail.png",
+      "png_sha256": "3645d4ef873c1fc8a49f7210fc0432aa988e52fd4b63c6f79648c0bb246bb652"
+    },
+    "color_ramp_large_ms_a_guided_baseonly": {
+      "png": "color_ramp_large_ms_a_guided_baseonly.png",
+      "png_sha256": "455107ff03cc809393a39a4180e35acb09e7b54e72d9150899137ebd4fa149f5"
+    },
+    "color_ramp_large_ms_a_guided_wide": {
+      "npy": "color_ramp_large_ms_a_guided_wide.npy",
+      "npy_sha256": "b5bbd8faefdc6d086686bcd29e79f751589a34dfbeb2932c5dfbb5d7af7950bd",
+      "png": "color_ramp_large_ms_a_guided_wide.png",
+      "png_sha256": "a825c161f0fd8b06b90cca7f2bd311b4b6a5ab1d0220d5211659bdd19a169ece"
+    },
+    "color_ramp_large_ms_a_guided_wide_base": {
+      "png": "color_ramp_large_ms_a_guided_wide_base.png",
+      "png_sha256": "221c8b480be9d575f52451df865ca467b6f52319c6f6c61b6b9d03818e3291af"
+    },
+    "color_ramp_large_ms_a_guided_wide_detail": {
+      "png": "color_ramp_large_ms_a_guided_wide_detail.png",
+      "png_sha256": "a3e6483e2aab1a347432e957dff827e33ea03b469c34e857280c97865a9205a7"
+    },
+    "color_ramp_large_ms_a_guided_wide_baseonly": {
+      "png": "color_ramp_large_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "221c8b480be9d575f52451df865ca467b6f52319c6f6c61b6b9d03818e3291af"
+    },
+    "color_ramp_large_ms_b_freq": {
+      "npy": "color_ramp_large_ms_b_freq.npy",
+      "npy_sha256": "263eac0ffb202b719f6357faa00edbf7488088cc97eac99db89c0094269d723e",
+      "png": "color_ramp_large_ms_b_freq.png",
+      "png_sha256": "e5ad86684221dc8296714ff246f353ad6eb037ca0ef74562e315ae1b608c96fd"
+    },
+    "color_ramp_large_ms_b_freq_base": {
+      "png": "color_ramp_large_ms_b_freq_base.png",
+      "png_sha256": "02dcd00d3721e952d1512b49f90322381a63c2291b95ffd0f1b46d10596f50df"
+    },
+    "color_ramp_large_ms_b_freq_detail": {
+      "png": "color_ramp_large_ms_b_freq_detail.png",
+      "png_sha256": "46b88b1702cf7321cf3cd0dc466a67141c636f471d949e2132be84d59fff5b02"
+    },
+    "color_ramp_large_ms_b_freq_baseonly": {
+      "png": "color_ramp_large_ms_b_freq_baseonly.png",
+      "png_sha256": "02dcd00d3721e952d1512b49f90322381a63c2291b95ffd0f1b46d10596f50df"
+    },
+    "color_ramp_large_ms_c_emphasis": {
+      "npy": "color_ramp_large_ms_c_emphasis.npy",
+      "npy_sha256": "b5bbd8faefdc6d086686bcd29e79f751589a34dfbeb2932c5dfbb5d7af7950bd",
+      "png": "color_ramp_large_ms_c_emphasis.png",
+      "png_sha256": "a825c161f0fd8b06b90cca7f2bd311b4b6a5ab1d0220d5211659bdd19a169ece"
+    },
+    "color_ramp_large_ms_c_emphasis_base": {
+      "png": "color_ramp_large_ms_c_emphasis_base.png",
+      "png_sha256": "d6dade03e0021662c15e240eb089bbf29d78c07fa13710afe5da3f5b280b49f1"
+    },
+    "color_ramp_large_ms_c_emphasis_detail": {
+      "png": "color_ramp_large_ms_c_emphasis_detail.png",
+      "png_sha256": "3fb4114945fbd3e65b308f0fd9b06f48067a64585990e142f7df7dd02dd0490c"
+    },
+    "color_ramp_large_ms_c_emphasis_baseonly": {
+      "png": "color_ramp_large_ms_c_emphasis_baseonly.png",
+      "png_sha256": "d6dade03e0021662c15e240eb089bbf29d78c07fa13710afe5da3f5b280b49f1"
+    },
+    "color_ramp_large_ms_c_emphasis_boost": {
+      "npy": "color_ramp_large_ms_c_emphasis_boost.npy",
+      "npy_sha256": "1783116406b658756f9d7c0585b901cac87637e7267475551276cd96a9ef0173",
+      "png": "color_ramp_large_ms_c_emphasis_boost.png",
+      "png_sha256": "ac2f9d0befdbf550855b9d1065d55cfb11876cdea05075bd7209c0149b71962b"
+    },
+    "color_ramp_large_ms_c_emphasis_boost_base": {
+      "png": "color_ramp_large_ms_c_emphasis_boost_base.png",
+      "png_sha256": "d6dade03e0021662c15e240eb089bbf29d78c07fa13710afe5da3f5b280b49f1"
+    },
+    "color_ramp_large_ms_c_emphasis_boost_detail": {
+      "png": "color_ramp_large_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "3fb4114945fbd3e65b308f0fd9b06f48067a64585990e142f7df7dd02dd0490c"
+    },
+    "color_ramp_large_ms_c_emphasis_boost_baseonly": {
+      "png": "color_ramp_large_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "d6dade03e0021662c15e240eb089bbf29d78c07fa13710afe5da3f5b280b49f1"
+    },
+    "thin_lines_large_ms_a_guided": {
+      "npy": "thin_lines_large_ms_a_guided.npy",
+      "npy_sha256": "1d51559fc5a5637c0aa6f63bde90523db4c1c3ccc64dca8d8d6b4821f2e606f4",
+      "png": "thin_lines_large_ms_a_guided.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "thin_lines_large_ms_a_guided_base": {
+      "png": "thin_lines_large_ms_a_guided_base.png",
+      "png_sha256": "f0ae12c7fe04c045dbff0d13e6ba508f73cc125f2d324336eb7cea8f0d022ca6"
+    },
+    "thin_lines_large_ms_a_guided_detail": {
+      "png": "thin_lines_large_ms_a_guided_detail.png",
+      "png_sha256": "58616de9c35e32bee1479f791300db9f5d7e7063db712b41f783c5fbe4e5d70a"
+    },
+    "thin_lines_large_ms_a_guided_baseonly": {
+      "png": "thin_lines_large_ms_a_guided_baseonly.png",
+      "png_sha256": "f0ae12c7fe04c045dbff0d13e6ba508f73cc125f2d324336eb7cea8f0d022ca6"
+    },
+    "thin_lines_large_ms_a_guided_wide": {
+      "npy": "thin_lines_large_ms_a_guided_wide.npy",
+      "npy_sha256": "1d51559fc5a5637c0aa6f63bde90523db4c1c3ccc64dca8d8d6b4821f2e606f4",
+      "png": "thin_lines_large_ms_a_guided_wide.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "thin_lines_large_ms_a_guided_wide_base": {
+      "png": "thin_lines_large_ms_a_guided_wide_base.png",
+      "png_sha256": "c680b3ecb34801cf8b2627eccdfbfe85257ea6f11b82c511fcf990cfa7c0b60a"
+    },
+    "thin_lines_large_ms_a_guided_wide_detail": {
+      "png": "thin_lines_large_ms_a_guided_wide_detail.png",
+      "png_sha256": "729229add61c8509c96583bf5052e57b01d7838a6ba07c73b3d67de99f658e33"
+    },
+    "thin_lines_large_ms_a_guided_wide_baseonly": {
+      "png": "thin_lines_large_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "c680b3ecb34801cf8b2627eccdfbfe85257ea6f11b82c511fcf990cfa7c0b60a"
+    },
+    "thin_lines_large_ms_b_freq": {
+      "npy": "thin_lines_large_ms_b_freq.npy",
+      "npy_sha256": "b2482d56e24f358515752a2c652009dc6f725122752d39d97603053f0f0ad8d4",
+      "png": "thin_lines_large_ms_b_freq.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "thin_lines_large_ms_b_freq_base": {
+      "png": "thin_lines_large_ms_b_freq_base.png",
+      "png_sha256": "bc14a5fe0853083ae545ff14928285414ed38445df7a50c482b81f7e2a651fa3"
+    },
+    "thin_lines_large_ms_b_freq_detail": {
+      "png": "thin_lines_large_ms_b_freq_detail.png",
+      "png_sha256": "b5f30370c0970b40f83918b609fc4bad3bc1c3d091331c7e9b348318009cb1f7"
+    },
+    "thin_lines_large_ms_b_freq_baseonly": {
+      "png": "thin_lines_large_ms_b_freq_baseonly.png",
+      "png_sha256": "bc14a5fe0853083ae545ff14928285414ed38445df7a50c482b81f7e2a651fa3"
+    },
+    "thin_lines_large_ms_c_emphasis": {
+      "npy": "thin_lines_large_ms_c_emphasis.npy",
+      "npy_sha256": "1d51559fc5a5637c0aa6f63bde90523db4c1c3ccc64dca8d8d6b4821f2e606f4",
+      "png": "thin_lines_large_ms_c_emphasis.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "thin_lines_large_ms_c_emphasis_base": {
+      "png": "thin_lines_large_ms_c_emphasis_base.png",
+      "png_sha256": "060b117a44b8193d5408d92659e98f28f13d58b8669d7728076cad027ead596f"
+    },
+    "thin_lines_large_ms_c_emphasis_detail": {
+      "png": "thin_lines_large_ms_c_emphasis_detail.png",
+      "png_sha256": "6df3e3cdc3f721da7542e422688eacfc1f942afde7cfc4ec3ad3b13eb5933824"
+    },
+    "thin_lines_large_ms_c_emphasis_baseonly": {
+      "png": "thin_lines_large_ms_c_emphasis_baseonly.png",
+      "png_sha256": "060b117a44b8193d5408d92659e98f28f13d58b8669d7728076cad027ead596f"
+    },
+    "thin_lines_large_ms_c_emphasis_boost": {
+      "npy": "thin_lines_large_ms_c_emphasis_boost.npy",
+      "npy_sha256": "de033a16ecaf3556618b14fcd31df9278859c9c697e642e82a9bbb996ea85dd2",
+      "png": "thin_lines_large_ms_c_emphasis_boost.png",
+      "png_sha256": "4d2cd3ae2065b981c64a7d4eab9a08e9f70b67433dc986169f4356355aec7b12"
+    },
+    "thin_lines_large_ms_c_emphasis_boost_base": {
+      "png": "thin_lines_large_ms_c_emphasis_boost_base.png",
+      "png_sha256": "060b117a44b8193d5408d92659e98f28f13d58b8669d7728076cad027ead596f"
+    },
+    "thin_lines_large_ms_c_emphasis_boost_detail": {
+      "png": "thin_lines_large_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "6df3e3cdc3f721da7542e422688eacfc1f942afde7cfc4ec3ad3b13eb5933824"
+    },
+    "thin_lines_large_ms_c_emphasis_boost_baseonly": {
+      "png": "thin_lines_large_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "060b117a44b8193d5408d92659e98f28f13d58b8669d7728076cad027ead596f"
+    },
+    "texture_large_ms_a_guided": {
+      "npy": "texture_large_ms_a_guided.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large_ms_a_guided.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "texture_large_ms_a_guided_base": {
+      "png": "texture_large_ms_a_guided_base.png",
+      "png_sha256": "fb9d14dee1b20b2ae1dee0f72d4cb54a12f615118ef56daee9212be08b633ce4"
+    },
+    "texture_large_ms_a_guided_detail": {
+      "png": "texture_large_ms_a_guided_detail.png",
+      "png_sha256": "6d775d60c51d61e9d37fd2f534e34dcc1641a99bd21118da1659837361603204"
+    },
+    "texture_large_ms_a_guided_baseonly": {
+      "png": "texture_large_ms_a_guided_baseonly.png",
+      "png_sha256": "fb9d14dee1b20b2ae1dee0f72d4cb54a12f615118ef56daee9212be08b633ce4"
+    },
+    "texture_large_ms_a_guided_wide": {
+      "npy": "texture_large_ms_a_guided_wide.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large_ms_a_guided_wide.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "texture_large_ms_a_guided_wide_base": {
+      "png": "texture_large_ms_a_guided_wide_base.png",
+      "png_sha256": "98505ac5d02f333161c09fb1dfb61b65fbcff8057d0fef56800336aeb53cb89e"
+    },
+    "texture_large_ms_a_guided_wide_detail": {
+      "png": "texture_large_ms_a_guided_wide_detail.png",
+      "png_sha256": "9ada0124bc8fad4cc4c53ca33efc9b98d85a54d59e73872582bf6701029b26b9"
+    },
+    "texture_large_ms_a_guided_wide_baseonly": {
+      "png": "texture_large_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "98505ac5d02f333161c09fb1dfb61b65fbcff8057d0fef56800336aeb53cb89e"
+    },
+    "texture_large_ms_b_freq": {
+      "npy": "texture_large_ms_b_freq.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large_ms_b_freq.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "texture_large_ms_b_freq_base": {
+      "png": "texture_large_ms_b_freq_base.png",
+      "png_sha256": "8531ee630154e6aa6099f29436abc47c8d842577c3a7dbb88b3a1399a72a2e98"
+    },
+    "texture_large_ms_b_freq_detail": {
+      "png": "texture_large_ms_b_freq_detail.png",
+      "png_sha256": "aa69fe95eb151e9484f1b4382ce9b337fd0afb9c03a6867a3bad572153920dab"
+    },
+    "texture_large_ms_b_freq_baseonly": {
+      "png": "texture_large_ms_b_freq_baseonly.png",
+      "png_sha256": "8531ee630154e6aa6099f29436abc47c8d842577c3a7dbb88b3a1399a72a2e98"
+    },
+    "texture_large_ms_c_emphasis": {
+      "npy": "texture_large_ms_c_emphasis.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large_ms_c_emphasis.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "texture_large_ms_c_emphasis_base": {
+      "png": "texture_large_ms_c_emphasis_base.png",
+      "png_sha256": "211ad84b7d3b6c4f6a16c5952007473850f3ee4f332746bc347d0e823eff160d"
+    },
+    "texture_large_ms_c_emphasis_detail": {
+      "png": "texture_large_ms_c_emphasis_detail.png",
+      "png_sha256": "ebf9ba5ce9f93fff26a5ae9dbe7b02e2203717f82b9e276b3eb5409eca37078e"
+    },
+    "texture_large_ms_c_emphasis_baseonly": {
+      "png": "texture_large_ms_c_emphasis_baseonly.png",
+      "png_sha256": "211ad84b7d3b6c4f6a16c5952007473850f3ee4f332746bc347d0e823eff160d"
+    },
+    "texture_large_ms_c_emphasis_boost": {
+      "npy": "texture_large_ms_c_emphasis_boost.npy",
+      "npy_sha256": "456cd1f04b0fd92c03b7a2902443d30352adab91800aab16b53ed8327ffbdce5",
+      "png": "texture_large_ms_c_emphasis_boost.png",
+      "png_sha256": "a4ec466114204535b366c06d7dff4c2c196442918024657dd327e0599740a86e"
+    },
+    "texture_large_ms_c_emphasis_boost_base": {
+      "png": "texture_large_ms_c_emphasis_boost_base.png",
+      "png_sha256": "211ad84b7d3b6c4f6a16c5952007473850f3ee4f332746bc347d0e823eff160d"
+    },
+    "texture_large_ms_c_emphasis_boost_detail": {
+      "png": "texture_large_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "ebf9ba5ce9f93fff26a5ae9dbe7b02e2203717f82b9e276b3eb5409eca37078e"
+    },
+    "texture_large_ms_c_emphasis_boost_baseonly": {
+      "png": "texture_large_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "211ad84b7d3b6c4f6a16c5952007473850f3ee4f332746bc347d0e823eff160d"
+    },
+    "flat_highlight_large_ms_a_guided": {
+      "npy": "flat_highlight_large_ms_a_guided.npy",
+      "npy_sha256": "7bc22f0ff2cebacfdba899cc4333fe5eba69871b7fcb7d3ca2e6ca24421b3f90",
+      "png": "flat_highlight_large_ms_a_guided.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "flat_highlight_large_ms_a_guided_base": {
+      "png": "flat_highlight_large_ms_a_guided_base.png",
+      "png_sha256": "539616640011319477c2560dc61cda6634f2a675e43270eb18eda9f47702156d"
+    },
+    "flat_highlight_large_ms_a_guided_detail": {
+      "png": "flat_highlight_large_ms_a_guided_detail.png",
+      "png_sha256": "0c89271882dfa2ea1006a3178706e78fb5a64bc7f7384409653e1b5f3ac14c31"
+    },
+    "flat_highlight_large_ms_a_guided_baseonly": {
+      "png": "flat_highlight_large_ms_a_guided_baseonly.png",
+      "png_sha256": "539616640011319477c2560dc61cda6634f2a675e43270eb18eda9f47702156d"
+    },
+    "flat_highlight_large_ms_a_guided_wide": {
+      "npy": "flat_highlight_large_ms_a_guided_wide.npy",
+      "npy_sha256": "e202d03928d8e7c9a916816bcdd951ec27d153d93179998317e5de8f6b23499a",
+      "png": "flat_highlight_large_ms_a_guided_wide.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "flat_highlight_large_ms_a_guided_wide_base": {
+      "png": "flat_highlight_large_ms_a_guided_wide_base.png",
+      "png_sha256": "637294b09485492a5597b25841e12dbc2dbdc2a5f520a5cb717e5881c5e74ded"
+    },
+    "flat_highlight_large_ms_a_guided_wide_detail": {
+      "png": "flat_highlight_large_ms_a_guided_wide_detail.png",
+      "png_sha256": "220e40906e4b80291c627eadc8daa2f17e085c0d5b208c1f09180aad18683c2a"
+    },
+    "flat_highlight_large_ms_a_guided_wide_baseonly": {
+      "png": "flat_highlight_large_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "637294b09485492a5597b25841e12dbc2dbdc2a5f520a5cb717e5881c5e74ded"
+    },
+    "flat_highlight_large_ms_b_freq": {
+      "npy": "flat_highlight_large_ms_b_freq.npy",
+      "npy_sha256": "5aa2724d18b1fce73fae230f08899fc84f5561674a5401c16538063716f81e35",
+      "png": "flat_highlight_large_ms_b_freq.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "flat_highlight_large_ms_b_freq_base": {
+      "png": "flat_highlight_large_ms_b_freq_base.png",
+      "png_sha256": "1be166f63e167e1101f3f943ad00c80f26cd264c1120e5d6b065942d676c75f3"
+    },
+    "flat_highlight_large_ms_b_freq_detail": {
+      "png": "flat_highlight_large_ms_b_freq_detail.png",
+      "png_sha256": "7634e13fcf3648b5a0aa51c61a5525da2ec0d3f7e78f6b78ca494173aa0d8866"
+    },
+    "flat_highlight_large_ms_b_freq_baseonly": {
+      "png": "flat_highlight_large_ms_b_freq_baseonly.png",
+      "png_sha256": "1be166f63e167e1101f3f943ad00c80f26cd264c1120e5d6b065942d676c75f3"
+    },
+    "flat_highlight_large_ms_c_emphasis": {
+      "npy": "flat_highlight_large_ms_c_emphasis.npy",
+      "npy_sha256": "38873d6e122dea00d78fe955d3b0e0697e4c0596bf1ac6303c95c80fba35abc1",
+      "png": "flat_highlight_large_ms_c_emphasis.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "flat_highlight_large_ms_c_emphasis_base": {
+      "png": "flat_highlight_large_ms_c_emphasis_base.png",
+      "png_sha256": "947326ad19308d23b6973ac8cb1eb761d5a749520573fa07cbb2aa63a61a5b76"
+    },
+    "flat_highlight_large_ms_c_emphasis_detail": {
+      "png": "flat_highlight_large_ms_c_emphasis_detail.png",
+      "png_sha256": "fa10769b27cf08954260f0b67360922d7364e6163c9d1d3df2a981f2faa420be"
+    },
+    "flat_highlight_large_ms_c_emphasis_baseonly": {
+      "png": "flat_highlight_large_ms_c_emphasis_baseonly.png",
+      "png_sha256": "947326ad19308d23b6973ac8cb1eb761d5a749520573fa07cbb2aa63a61a5b76"
+    },
+    "flat_highlight_large_ms_c_emphasis_boost": {
+      "npy": "flat_highlight_large_ms_c_emphasis_boost.npy",
+      "npy_sha256": "f357c31a7798fa578f44df311506ce2a728a7f71db95ce42193ae0cfc64b326a",
+      "png": "flat_highlight_large_ms_c_emphasis_boost.png",
+      "png_sha256": "f6f906026aef3d53ee5918025d2d3c0405e9203eec2dec1cd6274d53a8622a34"
+    },
+    "flat_highlight_large_ms_c_emphasis_boost_base": {
+      "png": "flat_highlight_large_ms_c_emphasis_boost_base.png",
+      "png_sha256": "947326ad19308d23b6973ac8cb1eb761d5a749520573fa07cbb2aa63a61a5b76"
+    },
+    "flat_highlight_large_ms_c_emphasis_boost_detail": {
+      "png": "flat_highlight_large_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "fa10769b27cf08954260f0b67360922d7364e6163c9d1d3df2a981f2faa420be"
+    },
+    "flat_highlight_large_ms_c_emphasis_boost_baseonly": {
+      "png": "flat_highlight_large_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "947326ad19308d23b6973ac8cb1eb761d5a749520573fa07cbb2aa63a61a5b76"
+    },
+    "alpha_boundary_large_ms_a_guided": {
+      "npy": "alpha_boundary_large_ms_a_guided.npy",
+      "npy_sha256": "86fb7ea75f158ad392d18fdc0db1d3ce52441097261afc02fa7bffe8d63e20b6",
+      "png": "alpha_boundary_large_ms_a_guided.png",
+      "png_sha256": "29440ee3b9d23660e49d409fbce6d7c1688b557689087d8de379fc6de0bd7ba9"
+    },
+    "alpha_boundary_large_ms_a_guided_base": {
+      "png": "alpha_boundary_large_ms_a_guided_base.png",
+      "png_sha256": "7cf8e87431834e9b6e37c653ef67f11c648aa722d4451825add2829090226bd3"
+    },
+    "alpha_boundary_large_ms_a_guided_detail": {
+      "png": "alpha_boundary_large_ms_a_guided_detail.png",
+      "png_sha256": "4caf1f7c5cca699d6750d21b3ea9d56785c5e5198c800e40d7b2645cce39969a"
+    },
+    "alpha_boundary_large_ms_a_guided_baseonly": {
+      "png": "alpha_boundary_large_ms_a_guided_baseonly.png",
+      "png_sha256": "ce261095918ee9110a25bfb7477da095306e7363c64c163376275ac93a5e2195"
+    },
+    "alpha_boundary_large_ms_a_guided_wide": {
+      "npy": "alpha_boundary_large_ms_a_guided_wide.npy",
+      "npy_sha256": "86b437348b3b4f3e4c503753a6bd0c42d8efaff8c90dc9109ab7d0218ed74f09",
+      "png": "alpha_boundary_large_ms_a_guided_wide.png",
+      "png_sha256": "9934abe20b45647752f0630eb718b974246757eb594cfcfd5283c34507f2c5dc"
+    },
+    "alpha_boundary_large_ms_a_guided_wide_base": {
+      "png": "alpha_boundary_large_ms_a_guided_wide_base.png",
+      "png_sha256": "0ac78b9ff80a86895687c95011200e38731089d8a94c06b17de38cd27c1f85ce"
+    },
+    "alpha_boundary_large_ms_a_guided_wide_detail": {
+      "png": "alpha_boundary_large_ms_a_guided_wide_detail.png",
+      "png_sha256": "edec4993bd66c9dd2b9ae921d6517389de14b8d03d62e7dfc4f7782d43636b12"
+    },
+    "alpha_boundary_large_ms_a_guided_wide_baseonly": {
+      "png": "alpha_boundary_large_ms_a_guided_wide_baseonly.png",
+      "png_sha256": "48a9d96713a4cfe21eb9ca27aea72ee4d5bb1c57513d145da6567aae3ac6d930"
+    },
+    "alpha_boundary_large_ms_b_freq": {
+      "npy": "alpha_boundary_large_ms_b_freq.npy",
+      "npy_sha256": "a557bb6449b9fddc9b75a2bcc701b4f5ab348a50dbfbf2ef16209b855ac2b6c3",
+      "png": "alpha_boundary_large_ms_b_freq.png",
+      "png_sha256": "394ea81d45062da7f3f4aa27c44a9c2c935072b612655440fc5b0036ec32cbb7"
+    },
+    "alpha_boundary_large_ms_b_freq_base": {
+      "png": "alpha_boundary_large_ms_b_freq_base.png",
+      "png_sha256": "e2c770d226fdecc3f943890db87e88e54f7b0e169d72255b81dc24f5a2d0e562"
+    },
+    "alpha_boundary_large_ms_b_freq_detail": {
+      "png": "alpha_boundary_large_ms_b_freq_detail.png",
+      "png_sha256": "7be827d677a64a367e3a6ab5c910fb3b78f33569747b855ab9f7d14b9715bf6e"
+    },
+    "alpha_boundary_large_ms_b_freq_baseonly": {
+      "png": "alpha_boundary_large_ms_b_freq_baseonly.png",
+      "png_sha256": "72e51ebe83471fe2fda627d8be010bea6d70f4cc7ad20cc2c4d3dc87d3d64bbe"
+    },
+    "alpha_boundary_large_ms_c_emphasis": {
+      "npy": "alpha_boundary_large_ms_c_emphasis.npy",
+      "npy_sha256": "50922ec267ae1a56e0a75780be8202df6acddf73d5bc9f3b53667b300812041a",
+      "png": "alpha_boundary_large_ms_c_emphasis.png",
+      "png_sha256": "9934abe20b45647752f0630eb718b974246757eb594cfcfd5283c34507f2c5dc"
+    },
+    "alpha_boundary_large_ms_c_emphasis_base": {
+      "png": "alpha_boundary_large_ms_c_emphasis_base.png",
+      "png_sha256": "27bfd7f7bdf5420b5e1f89f7207984b245629dd3cea17575328882f8d22bda65"
+    },
+    "alpha_boundary_large_ms_c_emphasis_detail": {
+      "png": "alpha_boundary_large_ms_c_emphasis_detail.png",
+      "png_sha256": "0f88999f0f93779468f4820675c27e203083ab37acfd313b203d745041758e83"
+    },
+    "alpha_boundary_large_ms_c_emphasis_baseonly": {
+      "png": "alpha_boundary_large_ms_c_emphasis_baseonly.png",
+      "png_sha256": "78d57a21f80fba82aa214d64b8aede5b7e1964d1d0953e73f63f7fbdfdfa8f6e"
+    },
+    "alpha_boundary_large_ms_c_emphasis_boost": {
+      "npy": "alpha_boundary_large_ms_c_emphasis_boost.npy",
+      "npy_sha256": "f5f3c8ca3db6da9c06ff2617e339b1611d3525fc51a4e2a6b8aa72740924eca1",
+      "png": "alpha_boundary_large_ms_c_emphasis_boost.png",
+      "png_sha256": "576573b1bcbb6d77d1c90393d55259c99aad1390972f8bf4431655f89158e155"
+    },
+    "alpha_boundary_large_ms_c_emphasis_boost_base": {
+      "png": "alpha_boundary_large_ms_c_emphasis_boost_base.png",
+      "png_sha256": "27bfd7f7bdf5420b5e1f89f7207984b245629dd3cea17575328882f8d22bda65"
+    },
+    "alpha_boundary_large_ms_c_emphasis_boost_detail": {
+      "png": "alpha_boundary_large_ms_c_emphasis_boost_detail.png",
+      "png_sha256": "0f88999f0f93779468f4820675c27e203083ab37acfd313b203d745041758e83"
+    },
+    "alpha_boundary_large_ms_c_emphasis_boost_baseonly": {
+      "png": "alpha_boundary_large_ms_c_emphasis_boost_baseonly.png",
+      "png_sha256": "78d57a21f80fba82aa214d64b8aede5b7e1964d1d0953e73f63f7fbdfdfa8f6e"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd1.json",
+      "sha256": "fd78d8ec5bf0315de6094a1395b9499c6e4e34a9059219c966b74e5a9a981c3b"
+    },
+    "blind_sheet": {
+      "file": "review/rd1_blind_sheet.png",
+      "sha256": "0663e35dca08dff78143fceca4b35c65ff444607db37baf90f084eea6b9c4fd5"
+    },
+    "blind_key": {
+      "file": "blind_key.json",
+      "sha256": "07888e02ea79cbdaa096f7e9bfefd02996a684a183df05b0b0a08e9888053536"
+    },
+    "form": {
+      "file": "review/CANDIDATE_BLIND_FORM.md",
+      "sha256": "f7c3c964914d55825279eaf9a8d28ac81ffecdd324bef86bb8ba66206424688f"
+    },
+    "tables": {
+      "file": "review/RD1_TABLES.md",
+      "sha256": "6cdacab732c388f31029428a68851fd785c050b65c96c8af6a6bae9c89679da3"
+    }
+  },
+  "gates": "unset; no judgment or ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference material photos",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

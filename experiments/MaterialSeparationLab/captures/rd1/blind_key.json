@@ -1,0 +1,202 @@
+{
+  "C01": {
+    "fixture": "color_ramp_small",
+    "candidate": "ms_c_emphasis"
+  },
+  "C02": {
+    "fixture": "texture_large",
+    "candidate": "ms_c_emphasis"
+  },
+  "C03": {
+    "fixture": "alpha_boundary_small",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C04": {
+    "fixture": "flat_highlight_small",
+    "candidate": "ms_b_freq"
+  },
+  "C05": {
+    "fixture": "texture_small",
+    "candidate": "ms_c_emphasis"
+  },
+  "C06": {
+    "fixture": "color_ramp_large",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C07": {
+    "fixture": "alpha_boundary_large",
+    "candidate": "ms_a_guided"
+  },
+  "C08": {
+    "fixture": "flat_highlight_large",
+    "candidate": "ms_a_guided"
+  },
+  "C09": {
+    "fixture": "alpha_boundary_small",
+    "candidate": "ms_c_emphasis"
+  },
+  "C10": {
+    "fixture": "thin_lines_small",
+    "candidate": "ms_b_freq"
+  },
+  "C11": {
+    "fixture": "color_ramp_small",
+    "candidate": "ms_a_guided"
+  },
+  "C12": {
+    "fixture": "color_ramp_small",
+    "candidate": "ms_b_freq"
+  },
+  "C13": {
+    "fixture": "color_ramp_large",
+    "candidate": "ms_a_guided"
+  },
+  "C14": {
+    "fixture": "flat_highlight_small",
+    "candidate": "ms_c_emphasis"
+  },
+  "C15": {
+    "fixture": "thin_lines_small",
+    "candidate": "ms_c_emphasis"
+  },
+  "C16": {
+    "fixture": "thin_lines_large",
+    "candidate": "ms_b_freq"
+  },
+  "C17": {
+    "fixture": "color_ramp_large",
+    "candidate": "ms_c_emphasis"
+  },
+  "C18": {
+    "fixture": "texture_large",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C19": {
+    "fixture": "flat_highlight_large",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C20": {
+    "fixture": "texture_large",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C21": {
+    "fixture": "texture_small",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C22": {
+    "fixture": "texture_large",
+    "candidate": "ms_b_freq"
+  },
+  "C23": {
+    "fixture": "thin_lines_large",
+    "candidate": "ms_c_emphasis"
+  },
+  "C24": {
+    "fixture": "flat_highlight_large",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C25": {
+    "fixture": "color_ramp_large",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C26": {
+    "fixture": "alpha_boundary_small",
+    "candidate": "ms_b_freq"
+  },
+  "C27": {
+    "fixture": "texture_small",
+    "candidate": "ms_a_guided"
+  },
+  "C28": {
+    "fixture": "thin_lines_large",
+    "candidate": "ms_a_guided"
+  },
+  "C29": {
+    "fixture": "alpha_boundary_large",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C30": {
+    "fixture": "texture_large",
+    "candidate": "ms_a_guided"
+  },
+  "C31": {
+    "fixture": "flat_highlight_small",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C32": {
+    "fixture": "color_ramp_small",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C33": {
+    "fixture": "alpha_boundary_large",
+    "candidate": "ms_c_emphasis"
+  },
+  "C34": {
+    "fixture": "thin_lines_small",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C35": {
+    "fixture": "texture_small",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C36": {
+    "fixture": "flat_highlight_large",
+    "candidate": "ms_b_freq"
+  },
+  "C37": {
+    "fixture": "alpha_boundary_large",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C38": {
+    "fixture": "alpha_boundary_small",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C39": {
+    "fixture": "alpha_boundary_large",
+    "candidate": "ms_b_freq"
+  },
+  "C40": {
+    "fixture": "alpha_boundary_small",
+    "candidate": "ms_a_guided"
+  },
+  "C41": {
+    "fixture": "texture_small",
+    "candidate": "ms_b_freq"
+  },
+  "C42": {
+    "fixture": "thin_lines_large",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C43": {
+    "fixture": "thin_lines_large",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C44": {
+    "fixture": "thin_lines_small",
+    "candidate": "ms_a_guided"
+  },
+  "C45": {
+    "fixture": "thin_lines_small",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C46": {
+    "fixture": "flat_highlight_small",
+    "candidate": "ms_c_emphasis_boost"
+  },
+  "C47": {
+    "fixture": "flat_highlight_large",
+    "candidate": "ms_c_emphasis"
+  },
+  "C48": {
+    "fixture": "color_ramp_small",
+    "candidate": "ms_a_guided_wide"
+  },
+  "C49": {
+    "fixture": "flat_highlight_small",
+    "candidate": "ms_a_guided"
+  },
+  "C50": {
+    "fixture": "color_ramp_large",
+    "candidate": "ms_b_freq"
+  }
+}
