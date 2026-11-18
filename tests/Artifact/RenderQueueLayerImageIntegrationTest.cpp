@@ -1926,6 +1926,59 @@ TEST(RenderQueueLayerImageIntegrationTest,
     ASSERT_TRUE(particleLayer->setLayerPropertyValue(
         QStringLiteral("particle.shapeTarget.enabled"), true));
 
+    const auto compositionObject = projects.findComposition(composition.id)
+                                      .ptr.lock();
+    ASSERT_NE(compositionObject, nullptr);
+    Artifact::DiligentDeviceManager viewDevice;
+    viewDevice.initializeHeadless();
+    ASSERT_NE(viewDevice.device(), nullptr);
+    Artifact::OffscreenCompositionRenderer viewRenderer(
+        viewDevice.device(), viewDevice.immediateContext(), width, height);
+    auto* previewRenderer = viewRenderer.renderer();
+    ASSERT_NE(previewRenderer, nullptr);
+    const auto captureCompositionView = [&](bool enabled) {
+        if (!particleLayer->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.enabled"), enabled)) {
+            return QImage();
+        }
+        compositionObject->resetLayerComponentSimulation();
+        for (int frame = 0; frame < lastFrame; ++frame) {
+            compositionObject->goToFrame(frame);
+            compositionObject->evaluateLayerComponentSimulation(
+                ArtifactCore::FramePosition(frame), false);
+        }
+        const ArtifactCore::FramePosition position(lastFrame - 1);
+        viewRenderer.renderFrame(position, compositionObject.get());
+        previewRenderer->setClearColor(compositionObject->backgroundColor());
+        previewRenderer->clear();
+        Artifact::drawLayerForCompositionView(particleLayer, previewRenderer);
+        previewRenderer->flush();
+        return previewRenderer->readbackToImage(
+            ArtifactCore::SurfaceChannelOrder::BGRA);
+    };
+    const QImage compositionViewTarget = captureCompositionView(true);
+    const QImage compositionViewBaseline = captureCompositionView(false);
+    ASSERT_FALSE(compositionViewTarget.isNull());
+    ASSERT_FALSE(compositionViewBaseline.isNull());
+    ASSERT_EQ(compositionViewTarget.size(), compositionViewBaseline.size());
+    const QImage compositionViewTargetRgba =
+        compositionViewTarget.convertToFormat(QImage::Format_RGBA8888);
+    const QImage compositionViewBaselineRgba =
+        compositionViewBaseline.convertToFormat(QImage::Format_RGBA8888);
+    int compositionViewDifferingPixels = 0;
+    for (int y = 0; y < height; ++y) {
+        const auto* targetRow = compositionViewTargetRgba.constScanLine(y);
+        const auto* baselineRow = compositionViewBaselineRgba.constScanLine(y);
+        for (int x = 0; x < width; ++x) {
+            const int offset = x * 4;
+            if (std::memcmp(targetRow + offset, baselineRow + offset, 4) != 0) {
+                ++compositionViewDifferingPixels;
+            }
+        }
+    }
+    EXPECT_GT(compositionViewDifferingPixels, 20)
+        << "the Composition View draw path should respond to Shape attraction";
+
     QString failure;
     const auto renderFrame = [&](const QString& outputPath) {
         return addAndRender(
@@ -1934,6 +1987,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
             [](const QImage&) { return true; },
             &failure, lastFrame, QStringLiteral("gpu"));
     };
+    ASSERT_TRUE(particleLayer->setLayerPropertyValue(
+        QStringLiteral("particle.shapeTarget.enabled"), true));
     const QString targetedOutput = isolatedOutputPath(
         QStringLiteral("render_queue_particle_shape_target.png"));
     ASSERT_TRUE(renderFrame(targetedOutput)) << failure.toStdString();
