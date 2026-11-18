@@ -89,8 +89,17 @@ $env:ARTIFACT_RENDER_BACKEND = "vulkan"
 
 Each output directory contains `shape_target_report.json` and the PNG sequence.
 Compare both backend reports and inspect full frames plus 100%/400% crops. The
-`output/particle-shape-target/backend_comparison.json` records RGBA/alpha
-differences and particle-center parity between the latest Vulkan/D3D12 runs.
+comparison report can be regenerated after both captures with:
+
+```powershell
+python tools/Particle2DPlayground/compare_shape_target_backends.py `
+  --d3d12 output\particle-shape-target\d3d12 `
+  --vulkan output\particle-shape-target\vulkan `
+  --output output\particle-shape-target\backend_comparison.json
+```
+
+It checks fixture metadata, all five frames, and particle positions where
+captured. Generated output files are ignored by Git and can be recreated.
 The capture covers this controlled static Shape/Text fixture; it does not cover
 animated targets, stroke-only Shape targets, export color management, or all
 font backends. Each baseline/Shape/Text case also reports five warmed
