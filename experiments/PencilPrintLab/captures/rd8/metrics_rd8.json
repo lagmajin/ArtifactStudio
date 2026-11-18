@@ -1,0 +1,500 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd8",
+  "stage": "subpixel_phase",
+  "gates": "unset; no pass/fail judgment or quality ranking performed",
+  "models": {
+    "nearest": "v6 with integer-truncated phase (reproduces RD7 content-lock)",
+    "interp": "v6 with bilinear blend of neighboring Bayer phases",
+    "screen_interp": "interp with screen-locked threshold (control)"
+  },
+  "variants": {
+    "nearest": {
+      "line": "sobel",
+      "line_strength": 0.7,
+      "tone": "bayer_multi",
+      "dither_levels": 4,
+      "texture": "hatch",
+      "strength": 1.0,
+      "dither_lock": "content",
+      "phase_mode": "nearest"
+    },
+    "interp": {
+      "line": "sobel",
+      "line_strength": 0.7,
+      "tone": "bayer_multi",
+      "dither_levels": 4,
+      "texture": "hatch",
+      "strength": 1.0,
+      "dither_lock": "content",
+      "phase_mode": "interp"
+    },
+    "screen_interp": {
+      "line": "sobel",
+      "line_strength": 0.7,
+      "tone": "bayer_multi",
+      "dither_levels": 4,
+      "texture": "hatch",
+      "strength": 1.0,
+      "dither_lock": "screen",
+      "phase_mode": "interp"
+    }
+  },
+  "alpha_fixtures": {
+    "alpha_boundary_small": {
+      "nearest": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      },
+      "interp": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      },
+      "screen_interp": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      }
+    },
+    "alpha_boundary_large": {
+      "nearest": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      },
+      "interp": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      },
+      "screen_interp": {
+        "descriptor_delta": 5.960464477539063e-08,
+        "absolute_probe": {
+          "nonfinite_count": 0,
+          "visible_max": 0.6666666865348816,
+          "near_transparent_max": 0.6666666865348816,
+          "near_transparent_channels_gt_1": 0,
+          "near_transparent_channels_gt_10": 0
+        }
+      }
+    }
+  },
+  "opaque_parity": {
+    "color_ramp_small": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      }
+    },
+    "thin_lines_small": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      }
+    },
+    "flat_highlight_small": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.73311448097229
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.73311448097229
+      }
+    },
+    "color_ramp_large": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      }
+    },
+    "thin_lines_large": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.3333333432674408
+      }
+    },
+    "flat_highlight_large": {
+      "nearest": {
+        "max_rgb_delta_from_nearest": 0.0
+      },
+      "interp": {
+        "max_rgb_delta_from_nearest": 0.7336370348930359
+      },
+      "screen_interp": {
+        "max_rgb_delta_from_nearest": 0.7336370348930359
+      }
+    }
+  },
+  "temporal": {
+    "nearest": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.0015441894991454319,
+          "static_flat_mae": 0.002012882507653628
+        },
+        {
+          "step": 2,
+          "global_mae": 0.25370348520852226,
+          "static_flat_mae": 0.24146538561812922
+        },
+        {
+          "step": 3,
+          "global_mae": 0.0014919705305752966,
+          "static_flat_mae": 0.0018518519070413377
+        },
+        {
+          "step": 4,
+          "global_mae": 0.2537597731876303,
+          "static_flat_mae": 0.2423510539214968
+        },
+        {
+          "step": 5,
+          "global_mae": 0.0015048557306120832,
+          "static_flat_mae": 0.0021739131082659183
+        },
+        {
+          "step": 6,
+          "global_mae": 0.253779440071897,
+          "static_flat_mae": 0.24227053862119066
+        },
+        {
+          "step": 7,
+          "global_mae": 0.0015163845938028922,
+          "static_flat_mae": 0.0018518519070413377
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.12730170735270196
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.005338541825767607
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.1294111502310746
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.010223388976555725
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.1315039779821139
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.01522623743294389
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.13400336770340193
+        }
+      ],
+      "seek_like": [
+        {
+          "frame": 1,
+          "seek_mae": 0.0015441894991454319
+        },
+        {
+          "frame": 2,
+          "seek_mae": 0.2537936816087798
+        },
+        {
+          "frame": 3,
+          "seek_mae": 0.25388591251430626
+        },
+        {
+          "frame": 4,
+          "seek_mae": 0.04332546787106063
+        },
+        {
+          "frame": 5,
+          "seek_mae": 0.043441434671391714
+        },
+        {
+          "frame": 6,
+          "seek_mae": 0.2540690179885132
+        },
+        {
+          "frame": 7,
+          "seek_mae": 0.254082581356973
+        }
+      ],
+      "flicker_proxy_step_std": 0.12482307279588883,
+      "static_region_temporal_std": 0.11879742440623307
+    },
+    "interp": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.12390408355374044,
+          "static_flat_mae": 0.11916264445309478
+        },
+        {
+          "step": 2,
+          "global_mae": 0.12988146003396348,
+          "static_flat_mae": 0.12222222586472829
+        },
+        {
+          "step": 3,
+          "global_mae": 0.12374810481645303,
+          "static_flat_mae": 0.12020934335707466
+        },
+        {
+          "step": 4,
+          "global_mae": 0.1299587712341842,
+          "static_flat_mae": 0.12157810346227912
+        },
+        {
+          "step": 5,
+          "global_mae": 0.12386000260624618,
+          "static_flat_mae": 0.12004831275646237
+        },
+        {
+          "step": 6,
+          "global_mae": 0.12993028816041866,
+          "static_flat_mae": 0.12157810346227912
+        },
+        {
+          "step": 7,
+          "global_mae": 0.12384169205882548,
+          "static_flat_mae": 0.11940419035401321
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.12677680496499305
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.007927788864738735
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.1266598209114818
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.014845784947647189
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.12663269417359213
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.021394179240026765
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.1266048892706749
+        }
+      ],
+      "seek_like": [
+        {
+          "frame": 1,
+          "seek_mae": 0.12390408355374044
+        },
+        {
+          "frame": 2,
+          "seek_mae": 0.25377740556662803
+        },
+        {
+          "frame": 3,
+          "seek_mae": 0.13034668357213378
+        },
+        {
+          "frame": 4,
+          "seek_mae": 0.0433336058921365
+        },
+        {
+          "frame": 5,
+          "seek_mae": 0.12450697528177747
+        },
+        {
+          "frame": 6,
+          "seek_mae": 0.2541090299254696
+        },
+        {
+          "frame": 7,
+          "seek_mae": 0.13070814734158678
+        }
+      ],
+      "flicker_proxy_step_std": 0.0030116912800213264,
+      "static_region_temporal_std": 0.001101810938272735
+    },
+    "screen_interp": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.0014417860672741275,
+          "static_flat_mae": 0.0009661836036737414
+        },
+        {
+          "step": 2,
+          "global_mae": 0.0015414768254534768,
+          "static_flat_mae": 0.001207729504592177
+        },
+        {
+          "step": 3,
+          "global_mae": 0.0015957302992925784,
+          "static_flat_mae": 0.0018518519070413377
+        },
+        {
+          "step": 4,
+          "global_mae": 0.0015774197518718816,
+          "static_flat_mae": 0.0022544284085720635
+        },
+        {
+          "step": 5,
+          "global_mae": 0.0014092339829706664,
+          "static_flat_mae": 0.0012882448048983218
+        },
+        {
+          "step": 6,
+          "global_mae": 0.0016167535204052305,
+          "static_flat_mae": 0.0019323672073474829
+        },
+        {
+          "step": 7,
+          "global_mae": 0.0015577528676052074,
+          "static_flat_mae": 0.0014492754055106122
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.12747735297425605
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.25355293181861877
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.14820353629308253
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.042975532964798425
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.14792345273529767
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.25286459086928514
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.13802083744506793
+        }
+      ],
+      "seek_like": [
+        {
+          "frame": 1,
+          "seek_mae": 0.0014417860672741275
+        },
+        {
+          "frame": 2,
+          "seek_mae": 0.0023729113120377105
+        },
+        {
+          "frame": 3,
+          "seek_mae": 0.0034762913362404407
+        },
+        {
+          "frame": 4,
+          "seek_mae": 0.004554579128792587
+        },
+        {
+          "frame": 5,
+          "seek_mae": 0.005429416394448102
+        },
+        {
+          "frame": 6,
+          "seek_mae": 0.006434461997317461
+        },
+        {
+          "frame": 7,
+          "seek_mae": 0.007404921010614392
+        }
+      ],
+      "flicker_proxy_step_std": 7.293192273846117e-05,
+      "static_region_temporal_std": 0.00042573627961504587
+    }
+  },
+  "performance": {
+    "nearest": {
+      "seconds_median": 0.6415144999918994,
+      "tracemalloc_peak_bytes": 371198320
+    },
+    "interp": {
+      "seconds_median": 0.6351190999848768,
+      "tracemalloc_peak_bytes": 377490576
+    },
+    "screen_interp": {
+      "seconds_median": 0.6451545000018086,
+      "tracemalloc_peak_bytes": 377489976
+    }
+  },
+  "definitions": {
+    "subpixel_phase": "threshold = bilinear blend of adjacent Bayer phases by fractional offset",
+    "controlled_study": "0.5*k px offset supplied from known fixture translation, not estimated"
+  }
+}

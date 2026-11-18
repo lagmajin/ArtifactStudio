@@ -1,0 +1,120 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd10",
+  "stage": "analytic_continuous_threshold",
+  "date": "2026-11-18",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "blind_seed": 20271618,
+  "outputs": {
+    "integer_dither_bayer_screen_frame03": {
+      "npy": "integer_dither_bayer_screen_frame03.npy",
+      "npy_sha256": "7b2d4553d4ba0b005704d63ab0149233da92fa4a0d2ace575638e8deb8a09fed"
+    },
+    "integer_dither_bayer_content_frame03": {
+      "npy": "integer_dither_bayer_content_frame03.npy",
+      "npy_sha256": "e52ad71990d170ede8c8797da5c84adf57ae1ccf741c70a885eca7599eef660b"
+    },
+    "integer_dither_ign_screen_frame03": {
+      "npy": "integer_dither_ign_screen_frame03.npy",
+      "npy_sha256": "1eae4784739e24b06334765426063d85dba2f719e21dcf26f72e3ccac9d409a7"
+    },
+    "integer_dither_ign_content_frame03": {
+      "npy": "integer_dither_ign_content_frame03.npy",
+      "npy_sha256": "76a7e8c93557dbc1492c4143f5c1eb85c6dd99aff8816975cfc862a1d3fe7225"
+    },
+    "integer_dither_r2_content_frame03": {
+      "npy": "integer_dither_r2_content_frame03.npy",
+      "npy_sha256": "6dafb2cee5eb50c8397195ebc0f294df8ba976d68779778b19b4be17aa0a3a2f"
+    },
+    "integer_full_bayer_screen_frame03": {
+      "npy": "integer_full_bayer_screen_frame03.npy",
+      "npy_sha256": "e0665ccbceb76c2dac59b078fab70be77088a10fb783da9246a39996b6122a18"
+    },
+    "integer_full_bayer_content_frame03": {
+      "npy": "integer_full_bayer_content_frame03.npy",
+      "npy_sha256": "780551b7b524119846ea42005eac24be6b6a628c0e89cb96837102a6bfe47270"
+    },
+    "integer_full_ign_content_frame03": {
+      "npy": "integer_full_ign_content_frame03.npy",
+      "npy_sha256": "c77b6b03afce6552f23f1b4130774165c52cc82bc807c0e6b097162b661a8a12"
+    },
+    "integer_full_r2_content_frame03": {
+      "npy": "integer_full_r2_content_frame03.npy",
+      "npy_sha256": "8caf646ff08f07b66b59be3a00219a6703e22fd2e3b83951d5bed8d9f6495c80"
+    },
+    "half_dither_bayer_screen_frame03": {
+      "npy": "half_dither_bayer_screen_frame03.npy",
+      "npy_sha256": "a694bfc85d317829cab01161e31a13f5fe82af9830dde5301b9cf19bff210008"
+    },
+    "half_dither_bayer_content_frame03": {
+      "npy": "half_dither_bayer_content_frame03.npy",
+      "npy_sha256": "f9b5ae9ae72fe20916c60b4956c969b72371f938b4dbdac70986c41ebfcb61c3"
+    },
+    "half_dither_ign_screen_frame03": {
+      "npy": "half_dither_ign_screen_frame03.npy",
+      "npy_sha256": "c2fb426ed2a1f404a85a50c22b6d20ee69784c111303f8cb18a6b07f8c84430f"
+    },
+    "half_dither_ign_content_frame03": {
+      "npy": "half_dither_ign_content_frame03.npy",
+      "npy_sha256": "c6ab727084af7ed1df79df817628832c2d6388e7469b3b4dbd8ca2e3184c4c23"
+    },
+    "half_dither_r2_content_frame03": {
+      "npy": "half_dither_r2_content_frame03.npy",
+      "npy_sha256": "29af7dcf73c2b8a057a94ee58dfd7b84f79dbbd601c8a0d17d5fda7b1a837e0c"
+    },
+    "half_full_bayer_screen_frame03": {
+      "npy": "half_full_bayer_screen_frame03.npy",
+      "npy_sha256": "350d7d76c1fa645f30fe9728f4fb8493c3927a28d5cc61c351fdd4cb34cc6a58"
+    },
+    "half_full_bayer_content_frame03": {
+      "npy": "half_full_bayer_content_frame03.npy",
+      "npy_sha256": "f2c92a19dd23db407ca26ef0512ebc507738bea42beb61d4667b89aa33496af0"
+    },
+    "half_full_ign_content_frame03": {
+      "npy": "half_full_ign_content_frame03.npy",
+      "npy_sha256": "5cafab025c7355cba75411b195167b461cf26831efe6a8e379ddac7c8acd87f1"
+    },
+    "half_full_r2_content_frame03": {
+      "npy": "half_full_r2_content_frame03.npy",
+      "npy_sha256": "9dc47f1ff7a92bea08c82dfcfb03459c0592bc4d56e24e06fd70fa305a4271bb"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd10.json",
+      "sha256": "fc56a3a7ae2fc7e3267bc911bed728cf1a8e3fbc44de37cf30b911a9a0b3e442"
+    },
+    "tables": {
+      "file": "review/RD10_TABLES.md",
+      "sha256": "237a5f66ef6cd54c40d88b426ffd3b0c979b3a0a13ab61b3f80bad6fb1b91c80"
+    },
+    "blind_sheet": {
+      "file": "review/rd10_temporal_blind_sheet.png",
+      "sha256": "0dd2ac03677374c4f251a9ff01802da1750edf58ebd5a3c7acf8f011597d4cb6"
+    },
+    "blind_key": {
+      "file": "temporal_blind_key.json",
+      "sha256": "bcc10fdc7d47859e4c89a0e7dd56a8ca3d0ee9b2a39a87bab0443f43189ba162"
+    },
+    "form": {
+      "file": "review/TEMPORAL_BLIND_FORM.md",
+      "sha256": "493c04eb3172961ddd9db602c3a338a16dbc5cf9acc0b5f088064eb6955d98be"
+    }
+  },
+  "gates": "unset; no judgment or quality ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference artwork images",
+    "motion estimation for real footage",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K",
+    "IGN/R2 spatial appearance versus ordered Bayer (no gate)"
+  ]
+}
