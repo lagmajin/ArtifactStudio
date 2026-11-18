@@ -98,8 +98,11 @@ python tools/Particle2DPlayground/compare_shape_target_backends.py `
   --output output\particle-shape-target\backend_comparison.json
 ```
 
-It checks fixture metadata, all five frames, and particle positions where
-captured. Generated output files are ignored by Git and can be recreated.
+It checks fixture metadata, disabled/no-op parity, direct-seek particle
+determinism, all five frames, and Shape/Text particle positions where captured.
+It exits nonzero when those contracts fail. Pixel differences between backends
+are reported as measurements, not pass/fail limits. Generated output files are
+ignored by Git and can be recreated.
 To regenerate RGBA distribution and black/white composite summaries for the same
 frames, run:
 

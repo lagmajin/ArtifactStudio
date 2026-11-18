@@ -56,6 +56,26 @@ def compare_centers(left: list[dict], right: list[dict]) -> dict[str, int | floa
     return {"particle_id_mismatches": mismatches, "max_position_delta_px": max_delta}
 
 
+def validate_report_contract(reports: dict[str, dict]) -> None:
+    for backend, report in reports.items():
+        if report.get("disabled_default_vs_explicit_different_pixels") != 0:
+            raise ValueError(f"{backend}: disabled default output differs from explicit disabled")
+        if report.get("disabled_default_vs_explicit_max_channel_delta") != 0:
+            raise ValueError(f"{backend}: disabled default channel delta is nonzero")
+        for case, result in report["no_op_targets"].items():
+            if result.get("different_pixels") != 0 or result.get("max_channel_delta") != 0:
+                raise ValueError(f"{backend}: no-op target {case} changes the baseline image")
+        for mode, frame_data in report["captures"].items():
+            if not isinstance(frame_data, dict) or "continuous_vs_direct_different_pixels" not in frame_data:
+                continue
+            if frame_data.get("continuous_vs_direct_particle_id_mismatches") != 0:
+                raise ValueError(f"{backend}: direct seek changes particle IDs for {mode}")
+            if frame_data.get("continuous_vs_direct_max_particle_position_delta_px", 0.0) > 1.0e-4:
+                raise ValueError(f"{backend}: direct seek changes particle positions for {mode}")
+            if mode != "baseline_disabled_default" and frame_data["continuous_vs_direct_different_pixels"] != 0:
+                raise ValueError(f"{backend}: direct seek image differs for enabled target {mode}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--d3d12", required=True, type=Path, help="D3D12 capture directory")
@@ -70,6 +90,7 @@ def main() -> int:
     for backend, report in reports.items():
         if report.get("backend") != backend:
             raise ValueError(f"expected {backend} report, got {report.get('backend')!r}")
+    validate_report_contract(reports)
     metadata_keys = (
         "width", "height", "fps", "seed", "fixture_layer_ids", "requested_font_family",
         "resolved_font_family", "font_weight", "qt_version", "font_exact_match",
@@ -93,6 +114,11 @@ def main() -> int:
                 result["particles"] = compare_centers(
                     d3d_frame["particle_centers"], vk_frame["particle_centers"]
                 )
+                if mode != "baseline_disabled_default" and (
+                    result["particles"]["particle_id_mismatches"] != 0 or
+                    result["particles"]["max_position_delta_px"] > 1.0e-4
+                ):
+                    raise ValueError(f"backend particle positions differ for {mode} frame {frame}")
             comparisons[mode][key] = result
 
     report = {
