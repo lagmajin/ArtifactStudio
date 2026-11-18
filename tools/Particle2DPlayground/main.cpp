@@ -2,16 +2,25 @@
 #include <QColor>
 #include <QDir>
 #include <QFile>
+#include <QFont>
+#include <QFontInfo>
 #include <QImage>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QElapsedTimer>
 #include <QPaintEvent>
 #include <QShowEvent>
 #include <QString>
 #include <QTimerEvent>
 #include <QVariant>
+#include <QtGlobal>
 #include <QWidget>
+
+#define NOMINMAX
+#include <Windows.h>
+#include <Psapi.h>
 
 #include <array>
 #include <algorithm>
@@ -20,9 +29,22 @@
 #include <limits>
 
 import Artifact.Layer.Particle;
+import Artifact.Layer.Shape;
+import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
+import Artifact.Composition.Abstract;
+import Artifact.Composition.InitParams;
+import Artifact.Render.DiligentDeviceManager;
 import Artifact.Render.IRenderer;
+import Artifact.Render.OffscreenComposition;
+import Color.Float;
+import Shape.Types;
+import Frame.Position;
 import Graphics.ParticleData;
+import Core.ArtifactArray;
+import Memory.SharedPtr;
+import Utils.Id;
+import Utils.String.UniString;
 
 namespace {
 
@@ -962,6 +984,649 @@ static int checkLifeCurvePersistence()
     return 0;
 }
 
+static QJsonObject particleRegionStats(const Artifact::ArtifactParticleLayer& layer,
+                                      const QRectF& textTargetBounds,
+                                      const QImage& shapeMask,
+                                      const QImage& textMask)
+{
+    QJsonObject result;
+    const auto* system = layer.particleSystem();
+    if (!system) return result;
+    const auto data = system->captureRenderData();
+    std::uint64_t insideShape = 0;
+    std::uint64_t insideHole = 0;
+    std::uint64_t insideTextBounds = 0;
+    std::uint64_t insideShapeMask = 0;
+    std::uint64_t insideTextMask = 0;
+    const auto containsMaskPixel = [](const QImage& mask, const float x,
+                                      const float y) {
+        const int pixelX = static_cast<int>(std::floor(x));
+        const int pixelY = static_cast<int>(std::floor(y));
+        return pixelX >= 0 && pixelY >= 0 && pixelX < mask.width() &&
+            pixelY < mask.height() && qAlpha(mask.pixel(pixelX, pixelY)) >= 128;
+    };
+    for (const auto& particle : data.particles) {
+        const double dx = (particle.px - 154.0) / 56.0;
+        const double dy = (particle.py - 121.0) / 39.0;
+        if (dx * dx + dy * dy <= 1.0) ++insideShape;
+        const double hx = (particle.px - 154.0) / 25.0;
+        const double hy = (particle.py - 121.0) / 17.0;
+        if (hx * hx + hy * hy <= 1.0) ++insideHole;
+        if (textTargetBounds.contains(QPointF(particle.px, particle.py))) {
+            ++insideTextBounds;
+        }
+        if (containsMaskPixel(shapeMask, particle.px, particle.py)) {
+            ++insideShapeMask;
+        }
+        if (containsMaskPixel(textMask, particle.px, particle.py)) {
+            ++insideTextMask;
+        }
+    }
+    result.insert(QStringLiteral("alive"), static_cast<qint64>(data.particles.size()));
+    result.insert(QStringLiteral("inside_shape_ellipse"), static_cast<qint64>(insideShape));
+    result.insert(QStringLiteral("inside_shape_hole"), static_cast<qint64>(insideHole));
+    result.insert(QStringLiteral("inside_text_bounds"), static_cast<qint64>(insideTextBounds));
+    result.insert(QStringLiteral("inside_shape_visible_mask"),
+                  static_cast<qint64>(insideShapeMask));
+    result.insert(QStringLiteral("inside_text_visible_mask"),
+                  static_cast<qint64>(insideTextMask));
+    return result;
+}
+
+static std::array<std::uint64_t, 2> imageDifference(const QImage& leftImage,
+                                                   const QImage& rightImage)
+{
+    if (leftImage.size() != rightImage.size() || leftImage.isNull() ||
+        rightImage.isNull()) {
+        return {std::numeric_limits<std::uint64_t>::max(),
+                std::numeric_limits<std::uint64_t>::max()};
+    }
+    const QImage left = leftImage.convertToFormat(QImage::Format_ARGB32);
+    const QImage right = rightImage.convertToFormat(QImage::Format_ARGB32);
+    std::array<std::uint64_t, 2> result{};
+    for (int y = 0; y < left.height(); ++y) {
+        const auto* a = reinterpret_cast<const QRgb*>(left.constScanLine(y));
+        const auto* b = reinterpret_cast<const QRgb*>(right.constScanLine(y));
+        for (int x = 0; x < left.width(); ++x) {
+            const auto delta = static_cast<std::uint64_t>(std::max({
+                std::abs(qRed(a[x]) - qRed(b[x])),
+                std::abs(qGreen(a[x]) - qGreen(b[x])),
+                std::abs(qBlue(a[x]) - qBlue(b[x])),
+                std::abs(qAlpha(a[x]) - qAlpha(b[x]))}));
+            if (delta > 0) ++result[0];
+            result[1] = std::max(result[1], delta);
+        }
+    }
+    return result;
+}
+
+static std::uint64_t processWorkingSetBytes()
+{
+    PROCESS_MEMORY_COUNTERS_EX counters{};
+    counters.cb = sizeof(counters);
+    return GetProcessMemoryInfo(GetCurrentProcess(),
+        reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
+        sizeof(counters))
+        ? static_cast<std::uint64_t>(counters.WorkingSetSize)
+        : 0;
+}
+
+static int captureShapeTarget(const QString& outputDirectory)
+{
+    constexpr int Width = 320;
+    constexpr int Height = 180;
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) return 2;
+
+    Artifact::DiligentDeviceManager deviceManager;
+    deviceManager.initializeHeadless();
+    if (!deviceManager.device() || !deviceManager.immediateContext()) {
+        qCritical("Could not initialize the selected headless Diligent backend");
+        return 3;
+    }
+    Artifact::OffscreenCompositionRenderer renderer(
+        deviceManager.device(), deviceManager.immediateContext(), Width, Height);
+    if (!renderer.renderer() || !renderer.renderer()->isInitialized()) return 4;
+
+    Artifact::ArtifactCompositionInitParams compositionParams(
+        ArtifactCore::UniString(QStringLiteral("ParticleShapeTargetEvaluation")),
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    compositionParams.setResolution(Width, Height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(300);
+    Artifact::ArtifactAbstractComposition composition(
+        ArtifactCore::CompositionID(QStringLiteral("particle-shape-target-evaluation")),
+        compositionParams);
+    composition.setBackGroundColor(
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto shape = ArtifactCore::makeShared<Artifact::ArtifactShapeLayer>();
+    shape->setId(ArtifactCore::LayerID(
+        QStringLiteral("00000000-0000-4000-8000-000000000001")));
+    shape->setLayerName(QStringLiteral("Hole Shape Target"));
+    shape->setShapeType(Artifact::ShapeType::Ellipse);
+    shape->setSize(112, 78);
+    shape->setFillEnabled(true);
+    shape->setFillColor(ArtifactCore::FloatColor(0.20f, 0.48f, 0.78f, 0.72f));
+    shape->setStrokeEnabled(true);
+    shape->setStrokeWidth(2.0f);
+    shape->setStrokeColor(ArtifactCore::FloatColor(0.65f, 0.82f, 1.0f, 1.0f));
+    shape->setLayerPropertyValue(QStringLiteral("transform.position.x"), 98.0);
+    shape->setLayerPropertyValue(QStringLiteral("transform.position.y"), 82.0);
+    auto innerHole = shape->makeContentFromLegacy();
+    innerHole.name = QStringLiteral("Subtracted Inner Ellipse");
+    innerHole.geometry.width = 50;
+    innerHole.geometry.height = 34;
+    innerHole.transform.position = QPointF(31.0, 22.0);
+    innerHole.fill.enabled = false;
+    innerHole.stroke.enabled = false;
+    shape->addShapeContent(innerHole);
+    shape->addShapeOperator(ArtifactCore::ShapeOperatorType::MergePaths);
+    shape->setLayerPropertyValue(QStringLiteral("shape.operator.0.mode"), 1);
+    shape->resetShapeStackOrder();
+
+    auto emptyShape = ArtifactCore::makeShared<Artifact::ArtifactShapeLayer>();
+    emptyShape->setId(ArtifactCore::LayerID(
+        QStringLiteral("00000000-0000-4000-8000-000000000002")));
+    emptyShape->setLayerName(QStringLiteral("Empty Shape Target"));
+    emptyShape->setShapeType(Artifact::ShapeType::Ellipse);
+    emptyShape->setSize(96, 64);
+    emptyShape->setFillEnabled(false);
+    emptyShape->setStrokeEnabled(false);
+    emptyShape->setLayerPropertyValue(QStringLiteral("transform.position.x"), 180.0);
+    emptyShape->setLayerPropertyValue(QStringLiteral("transform.position.y"), 90.0);
+
+    auto text = ArtifactCore::makeShared<Artifact::ArtifactTextLayer>();
+    text->setId(ArtifactCore::LayerID(
+        QStringLiteral("00000000-0000-4000-8000-000000000003")));
+    text->setLayerName(QStringLiteral("Text Shape Target"));
+    text->setText(ArtifactCore::UniString(QStringLiteral("A8")));
+    text->setFontFamily(ArtifactCore::UniString(QStringLiteral("Arial")));
+    text->setFontWeight(400);
+    text->setFontSize(54.0f);
+    text->setStrokeEnabled(true);
+    text->setStrokeWidth(1.5f);
+    text->setLayerPropertyValue(QStringLiteral("transform.position.x"), 178.0);
+    text->setLayerPropertyValue(QStringLiteral("transform.position.y"), 46.0);
+
+    auto particle = ArtifactCore::makeShared<Artifact::ArtifactParticleLayer>();
+    particle->setId(ArtifactCore::LayerID(
+        QStringLiteral("00000000-0000-4000-8000-000000000004")));
+    particle->setLayerName(QStringLiteral("Shape Target Particles"));
+    particle->setLayerPropertyValue(QStringLiteral("particle.render.fullParticleDensity"), true);
+    Artifact::EmitterParams emitter;
+    emitter.shape = Artifact::EmitterShape::Point;
+    emitter.position = QVector3D(28.0f, 142.0f, 0.0f);
+    emitter.mode = Artifact::EmissionMode::Continuous;
+    emitter.rate = 180.0f;
+    emitter.maxParticles = 360;
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 38.0f;
+    emitter.speedMax = 52.0f;
+    emitter.direction = QVector3D(0.8f, -0.6f, 0.0f);
+    emitter.directionSpread = 24.0f;
+    emitter.drag = 0.35f;
+    emitter.scaleMin = 1.7f;
+    emitter.scaleMax = 2.2f;
+    emitter.colorStart = QColor(255, 126, 38, 255);
+    emitter.colorEnd = QColor(255, 210, 92, 100);
+    emitter.randomSeed = 20261118u;
+    emitter.deterministic = true;
+    particle->addEmitter(emitter);
+    const auto resetSimulation = [&]() {
+        particle->reset();
+        return particle->particleSystem() != nullptr;
+    };
+    const auto stopEmission = [&]() {
+        return particle->setLayerPropertyValue(
+            QStringLiteral("particle.emitter.rate"), 0.0);
+    };
+
+    if (!composition.appendLayerTop(shape).success ||
+        !composition.appendLayerTop(text).success ||
+        !composition.appendLayerTop(emptyShape).success ||
+        !composition.appendLayerTop(particle).success) return 5;
+
+    QJsonObject report;
+    const auto countMaskPixels = [](const QImage& image) {
+        qint64 count = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (qAlpha(image.pixel(x, y)) >= 128) ++count;
+            }
+        }
+        return count;
+    };
+    const QImage shapeLayerImage = renderer.renderLayerToQImage(
+        ArtifactCore::FramePosition(0), shape.get());
+    if (shapeLayerImage.isNull() || !shapeLayerImage.save(
+            output.filePath(QStringLiteral("shape_target_layer.png")), "PNG")) {
+        return 15;
+    }
+    report.insert(QStringLiteral("shape_layer_image"),
+                  QStringLiteral("shape_target_layer.png"));
+    report.insert(QStringLiteral("backend"), deviceManager.selectedAdapterInfo().backend);
+    report.insert(QStringLiteral("adapter"), deviceManager.selectedAdapterInfo().name);
+    report.insert(QStringLiteral("width"), Width);
+    report.insert(QStringLiteral("height"), Height);
+    report.insert(QStringLiteral("fps"), 30);
+    report.insert(QStringLiteral("seed"), 20261118);
+    QJsonObject fixtureLayerIds;
+    fixtureLayerIds.insert(QStringLiteral("shape_ring"), shape->id().toString());
+    fixtureLayerIds.insert(QStringLiteral("empty_shape"), emptyShape->id().toString());
+    fixtureLayerIds.insert(QStringLiteral("text_A8"), text->id().toString());
+    fixtureLayerIds.insert(QStringLiteral("particle_layer"), particle->id().toString());
+    report.insert(QStringLiteral("fixture_layer_ids"), fixtureLayerIds);
+    const QFontInfo fontInfo(QFont(QStringLiteral("Arial"), 54, QFont::Normal));
+    report.insert(QStringLiteral("requested_font_family"), QStringLiteral("Arial"));
+    report.insert(QStringLiteral("resolved_font_family"), fontInfo.family());
+    report.insert(QStringLiteral("font_exact_match"), fontInfo.exactMatch());
+    report.insert(QStringLiteral("font_weight"), 400);
+    report.insert(QStringLiteral("qt_version"), QStringLiteral(QT_VERSION_STR));
+    std::array<QPointF, 4096> textSamplePoints{};
+    std::size_t textSampleCount = 0;
+    const bool textSamplingSupported = text->supportsStaticShapeTargetSampling();
+    const bool textSamplesGenerated = text->sampleFillPoints(
+        textSamplePoints.data(), textSamplePoints.size(), textSampleCount,
+        20261118u);
+    const auto textGeometry = text->textGlyphGeometry();
+    report.insert(QStringLiteral("text_sampling_supported"), textSamplingSupported);
+    report.insert(QStringLiteral("text_samples_generated"), textSamplesGenerated);
+    report.insert(QStringLiteral("text_sample_count"),
+                  static_cast<qint64>(textSampleCount));
+    report.insert(QStringLiteral("text_glyph_count"),
+                  static_cast<qint64>(textGeometry.glyphs.size()));
+    QJsonArray textGlyphs;
+    for (const auto& glyph : textGeometry.glyphs) {
+        QJsonObject glyphInfo;
+        glyphInfo.insert(QStringLiteral("codepoint"),
+                         static_cast<qint64>(glyph.charCode));
+        glyphInfo.insert(QStringLiteral("render_mode"),
+                         static_cast<int>(glyph.renderMode));
+        glyphInfo.insert(QStringLiteral("is_emoji"), glyph.isEmojiSequence);
+        textGlyphs.append(glyphInfo);
+    }
+    report.insert(QStringLiteral("text_glyphs"), textGlyphs);
+    const QImage textLayerImage = renderer.renderLayerToQImage(
+        ArtifactCore::FramePosition(0), text.get());
+    if (textLayerImage.isNull() || !textLayerImage.save(
+            output.filePath(QStringLiteral("text_A8_layer.png")), "PNG")) {
+        return 14;
+    }
+    report.insert(QStringLiteral("text_layer_image"),
+                  QStringLiteral("text_A8_layer.png"));
+    report.insert(QStringLiteral("shape_visible_mask_pixels"),
+                  countMaskPixels(shapeLayerImage));
+    report.insert(QStringLiteral("text_visible_mask_pixels"),
+                  countMaskPixels(textLayerImage));
+    report.insert(QStringLiteral("shape_render_hole_center_alpha"),
+                  shapeLayerImage.pixelColor(154, 121).alpha());
+    report.insert(QStringLiteral("shape_render_ring_sample_alpha"),
+                  shapeLayerImage.pixelColor(154, 95).alpha());
+    const auto visibleShapePaths = shape->nativeShapeFillPathsForParticleTarget();
+    report.insert(QStringLiteral("shape_target_path_count"),
+                  static_cast<qint64>(visibleShapePaths.size()));
+    if (!visibleShapePaths.empty()) {
+        report.insert(QStringLiteral("shape_path_contains_hole_center"),
+                      visibleShapePaths.front().contains(QPointF(56.0, 39.0)));
+        report.insert(QStringLiteral("shape_path_fill_rule"),
+                      static_cast<int>(visibleShapePaths.front().fillRule()));
+    }
+    if (!textGeometry.glyphs.empty()) {
+        report.insert(QStringLiteral("text_glyph_codepoint"),
+                      static_cast<qint64>(textGeometry.glyphs.front().charCode));
+        report.insert(QStringLiteral("text_glyph_render_mode"),
+                      static_cast<int>(textGeometry.glyphs.front().renderMode));
+        report.insert(QStringLiteral("text_glyph_is_emoji"),
+                      textGeometry.glyphs.front().isEmojiSequence);
+    }
+    QRectF textTargetBounds;
+    if (textSampleCount > 0) {
+        const QTransform textGlobal = text->getGlobalTransformAt(0);
+        QPointF minimum = textGlobal.map(textSamplePoints.front());
+        QPointF maximum = minimum;
+        for (std::size_t index = 1; index < textSampleCount; ++index) {
+            const QPointF point = textGlobal.map(textSamplePoints[index]);
+            minimum.setX(std::min(minimum.x(), point.x()));
+            minimum.setY(std::min(minimum.y(), point.y()));
+            maximum.setX(std::max(maximum.x(), point.x()));
+            maximum.setY(std::max(maximum.y(), point.y()));
+        }
+        textTargetBounds = QRectF(minimum, maximum).normalized();
+        QJsonObject textBoundsReport;
+        textBoundsReport.insert(QStringLiteral("left"), textTargetBounds.left());
+        textBoundsReport.insert(QStringLiteral("top"), textTargetBounds.top());
+        textBoundsReport.insert(QStringLiteral("right"), textTargetBounds.right());
+        textBoundsReport.insert(QStringLiteral("bottom"), textTargetBounds.bottom());
+        report.insert(QStringLiteral("text_target_bounds"), textBoundsReport);
+    }
+    QJsonObject captures;
+    const auto captureMode = [&](const QString& label, const QString& targetId,
+                                 const bool enabled) -> bool {
+        if (!particle->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.layerId"), targetId) ||
+            !particle->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.strength"), 1200.0) ||
+            !particle->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.enabled"), enabled)) return false;
+        if (!resetSimulation()) return false;
+        const std::uint64_t workingSetBeforeTargetPreparation =
+            processWorkingSetBytes();
+        QElapsedTimer targetPreparationTimer;
+        targetPreparationTimer.start();
+        QImage preparationSurface(Width, Height, QImage::Format_ARGB32);
+        particle->renderToImage(preparationSurface, 0.0f);
+        const qint64 targetPreparationNanoseconds =
+            targetPreparationTimer.nsecsElapsed();
+        const std::uint64_t workingSetAfterTargetPreparation =
+            processWorkingSetBytes();
+        if (!resetSimulation()) return false;
+        QJsonObject frames;
+        QImage frame60;
+        ArtifactCore::ArtifactArray<int> frame60ParticleIds;
+        ArtifactCore::ArtifactArray<QVector3D> frame60ParticlePositions;
+        for (const int frameNumber : {30, 60, 90, 180, 240}) {
+            if (frameNumber == 60 && !stopEmission()) return false;
+            const QImage image = renderer.renderToQImage(
+                ArtifactCore::FramePosition(frameNumber), &composition);
+            if (image.isNull()) return false;
+            const QString imageName = QStringLiteral("%1_f%2.png")
+                .arg(label).arg(frameNumber, 4, 10, QLatin1Char('0'));
+            if (!image.save(output.filePath(imageName), "PNG")) return false;
+            QJsonObject frame;
+            frame.insert(QStringLiteral("image"), imageName);
+            frame.insert(QStringLiteral("particle_regions"),
+                         particleRegionStats(*particle, textTargetBounds,
+                                             shapeLayerImage, textLayerImage));
+            if (frameNumber == 90 || frameNumber == 240) {
+                const auto* system = particle->particleSystem();
+                if (!system || system->emitters().empty() ||
+                    !system->emitters().front()) return false;
+                QJsonArray centers;
+                const auto renderData = system->captureRenderData();
+                for (std::size_t index = 0;
+                     index < renderData.particles.size(); ++index) {
+                    const auto& item = renderData.particles[index];
+                    QJsonObject center;
+                    center.insert(QStringLiteral("index"),
+                                  static_cast<qint64>(index));
+                    center.insert(QStringLiteral("x"), item.px);
+                    center.insert(QStringLiteral("y"), item.py);
+                    centers.append(center);
+                }
+                frame.insert(QStringLiteral("particle_centers"), centers);
+            }
+            frames.insert(QString::number(frameNumber), frame);
+            if (frameNumber == 60) {
+                frame60 = image;
+                auto* system = particle->particleSystem();
+                if (!system || system->emitters().empty() ||
+                    !system->emitters().front()) return false;
+                const auto& particles = system->emitters().front()->particles();
+                frame60ParticleIds.reserve(particles.size());
+                frame60ParticlePositions.reserve(particles.size());
+                for (const auto& item : particles) {
+                    frame60ParticleIds.append(item.id);
+                    frame60ParticlePositions.append(item.position);
+                }
+            }
+        }
+        if (!resetSimulation()) return false;
+        if (renderer.renderToQImage(ArtifactCore::FramePosition(30),
+                                    &composition).isNull() ||
+            !stopEmission()) return false;
+        const QImage directSeek = renderer.renderToQImage(
+            ArtifactCore::FramePosition(60), &composition);
+        if (directSeek.isNull() || frame60.isNull()) return false;
+        const auto seekDifference = imageDifference(frame60, directSeek);
+        auto* directSystem = particle->particleSystem();
+        if (!directSystem || directSystem->emitters().empty() ||
+            !directSystem->emitters().front()) return false;
+        const auto& directParticles = directSystem->emitters().front()->particles();
+        std::size_t particleIdMismatches = 0;
+        float maxParticlePositionDelta = 0.0f;
+        const std::size_t commonParticleCount = std::min(
+            frame60ParticleIds.size(), directParticles.size());
+        for (std::size_t index = 0; index < commonParticleCount; ++index) {
+            if (frame60ParticleIds[index] != directParticles[index].id) {
+                ++particleIdMismatches;
+                continue;
+            }
+            maxParticlePositionDelta = std::max(maxParticlePositionDelta,
+                (frame60ParticlePositions[index] -
+                 directParticles[index].position).length());
+        }
+        particleIdMismatches += frame60ParticleIds.size() > commonParticleCount
+            ? frame60ParticleIds.size() - commonParticleCount : 0;
+        particleIdMismatches += directParticles.size() > commonParticleCount
+            ? directParticles.size() - commonParticleCount : 0;
+        const QString seekName = QStringLiteral("%1_f0060_direct.png").arg(label);
+        if (!directSeek.save(output.filePath(seekName), "PNG")) return false;
+        frames.insert(QStringLiteral("direct_seek_image"), seekName);
+        frames.insert(QStringLiteral("continuous_vs_direct_different_pixels"),
+                      static_cast<qint64>(seekDifference[0]));
+        frames.insert(QStringLiteral("continuous_vs_direct_max_channel_delta"),
+                      static_cast<qint64>(seekDifference[1]));
+        frames.insert(QStringLiteral("continuous_vs_direct_particle_id_mismatches"),
+                      static_cast<qint64>(particleIdMismatches));
+        frames.insert(QStringLiteral("continuous_vs_direct_max_particle_position_delta_px"),
+                      maxParticlePositionDelta);
+
+        // Keep the same live-particle count and fixed timestep for each mode.
+        // Measure only ParticleSystem::update(), separately from rasterization,
+        // readback, PNG encoding, and image statistics above.
+        if (!resetSimulation() ||
+            renderer.renderToQImage(ArtifactCore::FramePosition(30),
+                                    &composition).isNull() ||
+            !stopEmission() ||
+            renderer.renderToQImage(ArtifactCore::FramePosition(90),
+                                    &composition).isNull()) return false;
+        auto* benchmarkSystem = particle->particleSystem();
+        if (!benchmarkSystem || benchmarkSystem->captureRenderData().particles.size() != 360) {
+            return false;
+        }
+        benchmarkSystem->setPaused(false);
+        constexpr int kWarmupSteps = 12;
+        constexpr int kMeasuredSteps = 120;
+        constexpr int kMeasurementBatches = 5;
+        constexpr int kStepsPerBatch = kMeasuredSteps / kMeasurementBatches;
+        constexpr float kBenchmarkDelta = 1.0f / 30.0f;
+        for (int index = 0; index < kWarmupSteps; ++index) {
+            benchmarkSystem->update(kBenchmarkDelta);
+        }
+        const std::uint64_t workingSetBefore = processWorkingSetBytes();
+        std::uint64_t peakWorkingSet = workingSetBefore;
+        std::array<qint64, kMeasurementBatches> batchNanoseconds{};
+        qint64 totalUpdateNanoseconds = 0;
+        for (int batch = 0; batch < kMeasurementBatches; ++batch) {
+            QElapsedTimer updateTimer;
+            updateTimer.start();
+            for (int step = 0; step < kStepsPerBatch; ++step) {
+                benchmarkSystem->update(kBenchmarkDelta);
+                if ((step + 1) % 8 == 0) {
+                    peakWorkingSet = std::max(peakWorkingSet,
+                        processWorkingSetBytes());
+                }
+            }
+            batchNanoseconds[static_cast<std::size_t>(batch)] =
+                updateTimer.nsecsElapsed();
+            totalUpdateNanoseconds +=
+                batchNanoseconds[static_cast<std::size_t>(batch)];
+        }
+        const std::uint64_t workingSetAfter = processWorkingSetBytes();
+        peakWorkingSet = std::max(peakWorkingSet, workingSetAfter);
+        auto sortedBatchNanoseconds = batchNanoseconds;
+        std::sort(sortedBatchNanoseconds.begin(), sortedBatchNanoseconds.end());
+        QJsonArray batchMeanMicroseconds;
+        for (const qint64 batchDuration : batchNanoseconds) {
+            batchMeanMicroseconds.append(
+                static_cast<double>(batchDuration) /
+                (static_cast<double>(kStepsPerBatch) * 1000.0));
+        }
+        QJsonObject performance;
+        performance.insert(QStringLiteral("scope"),
+            QStringLiteral("ParticleSystem::update only; excludes rendering/readback/PNG"));
+        performance.insert(QStringLiteral("live_particles_before_measurement"), 360);
+        performance.insert(QStringLiteral("fixed_timestep_seconds"), kBenchmarkDelta);
+        performance.insert(QStringLiteral("warmup_steps"), kWarmupSteps);
+        performance.insert(QStringLiteral("measured_steps"), kMeasuredSteps);
+        performance.insert(QStringLiteral("measurement_batches"),
+                           kMeasurementBatches);
+        performance.insert(QStringLiteral("steps_per_batch"), kStepsPerBatch);
+        performance.insert(QStringLiteral("total_update_nanoseconds"),
+                           totalUpdateNanoseconds);
+        performance.insert(QStringLiteral("mean_update_microseconds"),
+            static_cast<double>(totalUpdateNanoseconds) /
+                (static_cast<double>(kMeasuredSteps) * 1000.0));
+        performance.insert(QStringLiteral("median_batch_mean_update_microseconds"),
+            static_cast<double>(sortedBatchNanoseconds[kMeasurementBatches / 2]) /
+                (static_cast<double>(kStepsPerBatch) * 1000.0));
+        performance.insert(QStringLiteral("batch_mean_update_microseconds"),
+                           batchMeanMicroseconds);
+        performance.insert(QStringLiteral("target_preparation_and_layer_render_nanoseconds"),
+                           targetPreparationNanoseconds);
+        performance.insert(QStringLiteral("process_working_set_before_target_preparation_bytes"),
+            static_cast<qint64>(workingSetBeforeTargetPreparation));
+        performance.insert(QStringLiteral("process_working_set_after_target_preparation_bytes"),
+            static_cast<qint64>(workingSetAfterTargetPreparation));
+        performance.insert(QStringLiteral("target_preparation_working_set_growth_bytes"),
+            static_cast<qint64>(workingSetAfterTargetPreparation >=
+                workingSetBeforeTargetPreparation
+                    ? workingSetAfterTargetPreparation -
+                        workingSetBeforeTargetPreparation
+                    : 0));
+        performance.insert(QStringLiteral("process_working_set_before_bytes"),
+                           static_cast<qint64>(workingSetBefore));
+        performance.insert(QStringLiteral("process_working_set_after_bytes"),
+                           static_cast<qint64>(workingSetAfter));
+        performance.insert(QStringLiteral("process_working_set_peak_sampled_bytes"),
+                           static_cast<qint64>(peakWorkingSet));
+        performance.insert(QStringLiteral("working_set_growth_peak_bytes"),
+            static_cast<qint64>(peakWorkingSet >= workingSetBefore
+                ? peakWorkingSet - workingSetBefore : 0));
+        performance.insert(QStringLiteral("memory_sampling_interval_steps"), 8);
+        frames.insert(QStringLiteral("performance"), performance);
+        captures.insert(label, frames);
+        return true;
+    };
+
+    if (!captureMode(QStringLiteral("baseline_disabled_default"), QString(), false)) return 6;
+    if (!particle->setLayerPropertyValue(
+            QStringLiteral("particle.shapeTarget.enabled"), false)) return 7;
+    if (!resetSimulation()) return 16;
+    if (renderer.renderToQImage(ArtifactCore::FramePosition(30),
+                                &composition).isNull() ||
+        !stopEmission()) return 17;
+    const QImage explicitDisabled = renderer.renderToQImage(
+        ArtifactCore::FramePosition(90), &composition);
+    const QImage defaultDisabled(output.filePath(
+        QStringLiteral("baseline_disabled_default_f0090.png")));
+    if (explicitDisabled.isNull() || !explicitDisabled.save(
+            output.filePath(QStringLiteral("baseline_disabled_explicit_f0090.png")), "PNG")) return 8;
+    const auto disabledDifference = imageDifference(defaultDisabled, explicitDisabled);
+    report.insert(QStringLiteral("disabled_default_vs_explicit_different_pixels"),
+                  static_cast<qint64>(disabledDifference[0]));
+    report.insert(QStringLiteral("disabled_default_vs_explicit_max_channel_delta"),
+                  static_cast<qint64>(disabledDifference[1]));
+    if (!captureMode(QStringLiteral("shape_ring"), shape->id().toString(), true) ||
+        !captureMode(QStringLiteral("text_A8"), text->id().toString(), true)) return 9;
+
+    const QImage baselineFrame90(output.filePath(
+        QStringLiteral("baseline_disabled_default_f0090.png")));
+    if (baselineFrame90.isNull()) return 12;
+    QJsonObject noOpTargets;
+    const auto validateNoOpTarget = [&](const QString& label,
+                                        const QString& targetId) {
+        if (!particle->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.layerId"), targetId) ||
+            !particle->setLayerPropertyValue(
+                QStringLiteral("particle.shapeTarget.enabled"), true)) {
+            return false;
+        }
+        if (!resetSimulation()) return false;
+        if (renderer.renderToQImage(ArtifactCore::FramePosition(30),
+                                    &composition).isNull() ||
+            !stopEmission()) return false;
+        const QImage image = renderer.renderToQImage(
+            ArtifactCore::FramePosition(90), &composition);
+        if (image.isNull()) return false;
+        const QString imageName = label + QStringLiteral("_f0090.png");
+        if (!image.save(output.filePath(imageName), "PNG")) return false;
+        const auto difference = imageDifference(baselineFrame90, image);
+        QJsonObject result;
+        result.insert(QStringLiteral("image"), imageName);
+        result.insert(QStringLiteral("different_pixels"),
+                      static_cast<qint64>(difference[0]));
+        result.insert(QStringLiteral("max_channel_delta"),
+                      static_cast<qint64>(difference[1]));
+        result.insert(QStringLiteral("particle_regions"),
+                      particleRegionStats(*particle, textTargetBounds,
+                                          shapeLayerImage, textLayerImage));
+        noOpTargets.insert(label, result);
+        return difference[0] == 0 && difference[1] == 0;
+    };
+    if (!validateNoOpTarget(QStringLiteral("missing_target"),
+                            QStringLiteral("missing-particle-target-id")) ||
+        !validateNoOpTarget(QStringLiteral("self_target"),
+                            particle->id().toString()) ||
+        !validateNoOpTarget(QStringLiteral("empty_shape_target"),
+                            emptyShape->id().toString())) return 13;
+    report.insert(QStringLiteral("no_op_targets"), noOpTargets);
+    report.insert(QStringLiteral("captures"), captures);
+    QFile reportFile(output.filePath(QStringLiteral("shape_target_report.json")));
+    if (!reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 10;
+    reportFile.write(QJsonDocument(report).toJson(QJsonDocument::Indented));
+    reportFile.close();
+    if (disabledDifference[0] != 0 || disabledDifference[1] != 0) return 11;
+    return 0;
+}
+
+static int checkShapeTargetPersistence()
+{
+    Artifact::ArtifactParticleLayer layer;
+    const QJsonObject defaults = layer.toJson()
+        .value(QStringLiteral("shapeTarget")).toObject();
+    if (defaults.value(QStringLiteral("enabled")).toBool(true) ||
+        defaults.value(QStringLiteral("strength")).toDouble(-1.0) != 180.0) {
+        return 1;
+    }
+    if (!layer.setLayerPropertyValue(
+            QStringLiteral("particle.shapeTarget.enabled"), true) ||
+        !layer.setLayerPropertyValue(
+            QStringLiteral("particle.shapeTarget.layerId"),
+            QStringLiteral("f7b5a122-756e-4fd4-9f48-5070a1b50002")) ||
+        !layer.setLayerPropertyValue(
+            QStringLiteral("particle.shapeTarget.strength"), 725.0)) {
+        return 2;
+    }
+    const QJsonObject saved = layer.toJson()
+        .value(QStringLiteral("shapeTarget")).toObject();
+    if (!saved.value(QStringLiteral("enabled")).toBool(false) ||
+        saved.value(QStringLiteral("layerId")).toString() !=
+            QStringLiteral("f7b5a122-756e-4fd4-9f48-5070a1b50002") ||
+        saved.value(QStringLiteral("strength")).toDouble(-1.0) != 725.0) {
+        return 3;
+    }
+    Artifact::ArtifactParticleLayer restored;
+    restored.fromJsonProperties(layer.toJson());
+    if (restored.toJson().value(QStringLiteral("shapeTarget")) !=
+        layer.toJson().value(QStringLiteral("shapeTarget"))) {
+        return 4;
+    }
+    QJsonObject legacy = layer.toJson();
+    legacy.remove(QStringLiteral("shapeTarget"));
+    restored.fromJsonProperties(legacy);
+    const QJsonObject reset = restored.toJson()
+        .value(QStringLiteral("shapeTarget")).toObject();
+    if (reset.value(QStringLiteral("enabled")).toBool(true) ||
+        !reset.value(QStringLiteral("layerId")).toString().isEmpty() ||
+        reset.value(QStringLiteral("strength")).toDouble(-1.0) != 180.0) {
+        return 5;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
@@ -980,6 +1645,12 @@ int main(int argc, char** argv)
     }
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-gpu-particle")) {
         return captureGpuParticle(arguments[2]);
+    }
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-shape-target")) {
+        return captureShapeTarget(arguments[2]);
+    }
+    if (arguments.size() == 2 && arguments[1] == QStringLiteral("--check-shape-target-persistence")) {
+        return checkShapeTargetPersistence();
     }
     if (arguments.size() == 5 && arguments[1] == QStringLiteral("--capture-flipbook")) {
         return captureFlipbookSources(arguments[2], arguments[3], arguments[4]);

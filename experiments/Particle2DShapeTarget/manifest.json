@@ -1,0 +1,53 @@
+{
+  "experiment": "Particle2DShapeTarget",
+  "run_date": "2026-11-19",
+  "status": "In Progress",
+  "canonical_plan": "docs/planned/MILESTONE_PARTICLE_2D_SHAPE_TARGET_2026-11-18.md",
+  "fixture": {
+    "source": "tools/Particle2DPlayground/main.cpp",
+    "sha256": "06162E62DC25609C6C4CD4812BE9703B35F2DC5AD7D51310C1323F0C9CEBBB14",
+    "external_image_assets": [],
+    "layer_ids": {
+      "shape_ring": "00000000-0000-4000-8000-000000000001",
+      "empty_shape": "00000000-0000-4000-8000-000000000002",
+      "text_A8": "00000000-0000-4000-8000-000000000003",
+      "particle_layer": "00000000-0000-4000-8000-000000000004"
+    },
+    "shape": "Outer/inner ellipse paths; ordered Merge Paths/Subtract; Fill/Stroke",
+    "text": {
+      "content": "A8",
+      "font_family": "Arial",
+      "font_weight": 400,
+      "font_size_px": 54,
+      "stroke_width_px": 1.5
+    }
+  },
+  "conditions": {
+    "resolution": [320, 180],
+    "fps": 30,
+    "seed": 20261118,
+    "particles": 360,
+    "png": "8-bit RGBA",
+    "backends": ["vulkan", "d3d12"],
+    "adapter": "NVIDIA GeForce RTX 4070 Ti",
+    "qt_version": "6.10.2",
+    "capture_frames": [30, 60, 90, 180, 240],
+    "direct_seek_frame": 60,
+    "performance_warmup_steps": 12,
+    "performance_batches": 5,
+    "performance_steps_per_batch": 24
+  },
+  "reproduction": {
+    "run_script": "experiments/Particle2DShapeTarget/run_evaluation.ps1",
+    "comparison_script": "experiments/Particle2DShapeTarget/compare_backends.py",
+    "scratch_output": "output/particle-shape-target/",
+    "scratch_output_git_ignored": true
+  },
+  "known_limits": [
+    "Composition View and Render Queue not evaluated",
+    "Performance numbers are single-process Debug exploration values without run-to-run confidence",
+    "GPU memory and target cache allocation size not measured",
+    "Image quality thresholds not frozen before candidate comparison",
+    "Animated, stroke-only, legacy merge, and additional font cases remain untested"
+  ]
+}
