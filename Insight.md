@@ -1,4 +1,301 @@
-**最終更新:** 2026-11-17
+**最終更新:** 2026-11-18
+
+## 2026-11-18: 継ぎ目のないテクスチャは「トーラス低域化」で継ぎ目は消えるが質感が落ちる
+- **関連:** `experiments/SeamlessTextureLab/`（`EVALUATION_PLAN.md` / `seamless_reference.py` / `captures/rd1/review/RD1_TABLES.md` / `captures/rd1/review/rd1_candidate_blind_sheet.png`）。
+- **確認できた事実:** 素の反復 baseline の継ぎ目勾配エネルギー比は 10.3〜62.6（境界が内部より 10〜60 倍強い）。候補 3 種の 3×3 タイリングでの境界輝度段差（clouds_small）は baseline 0.2049 に対し、mirror 0.1148、quilt 0.2046、periodic 0.0364。periodic（巡回 FFT によるトーラス低域化）は境界モードエネルギーがほぼ 0（alpha fixture で 1.9e-17）になり境界が構造的に連続するが、局所コントラストも落ちて質感が弱る。mirror は段差を約半分にするが motif の反転重複が避けられない。descriptor 差（straight / premultiplied 入力の往復）は全候補 0、非有限値 0、近透明 >1 は 0 チャンネル。
+- **価値または懸念:** 「継ぎ目比」を同一出力内の比で測ると、低域化で内部エネルギーも落ちるため比は 1 に近づくが改善を隠す。比ではなく**境界輝度段差の絶対値**を主指標にすべき。quilt は 2 次元オフセットの領域を 1 本の縦 DP 経路で接合する単純実装では分離できず、継ぎ目も feather 帯の白線も残った（手法ではなく実装の限界）。
+- **次に確認すべきこと:** 閉じた継ぎ目でオフセット領域を囲む quilt の正しい実装。実写テクスチャ（ライセンス確認済み）の取得と、実写での継ぎ目の視認性評価。継ぎ目除去と質感保持のトレードオフをどこに置くか（gate 記入前に決める）。
+- **未検証:** gate 未設定のため品質判定ではない。盲レビュー未採点。製品コード／UI／GPU 実装、D3D12／Vulkan parity、実性能は未検証。
+
+## 2026-11-18: レビュー受け入れの run 数ハードコードは R&D を 1 段追加すると壊れる
+- **関連:** `experiments/review_harness/cleanroom_acceptance.py`、`experiments/review_harness/validate_runs.py`。
+- **確認できた事実:** `cleanroom_acceptance.py` の検査に `validation_19_ok`（runs==19）と `templates_18_pairs`（run 18・生成 36）のように run 数を直接書いたものがあり、PencilPrintLab に RD10 を追加すると validation は 20 run、テンプレートは 19 run になるため両方が FAIL する。run 列挙は `generate_review_templates.py` が `validation.json` から動的に行うため、検査側だけを動的化（`validation_all_ok` と `templates_match_runs`。unique (lab, rd) 数から期待値を計算）した。変更後クリーンルーム受け入れは 16 ツール再生成・8 チェックすべて OK で、実ゲートの閾値記入 0 と findings 空も維持された。
+- **価値または懸念:** R&D を 1 段増やすだけで「検証済み」の状態機械が壊れるため、run 数をハードコードした検査は受け入れの前提を暗黙に固定してしまう。検査は「ツール間の整合」を見る形にし、run 数は動的から求めるべき。
+- **次に確認すべきこと:** 新規ラボ（MaterialSeparationLab）をレビュー運用へ登録した（2026-11-18）。登録後は validation 22 run すべて OK、クリーンルーム受け入れは 16 ツール再生成・8 チェックすべて OK、実ゲートの閾値記入 0 と findings 空を維持。次は 新規ラボ_material_separation の blind シートと gate 票を別レビュー者が実際に記入する運用をはじめること。`LABS` 定義は `build_review_page.py` / `manage_gate_forms.py` / `validate_runs.py` / `cleanroom_acceptance.py` / `intake_cleanroom_rehearsal.py` の 5 箇所にあり、ラボを増やすたびに 5 箇所すべてを更新する運用が必要（更新漏れは run 数の不整合として cleanroom 受け入れが検出する）。
+- **未検証:** 登録後のレビュー者による実ゲート記入（閾値・所見の提出）と再受け入れは未実施。
+
+## 2026-11-18: 整列参照の作り方を全ラボで監査し、欠陥は PencilPrintLab と WatercolorLab の 2 件に絞られた
+- **関連:** `docs/analysis/IMAGE_RD_ALIGNMENT_REFERENCE_AUDIT_2026-11-18.md`、`tools/audit_alignment_references.py`、`docs/analysis/alignment_reference_audit.json`。
+- **確認できた事実:** `ast` で `experiments/` と `tools/` の関数を単位に解析し、整列メトリクスの参照がどう作られているかを 4 規則（RAW_REFERENCE / TRANSLATION_WARP / NEAREST_WARP / MOTION_REMAP）で判定した。ヒットは 7 件で、人が読むと 2 件が実害、1 件が誤検知、3 件は情報、1 件（RetroImageLab の texture_frequency_suite_study）はマスク回転であり測定参照ではない。実害は PencilPrintLab RD9（生入力を参照 → 撤回・RD10 で是正済み）と WatercolorLab の整列 MAE（参照クラスは正しいが bilinear 0.5k で blur 限界、キー名 `integer_alignment_probe` が整数整列を誤解させる）の 2 件。RetroImageLab の temporal dither study は処理済み `rendered[0]` を numpy の整数スライスで参照しており RD10 の「content-lock 残差 0」と整合して問題なし。GlowLab / RetroImageLab の grain 系は光学フロー remap で参照は処理済み出力のため参照クラスの誤りはない。
+- **価値または懸念:** 監査ツールは誤検知を含むため判定そのものではなくレビュー候補の抽出に留めている（誤検知 1 件を実読で潰した実績あり）。WatercolorLab の既存数値は再実行しておらず、構造的な確認にとどまる。
+- **次に確認すべきこと:** WatercolorLab に補間なしの厳密シフト系列を追加して整列 MAE を取り直すか、RD10 の方式へ統一するか。WatercolorLab の blind シートは実写素材未取得のため、参照水性画の追加可否。
+- **未検証:** 人手 gate と blind review の採点は未実施。既存数値の妥当性判定はしていない。製品 runtime・GPU 実装は対象外。
+
+## 2026-11-18: 解析的な連続閾値場は 0.5px オフセットでも dither コントラストを保つ
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v7.py`、`experiments/PencilPrintLab/rd10_continuous_threshold.py`、`experiments/PencilPrintLab/captures/rd10/review/RD10_TABLES.md`。
+- **確認できた事実:** Bayer 4×4 テーブルを隣接位相で bilinear 補間すると、0.5 px オフセットの閾値コントラスト比が 0.4728 まで落ちる（dither 強度が半減）。IGN（Jimenez, SIGGRAPH 2014）と R2 低分散列は任意の実数座標で評価でき、比は 1.0000 を維持した。整数シフト系列（1 px/frame、参照は補間なしの厳密シフト）では、dither 単独の content-lock の内側平均 lock-aligned MAE が bayer / ign / r2 いずれも 0.00000000、screen-lock は 0.125〜0.148 だった。descriptor 差 5.96e-08、近透明 >1 は 0、非有限値 0。1 フレーム（512×320）の Python 処理は 0.055〜0.103 秒、tracemalloc peak 30〜42 MB（Python heap のみ）。
+- **価値または懸念:** RD8 の bilinear 補間は「位相連続化」を兼ねたが、dither の強度を黙って落としていた。GPU 実装では閾値場の式評価（IGN / R2）がテーブル参照より軽く、content-lock の実装コストも下がる。ただし IGN は hash ノイズ型で順序 Bayer と印象が違い、見た目の評価は未実施。
+- **次に確認すべきこと:** 参照 artworks を使った blind review で IGN / R2 と Bayer の見た目の差を評価。motion estimation 付き content-lock を GPU 側で実装しての per-step MAE と lock-aligned MAE の実測。
+- **未検証:** gate 未設定のため品質判定ではない。製品 C++／HLSL、実アプリ経路、D3D12／Vulkan parity、実性能。
+
+## 2026-11-18: RD9 の「content-lock は screen-lock と同等」は参照の取り違えによる測定欠陥だった
+- **関連:** `experiments/PencilPrintLab/rd9_integer_lock.py`、`experiments/PencilPrintLab/rd10_continuous_threshold.py`。
+- **確認できた事実:** RD9 の整数整列 MAE は「効果適用前の生入力を整数シフトしたもの」を参照に比較していたため、dither の追従ではなく効果量の差を測っていた（screen / content_nearest / content_interp がいずれも 0.149 前後）。RD10 で参照を「frame 0 の出力の厳密整数シフト」に変更したところ、dither 単独の content-lock は内側平均 0.00000000（厳密一致）、screen-lock は 0.125〜0.148 となり、明瞭に分離した。
+- **価値または懸念:** 「dither 追従を測る計測」を設計する場合、参照は「同じ処理を通した frame 0 の出力」でなければ効果量と追従を分離できない。RD6〜RD9 の半ピクセル系列の整列 MAE は参照の resample が dither を low-pass するため、同じ理由で blur 限界が不可避であり、判定に使えない。
+- **次に確認すべきこと:** RD6〜RD9 の記録を「測定方法的限界付き」として再解釈し、README と評価計画の該当記述を修正済み。半ピクセル系列で追従を blur なしに測るには、被写体を整数シフトで再做した系列か、閾値場の式評価そのものを比較対象にする必要がある。
+- **未検証:** RD6〜RD9 の各主張が他測定で支持されるか。
+
+## 2026-11-18: cv2.warpAffine の INTER_NEAREST は厳密な整数平行移動ではない
+- **関連:** `experiments/PencilPrintLab/rd10_continuous_threshold.py::integer_shift`。
+- **確認できた事実:** `cv2.warpAffine` を `INTER_NEAREST` + `BORDER_REPLICATE` で整数 dx だけtranslation したところ、dx=1,2 は numpy の完全一致式と一致するが、dx=3 以上は内部座標の固定小数点変換により最大 0.125 の差が生じた。RD10 では numpy のインデックス付け（`idx = clip(arange(w) - dx)`）に置き換えた。
+- **価値または懸念:** エフェクト系のオフライン計測で「厳密な整数シフト」を前提にした比較を行うと、わずかな misalignment が測定値を支配しうる。参照を作る処理は、測定したい motion と厳密に一致する実装に揃えるべき。
+- **次に確認すべきこと:** 他のラボ（WatercolorLab / RetroImageLab / OutlineLab）に warpAffine INTER_NEAREST を整数参照として使っている箇所があるか。
+- **未検証:** 他のラボの該当有無は未調査。
+
+## 2026-11-18: composition 生成・削除が Undo 履歴に載らない可能性
+- **関連:** `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Service/ArtifactProjectService.cpp`。
+- **確認できた事実:** composition 系 Undo コマンドは Note / Rename / WorkArea / Settings / ResponsiveLayout / Resolution の 6 件のみ。`CreateCompositionCommand` / `RemoveCompositionCommand` / `AddCompositionCommand` / `DeleteCompositionCommand` は 0 件。`ArtifactProjectService::createComposition()` は `manager.createComposition(params)` を直接呼び、`removeComposition()` も `removeCompositionById` を直接呼ぶ。既存の precomp / unprecomp Undo は別経路（composition 内の入れ子操作）。
+- **価値または懸念:** DCC ツールではドキュメント（ここでは composition）の生成・削除も Undo 対象にするのが一般的。マルチシーン導入時は、複数 composition の同時保持に加えて生成・削除の Undo 単位を新たに定義する必要がある。
+- **次に確認すべきこと:** UI 側の別 Undo ラッパー、`ArtifactProjectService` を通らない生成経路、runtime の Undo 履歴。
+- **未検証:** runtime / build、既存 `CreateCompositionResult` の契約との整合。
+
+## 2026-11-18: effect は asset 参照を共通 property として持たない
+- **関連:** `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md`、`Artifact/src/Composition/ArtifactAbstractComposition.cpp`、`Artifact/src/Effects/ColorCorrection/LUTEffect.cpp`、`Artifact/src/Effects/SurfaceFX/SurfaceFXEffect.cpp`。
+- **確認できた事実:** `serializeEffect()` は id / displayName / enabled / mix / properties / modulation 等を保存するが、参照先 asset の共通フィールドを持たない。`LUTEffect` は `LUT File` を文字列 property、`SurfaceFXEffect` は要素ごとに `texturePath` + `assetId` を保持する。効果ごとに形式が異なり、横断的な参照レコードとして扱えない。
+- **価値または懸念:** footage/effect の参照元逆引きを実装する前に、effect 側の asset 参照を共通契約（参照 ID + path + 解決規則）へ寄せる必要がある。これは既存の `ObjectReference` property や `SurfaceFX` の assetId を土台にできる。
+- **確認結果:** `PropertyType::ObjectReference` は Core で `canConvert<QString>()` として扱われるだけで、参照 ID の検証・解決ロジックは無い。UI のピッカーはあるが共通の参照契約（type/id/解決規則）は無く、effect の asset 参照共通化の土台としては不十分。
+- **確認結果:** `SurfaceFXEffect.cpp:100-108` は `assetId` を `AssetDatabase::getAssetInfo(assetId).absolutePath` で解決しており、最も近い既存パターン。ただし effect ごとに手実装で共通契約にはなっていない。`LUTEffect` の `LUT File` は `PropertyType::String` で `setPropertyValue()` から直接 `setFilePath()` を呼ぶだけで、asset identity との接続は無い。
+- **次に確認すべきこと:** `assetId` パターンを property contract へ昇格させる場合の後方互換（旧 `LUT File` 文字列 property からの移行）と、Undo / dirty 通知への接続。
+- **未検証:** runtime / UI 受入れ、旧プロジェクトの後方互換。
+
+## 2026-11-18: precomp 逆引きは実装済み、残る空白は footage/effect（訂正済み）
+- **関連:** `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md`、`Artifact/src/Widgets/ArtifactCompositionGraphWidget.cpp`、`Artifact/src/Service/ArtifactProjectService.cpp`。
+- **確認できた事実:** `ArtifactCompositionGraphWidget.cpp:722-760` が `sourceCompositionId()` を辿って composition 間の依存エッジを Flowchart 描画済み。`ArtifactProjectService.cpp:3119-3168` が BFS で直接・推移的自己参照を検出し、`PreComposeManager::registerPrecompLayer` で参照登録もある。当初「precomp 逆引き 0 件」と書いたのは不正確で訂正した。一方 `ArtifactCore` に `effectReferences` / `dependsOn` / `usedBy` / `referenceCount` は 0 件で、effect 参照の逆引き API は無い。
+- **残る空白:** 参照可視化と循環検出は precomp / matte に限定。footage は `AssetDatabase` が id↔path マップのみで参照元を持たず、effect も逆引き API が無い。DCC の Dependencies ビュー相当を横断で実装するなら、この 2 種類の参照レコードが必要。
+- **次に確認すべきこと:** 既存の `AssetDatabase` / `PreComposeManager` を拡張するか、新規の参照レジストリを置くかの設計判断。
+- **未検証:** runtime / UI 受入れ、Undo/CAS 境界。
+
+## 2026-11-18: シーン依存の逆引き可視化も DCC の薄い分野（訂正済み）
+- **関連:** `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md`、`Artifact/src/Diagnostics/AppValidationRules.cpp`、`ArtifactCore/include/Asset/AssetDatabase.ixx`。
+- **確認できた事実:** `Artifact/include/**/*.ixx` を grep し `DependencyGraph` / `ReferenceGraph` / `referencedBy` / `collectDependencies` は 0 件。ただし最初に「依存逆引きは完全に 0 件」と書いたのは不正確で、`Artifact/src/Diagnostics/AppValidationRules.cpp` の `ArtifactMatteReferenceRule` が **マット参照に限定した循環依存検出**（DFS + 重複抑制 + `createCircularDependency`）を実装していた。サーベイと本項目を訂正した。
+- **残る空白:** マット以外のアセット（footage）・effect・precomp を横断する一般の参照グラフは存在しない。`AssetDatabase` は id↔path マップのみで参照元を持たず、`relinkAssetPath` / `relinkSource` は断片的な修復 API に留まる。
+- **価値または懸念:** AE の missing footage や Nuke の Dependencies ビューのように「どこが何を参照し、どこに影響するか」を横断で見せる機能は DCC の基本だが、Artifact はマット循環検出と 1 件ずつの relink に留まっている。
+- **次に確認すべきこと:** `AssetDatabase` / `relinkAssetPath` の契約、Problem View との責務分離、Undo/CAS との境界。
+- **未検証:** UI / runtime 受入れ、既存 asset identity 設計との整合。
+
+## 2026-11-18: マルチシーン／シーンブレンドが DCC の薄い分野として残る
+- **関連:** `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md`、`Artifact/include/Composition/ArtifactCompositionManager.ixx`、`ArtifactCore/include/Composition/CompositionRegistry.ixx`。
+- **確認できた事実:** `Artifact/include/**/*.ixx` を grep し `SceneBlend` / `multiScene` / `MultiScene` / `SceneManager` / `activeScene` / `setActiveScene` は 0 件。存在するのは `ArtifactCompositionManager` と `CompositionRegistry`、`WorkspaceAutomation::changeCurrentComposition` 等、1 つの composition を active に切替える経路と、`ArtifactCompositionLayer` による precomp 入れ子のみ。複数 composition を同時保持し重み付きでブレンドするモデルは現行コードにない。
+- **価値または懸念:** 既存の DCC ギャップ文書は 3D / viewport / カラー / キーイング / ワークフローを広くカバーしているが、「コンポジション切替」と「precomp 入れ子」の間のマルチシーン同時保持は未調査だった。Maya scene blend / UE level blending / Blender linked scene に相当する空白。
+- **次に確認すべきこと:** `ArtifactCompositionManager` と `CompositionRegistry` の lifecycle、Undo 境界、render controller が複数 composition を扱えるかを実コードで追う。
+- **未検証:** runtime / UI 受入れ、既存スレッド契約との整合。
+- **補足:** `AssetInstance` / `instanceId` / `refCount` も 0 件で、WORKFLOW_GAP のアセット共有指摘は現在も未解消（既存指摘の再確認であり新規候補ではない）。
+
+## 2026-11-18: Contour Poster CPU R&D照合で読み書き分離の必要性を確認
+- **関連:** `Artifact/src/Effects/ColorCorrection/PosterizeEffect.cpp`、`CreativeEffectsLab/studies/contour-poster/compare_product_cpu.py`、`captures/contour-poster-product-cpu/`。
+- **確認できた事実:** 近傍勾配を計算するCPU処理が並列行ループ中に同じ画像へ書き込むと、隣接行の値が更新済みかどうかで結果が変わり得る。source viewから読む形へ変更後、48x64のlinear premultiplied RGBA float32 fixtureでPython参照との可視画素RGB最大差は2.98e-8、alpha差0だった。
+- **価値または懸念:** 近傍フィルタは in-place 並列化するとデータ競合・非決定性を生じる。source/destination分離なら追加の全画像scratch確保を避け、ホットパスの再確保を増やさずに参照を固定できる。
+- **未検証:** GPU shader parity、D3D12/Vulkan、実画像の画質、性能。
+- **次に確認すべきこと:** GPU経路の実画像 capture と時間・backend比較を同じfixture契約で行う。
+## 2026-11-17: 取り込み連鎖のクリーンルームリハーサルを受け入れに統合
+- **関連:** `experiments/review_harness/intake_cleanroom_rehearsal.py`、`experiments/review_harness/out/intake_cleanroom_rehearsal.json`。
+- **確認できた事実:** `intake_template.py --skip-verify → post_findings_verify.py --strict → verify_runbook_phases.py` の連鎖を、空から作ったサンドボックスで順に実行するツールを追加した。8 チェックすべて成功し、サンドボックスでは6フェーズすべて ok、findings_state=scored、thresholds_entered_runs=1。実リポジトリは閾値記入 0・findings 空を維持。このツールを cleanroom_acceptance.py に組み込み、再実行は16ツール/9チェックすべて OK だった。
+- **価値または懸念:** ユーザー指定の連鎖そのものを自動検証でき、クリーンルーム受け入れに含めることで再現性が担保される。実ゲートへの副作用は直接パースで検出する。
+- **次に確認すべきこと:** レビュー者による実テンプレート提出後の本番実行。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: ハーネス出力を一から再生成するクリーンルーム受け入れを追加
+- **関連:** `experiments/review_harness/cleanroom_acceptance.py`、`experiments/review_harness/out/cleanroom_acceptance.json`。
+- **確認できた事実:** `out/` を一時退避して空から作り直し、15 ツール（検証・ページ生成・集約・API・Consumer・テンプレート・3リハーサル・フェーズ検証など）を順に実行した。全 15 ステップ OK、8 チェック OK（19/19 証跡、統合リハーサル、状態遷移、サンドボックス閾値記入、完了フェーズ、フェーズ ok_with_pending、18 テンプレート对、実ゲート未記入）。captures は約 7.9 GB でコピーしないため、R&D データは実物を読み取り、ハーネス出力のみを再生成する設計。失敗時は退避出力を復元する。
+- **価値または懸念:** ハーネス出力が既存成果物に依存せず再現できることを証明できる。実 GATE_FORM 閾値 0 も直接パースで確認するため、リハーサルが実ゲートを汚した場合も検出できる。
+- **次に確認すべきこと:** レビュー者による実ゲート記入と所見提出後の再受け入れ。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: テンプレート取り込みとフェーズ 2/3 完了リハーサルを追加
+- **関連:** `experiments/review_harness/intake_template.py`、`experiments/review_harness/completed_phases_rehearsal.py`、`experiments/review_harness/out/completed_phases_rehearsal.json`。
+- **確認できた事実:** 記入済みテンプレートを検証して `out/findings/` へ取り込み、`post_findings_verify.py --strict` まで実行するフローを追加した。空テンプレートは `rejected: template is not filled: reviewer, date, findings (empty)` で拒否。記入済みテンプレートの実取り込みは `intake OK`、状態は `none 17 / advisory 1` へ遷移し、削除後は `none 18` に復元。サンドボックスでは閾値記入＋所見提出で6フェーズすべて ok、8チェックすべて成功し、実リポジトリは thresholds 0・findings 空を維持。
+- **価値または懸念:** テンプレートと提出物の経路を分離し、空下書きの誤提出を防げる。サンドボックスで完了状態を再現できるため、実ゲートを汚さずに運用確認ができる。
+- **次に確認すべきこと:** レビュー者が実際にテンプレートを埋めて提出すること。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: Runbook 由来のフェーズ検証と提出テンプレート生成を追加
+- **関連:** `experiments/review_harness/verify_runbook_phases.py`、`experiments/review_harness/generate_review_templates.py`、`experiments/review_harness/out/runbook_verification.json`。
+- **確認できた事実:** REVIEW_RUNBOOK.md の `## フェーズ N:` 見出しから6フェーズを抽出し、各成果物を検証するツールを追加した。実行結果はフェーズ0/1/4/5が ok、フェーズ2/3が awaiting_reviewer、整体は ok_with_pending。`--require-complete` は手作業フェーズ未完了で非ゼロ終了（exit 1）。提出テンプレートは18 run × 2形式＝36ファイルを生成し、rd5 の JSON には実 blind ID 24件・`gates_fixed=false`・`findings=[]` が入る。提出ディレクトリは README のみで所見なし。实证リポジトリの thresholds entered は0、findings_state はすべて none を維持。
+- **価値または懸念:** 手作業フェーズを自動成功させずに進捗を追跡できるため、ゲート未設定という未達状態が見失われない。テンプレートが提出ディレクトリに入らないため、下書きを実所見と誤認するリスクも低い。
+- **次に確認すべきこと:** レビュー者がテンプレートを埋めて提出し、`--require-complete` が通るようになること。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: 所見提出後の再検証自動化と運用 Runbook を追加
+- **関連:** `experiments/review_harness/post_findings_verify.py`、`experiments/review_harness/REVIEW_RUNBOOK.md`、`experiments/review_harness/out/post_findings_verify.json`。
+- **確認できた事実:** 所見提出後の再検証ツールを追加した。提出前の状態をスナップショットし、7 ステップのパイプライン再実行後に、GATE_FORM の実際の閾値欄と報告状態の一致・findings_state と gates_fixed の整合・Consumer の scoreable 集合の一致を検証する。所見なしでは steps OK / integrity OK / changed 0。一時所見（gates_fixed=false）では `none 18 → none 17 / advisory 1` と `advisory_runs` の追加を検出し、削除後は元に戻った。実リポジトリの閾値記入は 0 のまま。
+- **価値または懸念:** レビュー者の手作業（閾値記入・所見提出）とツールの自動検証を分離した運用が文書化され、状態遷移が自動で追跡できる。ゲート未設定という未達状態は維持される。
+- **次に確認すべきこと:** レビュー者による実 GATE_FORM への閾値記入と所見提出後の `--strict` 再実行。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: サンドボックスで閾値記入済みの真の scoreable 遷移を検証
+- **関連:** `experiments/review_harness/threshold_entry_rehearsal.py`、`experiments/review_harness/downstream_gate_report.py`、`experiments/review_harness/out/threshold_entry.json`。
+- **確認できた事実:** ハーネスと rd5 を `out/sandbox/` へ複製し、複製の GATE_FORM 7 欄へ閾値を記入、gates_fixed=true の所見を置いて実パイプラインを実行した。6 ステップすべて OK で、5 チェック（閾値記入 7 欄、thresholds_entered_runs=1、findings_state=scored、gate_claim_mismatch=false、Consumer の scoreable に含まれる）がすべて成功。下流 Consumer は gate_status.json から CSV/Markdown を生成（18 run）。一方、実リポジトリは thresholds entered 0・findings_state すべて none・GATE_FORM 記入欄 0・scoreable 空を維持。
+- **価値または懸念:** 「報告上の scored」と「実際に閾値が記入された scoreable」を同じパイプラインで両方検証できた。実ゲートを汚さずに移行経路をテストできるため、レビュー運用のリハーサルとして使える。
+- **次に確認すべきこと:** レビュー者による実 GATE_FORM への閾値記入と所見提出。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: 状態遷移リハーサルで「報告上の scored」と「実際の閾値記入」を分離
+- **関連:** `experiments/review_harness/state_transition_rehearsal.py`、`experiments/review_harness/example_api_consumer.py`、`experiments/review_harness/out/state_transition.json`。
+- **確認できた事実:** `findings_state`（none/advisory/scored）と `gate_claim_mismatch` を導入し、一時サンプル所見で9チェックの状態遷移リハーサルを実行した。gates_fixed=false で advisory、true で scored（報告上）へ遷移する一方、GATE_FORM の閾値欄は空のまま（thresholds_entered_runs=0、gate_form_status=thresholds_unset）。不整合フラグが立ち、API Consumer はその run を scoreable として扱わなかった。サンプル削除後は none に戻り、統合リハーサルも5/5 OK。
+- **価値または懸念:** 「レビュー者が gates_fixed と報告した」ことと「実際に閾値が記入された」ことは別であり、工具側で突き合わせないと未設定ゲートが採点済みと誤認される。この分離により、ゲート未設定という未達状態が正直に保持される。
+- **次に確認すべきこと:** レビュー者が実際に GATE_FORM.md へ閾値を記入した後の再リハーサル。
+- **未検証:** ブラウザー表示、実際のレビュー判定。
+
+## 2026-11-17: ゲート状態 API と統合リハーサルを追加
+- **関連:** `experiments/review_harness/gate_api.py`、`experiments/review_harness/rehearse.py`、`experiments/review_harness/out/gate_status.json`。
+- **確認できた事実:** ゲート状態を schema_version 1 の JSON として公開する API を追加した。`policy.gates_set_by_tools=false` / `quality_decision_by_tools=false` を明示し、18 run の証跡・ゲート記入・所見状態を構造化。全ツールを順に実行する `rehearse.py` も追加し、5 ステップすべて OK（19/19 証跡、18/18 ゲートフォーム、所見 0、ゲート記入 0）を確認。リハーサルは所見を捏造せずゲートを触らない。
+- **価値または懸念:** ダッシュボード HTML に加えて機械可読 API ができたため、外部ツールがゲート状態を消費できる。状態は「 unmet（ゲート未設定・人手レビュー未実施）」が正直に報告されており、完了判定を誤らせない。
+- **次に確認すべきこと:** レビュー者が GATE_FORM.md に閾値を記入し、所見 JSON を提出した後の再リハーサル。
+- **未検証:** 外部ツールからの API 消費、レビュー者の判定結果。
+
+## 2026-11-17: 所見集約とゲート記入ダッシュボードを追加
+- **関連:** `experiments/review_harness/aggregate_review.py`、`experiments/review_harness/out/review_summary.json`、`experiments/review_harness/out/gate_dashboard.html`。
+- **確認できた事実:** 検証済み所見 JSON を run 別・横断で集約し、verdict 内訳・欠陥数・ゲート記入状況を出すツールを追加した。空状態では 18 run / 所見 0 件で正常動作。有効・無効のサンプル所見を置いた検証では、有効 1 / 無効 1 を正しく分離し、undecided 2 件と defect 1 件を集計。ダッシュボード HTML は 18 行・2,860 bytes で全 run のゲート状態を表示。サンプル削除後は空状態に戻る。
+- **価値または懸念:** 集約対象を `out/findings/*.json` に限定しないと、管理用の `findings_check.json` 自身を所見として拾うバグがあった。専用ディレクトリで解消済み。gate 未記入の所見は advisory として扱い、品質判定はしない。
+- **次に確認すべきこと:** レビュー者による実際の所見提出とゲート記入。
+- **未検証:** ブラウザー表示、レビュー者の判定結果。
+
+## 2026-11-17: 所見 JSON 照合と GATE_FORM 統一管理を追加
+- **関連:** `experiments/review_harness/validate_findings.py`、`experiments/review_harness/manage_gate_forms.py`。
+- **確認できた事実:** レビュー所見 JSON（lab/rd/reviewer/date/gates_fixed/findings）を検証し、blind ID が対象 run の key に存在すること・重複がないこと・verdict が規定値であること・参照 run が validation.json で OK であることを照合するツールを追加した。正常系サンプルは OK、存在しない ID と重複 ID を持つ異常系サンプルは正しく失敗。GATE_FORM は全18 run のうち既存2件を保持したまま16件の空欄フォームを生成し、再実行では created 0 で上書きしないことを確認。証跡検証は変更後も 19/19 OK。
+- **価値または懸念:** gate 未設定の状態では所見を助言扱いとし、警告を出すがデータは有効とする設計にした。レビュー者が閾値を記入して gates_fixed=true にした後はじめて採点済み所見として扱える。
+- **次に確認すべきこと:** レビュー者による GATE_FORM 記入と所見 JSON の実際の作成。
+- **未検証:** 実際のブラウザー表示、レビュー者の判定結果。
+
+## 2026-11-17: 全 R&D run の証跡検証と静的レビュー基盤を用意
+- **関連:** `experiments/review_harness/validate_runs.py`、`experiments/review_harness/build_review_page.py`、`experiments/WatercolorLab/captures/rd0/manifest_rd0.json`。
+- **確認できた事実:** WatercolorLab RD0〜RD7 と PencilPrintLab RD0〜RD9 の計19 run を横断して、manifest の証跡 hash・出力ファイル・blind key と空票の ID 一致を検証するツールを実装した。実行結果は 19/19 OK。検証時に WatercolorLab RD0 の manifest だけが旧形式の画像パス（review/ プレフィックス欠落）で1件失敗し、manifest と生成器を修正して解消した。静的 HTML も生成でき、19 セクション・16 画像・19 の折りたたみ key を含む。
+- **価値または懸念:** gate 未設定と人手レビュー未実施はレビュー者が行う必要がある作業であり、AI 側で勝手に確定できない。この基盤はその作業を可能にするだけで、品質合格や採用判断は行わない。
+- **次に確認すべきこと:** レビュー者が GATE_FORM.md に閾値を記入し、blind レビューを実施すること。
+- **未検証:** 実際のブラウザー表示、レビュー者の判定結果。
+
+## 2026-11-17: 整数シフト参照では content-lock の整列優位が消え per-step MAE が増える
+- **関連:** `experiments/PencilPrintLab/rd9_integer_lock.py`、`experiments/PencilPrintLab/captures/rd9/review/RD9_TABLES.md`。
+- **確認できた事実:** frame 0 を整数 k px だけ INTER_NEAREST で動かした画像を参照とし、content-lock 側にも同じ k を与えて dither 追従を測った。整列 MAE は screen 0.1492〜0.1493、content_nearest 0.1492〜0.1493、content_interp 0.1492〜0.1493 で候補差なし。per-step global MAE は screen 0.0023〜0.0026 に対し content 系 0.253〜0.254 と約 100 倍。descriptor 差 5.96e-08、近透明 >1 は 0。
+- **価値または懸念:** RD6 の「content-lock で偶数フレームの整列 MAE が改善」は、0.5px warp のボケ具合と dither 位相の偶然の一致によるものだった可能性が高い。参照を正しく定義すると、content-lock は dither パターンを動かす分だけフレーム間差を増加させる。整列 MAE の比較だけでは「追従しているか」を判定できず、知覚品質には per-step の揺れも含めた評価が必要。
+- **次に確認すべきこと:** 整数シフト版の blind レビュー、dither を動かさずに高速化する方針、実動画での知覚確認。
+- **未検証:** モーション推定、実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: サブピクセル位相補間だけでは奇数フレームの整列残差はほぼ消えない
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v6.py`、`experiments/PencilPrintLab/captures/rd8/review/RD8_TABLES.md`。
+- **確認できた事実:** Bayer の隣接位相を offset の小数部で双線形補間する v6 を、整数切り捨ての nearest と比較した。奇数フレーム（0.5px オフセット）の整列 MAE は nearest 0.127〜0.134 に対し interp 0.1266〜0.1267 で、改善は 1% 未満。偶数フレームは nearest 0.005〜0.015 が interp 0.008〜0.021 より小さく、補間はむしろわずかに悪化。不透明差は nearest に対する interp の最大が 0.333〜0.733、descriptor 差 5.96e-08、近透明 >1 は 0 を維持。
+- **価値または懸念:** 位相の連続化はコンテンツ追従の必要条件だが十分ではない。frame 0 を平行移動して作る比較自体が双線形補間でボケるため、dither 側の位相を補間しても「 warp 後の画像に dither が共変する」関係は単純に成り立たない。知覚品質の差は blind レビューが必要。
+- **次に確認すべきこと:** warp 比較の方法自体の検討（サブピクセルシフトの参照生成をどう定義するか）、gate 固定後の blind 比較、実動画でのオフセット推定。
+- **未検証:** モーション推定、実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: content-lock は偶数フレームに効くが 0.5px offset の整数切り捨てが残る
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v5.py`、`experiments/PencilPrintLab/captures/rd7/review/RD7_TABLES.md`。
+- **確認できた事実:** Bayer 閾値をコンテンツ座標 `(x - 0.5*k, y)` からサンプルする content-locked dither を、既知シフトの制御実験として screen-locked と比較した。整列 MAE は偶数フレーム（k=2,4,6 → offset 1,2,3px）で 0.253→0.008、0.043→0.015、0.253→0.021 へ大幅低減。一方、奇数フレーム（k=1,3,5,7 → offset 0.5,1.5,2.5,3.5px）は 0.127〜0.140 で改善しなかった。現在の閾値ルックアップが offset を int32 に切り捨てるため、サブピクセル成分が失われる。descriptor 差と近透明 >1 は v4/v5 とも健全（差は float 丸め、>1 は 0）。
+- **価値または懸念:** 動きに dither を追従させるには、整数座標切り捨てではなくサブピクセル補間（複数位相の閾値を混ぜる等）が必要。実映像ではオフセットを推定する必要があり、本実験は既知シフトの制御条件に限られる。
+- **次に確認すべきこと:** サブピクセル位相補間方式の別 run、実動画でのオフセット推定、知覚品質 gate。
+- **未検証:** モーション推定、実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: 整数位置整列 MAE は dither 候補で大きく異なる
+- **関連:** `experiments/PencilPrintLab/rd6_temporal_deep.py`、`experiments/PencilPrintLab/captures/rd6/review/RD6_TABLES.md`。
+- **確認できた事実:** 0.5px/frame の連番へ binary / multi4 / multi5 の v4 パイプラインを適用した。per-step global MAE は 0.0014〜0.0017 で候補間ほぼ同程度。一方、frame 0 を 0.5*k px 平行移動して frame k へ整列した MAE は binary 0.070〜0.449、multi4 0.043〜0.254、multi5 0.031〜0.107 と候補で差が出た。flicker proxy（step MAE の std）も binary 9.0e-5 / multi4 7.3e-5 / multi5 5.1e-5。フレーム時間は binary 0.031s に対し multi 候補 0.039s 前後。
+- **価値または懸念:** 動きに沿って整列しても残る差は、画面固定の dither パターンが動きに対して共変しないことを示唆する。per-step MAE だけでは見えない時間方向の不整合を整数整列で捉えられる。知覚影響は未判定。
+- **次に確認すべきこと:** gate 固定後の temporal blind 比較、content-locked dither パターンの案、実動画素材での確認。
+- **未検証:** 実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: dither 段階 3/5/6/8 の sweep でも binary との差は単調でない
+- **関連:** `experiments/PencilPrintLab/rd5_dither_sweep.py`、`experiments/PencilPrintLab/captures/rd5/review/RD5_TABLES.md`。
+- **確認できた事実:** dither 段階 3/4/5/6/8 と binary を同一条件で比較した。近透明 >1 と非有限値は 6 候補すべてで 0。可視／近透明の最大値は binary と multi3 が 1.0、multi4 0.667、multi5 0.75、multi6 0.8、multi8 0.857。binary からの不透明 max 差は multi4 0.667、multi5 0.75、multi6 0.8、multi8 0.857 だが、flat_highlight では multi5 が 0.55 で最小、multi3 は 1.23 で最大。per-step global MAE は候補間で 0.0014〜0.0017 と同程度。実行時間は multi 候補が binary よりわずかに大きい（alpha_boundary_small で 0.030s に対し 0.036〜0.037s）。
+- **価値または懸念:** 「binary に近いこと」は品質ではない。段階数は素材と ROI によって最適値が変わり得るため、単一の既定値を決めるには gate と知覚評価が必要。
+- **次に確認すべきこと:** gate 固定後の sweep blind 比較、実作品での網点の粗さ、製品性能。
+- **未検証:** 実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: 多値 Bayer は binary より差が小さいが段階数に最適値がある
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v4.py`、`experiments/PencilPrintLab/captures/rd4/review/RD4_TABLES.md`。
+- **確認できた事実:** pp_b の binary Bayer を、Bayer 行列を丸め閾値とする多値 ordered dither（4 / 8 段階）へ置き換えて比較した。binary の不透明 v3 差 1.0 に対し、multi4 は 0.667、multi8 は 0.857 だった。近透明 >1 と非有限値は v4 も 0、descriptor 差は 5.96e-08 以下を維持。flat_highlight では multi4 0.733 / multi8 0.943 で、段階数を増やしても差が単調に減らない。
+- **価値または懸念:** 差の指標は「binary からの距離」であり美的品質ではない。multi8 が binary に近いのは、段階が増えるほど quantum が細かくなり、値の取りうる範囲が binary に近づくため。gate 未設定のため優劣は判定しない。
+- **次に確認すべきこと:** gate 固定後の blind 比較、段階数 3/5/6 のスキャン、知覚上の網点の粗さ評価。
+- **未検証:** 実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: データ由来上限と per-pixel cap で HDR を保ちつつ近透明 >1 を防ぐ
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v3.py`、`experiments/PencilPrintLab/captures/rd3/review/RD3_TABLES.md`。
+- **確認できた事実:** v3 は量子化上限を `max(1, 直色の最大値)` から求め、段階化結果を各ピクセル `min(q, max(1, 元の直色))` に制限し、alpha は変更しない。v1/v2/v3 の比較で、v3 は近透明 >1 チャンネル 0・非有限値 0・descriptor 差 5.96e-08 以下を維持した。flat_highlight の v1 差は v2 で 1.255〜1.471 だったのが v3 で 0.303〜0.330 に低減。ただし pp_b（Bayer 2 値化）の v1 差は 1.0 のまま。
+- **価値または懸念:** 「1 以下を 1 以上に持ち上げない」という per-pixel cap は、HDR を保持しながら alpha 境界の発散を防ぐ一般的なパターンになり得る。2 値化のように段階数が 2 の成分では v1 との差が残り、知覚品質の判断は gate が必要。
+- **次に確認すべきこと:** gate 固定後の v1/v2/v3 blind 比較、Bayer 成分の段階数を増やした場合の差、実作品参照。
+- **未検証:** gate 未設定、製品経路、GPU parity、実性能。
+
+## 2026-11-17: 段階化を直色側で行うと近透明の 1 超えは消えるが HDR が丸まる
+- **関連:** `experiments/PencilPrintLab/pencil_reference_v2.py`、`experiments/PencilPrintLab/captures/rd2/review/RD2_TABLES.md`。
+- **確認できた事実:** RD1 の v1 ではテクスチャ変調を premul 段階化の後に掛けており、近透明の復元 RGB が pp_a で 1.159（>1 が 247 画素、large では 1.177 / 2186 画素）に達した。v2 では線ゲートのみ premul+alpha から作り、それ以降を直色側で「テクスチャ変調 → 線の暗化 → 段階化 → 再 premultiply」の順にしたところ、近透明 >1 は全 6 ケースで 0、最大値は pp_a で 0.8 に低下。descriptor 差は 5.96e-08 以下を維持。実行時間は color_ramp_large/pp_a で 0.4451s→0.3051s、tracemalloc peak も 231MB→171MB に低下。
+- **価値または懸念:** 見た目は v1 と大きく変わり、不透明部の最大 RGB 差は pp_b で 1.0、flat_highlight で 1.1〜1.47。これは v2 が直色を [0,1] に丸めるためで、HDR スポットの情報が失われる。gate 未設定のため優劣は判定しない。
+- **次に確認すべきこと:** gate 固定後に v1/v2 の blind 比較、HDR を保持したまま 1 超えを防ぐ方式（段階化の前に上限を設定する等）の別 run。
+- **未検証:** 実作品参照、製品経路、GPU parity、実性能。
+
+## 2026-11-17: 鉛筆画・版画 R&D は RD0/RD1 まで実行、近透明で 1.137 の復元値
+- **関連:** `experiments/PencilPrintLab/captures/rd1/metrics_rd1.json`、`experiments/PencilPrintLab/pencil_reference.py`。
+- **確認できた事実:** 鉛筆画・版画風の6候補（line / tone / texture とアブレーション）を生成した。descriptor 差は 5.96e-08 以下、非有限値 0、近透明 >10 チャンネル 0。一方、pp_a（Sobel + posterize + grain）の近透明領域で復元 RGB 最大 1.137、可視領域でも 0.839 だった。段階化成分単体でも近透明 1.0。premul と alpha を同じ格子で量子化しても、alpha が小さい側での除算により直色が 1 を超え得る。
+- **価値または懸念:** 水彩 R&D の「共有カーネルで発散を防ぐ」だけでは、pointwise な段階化の量子化誤差による 1 超えは防げない。評価では descriptor 差と絶対値を分けて見る必要がある。
+- **次に確認すべきこと:** gate 固定後に 1.0 超えの知覚影響を判定する。必要なら量子化を直色側で行い premul へ戻す方式を別 run で比較する。
+- **未検証:** gate 未設定、実作品参照、製品経路、性能。
+
+## 2026-11-17: 水彩 R&D は RD7 でひと区切り、次の候補は鉛筆画・版画風変換
+- **関連:** `experiments/WatercolorLab/README.md`、`experiments/PencilPrintLab/EVALUATION_PLAN.md`、`docs/planned/MILESTONE_NEW_IMAGE_RND_IDEAS_2026-11-16.md`。
+- **確認できた事実:** 水彩画風変換は RD0〜RD7 で fixture/baseline、v1〜v5 の比較、時間安定性、性能、各段の blind セットを用意した。 gate 未設定・人手判定未実施のため完了ではなく保留とし、候補 16「鉛筆画・版画風変換」の評価計画を新規作成した。
+- **価値または懸念:** 水彩 R&D で得た「近傍演算は premultiplied のまま同じカーネルで処理し、descriptor 差と絶対値を分けて見る」という契約は、次のエフェクトでも再利用できる。
+- **次に確認すべきこと:** 鉛筆画・版画風の RD0 で baseline と gate 用の ROI を固定する。
+- **未検証:** 鉛筆画・版画風の既存実装は検索範囲で未確認（着手時に再監査）。品質 gate は未設定。
+
+## 2026-11-17: 高速フィルタのパラメータ調整で v3 差を 0.598→0.484 に低減
+- **関連:** `experiments/WatercolorLab/rd7_tune_fast.py`、`experiments/WatercolorLab/rd7_v5_comparison.py`、`experiments/WatercolorLab/captures/rd7/review/RD7_TABLES.md`。
+- **確認できた事実:** v4 の共有重み近似を 80 通りのパラメータ（k, sigma_space, sigma_color）で v3 出力に合わせた。最良は k=11 / sigma_space=1.0 / sigma_color=0.6（max RGB delta 0.4842、平均 MAE 0.00498）。既定 v4 の同条件での不透明差は 0.598 だった。v5 は descriptor 差 0（12/12）、近透明 >10 チャンネル 0、非有限値 0 を維持。only_bleed の実行時間は v3 2.9049s / v4 0.2076s / v5 0.1915s（1536×1024）で v3 比約 15 倍高速。連番 global MAE は wc_a で v3 0.001040 に対し v5 0.001075 と同程度。
+- **価値または懸念:** 参数調整で差は縮むが、bilateral を含む候補の不透明部では依然として 0.484 の最大差が残り、v3 の完全な置換にはならない。max delta を優先して選んだため MAE が最良の組み合わせとは限らない（2 位は MAE 0.004968 でほぼ同値）。tracemalloc peak は v4/v5 とも v3 より約 14% 大きい。
+- **次に確認すべきこと:** gate 固定後の v3/v4/v5 blind 比較、max delta と MAE の重み付け変更、エッジ保持の知覚評価。
+- **未検証:** gate 未設定、製品 C++／HLSL、実アプリ経路、D3D12/Vulkan parity、実性能。
+
+## 2026-11-17: 共有重み近似は 12 倍速いが v3 と見た目が等価ではない
+- **関連:** `experiments/WatercolorLab/watercolor_reference_v4.py`、`experiments/WatercolorLab/rd6_fast_bilateral.py`、`experiments/WatercolorLab/captures/rd6/review/RD6_TABLES.md`。
+- **確認できた事実:** v3 の joint bilateral を、局所エネルギー gate と分離可能 Gaussian で「4チャンネルに1つの正規化重みを掛ける」近似（v4）に置き換えた。only_bleed の実行時間は 512×320 で 0.2876s→0.0221s、1536×1024 で 3.1430s→0.2695s（約 12 倍高速）。tracemalloc peak は v4 の方が約 13〜14% 大きい。v4 も descriptor 差 0・近透明 >10 チャンネル 0・非有限値 0 を維持。時間安定性の global MAE も v3 と同程度（wc_a は v3 0.00104 に対し v4 0.00103）。一方、不透明 36 ケースの v3/v4 最大 RGB 差は bilateral を含む候補で 0.185〜0.598（wc_b / wc_c / paper / edge のみの候補は 0）。
+- **価値または懸念:** 高速化と alpha 契約は両立できるが、共有重みの作り方を変えると不透明部の見た目が大きく変わる。v4 を v3 の drop-in 高速化として扱うことはできず、知覚品質のゲートで別途判断が必要。tracemalloc は Python heap のみ。
+- **次に確認すべきこと:** gate 固定後の v3/v4 blind 比較、実画像でのエッジ保持差、GPU 実装時の重み共有方法。
+- **未検証:** gate 未設定、製品 C++／HLSL、実アプリ経路、D3D12/Vulkan parity、実性能。
+
+## 2026-11-17: v3 の joint bilateral は時間的に安定だがオフラインで 19〜25 倍重い
+- **関連:** `experiments/WatercolorLab/rd5_temporal_perf.py`、`experiments/WatercolorLab/captures/rd5/review/RD5_TABLES.md`。
+- **確認できた事実:** v3 を 8 フレーム・0.5px/frame の連番に適用したところ、全候補の per-step global MAE は 0.001018〜0.001403 でほぼ一定、静止領域の MAE も 0.0008〜0.0016 だった。整数位置へ再整列した MAE は 0.000001〜0.002316。性能計測では、joint bilateral 単体（only_bleed）が v2 比で 512×320 は 0.0173s→0.3299s、1536×1024 は 0.1075s→2.7319s（約 19〜25 倍）で、tracemalloc peak も約 12.5MB→23.7MB、119.5MB→226.8MB（約 2 倍）。 quantize_gauss を含む wc_b は v2 と v3 でほぼ同じ（0.346〜0.361s）で、重いのは手実装 joint bilateral に限定される。
+- **価値または懸念:** 近透明の健全性を joint bilateral で得る代償が時間的に大きい。製品 renderer へ持ち込むなら、共有重みを保ったまま GPU 実装または近似が必要になる。tracemalloc は Python heap のみで OpenCV のネイティブ確保は見えていない。
+- **次に確認すべきこと:** 共有重みを保つ GPU／SIMD 実装案の比較、実解像度 1080p/4K と呼出頻度、知覚品質 gate。
+- **未検証:** gate 未設定、製品 C++／HLSL、実アプリ経路、D3D12/Vulkan parity。
+
+## 2026-11-17: bleed も alpha と同じカーネルで処理すれば近透明の発散は消える
+- **関連:** `experiments/WatercolorLab/watercolor_reference_v3.py`、`experiments/WatercolorLab/rd4_v3_comparison.py`、`experiments/WatercolorLab/captures/rd4/review/COMPARISON_RD4.md`。
+- **確認できた事実:** v2 の bleed（bilateral / quantize_gauss）が premul RGB のみを動かし alpha を動かさなかったことが近透明発散の原因だった。v3 では bilateral を premul RGB＋alpha の4チャンネル joint bilateral（全世界で共有する重み、4ch float32 非対応のため手実装）に、quantize_gauss を premul と alpha を同一12段階で量子化して同一 Gaussian を掛ける方式に置き換えた。RD4 の alpha fixture 12 ケースで、v3 は descriptor 差 0・近透明 >10 チャンネル 0・非有限値 0。v2 は近透明 >10 が合計 730 チャンネル（最大 258.2）。可視領域の最大値は v1/v2/v3 いずれも 0.60〜0.70 で同程度。
+- **価値または懸念:** 不透明 36 ケースの v1-v2 差は 0 だが、v2-v3 差は 17 ケースで非ゼロ（最大 0.0118）。joint bilateral の重みが v2 の cv2 bilateral と異なるためで、近透明の健全性を得る代償に不透明部の見た目がわずかに変わる。gate 未設定のためどちらが良いかは判定しない。
+- **次に確認すべきこと:** 実アプリの premultiplied 合成で同じ共有重みが使えるか、joint bilateral のコスト（手実装のため重い）、知覚品質の gate。
+- **未検証:** gate 未設定、製品 C++／HLSL、実アプリ経路、性能、実水彩参照。
+
+## 2026-11-17: descriptor 差 0 は絶対的な健全性を意味しない（v2 の caveat）
+- **関連:** `experiments/WatercolorLab/captures/rd3/metrics_rd3.json` の `descriptive_findings`、`experiments/WatercolorLab/watercolor_reference_v2.py`。
+- **確認できた事実:** RD3 の alpha 境界 fixture で、v2 出力の可視領域（alpha>0.5）は全候補 max 0.60〜0.70・非有限値 0 で健全だった。一方、透明近傍の生 RGB は wc_a で最大 216.7（>10 が 37,542 画素）、wc_b で最大 2.80e5（11,048 画素）、only_bleed で最大 2.78e4（40,702 画素）に発散した。wc_c / only_paper / only_edge は発散なし。共通点は、bleed 成分（bilateral / quantize_gauss）が premul RGB のみを処理し alpha を同じカーネルで処理していないこと。edge 成分（softstep / edge_weighted）は alpha も同時に処理しており発散しない。
+- **価値または懸念:** RD2 で「v1→v2 で descriptor 差 12/12 が 0」としたのは、straight 入力と premul 入力が同じ経路を通ることを示しただけで、復元値自体の健全性を証明しない。両者が同じように発散していても差は 0 になる。評価記録でこの二つを混同しないこと。
+- **次に確認すべきこと:** bleed 成分も alpha を同じカーネルで処理する v3 を別 run で比較する。その際は復元 RGB の絶対値（可視領域・透明近傍の両方）を必ず併記する。
+- **未検証:** gate 未設定のため品質判定ではない。透明画素の RGB は表示結果ではないため、目視では可視領域のみを判定する。
+
+## 2026-11-17: premultiplied 空間処理で alpha 境界の直色依存を 12/12 で解消
+- **関連:** `experiments/WatercolorLab/watercolor_reference_v2.py`、`experiments/WatercolorLab/rd2_descriptor_fix.py`、`experiments/WatercolorLab/captures/rd2/review/DESCRIPTOR_COMPARISON.md`。
+- **確認できた事実:** 全成分を premultiplied 空間で処理し、alpha と premul RGB に同じ空間変換を適用して最後に一度だけ unpremultiply する v2 を実装した。同一 fixture・候補・seed で straight／premultiplied 入力から復元した straight RGB の最大差は v1 が最大 0.389（12ケース）だったのに対し、v2 は 12/12 で 0（完全一致）。opaque 6 fixture × 6 候補 = 36 ケースでは v1 と v2 の RGB 差が 0 で、不透明部の見た目は変わらない。
+- **価値または懸念:** エフェクト横断の alpha 契約として、「pointwise 色変換は unpremultiply してよいが、近傍演算は premultiplied のまま空間変換し alpha も同じカーネルで処理して最後に戻す」という指針が具体的な数値で示された。
+- **次に確認すべきこと:** 実際の GPU 合成経路で premultiplied  bilinear / gather がこの契約を守るか、D3D12／Vulkan parity、知覚品質の gate。
+- **未検証:** gate 未設定のため品質合格ではない。製品 C++／HLSL 実装、実アプリ経路、性能は未検証。
+
+## 2026-11-17: 近傍演算は unpremultiply 後に適用すると alpha 境界で straight 色が壊れる
+- **関連:** `experiments/WatercolorLab/watercolor_reference.py`、`experiments/WatercolorLab/rd1_candidates.py`、`experiments/WatercolorLab/captures/rd1/metrics_rd1.json` の `descriptor_check`、`docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`。
+- **確認できた事実:** RD1 で同一の alpha 境界 fixture に straight／premultiplied の両 descriptor から6候補を適用し、復元 straight RGB の最大差を測った。bleed(bilateral) と paper 単体は 1.192e-7（float32 丸め）だったが、edge(softstep) 単体 0.134、これを含む wc_a 0.138、wc_c 0.199、wobble を含む wc_b 0.383。premultiplied では透明近傍の RGB が 0 になり、unpremultiply すると発散／0 の straight が近傍演算（box blur / remap）へ混ざる。bilateral は色差で重みを付けるため透明近傍を除外できた。
+- **価値または懸念:** 「unpremultiply → process → re-premultiply」は pointwise な色変換（LUT / Tritone 等）では成立しても、近傍を参照する blur / remap では一般性を持たない。alpha 契約をエフェクト横断で考える際の再利用価値が高い。
+- **次に確認すべきこと:** premultiplied のまま近傍演算して最後に unpremultiply する案と、alpha／色を考慮した重み付け案を RD2 の別 run で比較する。候補 source を変える場合は blind key とシートを再生成する。
+- **未検証:** 製品の実 descriptor、GPU 経路、知覚上の許容差。gate 未設定のため本件は「未判定」であり合格／不合格の判断ではない。
+
+## 2026-11-17: 新規画像R&D候補の着手状況と重複の見取り図
+- **関連:** `docs/planned/MILESTONE_NEW_IMAGE_RND_IDEAS_2026-11-16.md`、`docs/planned/IMAGE_RND_PRIORITY_PORTFOLIO_2026-11-16.md`、`tools/LensFlareLab/`、`ArtifactCore/include/ImageProcessing/AnamorphicFlare.ixx`、`docs/planned/MILESTONE_ANISOTROPIC_FLOW_BLUR_2026-06-13.md`。
+- **確認できた事実:** 新規画像R&D候補20案のうち1〜14は初期資産（ObjectRemovalLab / ImageCorrectionSuite / RetroImageLab / ColorMatchLab 等）があり、未着手は15〜20。アナモルフィック／レンズフレアは LensFlareLab、GlowLab の light leak、Core `AnamorphicFlare`、Artifact `ArtifactCinematicLensFlareEffect` と既存研究が十分あり「新規」候補からは外れる。`AnisotropicFlowBlur` は実装済みだが `watercolor` preset は未実装（2026-07-25 監査）。
+- **価値または懸念:** テーマ選定時にこの見取り図がないと、既存研究と重複したラボを量産しやすい。水彩画風変換（候補15）は方向場・紙目・減色の既存資産を再利用できるが、正解画像と素材ライセンスが評価の初期壁になる。
+- **次に確認すべきこと:** `experiments/WatercolorLab/EVALUATION_PLAN.md` の gate を RD0 baseline 取得後に固定し、ライセンス確認済みの実水彩参照を追加できるか判断する。
+- **未検証:** 学習モデルを使わないアルゴリズムで「水彩らしさ」の blind review gate が成立するか、実写素材のライセンス、製品経路との parity。
+
+## 2026-11-17: ImageLayerのメモリ内生成画素は通常のproject JSONでは再読込できない
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cpp::setFromImageBuffer`、`toJson`、`fromJsonProperties`、単一画像レイヤー化。
+- **確認できた事実:** `setFromImageBuffer()` は既存のsource assetを解放し、`sourcePath_`を空にして画素をmemory cacheへ置く。`toJson()` はsource path・寸法・metadata等を保存するが、image buffer自体はJSONへ出力しない。`fromJsonProperties()` はcacheをリセットし、保存されたsource pathから再読込する。
+- **価値または懸念:** レイヤー化結果をmemory-onlyの`ArtifactImageLayer`として追加すると、保存／再読込後に生成画素が戻らない。Phase 1のUndo・source identity・再読込要件を満たすには、project/asset保存境界を通す方法を先に決める必要がある。外部temp file依存で隠さない。
+- **次に確認すべきこと:** 既存のasset import／project bundleが生成画像を永続化する正規経路か確認し、候補maskと生成画素を1回のUndo単位で登録できるAPI境界を決める。
+- **未検証:** project bundleにおけるbuffer-backed imageの保存経路の有無、AssetManagerへのin-memory image登録・書き出しAPI、生成レイヤーの再読込受入。
 
 ## 2026-11-17: Histogram方式はpeak workspaceより累積allocation trafficが大きい
 - **関連:** `ArtifactCore/src/Color/AutoColorMatch.cpp`、`experiments/ColorMatchLab/captures/rd28_core_allocations/`、RD23 raw-buffer benchmark。
@@ -662,3 +959,58 @@
 - **価値 / 懸念:** シェーダ資産の存在だけで「低リスク・すぐ配線可」と判断すると、ffx ヘッダ展開・全解像度 RT のホットパス外確保・BGRA→RGBA 契約・backend parity を低估する。画像評価計画が必須なのもこの種の変更。
 - **未検証:** 実 GPU でのシェーダコンパイル、D3D12/Vulkan parity、画質、性能。ビルド・キャプチャ禁止のため未実施。
 - **次に確認すること:** ビルド許可が得られたら、自己完結 HLSL のコンパイルを最初に確認し、その後 baseline A/B を取得して閾値を確定する。定数生成は `tools/fsr_constants_rd.py --self-test` で静的に検証済み。
+
+## 2026-11-18: CC0 人物写真の ICC 記録と実ファイルが不一致
+- **関連:** `experiments/ColorMatchLab/assets/WikimediaCC0/SOURCES.md`、`Pexels-photo-707448-1280.jpg`。
+- **確認できた事実:** 文書は ICC なしと記載するが、記録された SHA-256 と一致するローカル JPEG を Pillow 12.2.0 で読み取ると `icc_profile` 524 bytes が存在する（ICC SHA-256 `61bb24bd075ae1179b562cb484a2737fa63bcf35133a951843db1f1f7c97ce7f`）。
+- **価値または懸念:** sRGB と仮定した既存の画像研究の色条件の説明に影響する可能性がある。実際の色差・既存評価への影響は未検証。
+- **次に確認すべきこと:** ICC の内容と既存の画像読み込み経路、変換の有無を監査し、必要なら出所記録と影響する評価を訂正する。
+
+## 2026-11-18: D3D12/Vulkan 描画効率の既知ボトルネックは「計測済み」ではなく「静的診断済み」
+- **関連:** `docs/analysis/DILIGENT_PREVIEW_BOTTLENECK_MEMO_2026-08-27.md:9-16,31-44`、`docs/technical/GPU_CULLING_DESIGN_2026-10-18.md:5,13-27`、`docs/technical/GPU_RENDER_OPTIMIZATION_TECHNIQUES_AE_STYLE.md:9-15`、`docs/planned/MILESTONE_RENDER_THREAD_SEPARATION_FEASIBILITY_2026-10-16.md:18,645-649`、`Artifact/src/Render/DiligentDeviceManager.cpp:1151-1223`、`Artifact/src/Render/ArtifactIRenderer.cpp:5644-5786`。
+- **確認できた事実:** プレビューの `2N+1` 全画面 convert/blend/Flush、同期待ち readback 2〜8ms/レイヤー、スプライトの IMMUTABLE テクスチャ生成は静的トレースで特定済み。カリング設計文書は「実装なし」とする一方、古い AE 風最適化文書は「実装済み」と記載し矛盾する。描画スレッド分離は独立テストのみ通過で本番は両 backend とも GUI スレッド。Artifact 側の GPU timestamp / RenderCostStats / Profiler は配線済みだが既定オフで baseline 未取得。
+- **価値または懸念:** 「実装済み」と書かれた数値（`docs/technical/GPU_RENDER_OPTIMIZATION_TECHNIQUES_AE_STYLE.md` の 100× 等）は計測根拠がなく、設計判断に使うと誤る。Vulkan は共有 immediate context・`FinishFrame()` ヒープ回収・グローバル Vulkan 初期化の制約があり、D3D12 と同じ改善がそのまま効かない。
+- **未検証:** いずれも実機 budget / backend parity 未計測。Present が VSync 固定のため、現行フレーム時間からパス単体の重さを分離できない。
+- **次に確認すること:** ビルド許可が得られたら、まず D3D12/Vulkan 同一 Fixture で baseline を取得し、2N+1 パスと readback を分離してから改善候補を選ぶ。古い最適化文書の「実装済み」記載はコード照合で更新する。
+
+## 2026-11-18: 自動 UI Fixture の frame-debug JSON は timing 未取得のまま出力される
+- **関連:** `Artifact/src/AppMain.cpp:10179-10215`、`Artifact/src/Render/ArtifactIRenderer.cpp:5285-5348`、`C:/Users/lagma/AppData/Local/Temp/opencode/glow-dx12.png.frame-debug.json`。
+- **確認できた事実:** `ARTIFACT_UI_TEST_GLOW=1` で `ArtifactUiTest.exe` を起動すると `*.frame-debug.json` が自動保存されるが、`renderLastFrameMs` / `renderAverageFrameMs` / `renderGpuFrameMs` はすべて 0、`renderGpuTimingAvailable=false`。Fixture は `renderOneFrame()` を2回呼ぶだけであり、DURATION query は非同期で数フレーム後にしか結果が返らない。添付 viewport テクスチャも 1x1。
+- **価値または懸念:** この JSON は「計測できた」証拠にならない。0 値を baseline として扱うと 2N+1 パスや readback の改善判断を誤る。
+- **未検証:** 通常 GUI で十分なフレームを描画した後の `FrameDebugSnapshot` では timing が更新されるか。`ARTIFACT_ENABLE_GPU_FRAME_QUERY` と `beginFrameGpuProfiling()` の接続はコード上存在する。
+- **次に確認すること:** 実測ではウォームアップ後に複数フレーム描画してから snapshot を取得する。または製品側の Perf Baseline エクスポートを人手で取得し、入力・解像度・backend・フレーム番号を揃えて比較する。
+
+## 2026-11-18: VP チャンネル表示の 3 モードと Isolation スナップショットは「器だけ」だった
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`（presenter switch と `composeViewportChannelOverlayImage()`、`isolatedLayerIds_` / `isolationSetRevision_`）、`ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`、`docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`。
+- **確認できた事実:** `ViewportChannelDisplayMode` の Unpremultiplied / Luminance / Matte は enum・メニュー・HUD ラベルがあるだけで、presenter と CPU fallback の switch に case がなく beauty が表示されていた（2026-11-18 に配線して修正済み）。Isolation についても `isolatedLayerIds_` / `isolationSetRevision_` が Impl に宣言されている一方で参照箇所が 0 件で、`setShowIsolationOverlay()` は bool トグルのみ。
+- **価値 / 懸念:** 「UI 項目がある＝実装済み」とドキュメントのステータスだけを信じると誤る。両者とも静的コード照合で初めてギャップが判明した。
+- **次に確認すること:** P1-1（Isolate 状態復元）と P1-9（Local View 分離）は snapshot 機構を共有すべきなので、どちらを先に作るか決めてから着手する。
+- **未検証:** 3 モードの実機表示と D3D12/Vulkan parity は未確認（ビルドは成功）。
+
+## 2026-11-18: 質感分離のベース/ディテール分解では「premul だけ層分解して alpha を分解しない」と近透明で除算が破綻する
+- **関連:** `experiments/MaterialSeparationLab/material_reference.py`（`decompose` / `recompose` / `unpremultiply`）、`experiments/MaterialSeparationLab/captures/rd1/metrics_rd1.json`。
+- **確認できた事実:** 質感分離ラボの当初実装は premultiplied RGB のみ guided filter / gaussian で層分解し、alpha は未分解の入力を unpremultiply の除数にしていた。この状態で `detail_gain=0`（base のみ）の出力を alpha 境界 fixture で測ると、近透明領域の straight RGB 最大値が A 6.25 / A(wide) 8.24 / C 4.85 / B 0.60 となり、入力からの最大差も同程度（6.22 / 8.21 / 4.82 / 0.53）に跳ねた。alpha も同じ近傍演算で分解し、recompose した層に対応する alpha を除数に使う（出力 alpha も同じ値）形に変更すると、neutral（gain 全 1.0）の premultiplied 再合成誤差は最大 2.33e-10（A）〜5.96e-08（B）、straight 入力と premultiplied 入力から復元した straight RGB の最大差は全 10 ケースで 0.0 になった。
+- **価値または懸念:** 「RGB と alpha を同時に近傍処理し最後に一度だけ unpremultiply する」だけでは不十分で、**除数として使う alpha は premul と同じ層分解に由来する必要がある**。層分解の実装研究发现は「どの三次元で layers を切るか」だけでなく「除数の provenance」まで契約に含めるべき。upper bound は MAX_STRAIGHT=16.0 のクランプで担保しており、NaN / 非有限値は 0 のまま。
+- **次に確認すべきこと:** base のみ出力の近透明 6〜8 倍は guided filter の base が alpha の急変点で alpha に対して非比例に energie を運ぶためと考えられるが、原因の切り分けは未実施（guided filter の係数が alpha 境界で線形伝播しないためと推測）。目視で halo として見えるかは blind シート未採点のため判断不能。
+- **未検証:** gate 未設定のため品質判定ではない。GPU 実装、実アプリ経路、D3D12/Vulkan parity、実写素材での確認。
+
+## 2026-11-18: 分離された base 層は「局所コントラストの比」を維持しないため、質感の有無は比ではなく絶対 std で測る必要がある
+- **関連:** `experiments/MaterialSeparationLab/rd0_baseline.py`（`local_contrast`）、`experiments/MaterialSeparationLab/rd1_candidates.py`、`experiments/MaterialSeparationLab/captures/rd1/review/RD1_TABLES.md`。
+- **確認できた事実:** texture fixture（多オクターブ value noise）の平坦部 luma std は 0.000446、テクスチャ部 luma std は 0.016512 で比は約 37。候補の出力（gain=1.0）でこの比は 37.024 のまま変わらない（層分解が両者を同じ量だけ変調するため）。一方強調型 C（coarse 1.4 / fine 1.8）では平坦部 std が 0.000446 → 0.000794、テクスチャ部 std が 0.016512 → 0.018012、比は 37.0 → 22.7 と**下がる**。つまり「局所コントラスト比」を質感量の指標として使うのは不適。
+- **価値または懸念:** 局所コントラスト比は「平坦部に質感が入っていないか」を見る定性指標としては使えるが、質感量の指標としては不適。用いるなら「入力比 / 出力比」の比を採るなど正規化が必要で，最好は平坦部 std とテクスチャ部 std の**絶対値**を別々に記録する形（RD1 は既に両方を記録している）。また fixture の平坦部は厳密にノイズ 0 にすると std=0 となり比が無限大になるため、センサノイズ級の floor（0.0006）を入れておく必要がある。
+- **次に確認すべきこと:** 実写素材（質感を持つ実画像）が未取得のため、absolute std が実際の質感差とどう対応するかは未検証。gate 設定時に「局所コントラスト保持」の判定方法を確定する必要がある。
+- **未検証:** gate 未設定・人手レビュー未実施。
+
+## 2026-11-18: 質感分離ラボ（候補 18）を新設し、RD0/RD1 のオフライン測定を完了した
+- **関連:** `experiments/MaterialSeparationLab/`（`EVALUATION_PLAN.md` / `README.md` / `generate_fixtures.py` / `material_reference.py` / `rd0_baseline.py` / `rd1_candidates.py`）、`docs/planned/MILESTONE_NEW_IMAGE_RND_IDEAS_2026-11-16.md`（候補 18）。
+- **確認できた事実:** 決定論的 fixture 11 件（seed 20261118、512×320 と 1536×1024、alpha fixture の premultiplied 版を含む、`--check` でハッシュ一致確認済み）と baseline 30 出力（RD0）、候補 5 種（A 自己二層分解 ×2 / B 周波数分離 / C 強調型 ×2）の出力 200 点と記述的測定（RD1）を完了。候補 5 種すべてで descriptor 差（straight 入力と premultiplied 入力から復元した straight RGB の最大差）は 0.0、neutral 設定の premultiplied 再合成誤差は最大 2.33e-10（A）〜5.96e-08（B）、非有限値 0、近透明領域の >1 チャンネル数 0。実行時間は 512×320 で 0.017〜0.059 秒、1536×1024 で 0.20〜0.59 秒（Python heap の tracemalloc peak 17〜246 MB）。中間調ランプは候補 4 種で入力と同一（step mean 0.002093、step std 0.000081、単調 fraction 1.0000）、強調型 C のみ step std 0.000124 に増える。
+- **価値または懸念:** 「大まかな色と細かな質感を独立に調整する」入口として、base / detail を同一 fixture 上で比較できる状態になった。ただし **gate（合否閾値）は未設定**であり、blind シートと採点フォームも空のままなので、候補の優劣・採用判断はしていない。DetailSharpeningLab（ディテール強調）とは対象が重複しないことを確認した（分離 vs 増幅）。
+- **次に確認すべきこと:** 別レビュー者による baseline 閲覧後の gate 記入（§5.0）、人手 blind review の実施、実写質感素材の取得。
+- **未検証:** 人手レビュー、順位付け・採用判断、製品コード／UI／Undo・保存再読込、preview/final 経路、D3D12/Vulkan parity、1080p/4K 実性能、Undo 経路。
+
+## 2026-11-18: モーショングラフィックスの素材は揃っているが「一括で良い感じにする」統合レイヤーが無い
+- **関連:** `ArtifactCore/include/Animation/KeyframePatternGenerator.ixx`（:19-53 の 12 パターン、:268-445 の生成実装）、`ArtifactCore/include/Animation/EasingCurveUtil.ixx`（:15-38 の 22 種）、`Artifact/src/FxStudio/ArtifactFxPresetCatalog.cpp`（:21-35 の 5 プリセット）、`Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cpp`（:1489-1510 のプリセットライブラリ、:1324-1331 の EasingLab／Key Pattern Dialog）、`ArtifactCore/include/Text/TextAnimator.ixx`、`docs/analysis/AE_PAIN_POINT_IMPROVEMENT_MAP_2026-08-13.md`（:84-88）。
+- **確認できた事実:** パターン自動生成・イージング・テキストアニメーター・Expression（`wiggle` / `loopOut`）・エフェクト群・35 種ブレンド・16 種トランジションは実装済みで UI にも配線されている。一方、ピックウィップは未実装、`.mogrt` 相当のワンクリック完成演出は構想のみ。FX Studio の `ArtifactFxStudioDialog.cpp:24` の `sample()` は Cue をテキスト表示するだけで、コンポジション実描画への接続はこのコードからは確認できない。
+- **価値または懸念:** 「かっこよさ」の材料ではなく**組み合わせの導線**が不足している。新規エフェクトを増やすより、`KeyframePatternGenerator` / `EasingCurveUtil` / `FxPresetCatalog` / `EffectService` を束ねるだけで体感速度が上がる可能性が高く、既存部品の再利用でリスクも低い。
+- **次に確認すべきこと:** FX Studio の Cue が実際にレンダリングへ反映される経路の有無。プリセットライブラリ→EasingLab→FX Studio の連携 UX。ピックウィップの実際の需要。
+- **未検証:** 実機 UI 操作・ビルド・描画反映は未確認（ユーザー明示指示がないため実行していない）。一部ドキュメントの古い判定（TextAnimator 30%／Graph Editor 未着手等）は現行コードで訂正済みで、コード側を正とする。
