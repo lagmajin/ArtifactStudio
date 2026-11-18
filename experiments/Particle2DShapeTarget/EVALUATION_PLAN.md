@@ -21,7 +21,7 @@
 | Continuous/direct seek | 実施 | frame 60、粒子ID/位置とPNG比較 |
 | Backend comparison | 実施 | Vulkan/D3D12 fixed IDsのGPU offscreen capture。Composition View/Render Queue間のcross-backend比較は未評価 |
 | Composition View / Render Queue | 部分実施 | `RenderQueueLayerImageIntegrationTest.ShapeTargetChangesParticleOutputThroughRenderQueue` がD3D12の`drawLayerForCompositionView()`とRender Queueで有効/無効画像の差20px超を確認。実アプリUI、Text target Queue、VulkanとのQueue比較は未評価 |
-| Performance | 探索のみ | Debug、360 live particles、1 process内5 batches。run間confidence/threshold/Release比較未確定 |
+| Performance | 探索のみ | `ShapePath::contains()`再flattenを除去し、Shape準備時間は約1025msから約11ms（2 process runs）へ短縮。Debug、360 live particles、各run内5 batches。threshold/Release/confidence未確定 |
 | Memory | 部分実施 | CPU process working setのみ。GPU memory/cache allocation size未測定 |
 | Shape edge cases | 未実施 | legacy merge、non-stack multi-content、stroke-only、opacity、animation |
 
