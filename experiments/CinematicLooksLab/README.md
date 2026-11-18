@@ -1,6 +1,6 @@
 # Cinematic Looks Lab
 
-**最終更新:** 2026-11-17
+**最終更新:** 2026-11-19
 
 静止画の cinematic look を、チャートとライセンス記録済み実写素材で比較するオフライン R&D ラボです。LUTEffectの9 builtin LUTに加え、ColorBalanceEffect / TritoneEffectのCinematic laneをCPU/GPU source-equation mirrorで5素材測定しました。rd0ではTritoneのCPU/GPU式差を検出し、製品HLSLをCPU式へ寄せた後、rd1 mirrorでは5素材×4設定の量子化コード差が0、rd2ではTritone alpha sweepのCPU/GPU wrapper mirror差も最大約1.2e-7でした。これはshader/C++実行の差分ではありません。rd0/rd1/rd2証跡は各`captures/rd*_effect_extension/`に保持し、LUT alpha wrapper更新後のsource equation probeは`captures/rd1_lut_alpha_wrapper/`、run-ID manifestを修正した再実行は`captures/rd3_lut_alpha_wrapper/`に保存しました。人手blind review・runtime検証・品質ゲートは未完了です。評価計画は[`EVALUATION_PLAN.md`](EVALUATION_PLAN.md)を参照してください。
 
@@ -32,3 +32,6 @@ Python harness は `ArtifactCore/src/Color/ColorLUT.cpp` の 17³ `BuiltinLUTs` 
 夜景素材の provenance は [`../GlowLab/assets/SOURCES.md`](../GlowLab/assets/SOURCES.md)、人物・森林素材は [`assets/SOURCES.md`](assets/SOURCES.md) にあります。LUT と effect extension の対応表はそれぞれの blind directory に分離されています。8-bit sRGB 画像には alpha を含めず、HDRは式probeのみで実画像・runtime品質は未評価です。LUT / ColorBalance CPU wrapperとTritone CPU/GPU wrappersはpremultiplied descriptor時にunpremultiply/process/repremultiplyします。LUTの修正前mirrorではfixture alpha sweepの最大straight RGB差が約1.321、更新後source mirrorでは全9 LUTの最大差が2.3e-16未満でした。Tritoneはrd0で式差がありましたが、rd1/rd2 mirrorで5素材の量子化差0を記録しました。これは実HLSL/C++一致、実経路、backend runtime差を証明しません。性能はPython reference operationで製品性能ではありません。
 
 Alpha association の実経路確認用に、複数 RGB 色と固定 alpha patch / 水平 alpha ramp を持つ synthetic straight-alpha PNG [`assets/alpha-association-chart.png`](assets/alpha-association-chart.png) を追加しました。条件と SHA-256 は隣接 JSON にあります。runtime への適用・capture はまだ行っていません。
+## Blind review key の扱い
+
+過去 run の `blind_review_key.json` 4 件は誤って Git に追跡されていたため、現行 index から除外しました。ローカル作業コピーは保留用に残していますが、鍵は Git 履歴に残るため今後の独立レビューには再利用しないでください。次の blind review では新しいランダム鍵を生成し、Git 管理外に保管してください。
