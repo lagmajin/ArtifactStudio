@@ -46,6 +46,10 @@ constexpr int CanvasHeight = 1080;
 constexpr int Width2D = 1920;
 constexpr int Height2D = 1080;
 
+// 遠景の稜線に現れるサブピクセル aliasing を抑えるため、描画は 2 倍解像度で
+// 行い、PNG 保存時に 1 解像度へダウンサンプルする（スーパーサンプリング）。
+constexpr int SuperSample = 2;
+
 constexpr int CaptureFrame = 45;
 constexpr int LaterFrame = 60;
 
@@ -201,8 +205,9 @@ std::vector<float> sampleRidgeProfile(
     return profile;
 }
 
-// 2D: キャンバス X 方向に伸びる細い帯（ridge strip）の三角形列を作る。
-// 粒子はこの帯上面から立ち上がる。
+// 2D: キャンバス X 方向に伸びる帯（ridge strip）の三角形列を作る。
+// 粒子はこの帯上面から立ち上がる。帯は十分 thick に保ち、帯面積に対する
+// 放出レートが飽和しないようにする（細い帯だと ridge 途中に隙間が出る）。
 QVector<QVector3D> makeRidgeStripTriangles(
     const std::vector<float>& profile, float baseY, float bandHeight)
 {
@@ -285,12 +290,14 @@ ArtifactCore::Mesh makeRenderMesh(const ArtifactCore::Procedural3DMeshData& gene
 }
 
 // yUp = true は 3D の Y-up ワールド、false は 2D の Y-down 合成座標系。
-Artifact::EmitterParams makeEmberParams(bool yUp)
+// density は ridge 上の粒子密度を調整するスケール。視覚採点で挙げられた
+// 「ridge 途中の隙間・密度不足」を解消するため 2D は高密度側を使う。
+Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f)
 {
     Artifact::EmitterParams params;
     params.shape = Artifact::EmitterShape::Surface;
     params.mode = Artifact::EmissionMode::Continuous;
-    params.rate = 900.0f;
+    params.rate = 900.0f * density;
     params.burstCount = 0;
     params.lifeMin = 1.4f;
     params.lifeMax = 3.2f;
@@ -305,8 +312,8 @@ Artifact::EmitterParams makeEmberParams(bool yUp)
     params.turbulenceFrequency = 0.35f;
     params.turbulenceAmplitude = 55.0f;
     params.turbulenceEvolution = 0.8f;
-    params.scaleMin = 3.0f;
-    params.scaleMax = 9.0f;
+    params.scaleMin = 3.0f * std::max(1.0f, density * 0.75f);
+    params.scaleMax = 9.0f * std::max(1.0f, density * 0.75f);
     params.scaleEndMin = 0.0f;
     params.scaleEndMax = 1.0f;
     params.colorStart = QColor(255, 214, 138, 255);
@@ -337,6 +344,16 @@ bool prepareRenderer(Artifact::ArtifactIRenderer& renderer, int width, int heigh
                              static_cast<float>(height));
     renderer.setClearColor(ArtifactCore::FloatColor(0.02f, 0.03f, 0.05f, 1.0f));
     return true;
+}
+
+// スーパーサンプリング済み画像を最終解像度へ戻す。
+QImage downsample(const QImage& source)
+{
+    if (source.isNull() || SuperSample <= 1) {
+        return source;
+    }
+    return source.scaled(Width2D, Height2D, Qt::IgnoreAspectRatio,
+                         Qt::SmoothTransformation);
 }
 
 // ---------------------------------------------------------------------------
