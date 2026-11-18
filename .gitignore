@@ -71,3 +71,10 @@ compile_commands.json
 # Local IDE and evaluation configuration
 /ArtifactStudio.options.ini
 /EVALUATION_PLAN.md
+/_deps/
+/experiments/*/captures/**/*.png
+/experiments/*/captures/**/*.npy
+/experiments/*/captures/**/*.pfm
+/experiments/*/captures/**/*.exr
+/experiments/*/captures/**/*.avi
+/experiments/*/captures/**/*.mp4
