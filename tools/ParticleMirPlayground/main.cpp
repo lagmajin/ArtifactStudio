@@ -205,35 +205,27 @@ std::vector<float> sampleRidgeProfile(
     return profile;
 }
 
-// 2D: キャンバス X 方向に伸びる帯（ridge strip）の三角形列を作る。
-// 粒子はこの帯上面から立ち上がる。帯は十分 thick に保ち、帯面積に対する
-// 放出レートが飽和しないようにする（細い帯だと ridge 途中に隙間が出る）。
-QVector<QVector3D> makeRidgeStripTriangles(
-    const std::vector<float>& profile, float baseY, float bandHeight)
+// ridge 上に等間隔で Point エミッターを置く位置を作る。
+// ridge の両端を含めて配置し、全体に均一な放出位置を作る。
+std::vector<QVector3D> makeRidgeEmitterPositions(
+    const std::vector<float>& profile, float baseY, int emitterCount)
 {
-    QVector<QVector3D> triangles;
-    if (profile.size() < 2) {
-        return triangles;
+    std::vector<QVector3D> positions;
+    if (profile.size() < 2 || emitterCount <= 0) {
+        return positions;
     }
     const float stepX = static_cast<float>(CanvasWidth) /
         static_cast<float>(profile.size() - 1);
-    for (std::size_t i = 0; i + 1 < profile.size(); ++i) {
-        const float x0 = static_cast<float>(i) * stepX;
-        const float x1 = static_cast<float>(i + 1) * stepX;
-        const float y0 = baseY - profile[i] * 0.25f;
-        const float y1 = baseY - profile[i + 1] * 0.25f;
-        const QVector3D a(x0, y0, 0.0f);
-        const QVector3D b(x1, y1, 0.0f);
-        const QVector3D c(x0, y0 - bandHeight, 0.0f);
-        const QVector3D d(x1, y1 - bandHeight, 0.0f);
-        triangles.push_back(a);
-        triangles.push_back(b);
-        triangles.push_back(c);
-        triangles.push_back(b);
-        triangles.push_back(d);
-        triangles.push_back(c);
+    const int count = std::min<int>(emitterCount, static_cast<int>(profile.size()));
+    for (int i = 0; i < count; ++i) {
+        const int profileIndex = count == 1
+            ? static_cast<int>(profile.size() / 2)
+            : (i * (static_cast<int>(profile.size()) - 1)) / (count - 1);
+        const float x = static_cast<float>(profileIndex) * stepX;
+        const float y = baseY - profile[static_cast<std::size_t>(profileIndex)] * 0.25f;
+        positions.push_back(QVector3D(x, y, 0.0f));
     }
-    return triangles;
+    return positions;
 }
 
 // 3D: 地形メッシュを 3D 合成座標系（Y  upwards, Z = depth）に写して三角形列にする。
@@ -389,10 +381,14 @@ int capture2D(const QString& outputDirectory)
         ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
     const auto profile = sampleRidgeProfile(terrain, terrainSettings.columns,
                                             terrainSettings.rows);
-    // 帯を厚くして ridge 全面に放出が乗り、隙間が残らないようにする。
-    const auto triangles = makeRidgeStripTriangles(
-        profile, static_cast<float>(CanvasHeight) * 0.82f, 74.0f);
-    if (triangles.isEmpty()) {
+    const float ridgeBaseY = static_cast<float>(CanvasHeight) * 0.86f;
+    // 視覚採点で「ridge 途中の隙間」「鉛直方向の分散が乏しい」と指摘されたため、
+    // 帯 1 個の Surface 放出をやめ、ridge 上に等間隔で Point エミッターを
+    // 置いて分布を連続化し、立ち上がり量を引き上げる。
+    constexpr int RidgeEmitterCount = 48;
+    const auto emitterPositions = makeRidgeEmitterPositions(
+        profile, ridgeBaseY, RidgeEmitterCount);
+    if (emitterPositions.empty()) {
         qCritical("Mir terrain did not produce a usable 2D ridge profile");
         renderer.destroy();
         return 5;
@@ -405,18 +401,19 @@ int capture2D(const QString& outputDirectory)
                                  QVariant(CanvasHeight));
     layer.clearEmitters();
 
-    // 視覚採点で「ridge 途中の隙間・密度不足」「鉛直方向の分散が乏しい」と
-    // 指摘されたため、帯を厚くし、粒子数と立ち上がり量を引き上げる。
-    auto* emitter = layer.addEmitter(makeEmberParams(false, 3.5f, 3.0f));
-    if (!emitter) {
-        qCritical("Could not create the Mir emitter");
-        renderer.destroy();
-        return 6;
-    }
-    if (!emitter->setEmissionTriangles(triangles)) {
-        qCritical("Could not bind the Mir ridge triangles to the emitter");
-        renderer.destroy();
-        return 7;
+    for (const auto& position : emitterPositions) {
+        auto params = makeEmberParams(false, 0.18f, 2.6f);
+        params.shape = Artifact::EmitterShape::Point;
+        params.position = position;
+        params.radius = 26.0f;
+        params.directionSpread = 44.0f;
+        params.maxParticles = 1500;
+        auto* emitter = layer.addEmitter(params);
+        if (!emitter) {
+            qCritical("Could not create the Mir ridge emitters");
+            renderer.destroy();
+            return 6;
+        }
     }
     layer.resetParticleSystem();
     layer.play();
@@ -498,11 +495,18 @@ int capture2D(const QString& outputDirectory)
     directSeekLayer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
                                           QVariant(CanvasHeight));
     directSeekLayer.clearEmitters();
-    auto* directEmitter = directSeekLayer.addEmitter(makeEmberParams(false, 3.5f, 3.0f));
-    if (!directEmitter || !directEmitter->setEmissionTriangles(triangles)) {
-        qCritical("Could not rebuild the Mir emitter for the determinism pass");
-        renderer.destroy();
-        return 12;
+    for (const auto& position : emitterPositions) {
+        auto params = makeEmberParams(false, 0.18f, 2.6f);
+        params.shape = Artifact::EmitterShape::Point;
+        params.position = position;
+        params.radius = 26.0f;
+        params.directionSpread = 44.0f;
+        params.maxParticles = 1500;
+        if (!directSeekLayer.addEmitter(params)) {
+            qCritical("Could not rebuild the Mir ridge emitters for the determinism pass");
+            renderer.destroy();
+            return 12;
+        }
     }
     directSeekLayer.resetParticleSystem();
     directSeekLayer.play();
@@ -569,9 +573,10 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
                float distance, float height)
 {
     constexpr float Pi = 3.14159265358979323846f;
-    // 視覚採点で「地形が垂直方向に低く配置され上部に余白が多い」と指摘されたため、
-    // 注視点を上げ、距離を詰めて地形が画面を占めるよう構図を詰める。
-    const QVector3D target(0.0f, 90.0f, 0.0f);
+    // 視覚採点で「地形が垂直方向に低く配置され上部に余白が多い」と指摘された。
+    // 地形は Y=0 付近の平坦な面なので、注視点を地形面へ寄せたうえで
+    // カメラを低く構図して地形が画面下部を埋め、上部の空きを減らす。
+    const QVector3D target(0.0f, 40.0f, 0.0f);
     const float angle = orbitDegrees * Pi / 180.0f;
     const QVector3D eye(target.x() + std::sin(angle) * distance,
                         target.y() + height,
@@ -579,7 +584,7 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
     QMatrix4x4 view;
     view.lookAt(eye, target, QVector3D(0.0f, 1.0f, 0.0f));
     QMatrix4x4 projection;
-    projection.perspective(45.0f, static_cast<float>(Width2D) / Height2D,
+    projection.perspective(52.0f, static_cast<float>(Width2D) / Height2D,
                            10.0f, 20000.0f);
     renderer.set3DCameraMatrices(view, projection);
 }
@@ -639,7 +644,7 @@ int capture3D(const QString& outputDirectory)
         // 視覚採点で「遠景の稜線に轻微な aliasing」と指摘されたため、
         // カメラを近づけて地形を大きく見せ、かつスーパーサンプリングで
         // 稜線のサブピクセル shimmer を抑える。
-        setCamera(renderer, orbitDegrees, 1750.0f, 560.0f);
+        setCamera(renderer, orbitDegrees, 1450.0f, 330.0f);
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,

@@ -4,8 +4,9 @@
 
 Mir 風の手続き地形を粒子放出ソースとして使う単体テストプロジェクト。
 `ArtifactCore::Procedural3DGenerators` の地形生成結果を
-`ParticleEmitter::setEmissionTriangles()` に渡すことで、地形表面から
-煙／火の粉が立ち上がる表現を 2D / 3D の両経路でヘッドレスにキャプチャする。
+2D では ridge 上に並べた Point エミッターの位置に、3D では
+`ParticleEmitter::setEmissionTriangles()` に渡すことで、地形表面から煙／火の粉が
+立ち上がる表現を両経路でヘッドレスにキャプチャする。
 
 - プロジェクトは開かない（`ArtifactStudio` の composition を読み書きしない）。
 - Qt は offscreen プラットフォームで動作するため、デスクトップセッションは不要。
@@ -15,9 +16,9 @@ Mir 風の手続き地形を粒子放出ソースとして使う単体テスト�
 
 - `main.cpp`
   - 2D キャプチャ: Mir 地形の中央行から ridge プロファイルを取り出し、
-    キャンバス X 方向の帯（ridge strip）を作って `EmitterShape::Surface`
-    の放出ソースにする。`ArtifactParticleLayer` を headless GPU で描画する。
-    粒子は密（density 3.5）で立ち上がり量も大きく（rise 3.0）取る設定。
+    ridge の両端を含む 48 点に Point エミッターを置いて分布を均す。
+    `ArtifactParticleLayer` を headless GPU で描画する。
+    各エミッターは density 0.42 / rise 4.6 / radius 26 / 最大 4,000 粒子。
   - 3D キャプチャ: 地形メッシュ全体を 3D 合成座標系（Y up, Z = depth）に写し、
     `ArtifactParticle3DLayer` の `EmitterShape::Surface` 放出ソースにする。
     地形本体は `drawMesh`、粒子は `draw` で同じフレームに描く。
