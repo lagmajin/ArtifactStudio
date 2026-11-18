@@ -32,3 +32,4 @@ tests/shape_visual/*.md text eol=lf
 *.md      text eol=lf
 experiments/OutlineLab/.gitignore text eol=lf
 experiments/OutlineLab/requirements.txt text eol=lf
+.gitignore text eol=lf

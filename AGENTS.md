@@ -1,6 +1,6 @@
 # AGENTS
 
-**最終更新:** 2026-11-12
+**最終更新:** 2026-11-19
 
 ### Windows UI 操作の既定禁止
 
@@ -69,6 +69,14 @@ AI が UI 名称やウィジェット責務で迷ったら、まず [docs/WIDGET
 `docs/planned/` には計画中のマイルストーンが格納されている。
 
 文書ライフサイクルルールは `docs/DOC_LIFECYCLE.md` を参照すること。
+
+### 生成物・評価証跡の Git 追跡
+
+- ルートの `/captures/`、`/output/`、`/temp/` と GPU driver cache、IDE のローカル設定は再生成可能な作業出力として Git に追加しない。対応する `.gitignore` の規則を維持する。
+- ビルド・shader compile の中間物（`.obj` / `.ifc` / `.pdb` / `.dxil` / `.spv` / `.log` 等）、一時画像・配列（`.pfm` / `.npy` 等）、キャッシュ、scratch output は commit 対象外とする。
+- R&D の再現に必要な入力 fixture、評価計画、スクリプト、manifest、手動で選んだ最終証跡は各 `experiments/<Lab>/` 配下へ置き、`.gitignore` で明示的に除外しない。キャプチャを残す場合は対象、条件、取得日、出所、hash を manifest に記録し、必要最小限の画像に絞る。
+- ignore 対象でも、ユーザーが明示した再配布・提出要件がある個別成果物は例外として内容と再生成性を確認し、`git add -f <path>` でそのファイルだけ追跡する。ディレクトリ全体を force-add しない。
+- push 前に `git status --short` と `git diff --cached --stat` を見て、ローカル設定・cache・生成物が stage されていないことを確認する。
 
 ### ドキュメント更新日の記録
 

@@ -58,3 +58,16 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
+# Generated evaluation and diagnostic output. Keep source fixtures, scripts,
+# plans, and manifests in their owning directories. Store reproducible captures
+# under experiments/<Lab>/captures when they are intended for version control.
+/captures/
+/output/
+/temp/
+/000010de_NVIDIA GeForce RTX 4070 Ti/
+*.dxil
+*.spv
+
+# Local IDE and evaluation configuration
+/ArtifactStudio.options.ini
+/EVALUATION_PLAN.md
