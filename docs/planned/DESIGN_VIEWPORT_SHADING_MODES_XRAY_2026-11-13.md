@@ -1,8 +1,8 @@
 # 設計: VP 全体シェーディングモード切替（P1-4）と X-Ray 不透明度
 
-**最終更新:** 2026-11-13
+**最終更新:** 2026-11-19
 
-**ステータス:** S1 / S2 実装済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。S3 / S4 未着手。
+**ステータス:** S1 / S2 / S3 は実装済み。S4 の renderer / controller backend は追加済みだが、Shading メニュー操作は未公開のため P1-4 を部分実装とする。現在の HEAD は未ビルド・実機未確認。D3D12 / Vulkan parity は未実施。
 
 本設計は `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` の **P1-4（Maya 風シェーディングトグル）**
 と「未確認の追加候補」にあった **X-Ray 不透明度スライダ** の詳細設計である。
@@ -145,8 +145,8 @@
 | --- | --- | --- | --- |
 | S1 | X-Ray 不透明度（D4）+ 永続化（要承認） | `ArtifactCompositionRenderController.ixx/.cppm`、Shading メニュー | 既定 0.35 で現行と同一表示。0.0–1.0 で段階変化。スライダ保存/復元 |
 | S2 | shading モード enum + renderer override（D1, D2 経路 A）+ WireframeOnShaded | `ArtifactCompositionRenderController`、`ArtifactIRenderer`、`Artifact3DModelLayer`、Shading メニュー、`ShortcutBindings` | Shaded 既定で無変化。Wireframe / WireframeOnShaded / （BoundingBox）の表示。Render Queue 出力に波及しない |
-| S3 | BoundingBox 表示（D2 一般化） | `ArtifactCompositionRenderOverlay` 呼び出し経路 | 全 3D レイヤーの bounds 表示。高ポリゴンでカクつかない（LOD 上限） |
-| S4 | Backface culling（D3） | `MeshRenderer.cpp`（PS 内 discard） | D3D12 / Vulkan 同一表示。背面非表示を切替可能 |
+| S3 | BoundingBox 表示（D2 一般化） | `ArtifactCompositionRenderOverlay` 呼び出し経路 | ✅ 実装済み（2026-11-18、コード変更のみ）。全 3D レイヤーの bounds 表示。LOD 上限は既存 helper に準拠 |
+| S4 | Backface culling（D3、方式 b 採択） | `MeshRenderer.cpp` / `.ixx`、`ArtifactIRenderer`、`CompositionRenderController`、Shading メニュー | renderer / controller backend は追加済み。Shading メニュー操作は未実装・未検証。新規 Qt signal/slot 接続を禁止する `AGENTS.md` に従い、操作経路の設計レビュー待ち |
 | S5 | 受入確認（ビルド・実機） | — | ユーザー明示指示後に実施 |
 
 S2 から先は S1 と独立して着手可能だが、Shading メニュー UI は S1 で整えるため
@@ -228,6 +228,32 @@ S1 → S2 の順を推奨する。
   オーバーレイ）に見え得る。受入確認で可否を判断する。
 - ショートカットは未登録（`ShortcutId` 追加は `ArtifactCore` 子リポジトリ変更を
   伴うため、ユーザー指示まで実施しない。メニュー操作のみで切替可能）。
+
+### S3: BoundingBox 表示（2026-11-18）
+
+- `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx`: enum コメントを S3 実装済みへ更新。
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp`: `Impl::drawViewportOverlayPass()` に BoundingBox モード時の全 3D レイヤー bounds 描画を追加。既存 `::Artifact::draw3DSelectionBoundsOverlay()` を再利用し、通常の表示ゲート（有効・active・render filter・`Model3D` 種別マスク）を適用。
+- `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cpp`: Shading メニューに `Bounding Box` を追加し、チェック状態同期を追加。
+- 挙動: メッシュは Shaded のまま描画し、その上に全 3D レイヤーの bounds を重ねる（設計 D2 どおり）。選択ワイヤ／選択 bounds とは独立。
+
+### S4: Backface Culling（2026-11-18、方式 b を採択・実装）
+
+方式 (a) の `SV_IsFrontFace` は Vulkan 側の静的確認ができず、`MaterialConstants`（172 floats / static_assert 付き）の拡張も必要なため、Diligent がバックエンド差を吸収する方式 (b) を採択した。
+
+- `ArtifactCore/include/Graphics/MeshRenderer.ixx`: `setBackfaceCulling(bool)` / `isBackfaceCulling()` を追加。
+- `ArtifactCore/src/Graphics/MeshRenderer.cpp`: Impl に cull 用 PSO/SRB と `backfaceCulling_`（既定 false）を追加。`createPSO()` で opaque / transparent それぞれの `CULL_MODE_BACK` バリアントを生成（フレーム中生成なし）し、`PipelineSet` に保存・RT フォーマット切替時に復元。`prepare()` / `drawMaterialSlots()` / `draw()` の 3 か所でバリアントを選択（生成失敗時は既定 PSO へフォールバック）。
+- `Artifact/include/Render/ArtifactIRenderer.ixx` / `src/Render/ArtifactIRenderer.cpp`: Flag を保持・転送し、drawMesh で `MeshRenderer` に適用。Render Queue は別インスタンスのため非波及。
+- `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx` / `.cpp`: `setViewportBackfaceCulling()` / `isViewportBackfaceCulling()` を追加（既定 false、`invalidateBaseComposite()` + `markRenderDirty()`）。
+- `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cpp`: Shading メニューに `Backface Culling` チェッカブルアクションを追加。
+- 未実装: `ShortcutId` 登録（`ShortcutBindings` は `ArtifactCore` 所有のため今回は見送り、メニューのみ）。
+- 受入: 既定オフで既存描画と同一であること、D3D12 / Vulkan で背面非表示が一致することを S5 で確認する。
+
+### ビルド確認（2026-11-18）
+
+- `x64-Debug-Agent` Ninja 構成で変更 4 ファイル（`MeshRenderer.cpp` / `ArtifactIRenderer.cpp` / `ArtifactCompositionRenderController.cpp` / `ArtifactCompositionEditor.cpp`）のコンパイルが成功。
+- `Artifact.exe` のリンクとランタイム配置まで成功（エラーなし）。
+- `check_module_hygiene` は既存の `ArtifactCore/src/Graphics/Compute/*` の IFC マップ違反で失敗。当該ディレクトリは未変更で、今回の変更とは無関係。
+- 未実施: 実機起動・VP 操作・D3D12/Vulkan parity の画像比較。GUI 操作はユーザーによる範囲明示が必要。
 
 ## 7. 関連文書
 
