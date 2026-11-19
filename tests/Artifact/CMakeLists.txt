@@ -107,6 +107,19 @@ set_tests_properties(ArtifactVariationSystemContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+artifact_add_test(ArtifactLayerVariantContractTest
+    SOURCES
+        LayerVariantContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactLayerVariantContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "layer;variant;serialization;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactLODManagerContractTest
     SOURCES
         LODManagerContractTest.cpp
