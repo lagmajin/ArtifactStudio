@@ -1,6 +1,6 @@
 # 2D Particle Shape Target
 
-**最終更新:** 2026-11-19
+**最終更新:** 2026-11-20
 **ステータス:** In Progress
 
 
@@ -73,6 +73,8 @@
 - 未対応type、animated geometry/transform、stroke-only、非stack multi-content、複数emitter、解決済みfont素材でのText評価、性能閾値・Release比較、GPU memoryとtarget cache容量は未検証。閾値は候補画像比較前に固定できていないため、今回の値は探索/応答の定量記録であり、品質合格を示すものではない。必須評価の未検証が残るため In Progress を維持する。
 
 テストプログラム評価では Shape attraction と静的 glyph attraction がVulkan/D3D12 offscreen経路で動作し、disabled parity・deterministic seek・固定fixtureでのbackend比較を確認した。Composition View描画関数とRender QueueではShapeターゲット有効時に画像が変化することを既存テストで確認した。実アプリUI評価は今回のスコープ外で実施していない。広い素材マトリクス、性能判定値とmemory budgetも未確定のため、ステータスは In Progress のままとする。
+
+2026-11-20に、許可済み範囲でParticle InspectorのShape Target設定とComposition Viewを通常リンクした`Artifact.exe`上で確認しようとした。CUAの画面取得は選択済みArtifactウィンドウで2回とも `foreground window did not report a process id` と失敗し、回復後も再現したため入力せず停止した。したがって実アプリUIの項目表示・操作性・Composition View描画は今回も未検証であり、headless描画関数とRender Queueテストの結果を実UI評価へ読み替えない。
 
 ## 実装先
 
