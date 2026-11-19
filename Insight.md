@@ -1,4 +1,11 @@
-**最終更新:** 2026-11-19
+**最終更新:** 2026-11-20
+
+## 2026-11-20: MSVC v143 toolchain discovery must prefer VS 2022 and module partitions must distinguish interface from implementation units
+- **関連:** `cmake/toolchain-msvc-v143.cmake`、`Artifact/src/Layer/ArtifactAbstractLayerImpl.cpp`、`Artifact/src/Layer/ArtifactAbstractLayerLayoutRouting.cpp`、2D particle playground の隔離評価ビルド。
+- **確認できた事実:** toolchain はVS 18をVS 2022より先に探索し、VS 2022 Developer Command PromptからconfigureしてもMSVC 19.51を選択した。探索順をコピー内だけで逆転するとMSVC 19.44.35229が選択され、対象ビルドはVS 18で出た `Animation.Transform3D` のC1116を再現しなくなった。Artifact側では `ArtifactAbstractLayerImpl.cpp` が `module Artifact.Layer.Abstract:Impl;` の実装partitionを定義し、`ArtifactAbstractLayerLayoutRouting.cpp` が `import :Impl;` しているが、実装partitionがコンパイルされた後も後者で `ArtifactAbstractLayerImpl` の不完全型エラーが出た。v31評価ではさらに、ArtifactWidgetsのCMake利用側コマンドへ `WIDGET_LIBRARY_DLL_IMPORT` が渡っているのに、MSVC 19.44でコンパイルされた2つの利用側objectが `FloatColorPicker::staticMetaObject` を `__imp_` 経由でなく直接参照した。DLLは実体をexportし、import libraryの該当項目は `__imp_...` だけだったため、利用側参照形式の不整合が通常リンク失敗と一致する。
+- **価値または懸念:** ツールチェーン名をv143に固定しても、候補探索順によって別Visual Studioの新しいMSVCが選ばれる可能性がある。また、import側でクラス定義が見えないケースは、CMakeのBMI順序だけでなくpartitionのinterface/implementation区分も点検する手掛かりになる。
+- **次に確認すべきこと:** 製品ツリーでの変更前に、toolchain探索優先順位の正式な意図と、`:Impl` が他translation unitからimport可能なinterface partitionとして定義されるべきかを設計レビューする。FloatColorPickerはimport定義が実際にconsumerへ渡るため、export/import属性がC++ module BMI境界でどう維持されるかを、module interfaceをexport/import双方で分けて生成する最小再現でArtifactWidgets所有者と切り分ける。現時点でBMI属性の伝播は仮説であり未検証。コピー内の修正は製品へ反映していない。
+- **未検証:** partitionのinterface化やクラスexportによる修正案の妥当性、当該C1116が別のv143構成・完全クリーンビルドでも消えるか、通常リンクでのv31実アプリ挙動・Shape Target UI・GPU再生性能。
 
 ## 2026-11-19: Layer Variant の専用テスト分割で責務を見失わない
 - **関連:** `tests/Artifact/VariationSystemContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、`Artifact/src/Layer/ArtifactAbstractLayerPersistence.cpp`。
@@ -1028,6 +1035,112 @@
 - **価値または懸念:** 「かっこよさ」の材料ではなく**組み合わせの導線**が不足している。新規エフェクトを増やすより、`KeyframePatternGenerator` / `EasingCurveUtil` / `FxPresetCatalog` / `EffectService` を束ねるだけで体感速度が上がる可能性が高く、既存部品の再利用でリスクも低い。
 - **次に確認すべきこと:** FX Studio の Cue が実際にレンダリングへ反映される経路の有無。プリセットライブラリ→EasingLab→FX Studio の連携 UX。ピックウィップの実際の需要。
 - **未検証:** 実機 UI 操作・ビルド・描画反映は未確認（ユーザー明示指示がないため実行していない）。一部ドキュメントの古い判定（TextAnimator 30%／Graph Editor 未着手等）は現行コードで訂正済みで、コード側を正とする。
+## 2026-11-19: パーティクルの「地形由来放出」は 1 個の Surface エミッターより ridge 上の複数 Point エミッターが均質になる
+- **関連:** `tools/ParticleMirPlayground/main.cpp`（`makeRidgeEmitterPositions` / `makeEmberParams`）、`tools/ParticleMirPlayground/EVALUATION_PLAN.md`、`captures/mir-particle-20261119-v16/IMAGE_EVALUATION_REPORT.md`。
+- **確認できた事実:** `ParticleEmitter::setEmissionTriangles()` に地形全体の三角形列を渡す（`EmitterShape::Surface`）と、面積重みサンプリングの偏りにより ridge の一部に明確な隙間（x=15-20% / 50-55%）が残った。このため 64 個の `EmitterShape::Point` エミッターを ridge 上へ等間隔配置すると隙間は解消した。ただし**全エミッターが同一 `randomSeed` を使うと同一乱数列が使われるため、周期的な鋸歯状反復と二重点（縦に並んだペア）が現れた**。エミッターごとに `randomSeed = base + i*7919` で分散すると反復も解消した。
+- **価値または懸念:** 「1 エミッターにメッシュを渡す」方式は面積分布に支配され、形状が均一な帯（ridge）だと端に粒子が集まる。**同一シーン内で複数のエミッターを使う場合、シード分散は必須**（同一シードは正しさではなく「見た目の周期」として破綻として出る）。これは Surface 放出に固有ではなく、等間隔 Point 配置全般に通用する。
+- **次に確認すべきこと:** `setEmissionTriangles()` を使う他の実装箇所（Shape/Surface （FromMesh シェーダ経路）が同じ偏りを共有していないか。`ParticleEmitter::setParams()` がシードを保持するか（現状 `setParams` は randomSeed を触らないため、setParams 呼び出しごとに乱数が巻き戻る可能性）。
+- **未検証:** 2D で Point 化してから 3D は Surface のまま（3D は地形全体を覆うため面積重みでも偏りが出ない）。複数エミッター時の性能と、同一シードのテスト確認。
+
+## 2026-11-19: 2D 合成座標系の粒子は「フレーム番号 × 初速」で到達距離が律速される（重力だけでは登らない）
+- **関連:** `tools/ParticleMirPlayground/main.cpp`（`capture2D` の 2D パラメータ）、`captures/mir-particle-20261119-v16/IMAGE_EVALUATION_REPORT.md`。
+- **確認できた事実:** 2D キャプチャのフレーム 45 は 30fps で 1.5 秒のシミュレーションに相当する。初期設定（初速 60-190、重力 55 下向き、drag 0.35）では 1.5 秒間の到達距離は上昇 90px 程度に収まり、視覚採点で「上部の 90% がベースライン付近に留まる」と判定された。重力を 0、初速 170-430、drag 0.02 へ変更すると到達距離が 250-640px となり、Y 分布が [813, -102] まで広がって鉛直分散が可視になった。**life 後半の scaleEnd / opacityEnd を 0 に近づけると上方の粒子が背景と同化して見えなくなる**ため、scaleEnd 1.8-4.0 / opacityEnd 0.45 に緩める必要があった。
+- **価値または懸念:** 「煙が登って見える」かどうかは速度設定だけでは決まらず、**キャプチャするフレーム時刻（=到達可能な距離）と life 後半の減衰**の組合せで決まる。画像評価の「鉛直分散不足」は物理不具合ではなく、パラメータと評価フレームの不整合として読むべき。粒子上端の減衰を緩めるのは 시각적視認性のための意図的な選択であり、寿命曲线として正しい Porter-Duff 減衰ではない点に注意。
+- **次に確認すべきこと:** 評価フレームを 45 固定ではなく「フレーム 45/60/90」の複数점으로採点し、到達距離とキャンバス外抜けのバランスを別途指標化する。
+- **未検証:** ソフトレンダラー経路、粒子テクスチャ／アトラス経路、HDR 値域。
+
+## 2026-11-19: 3D の「地形が画面下部に浮く」問題は地形サイズとカメラ距離の比で決まる
+- **関連:** `tools/ParticleMirPlayground/main.cpp`（`makeMirTerrainSettings` / `setCamera` / `capture3D`）、`captures/mir-particle-20261119-v14/IMAGE_EVALUATION_REPORT.md`。
+- **確認できた事実:** 初期状態は地形 1920×1080・カメラ距離 1450・画角 45° でごく、視覚採点で「地形が画面中央下部に孤立した浮遊スラブとして見え、下端の生えたポリゴン境界が露出する」「上部に 50% 以上の空白」と判定された。地形を 2600×2600 に拡張し、注視点を地形面（Y=-60）へ寄せ、画角 58°・距離 1150 に詰めたところ、地形は画面高の約 75-80% を占めるようになり、下端も画面外へ抜けた（境界露出なし）。同時に 2 倍解像度で描画してダウンサンプルしたところ、遠景稜線のサブピクセル aliasing も解消した。
+- **価値または懸念:** 3D 地形がフレーム内で「浮遊スラブ」として見えるのは**地形の有限サイズが露出する**のが原因で、ジオメトリの破綻ではない。したがって対策はジオメトリ修正ではなく、地形サイズの拡張かカメラ構図の詰めである。手続き地形はカメラが常に有限 patch を見る限り、この「浮遊」現象は避けられない。スーパーサンプリングは遠景 aliasing の低コストな対策で、描画コストは 4 倍まで増えるが、R&D のキャプチャ用途では許容範囲。
+- **次に確認すべきこと:** 実際の Mir/Tao レイヤ（`ArtifactProcedural3DLayer`）も同じカメラ設定で同じ問題を起こさないか（本次は `Procedural3DGenerators` を直接呼び出したため、既存レイヤの `drawMesh` 経路とは組成が異なる）。
+- **未検証:** 実アプリ経路（コンポジション内でのカメラ）での確認、既存 `ArtifactProcedural3DLayer` 経由での同条件確認。
+## 2026-11-19: Shape Target の形状キャッシュは Generator ではなく Particle Layer 境界で解決する
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cpp`、`Artifact/src/Generator/ArtifactParticleGenerator.cpp`、`Artifact/src/Layer/ArtifactShapeLayer.cpp`、`Artifact/src/Layer/ArtifactTextLayer.cpp`、`docs/planned/MILESTONE_PARTICLE_2D_SHAPE_TARGET_2026-11-18.md`。
+- **確認できた事実:** `ParticleEmitter::simulateStep()` は粒子ごとの `updateParticle()` と effector を固定ステップで処理し、`Particle::id` は emitter ごとの生成順で割り当てられる。ShapeはParticle Layerで正規化済み可視fillをtriangulateして点を作る。`ShapePath::contains()`は毎呼び出しflattenSubpathsとsegment buffer構築を行っており、4096候補点ごとに呼ぶ経路を削除した。Textのglyph snapshot API自体はoutlineを返さず、layerの静的samplerを使う。Form ParticleのLayerMapは画像入力でShape/Text pathを直接サンプルするAPIではない。
+- **価値または懸念:** composition参照・geometry・文字outlineの解決をGeneratorに追加すると共有3D経路と固定ステップの責務を広げる。Particle Layer側でbounded point arrayを作り、Generatorへ値として渡す境界で実装した。Shape/Textのcontent revisionとlayer transformsを使い、geometry変更時だけ点列を作り直す。重複`contains()`検査を除いた結果、DebugのShape準備時間は約1025msから約11msへ下がり、2回の再評価でVulkan/D3D12画像と粒子位置の一致を維持した。
+- **次に確認すべきこと:** Release測定と性能閾値の設定、GPU memory/cache容量計測、Shape triangulationの複雑輪郭・穴と画像maskの一致、Textの複数font/言語・細線保持、実アプリUI経路。
+- **未検証:** keyframe geometry/text animation、legacy/非stack multi-content/stroke-only、複数emitter、性能合否とmemory budget、実アプリUIでの操作。
+
+## 2026-11-19: パーティクルのソフトフォールバック経路は GPU 経路より粒子が大きく密に描かれる（背景の alpha 契約も異なる）
+- **関連:** `tools/ParticleMirPlayground/main.cpp`（`capture2DSoftware`）、`Artifact/src/Layer/ArtifactParticleLayer.cpp`（`draw()` のソフトウェア分岐）、`Artifact/src/Generator/ArtifactParticleGenerator.cpp`（`render()` の `size = p->scale` と `diameter = size * 2`）、`ArtifactCore/src/Graphics/ParticleRenderer.cpp`（`halfWidth = max(0.375, p.size * 10.0)`）、`captures/mir-particle-20261119-software/`。
+- **確認できた事実:** 同一シーン（Mir ridge、64 Point エミッター、frame 45）を GPU 経路とソフトフォールバック経路（renderer 未初期化 → `draw()` のソフトウェア分岐 → `getCachedFrame`）で取得した結果、全画面 covered px は GPU 2073600（背景不透明）/ ソフト 484609（背景透過）、同 crop（700,700 400x300）では covered 比 3.07% 対 15.89%、中央連続 run 長（粒径近似）10px 対 17px、run 数 386 対 922 だった。**背景の alpha 契約が違う**（GPU は不透明クリア、ソフトは透過）ため画素差 max 255 は直接比較にならず、粒径・被覆率で評価した。コード上、ソフト経路は `size = p->scale` を半径として直径 `size * 2` で描くのに対し、GPU 経路の VS は `halfWidth = p.size * 10` で quad 全幅 `2 * halfWidth`（コメント上は `radius scale*10` と一致する意図）。さらに 2D レイヤ経路は `transformParticleRenderData()` で `size` にレイヤ変換 scale を掛けるため、両経路で同じ size でも最終的な見かけ径が変わりうる。
+- **価値または懸念:** 画像認識採点を加えた結果、**ソフト経路には描画そのものの破綻がある**ことが判明した。粒子が「柔らかな円形グロー」ではなく中空の輪（リング）／細胞状スペックルとして描画され、明るい核の周囲に硬いオレンジの輪郭が出る。下部には指状の垂れ（finger-like drip）も出る。GPU 経路は同シーンで PASS。**フォールバックを「粗い近似」と見なすと、GPU 非対応環境（CI、ヘッドレス、backend 初期化失敗時）で破綻画像が出ることに気づけない**。粒径・被覆率を route 間で並べて測るのは安い（`compare_backends.py` の ideas を流用できる）上、**視覚モデルにも通す**と輪郭化や不自然な形を検出できる。ただし修正は**製品コード側の parity 問題の可能性**があり、本 R&D の範囲内では修正しない。別 issue として `Artifact` モジュール側で確認すべき。
+- **次に確認すべきこと:** `Artifact` 側でソフト経路の半径規約（`size` を半径とするか、`size * 10` とするか）と 2D 経路の scale 乗算の整合を確認する。フォールバック到達条件（GPU draw 拒否時・`requiresCpuFlipbookPath`・texture 読み込み失敗）を洗い、フォールバックが実際にプロダクションで 겪う条件を特定する。
+- **未検証:** 3D のソフト経路（`ArtifactParticle3DLayer` は 3D カメラ経路を持たないため未取得）、alpha 合成後の背景差を補正した定量比較、フォールバックが実運用で発火する条件。
+
+## 2026-11-19: generic resident GPU エフェクトは時刻を受け取れない（必要ならパラメータ枠で自前で運ぶ）
+- **関連:** `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp`（`ResidentGenericParams` の `params.time = 0.0f` / `params.frame = 0.0f`、`kResidentGenericPrelude`）、`Artifact/include/Effects/ArtifactAbstractEffect.ixx`（`GpuSpatialEffectNode.parameters` は 16 枠）、`Artifact/src/Effects/BurnAway/BurnAwayEffect.cpp`。
+- **確認できた事実:** generic resident 経路の cbuffer には `g_Time` / `g_Frame` が宣言されているが、値を書き込む箇所は `params.time = 0.0f; params.frame = 0.0f;` のままで、**常に 0 が渡る**。また `GpuSpatialEffectNode::resolutionScaledParameterMask` を消費するコードは `Artifact/src` および `ArtifactCore` のいずれにも存在せず、ピクセル単位パラメータは LOD 補正されていない。
+- **価値または懸念:** 時間アニメ（炎のちらつき、進行ノイズ）を持つエフェクトは generic resident 経路では `g_Time` を使えず、**`EffectContext.timeSeconds` を受け取ってパラメータ枠へ詰める**必要がある。16 枠は埋まりやすいため、設計段階から「時刻・色・数をどの順で 16 枠に収めるか」を決める必要がある。generic 経路を使う限り、スクリーンスペースの時間依存はパラメータ経由に統一される。「ピクセル単位パラメータは preview と final で見た目が変わる」リスクは現時点で回避不能であり、正解は**空間パラメータをすべて正規化する設計**（Burn Away は層高正規化）と「将来マスクが実装されたら再評価」の二段構えになる。
+- **次に確認すべきこと:** `resolutionScaledParameterMask` の消費側が未実装なら、pixel 単位パラメータを持つエフェクトは preview と final で差が出る。どの downstream が scalar をスケールする意図だったのか（設計メモ）是否存在を確認する。Burn Away は全て層高正規化のため影響を受けない。
+- **未検証:** generic resident 経路の実行時間依存挙動（g_Time が 0 のままでも既存エフェクトが問題を起こしていないか）、`resolutionScaledParameterMask` が将来実装されるか。
+
+## 2026-11-19: レイヤーエフェクト面 Buffers は「B,G,R,A ＋ straight alpha」— 色は channel 跨ぎと alpha 底上げで壊れる
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cpp`（`getPixel` は `FloatRGBA(pixel[2], pixel[1], pixel[0], pixel[3])`、`rgba32fData()` は canonical B,G,R,A）、`Artifact/src/Preview/ArtifactPreviewLayerEffects.cpp`（`toQImage()` → `SurfacePixelTarget::Rgba8SrgbStraight`）、`Artifact/src/Effects/LinearWipe/LinearWipeEffect.cpp`（`c.a *= alpha` のみで RGB は据え置き）、`Artifact/src/Effects/BurnAway/BurnAwayEffect.cpp`。
+- **確認できた事実:** ① `rgba32fData()` が返すのは **B,G,R,A** 順（`getPixel` は mat[2]=R, mat[1]=G, mat[0]=B にマップ）。② レイヤーエフェクト面の合成は **straight alpha**（プレビュー経路が `toQImage()` で straight sRGB 変換する。premultiplied 前提の合成は `LinearWipe` の「alpha だけ減らして RGB は据え置き」と整合しない）。③ GPU generic resident シェーダは `.bgra` スワizzleで同じ BGRA 規約に従う（LinearWipe シェーダの `.bgra` 入出力を参照）。
+- **価値または懸念:** **CPU エフェクト実装で色（HUD、合成、発光）を触ると、channel 順の误解は「色相が青に抜ける」という形でしか現れず、alpha だけを見るテストでは検出できない。** 逆に straight alpha で「発光分を alpha 乗算」「alpha の底上げ」を入れると、消失領域に紙の色が残るか発光が半減する。**結果は「合成前提を誤ると画像評価でしか気づけない」ため、画像エフェクトは alpha だけでなく色相と合成結果まで検証する設計にしないと壊れたまま出荷される。** なお、Buffer 順と alpha 契約はエフェクトごとに同じである保証がなく、既存エフェクトが RGB を据え置くのは「straight alpha だから正しい」ためで、premultiplied を前提に RGB を据え置く実装は正解にならない。
+- **次に確認すべきこと:** `SurfaceColorDescriptor` が持つ `SurfaceAlphaMode`（Premultiplied / Straight / Opaque）をエフェクト側で参照すべきか。現状は `ImageF32x4_RGBA` の既定 descriptor が unknown で、エフェクトは「straight alpha が前提」の暗黙契約に乗っている。descriptor を参照して alpha 契約を明示的に固定できるなら、Straight 固定か動的対応かを設計する。
+- **未検証:** GPU 経路の CPU parity（Burn Away は未計測）、premultiplied を前提とした既存エフェクト（該当コードは未検出だが、OFX ホスト経路は未精査）。
+
+## 2026-11-19: 共有リポジトリを他セッションが編集中だと「全体ビルドの失敗」と「自分の変更の失敗」を区別できない
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cpp`（他セッションが `ChangeCompositionStatesCommand` を匿名名前空間からモジュール級クラスへ移設中）、`out/build/x64-Debug-Agent`（Ninja ツリー）、`tools/BurnAwayLab`。
+- **確認できた事実:** 他セッションの未完成リファクタが `error C2888: シンボルは名前空間 'anonymous-namespace' 内で定義できません` を出し、`ArtifactAppRuntime` を含む全ターゲットがリンクできなくなった。原因は自分の変更（`Artifact/include/Generator/ArtifactParticleGenerator.ixx` の ash/ember プリセット）と無関係で、`git status` にも他セッションのファイル（`ArtifactCompositionMenu.ixx/.cpp`）が未コミットで出ていた。**自分の変更側のコンパイルは `cmake --build <tree> --target "Artifact/CMakeFiles/ArtifactAppRuntime.dir/src/Generator/ArtifactParticleGenerator.cpp.obj"` のように TU 単位のターゲット指定で切り分けられる**（このSpecify方法では his のファイルはコンパイルされないため成功した）。
+- **価値または懸念:** 共有ツリーでは **「全体の赤 ≠ 自分の赤」**。エラー文件名が自分の担当ファイルでないことを確認してから、次の一手を決める（待つ／自分の TU だけビルドする）。逆に **自分が作業中購のファイルを他セッションに編集されるのは禁止**で、競合解消のために相手のファイルを直すと、そのセッションの in-flight 状態を壊す。
+- **次に確認すべきこと:** 同じツリーを複数セッションが共有している場合の進捗共有方法（ビルドロック、作业中ファイルの宣言、分離したビルドツリー）。現状は各セッションが同じ `out/build/x64-Debug-Agent` を共有しており、片方の未完了変更がもう片方の検証をブロックする。
+- **未検証:** 単一セッション前提の設計がそのまま運用に適しているか（他セッション数・同時ビルドの頻度）。
+
+## 2026-11-19: 粒子シミュレーションは「1 回の update」でしか進めない — 大きな delta を 1 回渡すと静かに粒子が消える
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cpp`（`EmitterParams::fixedTimeStep` / `maxSubSteps`）、`Artifact/src/Layer/ArtifactParticleLayer.cpp`（`renderToImage` が `particleSystem->update(deltaTime)` を 1 回呼ぶ）、`tools/BurnAwayLab/main.cpp`（評価ラボ）。
+- **確認できた事実:** `ParticleSystem::update(deltaTime)` は固定タイムステップ（既定 1/120 秒）と最大サブステップ数（既定 8）でクランプされるため、**delta 1.5 秒を渡しても実際に進むのは約 0.067 秒分**。粒子レイヤーを `renderFrame(w, h, 1.5f)` のように 1 回で進めると、**粒子が出ない・出方が薄い**状態が「エラーなし」で返る（自分の ash/ember プリセットでは 38 粒しか出なかった）。**1/60 秒刻みで 90 回進ませると 94 粒になり、見た目も Properly になる**。
+- **価値または懸念:** ヘッダに `fixedTimeStep` / `maxSubSteps` があるのに、**「1 回の update でどこまで進むか」の上限が API として露出していない**。大きな delta を渡す利用者は「simulation 落ちて particle が出ない」症状を、**エラーを出さずに**受け取る。**ヘッドレス検証で粒子を再現する際は、フレーム単位で進めるのが必須**であり、既存ラボ（`ParticleMirPlayground`）も `goToFrame` を 1 フレームずつ回していたのはこの制約のためと推定される。
+- **次に確認すべきこと:** `maxSubSteps` を越えた delta を「時間どおりに成立させる」_large- delta 対応を追加すべきか（コストは dt の切り詰め）、それとも「要求時間が trunc された」ことを呼び出し側に返す API が必要か。現状はどちらも無く、**利用者が particle の出_expected 量から時間発展を推測できない**。
+- **未検証:** GPU 経路（Diligent billboard）でも同じクランプが効くか（`updateAndRenderSoftwareFrame` はソフトウェア経路の別実装）。
+
+## 2026-11-20: CPU エフェクトカーネルはチャンネル順を固定してはいけない — 入力源で backing order が変わる
+- **関連:** `ArtifactCore/include/Graphics/SurfaceColorContract.ixx`（`SurfaceChannelOrder`）、`ArtifactCore/src/Image/ImageF32x4_RGBA.cpp`（`getPixel` は `FloatRGBA(pixel[2], pixel[1], pixel[0], pixel[3])`、`rgba32fData()` は「canonical B,G,R,A」と明記しながら**実体は descriptor 依存**）、`Artifact/src/Effects/BurnAway/BurnAwayEffect.cpp`、`Artifact/src/Effects/LinearWipe/LinearWipeEffect.cpp`（GPU 側は `.bgra` スワizzle）。
+- **確認できた事実:** Burn Away の CPU カーネルは当初「内部バッファは B,G,R,A」と仮定して色演算を書いていた。しかし `ImageF32x4_RGBA` の backing order は入力源によって異なり、**QImage 由来は BGRA、OIIO デコード由来は RGBA**。実アプリでは画像レイヤーの面が OIIO 由来になり得るため、**そのままでは R/B が入れ替わって出荷される故障**になる。GPU 側は `makeGpuImageUploadBuffer` で canonical RGBA に正規化されるため、CPU だけ合っていない状態だった。
+- **価値または懸念:** **「BGRA で確保されているから」で raw バッファのチャンネル順を決めてはいけない。** 色の演算をする CPU エフェクトは `colorDescriptor().channelOrder` を見て読み書きを分岐するか、`getPixel/setPixel` を使う。GPU 側は canonical RGBA で upload されるため、**CPU は GPU の契約（RGBA）に合わせる**のが正解。**検出は画像評価でしかできない**（alpha だけのテストは通る）。契約テストは「中立色の面」で R>G>B の順序を検証すると、入れ替わりの回帰に効く。
+- **次に確認すべきこと:** 他エフェクトの CPU カーネルに同じ固定前提が残っていないか（`rgba32fData()` を色として直接扱う箇所を grep して descriptor 対応になっているかを確認）。本件は Burn Away のみ修正済み。
+- **未検証:** 実際の画像レイヤー（OIIO 由来 RGBA 面）を通したアプリ経路での色順は未確認（GUI テストは swap chain 失敗で GPU 出力が出なかった）。
+
+## 2026-11-19: Shape particle target の点群は描画経路と同じ可視 fill を検証する
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cpp`（ShapePath内の候補点フィルタ）、`Artifact/src/Layer/ArtifactShapeLayer.cpp`（`nativeShapeFillPathsForParticleTarget()`）、`tools/Particle2DPlayground/main.cpp`（ordered Shape Stack試験素材）、`docs/planned/MILESTONE_PARTICLE_2D_SHAPE_TARGET_2026-11-18.md`。
+- **確認できた事実:** VulkanとD3D12 headlessで外側・内側ellipse、Merge Paths/Subtract、Fill/Strokeのordered Shape Stackを描画し、穴中心alpha=0、ring sample alpha=184、sampler pathの穴中心contains=falseを確認した。固定LayerIDのfixtureではGPU描画、ターゲット形状、粒子中心が両backendで一致した。Shape attractionの最新frame 240は穴内1/360、可視ring mask内359/360。穴内の粒子index 320はframe 90の楕円正規化半径0.893からframe 240で0.978へ移動し、内周境界へ近づいていた。ArtifactCoreのShapePath winding-hole triangulation testでは全三角形内のbarycentric gridを走査し、穴被覆は0だったため、現時点の漏れはサンプラー誤生成より有限時間の粒子移動と整合するが、実際のShapeLayer target点列との直接照合は未実施。以前のlegacy subtractive child fixtureは描画 parityを満たさず、現行評価から除外した。
+- **価値または懸念:** サンプラー点群だけでなく本番描画から取得したmaskと同じ座標で比較する必要がある。また、別プロセスでのbackend比較ではLayerIDを固定しないと、LayerID由来sampling seedが変化し、backend差とfixture差を混同する。
+- **次に確認すべきこと:** legacy / 非stack multi-content / stroke-only / opacity / animated geometryを個別素材化し、対応する実描画経路のmaskとの一致を測る。Composition View / Render Queue経路と複数素材を評価する。
+- **未検証:** Composition View / Render Queue、全Shape構成に対するfill-rule parity、性能閾値・Release比較・GPUメモリ予算。
+
+## 2026-11-19: unscanned C++ module implementation は自分の interface IFC producer を先行させないと fresh Release build で解決できない場合がある
+- **関連:** `ArtifactCore/cmake/ArtifactCoreModuleReferences.cmake`、`ArtifactCore/CMakeLists.txt`、`ArtifactCore/src/Graphics/Compute/*Computer.cpp` と対応する `include/Graphics/Compute/*.ixx`、`docs/planned/MILESTONE_PARTICLE_2D_SHAPE_TARGET_2026-11-18.md`。
+- **確認できた事実:** Release Ninja のfresh buildで `CurveComputer.cpp` / `DuotoneComputer.cpp` が、自身の module interface IFCを見つけられず失敗した。Ninjaのobject queryでは、imported interface `.ixx.obj` は `OBJECT_DEPENDS` に並ぶが、当該実装が属する対応interface `.ixx.obj` は入力に含まれていなかった。対応interfaceを先に明示buildすると各Compute実装が通り、Particle変更の7 sourceもv143 Releaseで個別に通過した。全体ビルドは後続の別Fracture Runtime sourceで停止した。
+- **価値または懸念:** source scanを無効にしたmodule implementationで、`/reference` 指定があることだけではproducer IFC生成との順序が保証されない可能性がある。clean buildと既存cache buildで挙動が違うと、Releaseの検証が不安定になり、別のsource errorに見えることもある。
+- **次に確認すべきこと:** 対応関係が明示されている全unscanned implementationについて、Ninja graphでown interface object dependencyがあるかを監査し、必要ならArtifactCoreのCMakeでsource pairから依存を生成する。clean Releaseのparallel buildで再確認する。
+- **未検証:** 対応interface依存がないimplementation全体の件数、Debug clean buildにも同じraceがあるか、CMake修正の影響範囲。ArtifactCore submodule自体は今回変更していない。
+
+## 2026-11-19: Text particle target の初回準備時間は測定対象を分けて確認する
+- **関連:** `tools/Particle2DPlayground/main.cpp`（`renderToImage()` による準備計測）、`Artifact/src/Layer/ArtifactTextLayer.cpp` のglyph outline sampling、`docs/planned/MILESTONE_PARTICLE_2D_SHAPE_TARGET_2026-11-18.md`。
+- **確認できた事実:** 現行Debug headless captureの1回/backend計測で、Text target preparation + software layer draw全体が約749ms (Vulkan) / 766ms (D3D12)だった。計測はsampler単体ではなく初回 `renderToImage()` 全体を含む。
+- **仮説・未検証:** glyph outline simplification / triangulation がcold-path時間の一部を占める可能性があるが、現計測では内訳未取得のため原因は未確定。旧探索runでは別値だったため、単一fixture・単一processでの再現性も未検証。
+- **価値または懸念:** target更新時に長い同期停止が生じる可能性があり、性能合否を付ける前にsampler、target cache更新、layer drawを別々に計時する必要がある。現時点の約0.75秒をcache生成だけの時間として扱わない。
+- **次に確認すべきこと:** 計測区間を分解し、複数runとReleaseで再測定して許容時間を事前に定める。
+
+## 2026-11-20: Module interface 経由の DLL data export は consumer object の参照形式まで確認する
+- **関連:** `ArtifactWidgets/include/Dialog/FloatColorPicker.ixx`、`ArtifactWidgets/src/Dialog/FloatColorPicker.cpp`、`Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cpp`、隔離評価ビルドの `ArtifactParticle2DPlayground` link。
+- **追加で確認できた事実:** `ArtifactWidgets/CMakeLists.txt` は `WIDGET_LIBRARY_DLL_EXPORT` をPRIVATE、`WIDGET_LIBRARY_DLL_IMPORT` をINTERFACE compile definitionにしており、`FloatColorPicker.ixx` のクラス宣言は `WIDGET_LIBRARY_DLL_API` で注釈される。よってmodule interfaceの提供側はexport定義でBMIを生成し、consumer側はそのBMIをimportする構成である。
+- **追加で確認できた事実:** 製品ファイルを変えない隔離再現をMSVC 14.51で作成し、Qt `QObject`/Verdigris `W_OBJECT`付きのexport module classを`dllexport`で宣言したBMIをconsumerからimportした。通常のglobal-module consumer、別のmodule implementation unit、dummy class間のtyped `QObject::connect`の全ケースで、consumer objectの未定義参照は `__imp_?staticMetaObject...` になった。さらに実際の`FloatColorPickerDialog.ifc`を直接importしたstatic data参照もMSVC 14.51では `__imp_?staticMetaObject...` だった。一方、MSVC 19.44で同じ実IFCをimportすると `?staticMetaObject...` の直接参照となり、実製品のリンクエラーを再現した。原因は少なくとも一般的なBMI importやtyped connectではなく、MSVC 19.44と14.51のC++ module/DLL import差であることが確認できた。
+- **追加で確認できた事実:** MSVC 19.44上で、実際の `FloatColorPicker.ixx` を隔離再コンパイルし `WIDGET_LIBRARY_DLL_EXPORT` を外して（`WIDGET_LIBRARY_DLL_API` が `dllimport` となる条件で）生成したIFCを別module interface consumerからimportすると、consumer objectは `__imp_?staticMetaObject...` を参照した。通常のexport設定で生成したIFCでは直接参照になる。この比較はIFC属性と参照形式の関係を示すが、同一moduleのexport providerと併用できる正規ビルド構成や修正案はまだ検証していない。
+- **追加で確認できた事実:** export module classを `extern "C++"` linkage specificationで包む隔離変更はconsumer側の `staticMetaObject` 参照からmodule名suffixを外したが、参照は直接symbolのままで、import libraryの `__imp_...` と一致せずリンク修正にならなかった。さらにconsumer用 `dllimport` IFCを同moduleの `W_OBJECT_IMPL` providerにも使う試験では、`staticMetaObject` 定義にC2491となった。`extern "C++"` の追加とprovider/consumer IFCの単純な共有切替は修正候補から除外する。
+- **仮説・未検証:** MSVC 19.44の制約を回避する正式な製品修正は未確定。MSVC 14.51で通常製品リンクを回せるか隔離buildを試したが、リンク段階の前に`Animation.Transform3D` IFC importで`stop_token(248)`のC1116となり停止したため、ツールセット更新は現状すぐ使える代替確認経路にならなかった。診断目的で隔離コピーのみ `/FORCE:UNRESOLVED` を指定するとheadless粒子captureは完走し、Vulkan/D3D12各150枚とframe60逐次／直接シーク一致を取得できた。frame149は両backendで下端余白0px・差分率3.347%となり、既定ゲートに不合格。これは通常リンクが直った証明ではなく、未解決箇所を粒子経路が実行しなかった場合の隔離診断証跡に限る。Artifact submoduleは変更していない。
+- **価値または懸念:** C++ moduleとDLL境界の問題を「implementation objectがビルドされたか」だけで判断すると、symbol import/exportの不一致を見落とす。consumer objectのundefined symbolとDLL export/import libraryを比較し、どの形式がずれているかまで記録する必要がある。
+- **次に確認すべきこと:** 19.44のconsumerだけが `dllimport` 属性を含むBMIを使い、provider実装は `dllexport` BMIを使うCMake module ownershipを成立させられるか、または既存C++ module APIの変更なしにツールセット制約を回避できるかを検証する。ユーザーからArtifactWidgets submodule変更の許可を得たが、修正設計は未確定であり、まだ追跡ファイルは変更していない。正規リンク後、キャプチャを再実行して診断証跡との一致を確認する。
+- **未検証:** 他のArtifactWidgets module classで同様のdata symbol不一致が起きるか、`FloatColorPicker`固有か、全体リンクを成立させる正式な修正、診断リンクで得たピクセルと通常リンク製品の一致。
+
+## 2026-11-20: MSVC 19.44 module IFCでQ_OBJECTのdata exportを明示する
+- **関連:** `ArtifactWidgets/include/Dialog/FloatColorPicker.ixx`、Particle2DPlaygroundの通常リンク評価、`experiments/Particle2DShapeTarget/v33_diagnostic_manifest.json`。
+- **確認できた事実:** MSVC 19.44ではclass-level `dllexport`のC++ module IFCをimportしたconsumer objectが`staticMetaObject`を直接参照し、DLL import libraryの`__imp_`と一致しなかった。Qt6の`Q_OBJECT` expansion内でstatic data memberだけを`WIDGET_LIBRARY_DLL_API`付きで宣言し、クラス全体ではなく公開メソッドを個別exportするとconsumer objectが`__imp_`参照になった。通常リンクから`/FORCE:UNRESOLVED`を外したArtifactParticle2DPlayground targetが成功し、Vulkan/D3D12のv33 150フレームcaptureも完走した。
+- **価値または懸念:** QtのQ_OBJECT macro expansionをローカルで上書きするため、Qt更新時に`qtmetamacros.h`の宣言と一致するか再確認が必要。影響はFloatColorPickerに限定し、他module classへ一般化しない。
+- **次に確認すべきこと:** Qt更新時にmacro expansionを照合し、MSVC 19.44/19.51両方でconsumer objectのimport symbolと通常リンクを確認する。Artifactアプリ本体UI、Particle Inspector、Composition View、実時間GPU再生はこのheadless Playground評価で証明されていない。
 
 ## 2026-11-19: ネイティブ／GPU エンコーダは alpha pix_fmt を設定できない
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueEncoder.cpp` の `NativeFFmpegBackend` / `createVideoEncodeBackend()`、`ArtifactCore/include/Video/FFMpegEncoder.ixx` の `FFmpegEncoderSettings`。
