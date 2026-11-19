@@ -1,4 +1,18 @@
-**最終更新:** 2026-11-18
+**最終更新:** 2026-11-19
+
+## 2026-11-19: Layer Variant の専用テスト分割で責務を見失わない
+- **関連:** `tests/Artifact/VariationSystemContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、`Artifact/src/Layer/ArtifactAbstractLayerPersistence.cpp`。
+- **確認できた事実:** Layer Variant の契約テストは既に `ArtifactVariationSystemContractTest` として登録済みで、opacity override、reset、extract/insert、JSON round-trip を確認している。同ファイルには Composition responsive/state variant も同居する。JSON reader は active index を `size_t` へ変換した後、variant 数との範囲比較で範囲外を 0 に戻す。負数も unsigned 変換により範囲外となるが、この挙動を直接固定するケースは既存 suite にない。
+- **価値または懸念:** 新しいテストプロジェクトを重ねる前に、既存ターゲットを専用 suite として整理し、異常入力・Undo/Redo・保存再読込・協調切替の契約ギャップを埋めると重複を避けられる。
+- **次に確認すべきこと:** 負の index を含む不正 JSON の期待動作を専用 suite で固定し、variant create/activate undo-redo と collaborative apply の既存経路をテスト可能な形で確認する。テスト実行はユーザーの明示許可後に行う。
+
+## 2026-11-19: 合成仕上げの「UI も中身も無い」は古い、残るは既知ギャップと runtime のみ
+- **関連:** `docs/analysis/COMPOSITING_FINISHING_ACCEPTANCE_MATRIX_2026-11-19.md`、`docs/technical/MATTE_BLEND_COMPOSITING_ORDER_2026-07-03.md`、`docs/analysis/KEYING_EFFECTS_RD_2026-10-26.md`、`docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md` 2026-08-25 項。
+- **確認できた事実:** Track Matte は評価順・4 MatteType・Alt-drag/cycle 拒否・Undo・BGRA 論理化が静的に充足。Keyer は 39 件契約テストが 2026-10-27 に pass。Motion Blur は velocity ターゲット未生成バグが 2026-08-25 に修正済みで、shutter/phase UI も存在する。旧ギャップ表（06/07 月）の「未実装」表現は実態と一致しない。
+- **価値または懸念:** 真の残課題は (1) runtime 受入れ（複数 matte の実コンポ、CPU/GPU parity、Motion Blur ON/OFF）と (2) 実装側の既知ギャップ（IBK の copy ID 保存復元、clean plate の packaging 未対応、Opaque メタデータ不一致、2D velocity AOV 欠如、layer transform multi-sample 未完了）の 2 層に分かれる。特に IBK の保存・移動系はユーザー被害に直結する。
+- **未検証:** runtime 受入れ（ビルド・実機禁止のため未実施）。既知ギャップは静的コード-path  finding であり実素材での再現は未確認。
+- **次に確認すべきこと:** 子リポジトリ変更（B-7/B-8）は AGENTS.md の明示依頼ルールに従い先に許可を取る。ビルド許可が得られたら A-4/A-5 と C-1/2/3 の新規実装不要ケースから受入れる。
+
 
 ## 2026-11-18: 継ぎ目のないテクスチャは「トーラス低域化」で継ぎ目は消えるが質感が落ちる
 - **関連:** `experiments/SeamlessTextureLab/`（`EVALUATION_PLAN.md` / `seamless_reference.py` / `captures/rd1/review/RD1_TABLES.md` / `captures/rd1/review/rd1_candidate_blind_sheet.png`）。
@@ -1014,3 +1028,10 @@
 - **価値または懸念:** 「かっこよさ」の材料ではなく**組み合わせの導線**が不足している。新規エフェクトを増やすより、`KeyframePatternGenerator` / `EasingCurveUtil` / `FxPresetCatalog` / `EffectService` を束ねるだけで体感速度が上がる可能性が高く、既存部品の再利用でリスクも低い。
 - **次に確認すべきこと:** FX Studio の Cue が実際にレンダリングへ反映される経路の有無。プリセットライブラリ→EasingLab→FX Studio の連携 UX。ピックウィップの実際の需要。
 - **未検証:** 実機 UI 操作・ビルド・描画反映は未確認（ユーザー明示指示がないため実行していない）。一部ドキュメントの古い判定（TextAnimator 30%／Graph Editor 未着手等）は現行コードで訂正済みで、コード側を正とする。
+
+## 2026-11-19: ネイティブ／GPU エンコーダは alpha pix_fmt を設定できない
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueEncoder.cpp` の `NativeFFmpegBackend` / `createVideoEncodeBackend()`、`ArtifactCore/include/Video/FFMpegEncoder.ixx` の `FFmpegEncoderSettings`。
+- **確認できた事実:** `FFmpegEncoderSettings` に pixel format／alpha state フィールドが無く、`FFmpegEncoder.cpp` が codec/profile から `AV_PIX_FMT_*` を決める。そのため pipe 側で alpha 対応 pix_fmt を選んでも、native/GPU/auto（GPU 優先）経路では alpha が落ちる。今回は alpha 明示ジョブを software pipe へ自動ルーティングして回避した。
+- **価値 / 懸念:** ユーザー明示許可により `FFmpegEncoderSettings::pixelFormat` を追加し、ソフトウェアエンコーダーにのみ適用する形で解決した。HW エンコーダーは固定形式のため対象外で、今も pipe ルーティングで回避している。
+- **未検証:** 実ファイルでの alpha 保持、HW エンコーダの capability、H.264/MP4 の alpha 互換性は未検証。
+- **次に確認すること:** ビルド許可が出たら `native` バックエンドと software pipe の両方で alpha 保持を実機検証し、HW ルートは capability probe で切り分ける。
