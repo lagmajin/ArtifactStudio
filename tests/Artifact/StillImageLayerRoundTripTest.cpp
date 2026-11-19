@@ -45,7 +45,9 @@ import Artifact.Layer.Image;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.SourceCrop;
 import Artifact.Mask.LayerMask;
+import Artifact.Project;
 import Artifact.Project.Manager;
+import Artifact.Service.Project;
 import Animation.Transform2D;
 import Asset.Manager;
 import BrightnessEffect;
@@ -1647,7 +1649,11 @@ TEST(StillImageLayerRoundTripTest,
     const QString relocatedLastPath =
         relocatedRoot.filePath(QStringLiteral("mixed-0003.png"));
     const QString relocatedMissingPath =
-        relocatedRoot.filePath(QStringLiteral("relinked-middle.png"));
+        relocatedRoot.filePath(QStringLiteral("relinked-0002.png"));
+    const QString relinkedFirstPath =
+        relocatedRoot.filePath(QStringLiteral("relinked-0001.png"));
+    const QString relinkedLastPath =
+        relocatedRoot.filePath(QStringLiteral("relinked-0003.png"));
     const QString relocatedProjectPath =
         relocatedRoot.filePath(QStringLiteral("mixed-sequence.artifact"));
 
@@ -1675,6 +1681,9 @@ TEST(StillImageLayerRoundTripTest,
     ASSERT_NE(imageLayer, nullptr);
     const auto layerId = imageLayer->id();
     const QStringList originalFramePaths{firstPath, missingPath, lastPath};
+    const auto project = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(project);
+    project->addAssetFromPath(firstPath, originalFramePaths, 24.0);
     ASSERT_TRUE(imageLayer->setImageSequence(originalFramePaths, 24.0));
     ASSERT_TRUE(projects.saveToFile(projectPath).success);
 
@@ -1706,10 +1715,16 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 2).pixelColor(0, 0), lastColor);
 
     frame.fill(relinkedColor);
+    ASSERT_TRUE(QFile::copy(relocatedFirstPath, relinkedFirstPath));
     ASSERT_TRUE(frame.save(relocatedMissingPath, "PNG"));
+    ASSERT_TRUE(QFile::copy(relocatedLastPath, relinkedLastPath));
     const QStringList relinkedFramePaths{
-        relocatedFirstPath, relocatedMissingPath, relocatedLastPath};
-    ASSERT_TRUE(relocatedLayer->setImageSequence(relinkedFramePaths, 24.0));
+        relinkedFirstPath, relocatedMissingPath, relinkedLastPath};
+    auto* projectService = Artifact::ArtifactProjectService::instance();
+    ASSERT_NE(projectService, nullptr);
+    ASSERT_TRUE(projectService->relinkFootageByPath(relocatedFirstPath,
+                                                   relinkedFirstPath));
+    ASSERT_EQ(relocatedLayer->sequenceFramePaths(), relinkedFramePaths);
     relocatedLayer->goToFrame(1);
     EXPECT_EQ(waitForSequenceFrame(*relocatedLayer, 1).pixelColor(0, 0),
               relinkedColor);
