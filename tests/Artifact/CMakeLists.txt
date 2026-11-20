@@ -563,6 +563,47 @@ set_tests_properties(ArtifactProcedural3DLayerLodContractTest PROPERTIES
     TIMEOUT 60
     RUN_SERIAL TRUE
 )
+
+artifact_add_test(ArtifactProcedural3DTextExtrudeContractTest
+    SOURCES
+        Procedural3DTextExtrudeContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_target_properties(ArtifactProcedural3DTextExtrudeContractTest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+if(WIN32)
+    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactProcedural3DTextExtrudeContractTest>
+            "$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>"
+            "-DVCPKG_INSTALLED=${VCPKG_INSTALLED}"
+            "-DCONFIG=$<CONFIG>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyVcpkgRuntimeDeps.cmake"
+        VERBATIM
+    )
+    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>"
+            "-DVCPKG_INSTALLED=${VCPKG_INSTALLED}"
+            "-DCONFIG=$<CONFIG>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyQtPlatformPlugin.cmake"
+        VERBATIM
+    )
+endif()
+set_tests_properties(ArtifactProcedural3DTextExtrudeContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "procedural-3d;text;extrude;geometry;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
 set_tests_properties(ArtifactVideoProxyQualityLodContractTest PROPERTIES
     LABELS "video;proxy;lod;cpu;contract"
 )
