@@ -70,6 +70,19 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+    artifact_add_test(ArtifactVirtualTransitionStackContractTest
+        SOURCES
+            ArtifactVirtualTransitionStackContractTest.cpp
+            ArtifactVirtualTransitionGpuCrossfadeTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "composition;timeline;transition;stack;serialization;ui;offscreen;cpu;gpu;contract"
+        TIMEOUT 30
+    )
+
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp
@@ -140,6 +153,21 @@ set_tests_properties(ArtifactTimelinePropertyGroupContractTest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     LABELS "timeline;property-groups;cpu;contract"
     TIMEOUT 30
+)
+
+# Drives the existing Layer Panel Ctrl+G shortcut through the offscreen widget
+# and checks the resulting composition hierarchy plus Undo/Redo restoration.
+artifact_add_test(ArtifactLayerGroupingUiContractTest
+    SOURCES
+        ArtifactLayerGroupingUiContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactLayerGroupingUiContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "timeline;layer;grouping;keyboard;undo;qt;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
 )
 
 # Project View panel contract test.
