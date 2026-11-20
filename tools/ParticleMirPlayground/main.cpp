@@ -164,7 +164,9 @@ bool savePng(const QImage& image, const QString& path, QFile& report)
 // Mir 風地形生成
 // ---------------------------------------------------------------------------
 
-ArtifactCore::TerrainSettings makeMirTerrainSettings(std::uint32_t seed)
+ArtifactCore::TerrainSettings makeMirTerrainSettings(std::uint32_t seed,
+                                                    float sizeX = 1920.0f,
+                                                    float sizeY = 1080.0f)
 {
     ArtifactCore::TerrainSettings settings;
     settings.seed = seed;
@@ -172,8 +174,8 @@ ArtifactCore::TerrainSettings makeMirTerrainSettings(std::uint32_t seed)
     settings.uvMode = ArtifactCore::TerrainUvMode::Grid;
     settings.columns = 96;
     settings.rows = 96;
-    settings.sizeX = static_cast<float>(CanvasWidth);
-    settings.sizeY = static_cast<float>(CanvasHeight);
+    settings.sizeX = sizeX;
+    settings.sizeY = sizeY;
     settings.height = 320.0f;
     settings.noiseScale = 1.6f;
     settings.noiseAmplitude = 1.0f;
@@ -222,7 +224,10 @@ std::vector<QVector3D> makeRidgeEmitterPositions(
             ? static_cast<int>(profile.size() / 2)
             : (i * (static_cast<int>(profile.size()) - 1)) / (count - 1);
         const float x = static_cast<float>(profileIndex) * stepX;
-        const float y = baseY - profile[static_cast<std::size_t>(profileIndex)] * 0.25f;
+        // 地形高さそのままを使う（スケール 1.0）。0.25 倍では ridge の高低差が
+        // 80px しかなく平坦に見え、視覚採点で「鉛直方向の分散が乏しい」と
+        // 判定されたため、地形の高低差をそのまま 2D の ridge に反映する。
+        const float y = baseY - profile[static_cast<std::size_t>(profileIndex)];
         positions.push_back(QVector3D(x, y, 0.0f));
     }
     return positions;
@@ -381,11 +386,11 @@ int capture2D(const QString& outputDirectory)
         ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
     const auto profile = sampleRidgeProfile(terrain, terrainSettings.columns,
                                             terrainSettings.rows);
-    const float ridgeBaseY = static_cast<float>(CanvasHeight) * 0.86f;
+    const float ridgeBaseY = static_cast<float>(CanvasHeight) * 0.72f;
     // 視覚採点で「ridge 途中の隙間」「鉛直方向の分散が乏しい」と指摘されたため、
     // 帯 1 個の Surface 放出をやめ、ridge 上に等間隔で Point エミッターを
     // 置いて分布を連続化し、立ち上がり量を引き上げる。
-    constexpr int RidgeEmitterCount = 48;
+    constexpr int RidgeEmitterCount = 64;
     const auto emitterPositions = makeRidgeEmitterPositions(
         profile, ridgeBaseY, RidgeEmitterCount);
     if (emitterPositions.empty()) {
@@ -401,25 +406,41 @@ int capture2D(const QString& outputDirectory)
                                  QVariant(CanvasHeight));
     layer.clearEmitters();
 
-    for (const auto& position : emitterPositions) {
+    for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
+        const auto& position = emitterPositions[i];
         auto params = makeEmberParams(false, 0.18f, 1.0f);
         params.shape = Artifact::EmitterShape::Point;
         params.position = position;
         params.radius = 26.0f;
         params.directionSpread = 40.0f;
+        // エミッターごとに乱数シードをずらす。同じシードだと全エミッターが
+        // 同一の乱数列を使い、視覚採点で「周期的な反復（鋸歯状）」と
+        // 指摘されたため、インデックス由来のシードの分散を入れる。
+        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
         // 2D 合成座標系（Y -down）では初速 upwards、重力 downwards。
-        // 速すぎると画面上端の外へ抜けて「短い帯」に見えるため、
-        // 持ち上がって落下する弧になる範囲に収める。
-        params.speedMin = 22.0f;
-        params.speedMax = 68.0f;
-        params.lifeMin = 2.4f;
-        params.lifeMax = 4.6f;
-        params.gravity = QVector3D(0.0f, 105.0f, 0.0f);
-        params.drag = 0.18f;
-        params.turbulenceAmplitude = 34.0f;
-        params.scaleMin = 2.6f;
-        params.scaleMax = 7.0f;
-        params.maxParticles = 1500;
+        // フレーム 45 は 1.5 秒のシミュレーションに相当するため、上方到達
+        // 距離は初速でほぼ決まる。視覚採点で「上部の 90% がベースライン
+        // 付近に留まる」と指摘されたため、重力を 0 にして初速を上げ、
+        // 1.5 秒で 250〜640px 上へ届くようにする。
+        params.speedMin = 170.0f;
+        params.speedMax = 430.0f;
+        params.lifeMin = 4.2f;
+        params.lifeMax = 7.5f;
+        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+        params.drag = 0.02f;
+        params.turbulenceAmplitude = 88.0f;
+        params.directionSpread = 30.0f;
+        params.scaleMin = 3.0f;
+        params.scaleMax = 8.0f;
+        // 上方へ舞い上がった粒子は life 後半で縮小・減衰すると背景と同化して
+        // 見えなくなる（視覚採点で「上部の 90% がベースライン付近に留まる」
+        // と指摘された）。終端の減衰を緩め、煙柱として上方向にも視認できる
+        // 塊を残す。
+        params.scaleEndMin = 1.8f;
+        params.scaleEndMax = 4.0f;
+        params.opacityEndMin = 0.45f;
+        params.opacityEndMax = 0.45f;
+        params.maxParticles = 3000;
         auto* emitter = layer.addEmitter(params);
         if (!emitter) {
             qCritical("Could not create the Mir ridge emitters");
@@ -467,12 +488,22 @@ int capture2D(const QString& outputDirectory)
     {
         std::size_t alive = 0;
         QString sample;
+        float minY = std::numeric_limits<float>::max();
+        float maxY = std::numeric_limits<float>::lowest();
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
         if (const auto* system = layer.particleSystem()) {
             for (const auto& systemEmitter : system->emitters()) {
                 if (!systemEmitter) {
                     continue;
                 }
                 alive += static_cast<std::size_t>(systemEmitter->particleCount());
+                for (const auto& particle : systemEmitter->particles()) {
+                    minY = std::min(minY, particle.position.y());
+                    maxY = std::max(maxY, particle.position.y());
+                    minX = std::min(minX, particle.position.x());
+                    maxX = std::max(maxX, particle.position.x());
+                }
                 if (sample.isEmpty() && !systemEmitter->particles().empty()) {
                     const auto& particle = systemEmitter->particles().front();
                     sample = QStringLiteral(
@@ -487,11 +518,16 @@ int capture2D(const QString& outputDirectory)
             }
         }
         report.write(QStringLiteral(
-            "alive_particles=%1 emitter_count=%2 renderer=%3 %4\n")
+            "alive_particles=%1 emitter_count=%2 renderer=%3 %4\n"
+            "sim_x_range=[%5,%6] sim_y_range=[%7,%8]\n")
             .arg(static_cast<qulonglong>(alive))
             .arg(layer.emitterCount())
             .arg(renderer.particleDebugState())
             .arg(sample)
+            .arg(minX)
+            .arg(maxX)
+            .arg(minY)
+            .arg(maxY)
             .toUtf8());
     }
 
@@ -507,22 +543,29 @@ int capture2D(const QString& outputDirectory)
     directSeekLayer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
                                           QVariant(CanvasHeight));
     directSeekLayer.clearEmitters();
-    for (const auto& position : emitterPositions) {
+    for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
+        const auto& position = emitterPositions[i];
         auto params = makeEmberParams(false, 0.18f, 1.0f);
         params.shape = Artifact::EmitterShape::Point;
         params.position = position;
         params.radius = 26.0f;
         params.directionSpread = 40.0f;
-        params.speedMin = 22.0f;
-        params.speedMax = 68.0f;
-        params.lifeMin = 2.4f;
-        params.lifeMax = 4.6f;
-        params.gravity = QVector3D(0.0f, 105.0f, 0.0f);
-        params.drag = 0.18f;
-        params.turbulenceAmplitude = 34.0f;
-        params.scaleMin = 2.6f;
-        params.scaleMax = 7.0f;
-        params.maxParticles = 1500;
+        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
+        params.speedMin = 170.0f;
+        params.speedMax = 430.0f;
+        params.lifeMin = 4.2f;
+        params.lifeMax = 7.5f;
+        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+        params.drag = 0.02f;
+        params.turbulenceAmplitude = 88.0f;
+        params.directionSpread = 30.0f;
+        params.scaleMin = 3.0f;
+        params.scaleMax = 8.0f;
+        params.scaleEndMin = 1.8f;
+        params.scaleEndMax = 4.0f;
+        params.opacityEndMin = 0.45f;
+        params.opacityEndMax = 0.45f;
+        params.maxParticles = 3000;
         if (!directSeekLayer.addEmitter(params)) {
             qCritical("Could not rebuild the Mir ridge emitters for the determinism pass");
             renderer.destroy();
@@ -587,6 +630,188 @@ int capture2D(const QString& outputDirectory)
 }
 
 // ---------------------------------------------------------------------------
+// 2D ソフトレンダラー経路の比較
+// ---------------------------------------------------------------------------
+
+// GPU 経路（Diligent billboard）とソフト経路（QPainter フォールバック）の
+// 同一シーン出力を比較する。ソフト経路は renderer を未初期化のまま渡すことで
+// ArtifactParticleLayer::draw() のソフトウェアフォールバックを通す。
+int capture2DSoftware(const QString& outputDirectory)
+{
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) {
+        qCritical("Could not create 2D software capture directory");
+        return 2;
+    }
+    QFile report(output.filePath(QStringLiteral("mir_particle_2d_software_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qCritical("Could not open 2D software capture report");
+        return 3;
+    }
+
+    const auto terrainSettings = makeMirTerrainSettings(7u);
+    const auto terrain =
+        ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
+    const auto profile = sampleRidgeProfile(terrain, terrainSettings.columns,
+                                            terrainSettings.rows);
+    const float ridgeBaseY = static_cast<float>(CanvasHeight) * 0.72f;
+    const auto emitterPositions =
+        makeRidgeEmitterPositions(profile, ridgeBaseY, 64);
+    if (emitterPositions.empty()) {
+        qCritical("Mir terrain did not produce a usable 2D ridge profile");
+        return 4;
+    }
+
+    Artifact::ArtifactParticleLayer layer;
+    layer.setLayerPropertyValue(QStringLiteral("particle.previewWidth"),
+                                 QVariant(CanvasWidth));
+    layer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
+                                 QVariant(CanvasHeight));
+    layer.clearEmitters();
+    for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
+        const auto& position = emitterPositions[i];
+        auto params = makeEmberParams(false, 0.18f, 1.0f);
+        params.shape = Artifact::EmitterShape::Point;
+        params.position = position;
+        params.radius = 26.0f;
+        params.directionSpread = 40.0f;
+        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
+        params.speedMin = 170.0f;
+        params.speedMax = 430.0f;
+        params.lifeMin = 4.2f;
+        params.lifeMax = 7.5f;
+        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+        params.drag = 0.02f;
+        params.turbulenceAmplitude = 88.0f;
+        params.directionSpread = 30.0f;
+        params.scaleMin = 3.0f;
+        params.scaleMax = 8.0f;
+        params.scaleEndMin = 1.8f;
+        params.scaleEndMax = 4.0f;
+        params.opacityEndMin = 0.45f;
+        params.opacityEndMax = 0.45f;
+        params.maxParticles = 3000;
+        if (!layer.addEmitter(params)) {
+            qCritical("Could not create the Mir ridge emitters");
+            return 5;
+        }
+    }
+    layer.resetParticleSystem();
+    layer.play();
+
+    // 未初期化 renderer を渡すとソフトウェアフォールバック経路を通る。
+    Artifact::ArtifactIRenderer softwareRenderer;
+    QImage softwareFrame;
+    for (int frame = 1; frame <= CaptureFrame; ++frame) {
+        layer.goToFrame(frame);
+        layer.draw(&softwareRenderer);
+        if (frame == CaptureFrame) {
+            layer.getCachedFrame(frame, softwareFrame);
+        }
+    }
+    if (softwareFrame.isNull()) {
+        qCritical("2D Mir software frame was not produced");
+        return 6;
+    }
+    softwareFrame = softwareFrame.convertToFormat(QImage::Format_ARGB32);
+    if (!savePng(softwareFrame,
+                 output.filePath(QStringLiteral("mir_2d_software_frame_45.png")),
+                 report)) {
+        return 7;
+    }
+
+    // GPU 経路と同じシーンを取得して差分を測る。
+    Artifact::ArtifactIRenderer gpuRenderer;
+    if (!prepareRenderer(gpuRenderer, Width2D, Height2D)) {
+        qCritical("Could not initialize the headless GPU renderer");
+        return 8;
+    }
+    Artifact::ArtifactParticleLayer gpuLayer;
+    gpuLayer.setLayerPropertyValue(QStringLiteral("particle.previewWidth"),
+                                   QVariant(CanvasWidth));
+    gpuLayer.setLayerPropertyValue(QStringLiteral("particle.previewHeight"),
+                                   QVariant(CanvasHeight));
+    gpuLayer.clearEmitters();
+    for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
+        const auto& position = emitterPositions[i];
+        auto params = makeEmberParams(false, 0.18f, 1.0f);
+        params.shape = Artifact::EmitterShape::Point;
+        params.position = position;
+        params.radius = 26.0f;
+        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
+        params.speedMin = 170.0f;
+        params.speedMax = 430.0f;
+        params.lifeMin = 4.2f;
+        params.lifeMax = 7.5f;
+        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+        params.drag = 0.02f;
+        params.turbulenceAmplitude = 88.0f;
+        params.directionSpread = 30.0f;
+        params.scaleMin = 3.0f;
+        params.scaleMax = 8.0f;
+        params.scaleEndMin = 1.8f;
+        params.scaleEndMax = 4.0f;
+        params.opacityEndMin = 0.45f;
+        params.opacityEndMax = 0.45f;
+        params.maxParticles = 3000;
+        if (!gpuLayer.addEmitter(params)) {
+            qCritical("Could not create the Mir ridge emitters on the GPU layer");
+            gpuRenderer.destroy();
+            return 9;
+        }
+    }
+    gpuLayer.resetParticleSystem();
+    gpuLayer.play();
+    // GPU 経路は applyParticleRenderLOD() で screenScale に応じて粒子を間引く。
+    // 合成不属于 composition のためグローバル変換の縮尺が 1 未満になり、
+    // 間引きが過剰になっていないかを確認するため fullParticleDensity で
+    // 間引きを無効化して取得する。
+    auto gpuRenderSettings = gpuLayer.particleSystem()->renderSettings();
+    gpuRenderSettings.fullParticleDensity = true;
+    gpuLayer.particleSystem()->setRenderSettings(gpuRenderSettings);
+    QImage gpuFrame;
+    for (int frame = 1; frame <= CaptureFrame; ++frame) {
+        gpuRenderer.clear();
+        gpuLayer.goToFrame(frame);
+        gpuLayer.draw(&gpuRenderer);
+        gpuRenderer.flushAndWait();
+        if (frame == CaptureFrame) {
+            gpuFrame = gpuRenderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+        }
+    }
+    gpuRenderer.destroy();
+    if (gpuFrame.isNull()) {
+        qCritical("2D Mir GPU frame was not produced for the software comparison");
+        return 10;
+    }
+    if (!savePng(gpuFrame,
+                 output.filePath(QStringLiteral("mir_2d_gpu_frame_45.png")),
+                 report)) {
+        return 11;
+    }
+
+    const auto pathDifference = compareImages(gpuFrame, softwareFrame);
+    const CaptureStats gpuStats = measureCapture(gpuFrame);
+    const CaptureStats softwareStats = measureCapture(softwareFrame);
+    report.write(QStringLiteral(
+        "gpu_software_differing_pixels=%1 max_channel_delta=%2 "
+        "gpu_visible_pixels=%3 software_visible_pixels=%4 "
+        "gpu_software_ratio=%5\n")
+        .arg(static_cast<qulonglong>(pathDifference.differentPixels))
+        .arg(static_cast<qulonglong>(pathDifference.maxChannelDelta))
+        .arg(static_cast<qulonglong>(gpuStats.visiblePixels))
+        .arg(static_cast<qulonglong>(softwareStats.visiblePixels))
+        .arg(gpuStats.visiblePixels
+                 ? static_cast<double>(softwareStats.visiblePixels) /
+                       static_cast<double>(gpuStats.visiblePixels)
+                 : 0.0)
+        .toUtf8());
+
+    qInfo("2D Mir software-vs-GPU comparison captured");
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
 // 3D キャプチャ
 // ---------------------------------------------------------------------------
 
@@ -628,7 +853,11 @@ int capture3D(const QString& outputDirectory)
         qCritical("Could not initialize the headless GPU renderer");
         return 4;
     }
-    const auto terrainSettings = makeMirTerrainSettings(11u);
+    // 視覚採点で「地形が孤立した浮遊スラブとして見え、下端の生えた
+    // ポリゴン境界が露出する」と指摘されたため、地形をカメラより深く
+    // 大きく生成して、画面外まで Continuity を持たせる。
+    const auto terrainSettings =
+        makeMirTerrainSettings(11u, 2600.0f, 2600.0f);
     const auto terrain =
         ArtifactCore::Procedural3DGenerators::generateTerrain(terrainSettings, 0.0f);
     const auto triangles = makeTerrainTriangles3D(terrain);
@@ -669,8 +898,7 @@ int capture3D(const QString& outputDirectory)
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,
-                          terrainMaterial, QMatrix4x4(), 1.0f, 3);
-        layer.draw(&renderer);
+                          terrainMaterial, QMatrix4x4(), 1.0f, 3);        layer.draw(&renderer);
         renderer.flushAndWait();
         if (!capture) {
             return QImage();
@@ -749,7 +977,11 @@ int main(int argc, char** argv)
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-3d")) {
         return capture3D(arguments[2]);
     }
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-2d-software")) {
+        return capture2DSoftware(arguments[2]);
+    }
     qCritical("Usage: ArtifactParticleMirPlayground "
-              "--capture-2d <output-directory> | --capture-3d <output-directory>");
+              "--capture-2d <output-directory> | --capture-3d <output-directory> | "
+              "--capture-2d-software <output-directory>");
     return 1;
 }

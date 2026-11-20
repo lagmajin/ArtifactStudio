@@ -76,6 +76,12 @@
 
 2026-11-20に、許可済み範囲でParticle InspectorのShape Target設定とComposition Viewを通常リンクした`Artifact.exe`上で確認しようとした。CUAの画面取得は選択済みArtifactウィンドウで2回とも `foreground window did not report a process id` と失敗し、回復後も再現したため入力せず停止した。したがって実アプリUIの項目表示・操作性・Composition View描画は今回も未検証であり、headless描画関数とRender Queueテストの結果を実UI評価へ読み替えない。
 
+2026-11-20に既存の `ArtifactRenderQueueLayerImageIntegrationTest.exe` を使い、`RenderQueueLayerImageIntegrationTest.ShapeTargetChangesParticleOutputThroughRenderQueue` を再実行した。D3D12で1 test passed（約4.9秒）。同一バイナリの直前の実行は失敗表示だったが、その出力を保存しておらず理由は特定できないため、成功結果だけを根拠に回帰なしとは断定しない。このテストはShape attractionのRender Queueおよび `drawLayerForCompositionView()` のheadless差分を対象とし、実アプリUI評価の代替ではない。
+
+同日、再現性確認として同テストを `--gtest_repeat=3` で連続実行したところ、1回目は `render_queue_particle_shape_target_disabled.png` のレンダー待機が60秒を超え、行2000の `renderFrame(baselineOutput)` が `Pending` で失敗した。その後の2回はそれぞれ約3.2秒、約3.0秒で成功した。これは出力差分アサーション失敗ではなくRender Queueの間欠的な完了待ち失敗であり、原因は未特定。単発成功を安定性の証明として扱わず、実行間の再現性は不安定と記録する。
+
+失敗条件のコード経路を確認した。`ArtifactRenderQueueService::startRenderQueuesAt()` は `isRendering_` がtrueなら開始要求を無視し、Pending jobを変更しない。一方 `addAndRender()` は開始要求を一度だけ送り、Completed/Failed/Canceledになるまで待つ。前jobのCompleted更新とsession teardownによる `isRendering_ = false` は別々のqueued callbackで行われるため、直後の次job開始がこの間に入るraceが原因候補となるが、ログに開始拒否noticeが残っておらず直接の確証はない。修正案の再ビルドを試みた際、既存 `out/build/x64-Debug-Agent` がCMake再生成でMSVC 19.52、D3D12 unsupportedへ再構成され、対象テスト1件の依存が5662 build taskに拡大したため停止した。テストhelperの変更は未検証のまま残さず撤回した。安定性問題の修正・再検証は未完了。
+
 ## 実装先
 
 - Product settings / serialization / dedicated particle property group: `Artifact/src/Layer/ArtifactParticleLayer.cpp` と対応 interface。

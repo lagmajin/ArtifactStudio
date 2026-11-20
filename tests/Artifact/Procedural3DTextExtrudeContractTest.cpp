@@ -65,6 +65,24 @@ TEST_F(Procedural3DTextExtrudeContractTest,
             settings.text = QStringLiteral("שלום עולם");
         } else if (profile == "hangul") {
             settings.text = QStringLiteral("한글 테스트");
+        } else if (profile == "arabic-mixed") {
+            settings.text = QStringLiteral("ABC — مَرْحَبًا بِالْعَالَمِينَ (123)");
+        } else if (profile == "devanagari-conjuncts") {
+            settings.text = QStringLiteral("क्षेत्रज्ञ कर्मण्येवाधिकारस्ते");
+        } else if (profile == "bengali-conjuncts") {
+            settings.text = QStringLiteral("বাংলা ভাষা: ক্ষুদ্র");
+        } else if (profile == "tamil-conjuncts") {
+            settings.text = QStringLiteral("தமிழ் மொழி: வணக்கம்");
+        } else if (profile == "gujarati-conjuncts") {
+            settings.text = QStringLiteral("ગુજરાતી ભાષા: ક્ષમતા");
+        } else if (profile == "tibetan") {
+            settings.text = QStringLiteral("བོད་ཡིག་རིགས");
+        } else if (profile == "ethiopic") {
+            settings.text = QStringLiteral("እንደምን አላችሁ");
+        } else if (profile == "hangul-jamo") {
+            settings.text = QStringLiteral("한글 테스트");
+        } else if (profile == "ligatures-marks") {
+            settings.text = QStringLiteral("office affinity ffi e\u0301");
         }
     }
     if (capturePath != nullptr && capturePath[0] != '\0'
@@ -200,6 +218,63 @@ TEST_F(Procedural3DTextExtrudeContractTest,
             EXPECT_TRUE(std::isfinite(vertex.ny));
             EXPECT_TRUE(std::isfinite(vertex.nz));
         }
+    }
+}
+
+TEST_F(Procedural3DTextExtrudeContractTest,
+       GeneratesMeshesForAdvancedShapingSequences)
+{
+    struct Sample {
+        QString text;
+        QString fontFamily;
+    };
+    const Sample samples[] = {
+        {QStringLiteral("ABC — مَرْحَبًا بِالْعَالَمِينَ (123)"),
+         QStringLiteral("Tahoma")},
+        {QStringLiteral("می\u200Cخواهم فارسی بخوانم"), QStringLiteral("Tahoma")},
+        {QStringLiteral("क्षेत्रज्ञ कर्मण्येवाधिकारस्ते"), QStringLiteral("Nirmala UI")},
+        {QStringLiteral("বাংলা ভাষা: ক্ষুদ্র"), QStringLiteral("Nirmala UI")},
+        {QStringLiteral("தமிழ் மொழி: வணக்கம்"), QStringLiteral("Nirmala UI")},
+        {QStringLiteral("ગુજરાતી ભાષા: ક્ષમતા"), QStringLiteral("Nirmala UI")},
+        {QStringLiteral("བོད་ཡིག་རིགས"), QStringLiteral("Microsoft Himalaya")},
+        {QStringLiteral("እንደምን አላችሁ"), QStringLiteral("Ebrima")},
+        {QStringLiteral("한글 테스트"), QStringLiteral("Malgun Gothic")},
+        {QStringLiteral("office affinity ffi e\u0301"), QStringLiteral("Arial")},
+        {QStringLiteral("か\u3099く\u3099"), QStringLiteral("Noto Sans JP")},
+    };
+
+    for (const Sample& sample : samples) {
+        SCOPED_TRACE(sample.text.toStdString());
+        ArtifactCore::TextExtrudeSettings settings;
+        settings.text = sample.text;
+        settings.fontFamily = sample.fontFamily;
+        settings.fontSize = 96;
+        settings.depth = 32.0f;
+        settings.bevelWidth = 0.0f;
+
+        const ArtifactCore::Procedural3DMeshData mesh =
+            ArtifactCore::Procedural3DGenerators::generateTextExtrude(settings);
+
+        ASSERT_FALSE(mesh.vertices.empty());
+        ASSERT_GE(mesh.indices.size(), 3u);
+        EXPECT_EQ(mesh.indices.size() % 3u, 0u);
+        float minZ = mesh.vertices.front().pz;
+        float maxZ = minZ;
+        for (const ArtifactCore::Procedural3DVertex& vertex : mesh.vertices) {
+            EXPECT_TRUE(std::isfinite(vertex.px));
+            EXPECT_TRUE(std::isfinite(vertex.py));
+            EXPECT_TRUE(std::isfinite(vertex.pz));
+            EXPECT_TRUE(std::isfinite(vertex.nx));
+            EXPECT_TRUE(std::isfinite(vertex.ny));
+            EXPECT_TRUE(std::isfinite(vertex.nz));
+            minZ = std::min(minZ, vertex.pz);
+            maxZ = std::max(maxZ, vertex.pz);
+        }
+        for (const std::uint32_t index : mesh.indices) {
+            EXPECT_LT(index, mesh.vertices.size());
+        }
+        EXPECT_FLOAT_EQ(minZ, -16.0f);
+        EXPECT_FLOAT_EQ(maxZ, 16.0f);
     }
 }
 

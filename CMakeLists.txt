@@ -161,6 +161,12 @@ endif()
 # needs the ArtifactCore target to exist.
 option(ARTIFACT_BUILD_CRYPTOMATTE_LAB "Build the standalone Cryptomatte research lab" OFF)
 
+# Burn Away effect image-evaluation lab.  The tool renders the shipped effect
+# over a synthetic paper surface and writes PNG frames plus alpha statistics,
+# so the burn look is judged from images.  It is a research tool, not a
+# shipping target, so it stays opt-in.
+option(ARTIFACT_BUILD_BURN_AWAY_LAB "Build the standalone Burn Away effect lab" OFF)
+
 if(ARTIFACT_USE_LLD)
     if(NOT WIN32 OR NOT MSVC)
         message(FATAL_ERROR "ARTIFACT_USE_LLD currently requires the Windows MSVC frontend")
@@ -1172,6 +1178,9 @@ add_subdirectory(tools/TimelineClipBarPlayground)
 add_subdirectory(tools/VideoPreviewBench)
 if(ARTIFACT_BUILD_CRYPTOMATTE_LAB)
     add_subdirectory(tools/CryptoMatteLab)
+endif()
+if(ARTIFACT_BUILD_BURN_AWAY_LAB)
+    add_subdirectory(tools/BurnAwayLab)
 endif()
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)

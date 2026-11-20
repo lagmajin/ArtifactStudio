@@ -1,6 +1,15 @@
 # Milestones Backlog
 
-**最終更新:** 2026-11-17
+**最終更新:** 2026-11-20
+
+### Motion Handoff / Match Cut（モーション受け渡し）
+- **M-MOTION-HANDOFF-1** カット地点をまたぐ終端速度の受け渡し（Not Started / メモのみ）
+  - 構想: 前レイヤーの終端キーから瞬間速度を求め、後続レイヤーの先頭へ同じ初速のキーを挿入する。カット前後の動き速度を揃え、タイポグラフィやループの継ぎ目を目立たなくする。AE の Pick Whip（恒久リンク）とは異なり、**一度きりの値移送**で結果は通常の編集可能なキーとして残す
+  - 既存の材料: キー列と `InterpolationType`、`SetLayerPropertyKeyframesCommand` / `TimelineKeyframeSnapshotCommand`（`Artifact/include/Undo/UndoManager.ixx`）、複数レイヤーを1 Undo にまとめる `MacroUndoCommand`（同 :1640）。新規シグナル／スロットは不要
+  - 最小スコープ: 同一プロパティの隣接レイヤー2枚、送り側の末尾2キーから `(値差)/(フレーム差)` で速度算出、受け側の in-point に速度シードkeyを2点挿入、倍率係数（減速）を指定可能。UI はタイムラインのカット位置右クリック導線を想定
+  - 受入れ候補: 送り側終端速度と受け側初速が一致（倍率1.0）、倍率0.5で半速、逆再生／シーク後も結果が同一、Undo/Redo と保存／再読込でキーが復元、送り側にキーが無い場合の安全な no-op
+  - 対象外: 型安全な恒久リンク（Pick Whip）、カット位置の自動検出、シミュレーション由来の速度、レンダラ／GPU 経路の変更
+  - 未検証: 既存キー表現でのタンジェント一致的精度、倍率係数の妥当な既定値、実機 UI 導線。詳細仕様は未作成
 
 ### Cinematic Looks 画像補正 R&D
 - **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: rd0修正前、rd1 Tritone式更新後、rd2 Tritone alpha wrapper更新後のsource-mirrorを5素材で記録。3 familyの名前付きpreset選択、Composition concrete-effect restore（重複instance suffix対応）、Tritone HLSL/premultiplied-alpha wrapperとLUT CPU premultiplied-alpha wrapperを実装。Tritone mirror差0、alpha差は最大1.2e-7。LUT alpha fixture mirror差は最大2.3e-16未満（旧式最大1.321154）。shader/runtime未確認。HDR、人手画質/gate/C++ differential/runtime parityは未検証。外部LUT file browserの部分実装とは別件）

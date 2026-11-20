@@ -16,17 +16,19 @@ Mir 風の手続き地形を粒子放出ソースとして使う単体テスト�
 
 - `main.cpp`
   - 2D キャプチャ: Mir 地形の中央行から ridge プロファイルを取り出し、
-    ridge の両端を含む 48 点に Point エミッターを置いて分布を均す。
+    ridge の両端を含む 64 点に Point エミッターを置いて分布を均す。
     `ArtifactParticleLayer` を headless GPU で描画する。
-    各エミッターは density 0.18 / radius 26 / 最大 1,500 粒子。
-    初速・寿命・重力を抑え、画面上端へ抜けずに持ち上がって落ちる弧を作る。
+    各エミッターは density 0.18 / radius 26 / 最大 3,000 粒子。
+    ridge は画面高の 72% を基準に置き、地形高低差をそのまま反映して
+    上方へ立ち上がる煙柱を確認する。
   - 3D キャプチャ: 地形メッシュ全体を 3D 合成座標系（Y up, Z = depth）に写し、
     `ArtifactParticle3DLayer` の `EmitterShape::Surface` 放出ソースにする。
     地形本体は `drawMesh`、粒子は `draw` で同じフレームに描く。
-    カメラは距離を詰めて構図を詰め、2 倍解像度で描画してからダウンサンプルして
-    遠景稜線の aliasing を抑える。
+    カメラは注視点を地形面へ寄せ画角を広め、地形が画面下部を埋める構図にする。
+    2 倍解像度で描画してからダウンサンプルして遠景稜線の aliasing を抑える。
   - 各キャプチャは PNG と `*_report.txt`（可視ピクセル数、差分ピクセル数、
-    決定性許容差との比較）を書き出す。契約違反があれば非ゼロ終了する。
+    決定性許容差との比較、シミュレーション空間の XY 範囲）を書き出す。
+    契約違反があれば非ゼロ終了する。
 
 ## ビルド
 
@@ -41,6 +43,7 @@ cmake --build <build-directory> --config Debug --target ArtifactParticleMirPlayg
 ```powershell
 <build-directory>\bin\Debug\ArtifactParticleMirPlayground.exe --capture-2d <output-directory>
 <build-directory>\bin\Debug\ArtifactParticleMirPlayground.exe --capture-3d <output-directory>
+<build-directory>\bin\Debug\ArtifactParticleMirPlayground.exe --capture-2d-software <output-directory>
 ```
 
 2D 出力: `mir_2d_frame_45.png`、`mir_2d_frame_60.png`、
@@ -49,6 +52,10 @@ cmake --build <build-directory> --config Debug --target ArtifactParticleMirPlayg
 3D 出力: `mir_3d_front_frame_45.png`、`mir_3d_orbit_frame_45.png`、
 `mir_3d_frame_60.png`、`mir_particle_3d_report.txt`。
 
+`--capture-2d-software` は同一シーンを GPU 経路とソフトフォールバック経路の
+両方で取得して比較する（`mir_2d_gpu_frame_45.png` と
+`mir_2d_software_frame_45.png`、`mir_particle_2d_software_report.txt`）。
+
 ## 判定内容
 
 - 描画が空でない（可視ピクセル > 0）。
@@ -56,3 +63,23 @@ cmake --build <build-directory> --config Debug --target ArtifactParticleMirPlayg
 - 3D のカメラ軌道 35 度で差分ピクセル ≥ 128（視点に追従している）。
 - 2D の連続再生フレーム 45 と直接シークフレーム 45 の差分が
   4096 ピクセル / 24 チャンネル差以内（決定性が保たれている）。
+
+## バックエンド切替と環境間比較
+
+バックエンドは `ARTIFACT_RENDER_BACKEND` で切り替える（`d3d12` / `vulkan` / 未指定で auto）。
+
+```powershell
+$env:ARTIFACT_RENDER_BACKEND = 'vulkan'
+<build-directory>\bin\Debug\ArtifactParticleMirPlayground.exe --capture-3d <output-directory>
+```
+
+D3D12 と Vulkan の同一キャプチャを画素単位で比較する補助スクリプトを用意している。
+閾値は「差分画素 ≤ 1.0%、最大チャンネル差 ≤ 16」。
+
+```powershell
+python tools/ParticleMirPlayground/compare_backends.py <d3d12-dir> <vulkan-dir> <output-json>
+```
+
+2026-11-19 実測: 2D は最大 2 チャンネル差、3D は最大 11 チャンネル差で、
+いずれも許容範囲内。Vulkan 版の画像認識採点も PASS（詳細は
+`captures/mir-particle-20261119-v16/IMAGE_EVALUATION_REPORT.md`）。

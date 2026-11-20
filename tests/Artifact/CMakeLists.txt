@@ -868,6 +868,16 @@ set_tests_properties(ArtifactDitheringEffectContractTest PROPERTIES
     LABELS "effect;dithering;cpu;contract"
 )
 
+artifact_add_test(ArtifactBurnAwayEffectContractTest
+    SOURCES
+        BurnAwayEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsStylize
+)
+set_tests_properties(ArtifactBurnAwayEffectContractTest PROPERTIES
+    LABELS "effect;burnaway;cpu;contract"
+)
+
 artifact_add_test(ArtifactKuwaharaEffectContractTest
     SOURCES
         KuwaharaEffectContractTest.cpp
