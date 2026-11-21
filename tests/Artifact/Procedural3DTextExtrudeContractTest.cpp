@@ -34,6 +34,39 @@ protected:
     inline static QGuiApplication* application_ = nullptr;
 };
 
+void expectAdvancedExtrudedMesh(const QString& text, const QString& fontFamily)
+{
+    SCOPED_TRACE(text.toStdString());
+    ArtifactCore::TextExtrudeSettings settings;
+    settings.text = text;
+    settings.fontFamily = fontFamily;
+    settings.fontSize = 96;
+    settings.depth = 32.0f;
+    settings.bevelWidth = 0.0f;
+    const ArtifactCore::Procedural3DMeshData mesh =
+        ArtifactCore::Procedural3DGenerators::generateTextExtrude(settings);
+    ASSERT_FALSE(mesh.vertices.empty());
+    ASSERT_GE(mesh.indices.size(), 3u);
+    EXPECT_EQ(mesh.indices.size() % 3u, 0u);
+    float minZ = mesh.vertices.front().pz;
+    float maxZ = minZ;
+    for (const ArtifactCore::Procedural3DVertex& vertex : mesh.vertices) {
+        EXPECT_TRUE(std::isfinite(vertex.px));
+        EXPECT_TRUE(std::isfinite(vertex.py));
+        EXPECT_TRUE(std::isfinite(vertex.pz));
+        EXPECT_TRUE(std::isfinite(vertex.nx));
+        EXPECT_TRUE(std::isfinite(vertex.ny));
+        EXPECT_TRUE(std::isfinite(vertex.nz));
+        minZ = std::min(minZ, vertex.pz);
+        maxZ = std::max(maxZ, vertex.pz);
+    }
+    for (const std::uint32_t index : mesh.indices) {
+        EXPECT_LT(index, mesh.vertices.size());
+    }
+    EXPECT_FLOAT_EQ(minZ, -16.0f);
+    EXPECT_FLOAT_EQ(maxZ, 16.0f);
+}
+
 } // namespace
 
 TEST_F(Procedural3DTextExtrudeContractTest,
@@ -221,62 +254,25 @@ TEST_F(Procedural3DTextExtrudeContractTest,
     }
 }
 
-TEST_F(Procedural3DTextExtrudeContractTest,
-       GeneratesMeshesForAdvancedShapingSequences)
-{
-    struct Sample {
-        QString text;
-        QString fontFamily;
-    };
-    const Sample samples[] = {
-        {QStringLiteral("ABC — مَرْحَبًا بِالْعَالَمِينَ (123)"),
-         QStringLiteral("Tahoma")},
-        {QStringLiteral("می\u200Cخواهم فارسی بخوانم"), QStringLiteral("Tahoma")},
-        {QStringLiteral("क्षेत्रज्ञ कर्मण्येवाधिकारस्ते"), QStringLiteral("Nirmala UI")},
-        {QStringLiteral("বাংলা ভাষা: ক্ষুদ্র"), QStringLiteral("Nirmala UI")},
-        {QStringLiteral("தமிழ் மொழி: வணக்கம்"), QStringLiteral("Nirmala UI")},
-        {QStringLiteral("ગુજરાતી ભાષા: ક્ષમતા"), QStringLiteral("Nirmala UI")},
-        {QStringLiteral("བོད་ཡིག་རིགས"), QStringLiteral("Microsoft Himalaya")},
-        {QStringLiteral("እንደምን አላችሁ"), QStringLiteral("Ebrima")},
-        {QStringLiteral("한글 테스트"), QStringLiteral("Malgun Gothic")},
-        {QStringLiteral("office affinity ffi e\u0301"), QStringLiteral("Arial")},
-        {QStringLiteral("か\u3099く\u3099"), QStringLiteral("Noto Sans JP")},
-    };
-
-    for (const Sample& sample : samples) {
-        SCOPED_TRACE(sample.text.toStdString());
-        ArtifactCore::TextExtrudeSettings settings;
-        settings.text = sample.text;
-        settings.fontFamily = sample.fontFamily;
-        settings.fontSize = 96;
-        settings.depth = 32.0f;
-        settings.bevelWidth = 0.0f;
-
-        const ArtifactCore::Procedural3DMeshData mesh =
-            ArtifactCore::Procedural3DGenerators::generateTextExtrude(settings);
-
-        ASSERT_FALSE(mesh.vertices.empty());
-        ASSERT_GE(mesh.indices.size(), 3u);
-        EXPECT_EQ(mesh.indices.size() % 3u, 0u);
-        float minZ = mesh.vertices.front().pz;
-        float maxZ = minZ;
-        for (const ArtifactCore::Procedural3DVertex& vertex : mesh.vertices) {
-            EXPECT_TRUE(std::isfinite(vertex.px));
-            EXPECT_TRUE(std::isfinite(vertex.py));
-            EXPECT_TRUE(std::isfinite(vertex.pz));
-            EXPECT_TRUE(std::isfinite(vertex.nx));
-            EXPECT_TRUE(std::isfinite(vertex.ny));
-            EXPECT_TRUE(std::isfinite(vertex.nz));
-            minZ = std::min(minZ, vertex.pz);
-            maxZ = std::max(maxZ, vertex.pz);
-        }
-        for (const std::uint32_t index : mesh.indices) {
-            EXPECT_LT(index, mesh.vertices.size());
-        }
-        EXPECT_FLOAT_EQ(minZ, -16.0f);
-        EXPECT_FLOAT_EQ(maxZ, 16.0f);
+#define TEST_ADVANCED_SHAPING_CASE(name, sample, family) \
+    TEST_F(Procedural3DTextExtrudeContractTest, name) \
+    { \
+        expectAdvancedExtrudedMesh(QStringLiteral(sample), QStringLiteral(family)); \
     }
-}
+
+TEST_ADVANCED_SHAPING_CASE(ShapesMixedArabicText, "ABC — مَرْحَبًا بِالْعَالَمِينَ (123)", "Tahoma")
+TEST_ADVANCED_SHAPING_CASE(ShapesPersianZwnj, "می\u200Cخواهم فارسی بخوانم", "Tahoma")
+TEST_ADVANCED_SHAPING_CASE(ShapesDevanagariConjuncts, "क्षेत्रज्ञ कर्मण्येवाधिकारस्ते", "Nirmala UI")
+TEST_ADVANCED_SHAPING_CASE(ShapesBengaliConjuncts, "বাংলা ভাষা: ক্ষুদ্র", "Nirmala UI")
+TEST_ADVANCED_SHAPING_CASE(ShapesTamilConjuncts, "தமிழ் மொழி: வணக்கம்", "Nirmala UI")
+TEST_ADVANCED_SHAPING_CASE(ShapesGujaratiConjuncts, "ગુજરાતી ભાષા: ક્ષમતા", "Nirmala UI")
+TEST_ADVANCED_SHAPING_CASE(ShapesTibetanText, "བོད་ཡིག་རིགས", "Microsoft Himalaya")
+TEST_ADVANCED_SHAPING_CASE(ShapesEthiopicText, "እንደምን አላችሁ", "Ebrima")
+TEST_ADVANCED_SHAPING_CASE(ShapesDecomposedHangulJamo, "한글 테스트", "Malgun Gothic")
+TEST_ADVANCED_SHAPING_CASE(ShapesLatinLigaturesAndMarks, "office affinity ffi e\u0301", "Arial")
+TEST_ADVANCED_SHAPING_CASE(ShapesDecomposedJapaneseDakuten, "か\u3099く\u3099", "Noto Sans JP")
+
+#undef TEST_ADVANCED_SHAPING_CASE
 
 TEST_F(Procedural3DTextExtrudeContractTest,
      EmptyOrWhitespaceTextProducesNoMesh)
