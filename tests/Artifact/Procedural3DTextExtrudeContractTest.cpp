@@ -96,6 +96,15 @@ TEST_F(Procedural3DTextExtrudeContractTest,
             settings.text = QStringLiteral("ภาษาไทย");
         } else if (profile == "hebrew") {
             settings.text = QStringLiteral("שלום עולם");
+        } else if (profile == "hebrew-niqqud") {
+            settings.text = QStringLiteral("בְּרֵאשִׁית בָּרָא אֱלֹהִים");
+            settings.fontFamily = QStringLiteral("Tahoma");
+        } else if (profile == "hebrew-mixed-bidi") {
+            settings.text = QStringLiteral("דו״ח Q4 (2026): גרסה 2.5 — אושר!");
+            settings.fontFamily = QStringLiteral("Tahoma");
+        } else if (profile == "hebrew-isolates") {
+            settings.text = QStringLiteral("\u2067עברית 123 ABC\u2069");
+            settings.fontFamily = QStringLiteral("Tahoma");
         } else if (profile == "hangul") {
             settings.text = QStringLiteral("한글 테스트");
         } else if (profile == "arabic-mixed") {
@@ -261,6 +270,9 @@ TEST_F(Procedural3DTextExtrudeContractTest,
     }
 
 TEST_ADVANCED_SHAPING_CASE(ShapesMixedArabicText, "ABC — مَرْحَبًا بِالْعَالَمِينَ (123)", "Tahoma")
+TEST_ADVANCED_SHAPING_CASE(ShapesHebrewNiqqud, "בְּרֵאשִׁית בָּרָא אֱלֹהִים", "Tahoma")
+TEST_ADVANCED_SHAPING_CASE(ShapesHebrewMixedBidi, "דו״ח Q4 (2026): גרסה 2.5 — אושר!", "Tahoma")
+TEST_ADVANCED_SHAPING_CASE(ShapesHebrewRtlIsolates, "\u2067עברית 123 ABC\u2069", "Tahoma")
 TEST_ADVANCED_SHAPING_CASE(ShapesPersianZwnj, "می\u200Cخواهم فارسی بخوانم", "Tahoma")
 TEST_ADVANCED_SHAPING_CASE(ShapesDevanagariConjuncts, "क्षेत्रज्ञ कर्मण्येवाधिकारस्ते", "Nirmala UI")
 TEST_ADVANCED_SHAPING_CASE(ShapesBengaliConjuncts, "বাংলা ভাষা: ক্ষুদ্র", "Nirmala UI")
