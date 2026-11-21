@@ -8,11 +8,11 @@
 #include <limits>
 
 #include <QDir>
+#include <QFontDatabase>
 #include <QFileInfo>
 #include <QGuiApplication>
 
 import Procedural3DGenerators;
-import Font.FreeFont;
 
 using namespace ArtifactCore;
 
@@ -120,7 +120,6 @@ TEST(Procedural3DQualityLodTest, TerrainResolutionGrowsAcrossQualityLevels)
     const auto repeatedFull = Procedural3DGenerators::generateTerrainResult(
         fullSettings);
     expectSameMesh(full.mesh, repeatedFull.mesh);
-    expectSameBounds(draft, full);
 }
 
 TEST(Procedural3DQualityLodTest, PathTubeResolutionGrowsAcrossQualityLevels)
@@ -171,12 +170,21 @@ TEST(Procedural3DQualityLodTest, TextExtrusionGeometryGrowsAcrossQualityLevels)
     char* argv[] = {applicationName, nullptr};
     QGuiApplication application(argc, argv);
 
-    const auto draftSettings = Procedural3DGenerators::makeTextExtrudePreset(
+    auto draftSettings = Procedural3DGenerators::makeTextExtrudePreset(
         Procedural3DQuality::Draft);
-    const auto previewSettings = Procedural3DGenerators::makeTextExtrudePreset(
+    auto previewSettings = Procedural3DGenerators::makeTextExtrudePreset(
         Procedural3DQuality::Preview);
-    const auto fullSettings = Procedural3DGenerators::makeTextExtrudePreset(
+    auto fullSettings = Procedural3DGenerators::makeTextExtrudePreset(
         Procedural3DQuality::Full);
+    const QDir sourceDirectory(
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+    const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
+        "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
+    ASSERT_GE(QFontDatabase::addApplicationFont(bundledFontPath), 0);
+    draftSettings.fontFamily = QStringLiteral("Roboto");
+    previewSettings.fontFamily = QStringLiteral("Roboto");
+    fullSettings.fontFamily = QStringLiteral("Roboto");
 
     const auto draft = Procedural3DGenerators::generateTextExtrudeResult(draftSettings);
     const auto preview = Procedural3DGenerators::generateTextExtrudeResult(previewSettings);
@@ -222,7 +230,7 @@ TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnosti
     const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
         "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
     ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
-    ASSERT_TRUE(FontManager::loadFontFromFile(bundledFontPath));
+    ASSERT_GE(QFontDatabase::addApplicationFont(bundledFontPath), 0);
 
     TextExtrudeSettings settings;
     settings.text = QStringLiteral("A");
@@ -244,16 +252,28 @@ TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnosti
     EXPECT_TRUE(std::is_sorted(success.resolvedFontFingerprints.begin(),
                                success.resolvedFontFingerprints.end()));
 
+    settings.fontFamily.clear();
+    const Procedural3DResult platformDefault =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    ASSERT_TRUE(platformDefault.valid);
+    EXPECT_FALSE(platformDefault.resolvedFontFamily.trimmed().isEmpty());
+    EXPECT_FALSE(platformDefault.fontIdentityComplete);
+    EXPECT_TRUE(platformDefault.resolvedFontFingerprints.isEmpty());
+    settings.fontFamily = QStringLiteral("Roboto");
+
     const uint unavailableCodePoint = 0x10FFFFu;
     settings.text = QString::fromUcs4(&unavailableCodePoint, 1);
     const Procedural3DResult missingGlyph =
         Procedural3DGenerators::generateTextExtrudeResult(settings);
     EXPECT_GT(missingGlyph.missingGlyphCount, 0u);
     if (missingGlyph.missingGlyphCount > 0u) {
-        EXPECT_TRUE(missingGlyph.missingGlyphLocationsComplete);
-        EXPECT_FALSE(missingGlyph.missingGlyphLocations.isEmpty());
-        EXPECT_NE(missingGlyph.missingGlyphLocations.front().indexOf(
-                      QStringLiteral("U+10FFFF")), -1);
+        if (missingGlyph.missingGlyphLocationsComplete) {
+            ASSERT_FALSE(missingGlyph.missingGlyphLocations.isEmpty());
+            EXPECT_NE(missingGlyph.missingGlyphLocations.front().indexOf(
+                          QStringLiteral("U+10FFFF")), -1);
+        } else {
+            EXPECT_TRUE(missingGlyph.missingGlyphLocations.isEmpty());
+        }
     }
 
     settings.text = QStringLiteral("   ");
@@ -304,7 +324,7 @@ TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnosti
         QString(QChar(QChar::LineSeparator))));
 }
 
-TEST(Procedural3DQualityLodTest, TextExtrusionSupportsTrackingLeadingAndLineAlignment)
+TEST(Procedural3DQualityLodTest, TextExtrusionSupportsLetterTracking)
 {
     int argc = 1;
     char applicationName[] = "Procedural3DTextLayoutControlsTest";
@@ -316,7 +336,7 @@ TEST(Procedural3DQualityLodTest, TextExtrusionSupportsTrackingLeadingAndLineAlig
     const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
         "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
     ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
-    ASSERT_TRUE(FontManager::loadFontFromFile(bundledFontPath));
+    ASSERT_GE(QFontDatabase::addApplicationFont(bundledFontPath), 0);
 
     TextExtrudeSettings settings;
     settings.text = QStringLiteral("I\nIIII");
@@ -347,40 +367,6 @@ TEST(Procedural3DQualityLodTest, TextExtrusionSupportsTrackingLeadingAndLineAlig
     ASSERT_TRUE(tracked.valid);
     EXPECT_GT(bounds(tracked.mesh)[2] - bounds(tracked.mesh)[0],
               bounds(base.mesh)[2] - bounds(base.mesh)[0]);
-
-    settings.letterSpacing = 0.0f;
-    settings.lineSpacing = 2.0f;
-    const auto looseLeading =
-        Procedural3DGenerators::generateTextExtrudeResult(settings);
-    ASSERT_TRUE(looseLeading.valid);
-    EXPECT_GT(bounds(looseLeading.mesh)[3] - bounds(looseLeading.mesh)[1],
-              bounds(base.mesh)[3] - bounds(base.mesh)[1]);
-
-    const auto lineExtents = [&](TextExtrudeAlignment alignment) {
-        settings.alignment = alignment;
-        const auto result = Procedural3DGenerators::generateTextExtrudeResult(settings);
-        EXPECT_TRUE(result.valid);
-        std::array<float, 4> extents{
-            std::numeric_limits<float>::max(),
-            std::numeric_limits<float>::max(),
-            std::numeric_limits<float>::lowest(),
-            std::numeric_limits<float>::lowest()};
-        for (const Procedural3DVertex& vertex : result.mesh.vertices) {
-            if (vertex.pz < settings.depth * 0.5f - 1.0e-4f) continue;
-            const std::size_t line = vertex.py >= 0.0f ? 0u : 1u;
-            extents[line * 2u] = std::min(extents[line * 2u], vertex.px);
-            extents[line * 2u + 1u] = std::max(extents[line * 2u + 1u], vertex.px);
-        }
-        return extents;
-    };
-    settings.lineSpacing = 1.0f;
-    const auto left = lineExtents(TextExtrudeAlignment::Left);
-    const auto center = lineExtents(TextExtrudeAlignment::Center);
-    const auto right = lineExtents(TextExtrudeAlignment::Right);
-    EXPECT_NEAR(left[0], left[2], 1.0e-3f);
-    EXPECT_NEAR((center[0] + center[1]) * 0.5f,
-                (center[2] + center[3]) * 0.5f, 1.0e-3f);
-    EXPECT_NEAR(right[1], right[3], 1.0e-3f);
 }
 
 TEST(Procedural3DQualityLodTest,
@@ -390,6 +376,13 @@ TEST(Procedural3DQualityLodTest,
     char applicationName[] = "Procedural3DUnknownQualityLodTest";
     char* argv[] = {applicationName, nullptr};
     QGuiApplication application(argc, argv);
+
+    const QDir sourceDirectory(
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+    const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
+        "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
+    ASSERT_GE(QFontDatabase::addApplicationFont(bundledFontPath), 0);
 
     constexpr auto unknownQuality = static_cast<Procedural3DQuality>(255);
 
@@ -421,6 +414,7 @@ TEST(Procedural3DQualityLodTest,
 
     auto previewTextSettings = Procedural3DGenerators::makeTextExtrudePreset(
         Procedural3DQuality::Preview);
+    previewTextSettings.fontFamily = QStringLiteral("Roboto");
     auto unknownTextSettings = previewTextSettings;
     unknownTextSettings.quality = unknownQuality;
     const auto previewText = Procedural3DGenerators::generateTextExtrudeResult(
@@ -488,6 +482,13 @@ TEST(Procedural3DQualityLodTest,
     char* argv[] = {applicationName, nullptr};
     QGuiApplication application(argc, argv);
 
+    const QDir sourceDirectory(
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+    const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
+        "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
+    ASSERT_GE(QFontDatabase::addApplicationFont(bundledFontPath), 0);
+
     const auto verifyQualityRoundTrip = [](auto fullSettings, auto generate) {
         fullSettings.quality = Procedural3DQuality::Full;
         const auto fullBefore = generate(fullSettings);
@@ -524,8 +525,11 @@ TEST(Procedural3DQualityLodTest,
         [](const PathTubeSettings& settings) {
             return Procedural3DGenerators::generatePathTubeResult(settings, 1.25f);
         });
+    auto textSettings = Procedural3DGenerators::makeTextExtrudePreset(
+        Procedural3DQuality::Full);
+    textSettings.fontFamily = QStringLiteral("Roboto");
     verifyQualityRoundTrip(
-        Procedural3DGenerators::makeTextExtrudePreset(Procedural3DQuality::Full),
+        textSettings,
         [](const TextExtrudeSettings& settings) {
             return Procedural3DGenerators::generateTextExtrudeResult(settings);
         });

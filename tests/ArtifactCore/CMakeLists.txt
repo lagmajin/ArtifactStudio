@@ -1720,6 +1720,24 @@ set_tests_properties(ArtifactCoreProcedural3DQualityLodTest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     LABELS "procedural-3d;lod;mesh;cpu;contract;core"
 )
+if(WIN32)
+    find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
+        PATHS "${Qt6Gui_DIR}" NO_DEFAULT_PATH
+    )
+    add_custom_command(TARGET ArtifactCoreProcedural3DQualityLodTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+            "$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms/"
+        VERBATIM
+    )
+    set_tests_properties(ArtifactCoreProcedural3DQualityLodTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms"
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>;PATH=path_list_prepend:${VCPKG_INSTALLED}/debug/bin;PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+endif()
 artifact_add_test(ArtifactCorePreviewSettingsLodContractTest
     SOURCES
         PreviewSettingsLodContractTest.cpp
