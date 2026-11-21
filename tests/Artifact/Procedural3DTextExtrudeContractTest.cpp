@@ -47,6 +47,8 @@ protected:
     inline static QGuiApplication* application_ = nullptr;
 };
 
+void expectClosedTriangleMesh(const ArtifactCore::Procedural3DMeshData& mesh);
+
 void expectAdvancedExtrudedMesh(const QString& text, const QString& fontFamily)
 {
     SCOPED_TRACE(text.toStdString());
@@ -97,6 +99,7 @@ void expectAdvancedExtrudedMesh(const QString& text, const QString& fontFamily)
     }
     ASSERT_FALSE(mesh.vertices.empty());
     ASSERT_GE(mesh.indices.size(), 3u);
+    expectClosedTriangleMesh(mesh);
     EXPECT_EQ(mesh.indices.size() % 3u, 0u);
     float minZ = mesh.vertices.front().pz;
     float maxZ = minZ;
@@ -159,13 +162,24 @@ std::array<std::int64_t, 6> weldedEdgeKey(
     return {first[0], first[1], first[2], second[0], second[1], second[2]};
 }
 
+std::array<std::int64_t, 7> weldedOrientedEdgeKey(
+    const ArtifactCore::Procedural3DVertex& from,
+    const ArtifactCore::Procedural3DVertex& to)
+{
+    const auto key = weldedEdgeKey(from, to);
+    const auto fromPosition = weldedPositionKey(from);
+    const auto toPosition = weldedPositionKey(to);
+    const std::int64_t orientation = fromPosition < toPosition ? 1 : -1;
+    return {key[0], key[1], key[2], key[3], key[4], key[5], orientation};
+}
+
 void expectClosedTriangleMesh(const ArtifactCore::Procedural3DMeshData& mesh)
 {
     ASSERT_EQ(mesh.indices.size() % 3u, 0u);
     for (const std::uint32_t index : mesh.indices) {
         ASSERT_LT(index, mesh.vertices.size());
     }
-    ArtifactCore::ArtifactArray<std::array<std::int64_t, 6>> edges;
+    ArtifactCore::ArtifactArray<std::array<std::int64_t, 7>> edges;
     edges.reserve(mesh.indices.size());
     for (std::size_t index = 0; index < mesh.indices.size(); index += 3u) {
         const auto& a = mesh.vertices[mesh.indices[index]];
@@ -183,15 +197,28 @@ void expectClosedTriangleMesh(const ArtifactCore::Procedural3DMeshData& mesh)
         const double areaLengthSquared = areaX * areaX + areaY * areaY + areaZ * areaZ;
         EXPECT_TRUE(std::isfinite(areaLengthSquared));
         EXPECT_GT(areaLengthSquared, 1.0e-16);
-        edges.append(weldedEdgeKey(a, b));
-        edges.append(weldedEdgeKey(b, c));
-        edges.append(weldedEdgeKey(c, a));
+        edges.append(weldedOrientedEdgeKey(a, b));
+        edges.append(weldedOrientedEdgeKey(b, c));
+        edges.append(weldedOrientedEdgeKey(c, a));
     }
     std::sort(edges.begin(), edges.end());
     for (std::size_t begin = 0; begin < edges.size();) {
         std::size_t end = begin + 1u;
-        while (end < edges.size() && edges[end] == edges[begin]) ++end;
+        std::int64_t orientationSum = edges[begin][6];
+        const auto sameUndirectedEdge = [&](const auto& left, const auto& right) {
+            for (std::size_t coordinate = 0; coordinate < 6u; ++coordinate) {
+                if (left[coordinate] != right[coordinate]) return false;
+            }
+            return true;
+        };
+        while (end < edges.size()
+               && sameUndirectedEdge(edges[end], edges[begin])) {
+            orientationSum += edges[end][6];
+            ++end;
+        }
         EXPECT_EQ(end - begin, 2u) << "A welded mesh edge must have two incident triangles";
+        EXPECT_EQ(orientationSum, 0)
+            << "Incident triangles must traverse a welded edge in opposite directions";
         begin = end;
     }
 }
