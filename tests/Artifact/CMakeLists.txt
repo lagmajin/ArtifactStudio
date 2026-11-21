@@ -592,6 +592,9 @@ set_tests_properties(ArtifactProcedural3DLayerLodContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+# Keep text shaping acceptance in its own process: strict script-coverage and
+# per-profile capture are environment-driven and must not affect the generic
+# Core LOD/diagnostic contracts when the same test suite is run together.
 artifact_add_test(ArtifactProcedural3DTextExtrudeContractTest
     SOURCES
         Procedural3DTextExtrudeContractTest.cpp

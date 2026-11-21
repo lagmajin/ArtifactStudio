@@ -21,14 +21,17 @@
 
 ## Headless test and geometry capture
 
-The test target is `ArtifactProcedural3DTextExtrudeContractTest`, registered in the root `x64-Debug-Agent` preset and marked `QT_QPA_PLATFORM=offscreen`. Complex-script tests skip with family diagnostics on developer hosts that lack coverage. Set `ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE=1` for acceptance/CI runs so any requested family substitution or missing glyph fails instead of skipping. After checking that `out/build/x64-Debug-Agent/CMakeCache.txt` matches the intended source, generator, compiler, and configuration, the permitted build/test sequence is:
+The acceptance set is `ArtifactCoreProcedural3DQualityLodTest`, `ArtifactProcedural3DLayerLodContractTest`, and `ArtifactProcedural3DTextExtrudeContractTest`; all are registered in the root `x64-Debug-Agent` preset and run with `QT_QPA_PLATFORM=offscreen`. Complex-script tests skip with family diagnostics on developer hosts that lack coverage. Set `ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE=1` for acceptance/CI runs so any requested family substitution or missing glyph fails instead of skipping. First check that `out/build/x64-Debug-Agent/CMakeCache.txt` matches the intended source, generator, compiler, toolchain, configuration, and ABI. In the current checkout the existing cache has `ARTIFACT_BUILD_TESTS=ON`, so reuse it without reconfiguring; if it is absent or incompatible, stop for explicit configure authorization. After build/test authorization, use:
 
 ```powershell
-cmake --preset x64-Debug-Agent -DARTIFACT_BUILD_TESTS=ON
-cmake --build --preset x64-Debug-Agent --target ArtifactProcedural3DTextExtrudeContractTest
 $env:ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE = "1"
+cmake --build out/build/x64-Debug-Agent --target `
+  ArtifactCoreProcedural3DQualityLodTest `
+  ArtifactProcedural3DLayerLodContractTest `
+  ArtifactProcedural3DTextExtrudeContractTest
 ctest --test-dir out/build/x64-Debug-Agent -C Debug `
-  -R '^ArtifactProcedural3DTextExtrudeContractTest$' --output-on-failure
+  -R '^(ArtifactCoreProcedural3DQualityLodTest|ArtifactProcedural3DLayerLodContractTest|ArtifactProcedural3DTextExtrudeContractTest)$' `
+  --output-on-failure
 Remove-Item Env:ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE
 ```
 
