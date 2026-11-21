@@ -1,12 +1,18 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 
+#include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 
 import Procedural3DGenerators;
+import Font.FreeFont;
 
 using namespace ArtifactCore;
 
@@ -202,6 +208,160 @@ TEST(Procedural3DQualityLodTest, TextExtrusionGeometryGrowsAcrossQualityLevels)
     const auto sameTextFull = Procedural3DGenerators::generateTextExtrudeResult(
         sharedTextSettings);
     expectSameBounds(sameTextDraft, sameTextFull, 1.0e-4f);
+}
+
+TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnostics)
+{
+    int argc = 1;
+    char applicationName[] = "Procedural3DTextExtrusionDiagnosticsTest";
+    char* argv[] = {applicationName, nullptr};
+    QGuiApplication application(argc, argv);
+
+    const QDir sourceDirectory(
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+    const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
+        "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
+    ASSERT_TRUE(FontManager::loadFontFromFile(bundledFontPath));
+
+    TextExtrudeSettings settings;
+    settings.text = QStringLiteral("A");
+    settings.fontFamily = QStringLiteral("Roboto");
+    settings.fontSize = 64;
+    settings.depth = 12.0f;
+    settings.bevelWidth = 0.0f;
+    const Procedural3DResult success =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    ASSERT_TRUE(success.valid);
+    EXPECT_EQ(success.status, Procedural3DGenerationStatus::Success);
+    EXPECT_FALSE(success.resolvedFontFamily.trimmed().isEmpty());
+    EXPECT_FALSE(success.resolvedFontFamilies.isEmpty());
+    EXPECT_EQ(success.missingGlyphCount, 0u);
+    ASSERT_TRUE(success.fontIdentityComplete) << success.diagnosticMessage.toStdString();
+    ASSERT_FALSE(success.resolvedFontFingerprints.isEmpty());
+
+    const uint unavailableCodePoint = 0x10FFFFu;
+    settings.text = QString::fromUcs4(&unavailableCodePoint, 1);
+    const Procedural3DResult missingGlyph =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    EXPECT_GT(missingGlyph.missingGlyphCount, 0u);
+    if (missingGlyph.missingGlyphCount > 0u) {
+        EXPECT_TRUE(missingGlyph.missingGlyphLocationsComplete);
+        EXPECT_FALSE(missingGlyph.missingGlyphLocations.isEmpty());
+        EXPECT_NE(missingGlyph.missingGlyphLocations.front().indexOf(
+                      QStringLiteral("U+10FFFF")), -1);
+    }
+
+    settings.text = QStringLiteral("   ");
+    const Procedural3DResult empty =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    EXPECT_FALSE(empty.valid);
+    EXPECT_EQ(empty.status, Procedural3DGenerationStatus::EmptyInput);
+    EXPECT_FALSE(empty.diagnosticMessage.isEmpty());
+
+    settings.text = QStringLiteral("A");
+    settings.depth = std::numeric_limits<float>::quiet_NaN();
+    const Procedural3DResult invalid =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    EXPECT_FALSE(invalid.valid);
+    EXPECT_EQ(invalid.status, Procedural3DGenerationStatus::InvalidSettings);
+
+    settings.depth = 12.0f;
+    settings.text = QStringLiteral("AAAA");
+    settings.maxGlyphCount = 2;
+    const Procedural3DResult limited =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    EXPECT_FALSE(limited.valid);
+    EXPECT_EQ(limited.status, Procedural3DGenerationStatus::ResourceLimitExceeded);
+
+    settings.maxGlyphCount = 4096;
+    settings.text = QString(4096, QLatin1Char('\n'));
+    const Procedural3DResult excessiveLines =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    EXPECT_FALSE(excessiveLines.valid);
+    EXPECT_EQ(excessiveLines.status,
+              Procedural3DGenerationStatus::ResourceLimitExceeded);
+    EXPECT_NE(excessiveLines.diagnosticMessage.indexOf(
+                  QStringLiteral("line count")), -1);
+}
+
+TEST(Procedural3DQualityLodTest, TextExtrusionSupportsTrackingLeadingAndLineAlignment)
+{
+    int argc = 1;
+    char applicationName[] = "Procedural3DTextLayoutControlsTest";
+    char* argv[] = {applicationName, nullptr};
+    QGuiApplication application(argc, argv);
+
+    const QDir sourceDirectory(
+        QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+    const QString bundledFontPath = sourceDirectory.filePath(QStringLiteral(
+        "../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    ASSERT_TRUE(QFileInfo::exists(bundledFontPath));
+    ASSERT_TRUE(FontManager::loadFontFromFile(bundledFontPath));
+
+    TextExtrudeSettings settings;
+    settings.text = QStringLiteral("I\nIIII");
+    settings.fontFamily = QStringLiteral("Roboto");
+    settings.fontSize = 96;
+    settings.depth = 20.0f;
+    settings.bevelWidth = 0.0f;
+
+    const auto base = Procedural3DGenerators::generateTextExtrudeResult(settings);
+    ASSERT_TRUE(base.valid);
+    const auto bounds = [](const Procedural3DMeshData& mesh) {
+        std::array<float, 4> result{
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest()};
+        for (const Procedural3DVertex& vertex : mesh.vertices) {
+            result[0] = std::min(result[0], vertex.px);
+            result[1] = std::min(result[1], vertex.py);
+            result[2] = std::max(result[2], vertex.px);
+            result[3] = std::max(result[3], vertex.py);
+        }
+        return result;
+    };
+
+    settings.letterSpacing = 18.0f;
+    const auto tracked = Procedural3DGenerators::generateTextExtrudeResult(settings);
+    ASSERT_TRUE(tracked.valid);
+    EXPECT_GT(bounds(tracked.mesh)[2] - bounds(tracked.mesh)[0],
+              bounds(base.mesh)[2] - bounds(base.mesh)[0]);
+
+    settings.letterSpacing = 0.0f;
+    settings.lineSpacing = 2.0f;
+    const auto looseLeading =
+        Procedural3DGenerators::generateTextExtrudeResult(settings);
+    ASSERT_TRUE(looseLeading.valid);
+    EXPECT_GT(bounds(looseLeading.mesh)[3] - bounds(looseLeading.mesh)[1],
+              bounds(base.mesh)[3] - bounds(base.mesh)[1]);
+
+    const auto lineExtents = [&](TextExtrudeAlignment alignment) {
+        settings.alignment = alignment;
+        const auto result = Procedural3DGenerators::generateTextExtrudeResult(settings);
+        EXPECT_TRUE(result.valid);
+        std::array<float, 4> extents{
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::max(),
+            std::numeric_limits<float>::lowest(),
+            std::numeric_limits<float>::lowest()};
+        for (const Procedural3DVertex& vertex : result.mesh.vertices) {
+            if (vertex.pz < settings.depth * 0.5f - 1.0e-4f) continue;
+            const std::size_t line = vertex.py >= 0.0f ? 0u : 1u;
+            extents[line * 2u] = std::min(extents[line * 2u], vertex.px);
+            extents[line * 2u + 1u] = std::max(extents[line * 2u + 1u], vertex.px);
+        }
+        return extents;
+    };
+    settings.lineSpacing = 1.0f;
+    const auto left = lineExtents(TextExtrudeAlignment::Left);
+    const auto center = lineExtents(TextExtrudeAlignment::Center);
+    const auto right = lineExtents(TextExtrudeAlignment::Right);
+    EXPECT_NEAR(left[0], left[2], 1.0e-3f);
+    EXPECT_NEAR((center[0] + center[1]) * 0.5f,
+                (center[2] + center[3]) * 0.5f, 1.0e-3f);
+    EXPECT_NEAR(right[1], right[3], 1.0e-3f);
 }
 
 TEST(Procedural3DQualityLodTest,
