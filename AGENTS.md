@@ -218,6 +218,16 @@ C++20 modules の再発防止ルール:
 
 サブモジュールに修正が必要な場合は、まず親リポジトリ側で代替可能か確認し、不可なら「fork 運用」または「パッチ運用」を提案してから進めること。
 
+### テストビルド生成物の共有（必須）
+
+- ルート CMake のテストは、対応する `CMakePresets.json` の構成済み binary directory を使う。標準の配置は `out/build/<preset名>`。テスト option は同じ build tree の cache に追加し、テストごとの `build` / `out/build/<test名>` を作らない。
+- 構成前に既存 `CMakeCache.txt` の source directory、generator、compiler/toolchain、configuration、ABI を確認する。一致する build tree があれば再利用し、条件が異なる構成だけ別 preset / build tree に分ける。互換性のない `.obj` / `.ifc` / `.pch` / `.pdb` を共有する目的で異なる toolchain や configuration を同じ binary directory に混在させない。
+- テストは可能な限り既存のルート target（例: `ArtifactCore`、`ArtifactAppRuntime`）へリンクする。製品ソースをテスト target ごとに再登録したり、同じ依存を持つテストのためだけに別 CMake project を追加したりしない。共通テスト helper も一度だけ library / object target として構成し、利用先からリンクする。
+- 同じ feature・依存・実行条件を使う GoogleTest source は、プロセス分離・環境変数・GPU backend・実行時間などの理由がなければ feature 単位の executable にまとめる。独立プロセスが必要なテストは別 target を維持し、分離理由を CMake コメントに記載する。
+- executable ごとの object、link、debug symbol は target 固有であり、PDB / ILK を複数 executable 間で強制共有しない。容量を減らすときは、まず重複した build tree と重複 target をなくし、コンパイラが共有可能な既存 target 依存を再利用する。
+- reduced module closure、意図的な compile failure、異なる toolchain / ABI など、ルート target と共有できない理由がある standalone suite だけは独立 project を許容する。その場合も suite をまとめて一つの configure tree にし、binary directory は `out/standalone-build/<preset名>/<suite名>` に置く。共有対象は互換な package installation や suite 内の共通 module / helper target とし、ルート CMake tree の object が再利用されるとは扱わない。単独 project 化の理由を README に記録する。
+- `sccache` 等の compiler cache は別 build tree 間の再コンパイル低減に使える場合があるが、同一 CMake target graph の依存共有の代わりにはしない。利用可否・設定を確認してから使う。
+
 ビルド・テスト・CMake はユーザーが明示的に指示するまで禁止。ビルドスクリプトの実行、CMake の生成・再実行、テストの起動を AI の判断で行わないこと。必要と判断した場合でも、まず「実行してもいいですか」と確認してからにすること。
 
 ### ウィジェット UI テストの言語マトリクス

@@ -83,3 +83,25 @@ python tools/ParticleMirPlayground/compare_backends.py <d3d12-dir> <vulkan-dir> 
 2026-11-19 実測: 2D は最大 2 チャンネル差、3D は最大 11 チャンネル差で、
 いずれも許容範囲内。Vulkan 版の画像認識採点も PASS（詳細は
 `captures/mir-particle-20261119-v16/IMAGE_EVALUATION_REPORT.md`）。
+
+## 解析補助スクリプト
+
+| スクリプト | 用途 |
+|---|---|
+| `compare_backends.py` | 2 ディレクトリ（例: D3D12 と Vulkan）の 6 画像を画素差で比較し JSON 出力 |
+| `compare_crop.py` | 指定領域の被覆率と連続 run 長（粒径近似）を 2 画像で比較 |
+| `measure_blobs.py` | 全体の被覆率・run 数・中央 run 長を計測 |
+| `profile_region.py` | 領域内の単離ブローブを alpha プロファイルで solid / hollow / flat に分類 |
+| `profile_luma.py` | 同上を輝度基準で分類（背景不透明な GPU キャプチャ用） |
+| `profile_blob.py` | 指定座標の 1 行プロファイルを出力 |
+| `find_blob_profile.py` | 単離ブローブを自動探索してプロファイルを出力 |
+
+## ビルド前提（注意）
+
+本プロジェクトは `ArtifactAppRuntime` にリンクするため、`Artifact` 子リポジトリの
+ビルドが可能である必要がある。2026-11-21 時点で `Artifact` の HEAD には
+ビルド不能な翻訳単位が 3 件あり（`ArtifactPythonAPI.cpp` の型不一致、
+`ArtifactLayerPanelWidget.cpp` の未実装 API 参照、
+`ArtifactShapeLayer.cpp` の MSVC 前方参照不備）、親リポジトリ側の
+`ARTIFACT_DISABLE_BROKEN_PYTHON_API` オプションと `ARTIFACT_BUILD_TESTS=OFF`
+で自前ターゲットのみを通す運用をしている。

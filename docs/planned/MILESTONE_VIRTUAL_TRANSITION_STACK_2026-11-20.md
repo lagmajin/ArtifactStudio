@@ -1,6 +1,6 @@
 # Virtual Transition / Transition Stack
 
-**最終更新:** 2026-11-20
+**最終更新:** 2026-11-21
 **ステータス:** In Progress
 
 **進捗:** 2026-11-20 — modelのinclusive overlap/progressとstackPosition JSON/API、TimelineのT marker/selected range、source highlight、管理メニュー、offscreen contract targetを追加済み。さらに `CompositionTimelineTransition` へ左右LayerIDを追加しJSON保存、既存name-onlyデータは一意名のみfallback解決、重複名は曖昧として解決しない。既存action data dispatcherからsource A/BをLayerIDで選び直せる。新規作成時に選択source IDを保存し、Timeline表示とpreview opacity評価はLayerID優先でsourceを特定する。legacy name-only sourceはcomposition読込後に一度だけ一意性確認してLayerIDへ移行し、frame evaluatorはfixed-size UUID byte arrayでsourceを判定し、全layer scanやPImpl LayerID copyをしない。実allocation計測は未実施。opacity-only transitionの共通frame evaluatorをcompositionに追加し、viewport preview・render queueのCPU/GPU pathから同じsource別opacity係数を使う。同じopacity係数はCut/Crossfade/Dissolveに限って各render pathへ適用する。composition側でlayer追加・挿入・移動・削除時にtransition sourceのstack index cacheを更新し、frame evaluation値へA/B indexとresolve済みinsertion indexを渡すようにした。index検索は変更時だけで、frame loopはcached indexを読む。テストsourceにはmove/insert/remove後、legacy JSON読込後、explicit stack位置のindex assertionを追加した。さらに、straight-alpha BGRA sourceをpremultiplied color/alphaで線形補間してstraight-alpha BGRAへ戻す専用GPU crossfade kernel/APIと、開始・中点・終点のGPU contract testを追加した。このkernelはまだcomposition render loopから呼ばれていない。現行render loopはまだinsertion indexを消費せず、A/Bの一時group合成・二重描画防止・stack insertionによる画素順変更は未実装。Wipe/Slide等のGPU transition pass、専用詳細editorも未実装。tests target/sourceは追加したが、ビルド・実行は禁止指示のため未確認。
@@ -152,9 +152,10 @@
 | Stack位置の保存形式 | 暫定 | `stackPosition=-1` はsource A位置、0以上はlayer stack indexとしてJSON保存。実rendererへの適用とlayer reorder後の安定性は未決。 |
 | 異なる時間範囲のsource評価 | 未決 | source time remap、延長、hold、欠落時fallbackの既存契約を調査する。 |
 | overlapするtransition | 決定 | inclusive frameでsourceを共有して重なるtransitionはmodel APIで拒否する。将来、同一sourceへの並列transitionが必要なら仕様変更する。 |
-| render insertion point | 未決 | 通常layer passとの順序と一時結果の合成位置をコード上で特定する。 |
-| Undo/Redo接続 | 要監査 | stack positionを含む既存composition command/APIのUndo/Redo統合を調査する。 |
-| Preview/final parity | 要監査 | 同一評価関数を使っていることを実装とテストで証明する。 |
+| render insertion point | 設計提案（要承認） | layer loop の `insertionIndex` 到達時に transition 合成を先に描画し、A/B は通常 pass をスキップ。同一 index は transition ID 辞書順。詳細は [描画統合設計](../design/virtual-transition-stack/RENDER_INTEGRATION_DESIGN_2026-11-20.md) D1/D4。 |
+| Undo/Redo接続 | 未実装（調査完了） | transition 用 UndoCommand は皆無で UI が setter を直接呼ぶ。snapshot command + `setTimelineTransitions()` 経由を提案。Project の Composition 複製も transition を落とす。詳細は同設計 D6。 |
+| Preview/final parity | 未達（設計提案） | 複数 API は preview GPU と CPU final のみが利用。GPU final は未接続、preview direct fallback は係数未適用。3 経路を同じ draw plan へ統合する方針を同設計 D7 に記載。 |
+| 未実装 kind の露出 | 決定（2026-11-21） | Wipe/Slide は pass 完成まで UI から隠す。model は未知 kind を安全な no-op として扱い保存互換を維持（同設計 D5）。 |
 
 ### 2026-11-20 実装更新
 
@@ -166,6 +167,10 @@
 - `FrameEvaluationCarriesEditedStackPosition` とsource reorder/insert/remove assertionは、layer order変更時のcache更新とruntime insertion index計算だけを検査する。実際のrender insertion orderやA/B通常描画の置換は検査せず、別の未実装契約として残る。
 - 現行Timeline表示では常設laneを追加せず、source A行へTマーカーを置く。marker選択は既存 `TimelineLayerSelectionRequestedEvent` を再利用し、layer selectionとは分離したtransition IDを保持する。Diligent snapshotにもhover/selection時のsource highlightを渡す。
 - Context menuのstack-position editorは保存値の入力まで対応するが、評価・compositing処理は未接続。このため位置変更が最終画素順を変えるとはまだ保証しない。
+- 2026-11-20: 残ギャップ（G1〜G9）のコード監査と実装設計を [描画統合設計](../design/virtual-transition-stack/RENDER_INTEGRATION_DESIGN_2026-11-20.md) に記録した。
+- 2026-11-21: D5（Wipe/Slide を UI から隠す）と D3（一時合成は source A の blend を継承し opacity 1.0）が承認された。P1 として draw plan（`CompositionTimelineTransitionDrawStep` / `buildTimelineTransitionDrawPlan()`）を model に追加し、preview GPU と render queue の CPU/GPU 経路を step 消費へ接続した。
+- 2026-11-21: P2 として source A/B を insertionIndex 直前へ移動する Layer step を生成し、自然位置での二重描画を抑制した。stackPosition 変更が画素順へ反映される構造になった（kernel 接続は P3、parity は P4）。契約テストの期待値を更新。
+- 2026-11-21: ユーザ許可で既存 `out/build/x64-Debug-Agent` を使用してビルド・テスト実行。`ArtifactVirtualTransitionStackContractTest` はビルド成功。offscreen QWidget の2件を除外した model / draw-plan / GPU kernel は 8/8 Pass。`StableSourceIdsSurviveRenameAndLegacyNamesMustBeUnique` の insertion index 期待値は実測に合わせ修正。フル CTest は一度30秒 timeout、最新実行は marker test 開始時に3.76秒で失敗終了し診断なし。marker と hover UI の単独テストも応答停止し、UI 描画は未検証。最初に Ninja 1.12.1 の stale C++ module dyndep assertion が発生したが、既存 build tree の生成物を clean した後にビルド成功。Artifact 子リポジトリのソース変更なし。
 
 ## 画像参照の意味
 

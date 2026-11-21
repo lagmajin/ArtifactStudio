@@ -291,8 +291,17 @@ ArtifactCore::Mesh makeRenderMesh(const ArtifactCore::Procedural3DMeshData& gene
 // 「ridge 途中の隙間・密度不足」を解消するため 2D は高密度側を使う。
 // rise は立ち上がり量（初速と寿命）。視覚採点で「鉛直方向の分散が乏しい」と
 // 指摘されたため、2D は rise を大きく取る。
+//
+// production = true のときは lifecycle を表現する:
+//
+//	- size は life 中に膨張する（点 → 塊）。scaleLifeCurve で滑らかに成長。
+//	- 色は 白熱 → 橙 → 灰煙 の 3 段階で life に追従。
+//	- opacity は終端で 0 へ落ちるため、膨張しながら消える。
+//
+// これらは EmitterParams に既に存在するフィールドのみで表現でき、
+// 製品コードの変更は要らない。
 Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f,
-                                        float rise = 1.0f)
+                                        float rise = 1.0f, bool production = false)
 {
     Artifact::EmitterParams params;
     params.shape = Artifact::EmitterShape::Surface;
@@ -329,9 +338,114 @@ Artifact::EmitterParams makeEmberParams(bool yUp, float density = 1.0f,
     params.maxParticles = 60000;
     params.deterministic = true;
     params.randomSeed = 20261118u;
+
+    if (production) {
+        // 施策①: 出生時は小さく、life 中に膨張する。
+        const float base = std::max(1.0f, density * 0.75f);
+        params.scaleMin = 0.9f * base;
+        params.scaleMax = 2.0f * base;
+        params.scaleEndMin = 4.2f * base;
+        params.scaleEndMax = 9.0f * base;
+        params.scaleLifeCurve = 3;  // Smooth
+        // 施策③: 白熱 -> 橙 -> 灰煙 の 3 段階。
+        params.colorStart = QColor(255, 244, 214, 255);
+        params.colorMid = QColor(255, 132, 42, 255);
+        params.colorEnd = QColor(58, 56, 62, 255);
+        params.colorMidPosition = 0.28f;
+        params.colorLifeCurve = 3;  // Smooth
+        params.opacityEndMin = 0.0f;
+        params.opacityEndMax = 0.0f;
+        params.opacityLifeCurve = 1;  // EaseIn
+        // 回転させて塊の同一性を崩す。
+        params.rotationSpeedMin = -55.0f;
+        params.rotationSpeedMax = 55.0f;
+    }
     return params;
 }
 
+// 施策②: レンダ設定で形状とビルボードを変更する。
+// GaussianDensity は煙のような柔らかな塊、VelocityAligned は
+// 速度方向へ伸ばしたモートレ表現、stretch はその伸ばし量。
+void applyProductionRenderSettings(Artifact::ArtifactParticleLayer& layer,
+                                   bool smoke)
+{
+    auto settings = layer.particleSystem()->renderSettings();
+    settings.falloffMode = smoke
+        ? Artifact::ParticleRenderSettings::FalloffMode::GaussianDensity
+        : Artifact::ParticleRenderSettings::FalloffMode::SoftCircle;
+    // 注意: stretchEnabled + VelocityAligned を同時に使うと、円形スプライトが
+    // 速度方向へ細く潰れ「棒」になる（2026-11-21 実測）。煙のような塊を得る
+    // には stretch は無効のまま、ビルボードは画面固定（ScreenAligned）に留める。
+    settings.billboardMode =
+        Artifact::ParticleRenderSettings::BillboardMode::ScreenAligned;
+    settings.stretchEnabled = false;
+    settings.stretchFactor = 1.0f;
+    settings.minLength = 0.0f;
+    settings.colorIntensity = 1.15f;
+    settings.sortMode = Artifact::ParticleRenderSettings::SortMode::Distance;
+    layer.particleSystem()->setRenderSettings(settings);
+}
+
+// 2D の ridge エミッター設定を 1 か所にまとめる。
+// 連続再生と直接シークでパラメータがずれると決定性判定が壊れるため、
+// 必ず同じ関数を両経路で共有する。
+Artifact::EmitterParams makeRidgeEmitterParams(const QVector3D& position,
+                                              std::size_t index,
+                                              bool production)
+{
+    auto params = makeEmberParams(false, 0.18f, 1.0f, production);
+    params.shape = Artifact::EmitterShape::Point;
+    params.position = position;
+    params.radius = 26.0f;
+    // エミッターごとに乱数シードをずらす。同じシードだと全エミッターが
+    // 同一の乱数列を使い、視覚採点で「周期的な反復（鋸歯状）」と
+    // 指摘されたため、インデックス由来のシードの分散を入れる。
+    params.randomSeed = 20261118u + static_cast<std::uint32_t>(index) * 7919u;
+    // 2D 合成座標系（Y -down）では初速 upwards、重力 downwards。
+    // フレーム 45 は 1.5 秒のシミュレーションに相当するため、上方到達
+    // 距離は初速でほぼ決まる。視覚採点で「上部の 90% がベースライン
+    // 付近に留まる」と指摘されたため、重力を 0 にして初速を上げ、
+    // 1.5 秒で 250〜640px 上へ届くようにする。
+    params.speedMin = 170.0f;
+    params.speedMax = 430.0f;
+    params.lifeMin = 4.2f;
+    params.lifeMax = 7.5f;
+    params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+    params.drag = 0.02f;
+    params.turbulenceAmplitude = 88.0f;
+    params.directionSpread = 30.0f;
+    params.scaleMin = 3.0f;
+    params.scaleMax = 8.0f;
+    // 上方へ舞い上がった粒子は life 後半で縮小・減衰すると背景と同化して
+    // 見えなくなる（視覚採点で「上部の 90% がベースライン付近に留まる」
+    // と指摘された）。終端の減衰を緩め、煙柱として上方向にも視認できる
+    // 塊を残す。
+    params.scaleEndMin = 1.8f;
+    params.scaleEndMax = 4.0f;
+    params.opacityEndMin = 0.45f;
+    params.opacityEndMax = 0.45f;
+    params.maxParticles = 3000;
+    if (production) {
+        // production: life 中に膨張し、白熱 -> 橙 -> 灰 と色が推移する。
+        params.scaleMin = 1.4f;
+        params.scaleMax = 3.2f;
+        params.scaleEndMin = 7.5f;
+        params.scaleEndMax = 15.0f;
+        params.scaleLifeCurve = 3;  // Smooth
+        params.colorStart = QColor(255, 246, 220, 255);
+        params.colorMid = QColor(255, 128, 38, 255);
+        params.colorEnd = QColor(52, 50, 56, 255);
+        params.colorMidPosition = 0.26f;
+        params.colorLifeCurve = 3;  // Smooth
+        params.opacityEndMin = 0.0f;
+        params.opacityEndMax = 0.0f;
+        params.opacityLifeCurve = 1;  // EaseIn
+        params.rotationSpeedMin = -48.0f;
+        params.rotationSpeedMax = 48.0f;
+        params.maxParticles = 6000;
+    }
+    return params;
+}
 bool prepareRenderer(Artifact::ArtifactIRenderer& renderer, int width, int height)
 {
     renderer.initializeHeadless(width, height);
@@ -360,7 +474,7 @@ QImage downsample(const QImage& source)
 // 2D キャプチャ
 // ---------------------------------------------------------------------------
 
-int capture2D(const QString& outputDirectory)
+int capture2D(const QString& outputDirectory, bool production = false)
 {
     QDir output(outputDirectory);
     if (!output.mkpath(QStringLiteral("."))) {
@@ -408,39 +522,8 @@ int capture2D(const QString& outputDirectory)
 
     for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
         const auto& position = emitterPositions[i];
-        auto params = makeEmberParams(false, 0.18f, 1.0f);
-        params.shape = Artifact::EmitterShape::Point;
-        params.position = position;
-        params.radius = 26.0f;
-        params.directionSpread = 40.0f;
-        // エミッターごとに乱数シードをずらす。同じシードだと全エミッターが
-        // 同一の乱数列を使い、視覚採点で「周期的な反復（鋸歯状）」と
-        // 指摘されたため、インデックス由来のシードの分散を入れる。
-        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
-        // 2D 合成座標系（Y -down）では初速 upwards、重力 downwards。
-        // フレーム 45 は 1.5 秒のシミュレーションに相当するため、上方到達
-        // 距離は初速でほぼ決まる。視覚採点で「上部の 90% がベースライン
-        // 付近に留まる」と指摘されたため、重力を 0 にして初速を上げ、
-        // 1.5 秒で 250〜640px 上へ届くようにする。
-        params.speedMin = 170.0f;
-        params.speedMax = 430.0f;
-        params.lifeMin = 4.2f;
-        params.lifeMax = 7.5f;
-        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
-        params.drag = 0.02f;
-        params.turbulenceAmplitude = 88.0f;
-        params.directionSpread = 30.0f;
-        params.scaleMin = 3.0f;
-        params.scaleMax = 8.0f;
-        // 上方へ舞い上がった粒子は life 後半で縮小・減衰すると背景と同化して
-        // 見えなくなる（視覚採点で「上部の 90% がベースライン付近に留まる」
-        // と指摘された）。終端の減衰を緩め、煙柱として上方向にも視認できる
-        // 塊を残す。
-        params.scaleEndMin = 1.8f;
-        params.scaleEndMax = 4.0f;
-        params.opacityEndMin = 0.45f;
-        params.opacityEndMax = 0.45f;
-        params.maxParticles = 3000;
+        auto params = makeRidgeEmitterParams(position, i, production);
+
         auto* emitter = layer.addEmitter(params);
         if (!emitter) {
             qCritical("Could not create the Mir ridge emitters");
@@ -450,6 +533,10 @@ int capture2D(const QString& outputDirectory)
     }
     layer.resetParticleSystem();
     layer.play();
+    if (production) {
+        // 施策②: 形状を煙の柔らかい塊に変え、速度方向へ伸ばす。
+        applyProductionRenderSettings(layer, true);
+    }
 
     const auto renderFrame = [&renderer, &layer](int frameNumber, bool capture) {
         renderer.clear();
@@ -545,27 +632,7 @@ int capture2D(const QString& outputDirectory)
     directSeekLayer.clearEmitters();
     for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
         const auto& position = emitterPositions[i];
-        auto params = makeEmberParams(false, 0.18f, 1.0f);
-        params.shape = Artifact::EmitterShape::Point;
-        params.position = position;
-        params.radius = 26.0f;
-        params.directionSpread = 40.0f;
-        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
-        params.speedMin = 170.0f;
-        params.speedMax = 430.0f;
-        params.lifeMin = 4.2f;
-        params.lifeMax = 7.5f;
-        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
-        params.drag = 0.02f;
-        params.turbulenceAmplitude = 88.0f;
-        params.directionSpread = 30.0f;
-        params.scaleMin = 3.0f;
-        params.scaleMax = 8.0f;
-        params.scaleEndMin = 1.8f;
-        params.scaleEndMax = 4.0f;
-        params.opacityEndMin = 0.45f;
-        params.opacityEndMax = 0.45f;
-        params.maxParticles = 3000;
+        auto params = makeRidgeEmitterParams(position, i, production);
         if (!directSeekLayer.addEmitter(params)) {
             qCritical("Could not rebuild the Mir ridge emitters for the determinism pass");
             renderer.destroy();
@@ -574,6 +641,10 @@ int capture2D(const QString& outputDirectory)
     }
     directSeekLayer.resetParticleSystem();
     directSeekLayer.play();
+    if (production) {
+        // 連続再生側と同じレンダ設定にしないと、同一フレームでも絵が変わる。
+        applyProductionRenderSettings(directSeekLayer, true);
+    }
     renderer.clear();
     directSeekLayer.goToFrame(CaptureFrame);
     directSeekLayer.draw(&renderer);
@@ -636,7 +707,11 @@ int capture2D(const QString& outputDirectory)
 // GPU 経路（Diligent billboard）とソフト経路（QPainter フォールバック）の
 // 同一シーン出力を比較する。ソフト経路は renderer を未初期化のまま渡すことで
 // ArtifactParticleLayer::draw() のソフトウェアフォールバックを通す。
-int capture2DSoftware(const QString& outputDirectory)
+//
+// sparseCount が正のときは、その個数の粒子だけを放的し、ソフト経路の
+// 「中空リング化」が高密度の重なりによる見かけなのか、单个粒子そのものの
+// 描画破綻なのかを切り分ける。
+int capture2DSoftware(const QString& outputDirectory, int sparseCount = 0)
 {
     QDir output(outputDirectory);
     if (!output.mkpath(QStringLiteral("."))) {
@@ -670,12 +745,25 @@ int capture2DSoftware(const QString& outputDirectory)
     layer.clearEmitters();
     for (std::size_t i = 0; i < emitterPositions.size(); ++i) {
         const auto& position = emitterPositions[i];
+        auto params = makeRidgeEmitterParams(position, i, production);
+        if (!layer.addEmitter(params)) {
+            qCritical("Could not create the Mir ridge emitters");
+            return 5;
+        }
+    }
+    layer.resetParticleSystem();
+    layer.play();
+
+    if (sparseCount > 0) {
+        // 切り分け用: 先頭の 1 エミッターだけを残し、粒子数と放出率を絞る。
+        // 高密度の重なりによる見かけではなく、单个粒子そのものの描画が
+        // 破綻しているかを確かめる。
+        layer.clearEmitters();
         auto params = makeEmberParams(false, 0.18f, 1.0f);
         params.shape = Artifact::EmitterShape::Point;
-        params.position = position;
+        params.position = emitterPositions.front();
         params.radius = 26.0f;
-        params.directionSpread = 40.0f;
-        params.randomSeed = 20261118u + static_cast<std::uint32_t>(i) * 7919u;
+        params.randomSeed = 20261118u;
         params.speedMin = 170.0f;
         params.speedMax = 430.0f;
         params.lifeMin = 4.2f;
@@ -690,14 +778,15 @@ int capture2DSoftware(const QString& outputDirectory)
         params.scaleEndMax = 4.0f;
         params.opacityEndMin = 0.45f;
         params.opacityEndMax = 0.45f;
-        params.maxParticles = 3000;
+        params.rate = static_cast<float>(std::max(1, sparseCount)) / 4.6f;
+        params.maxParticles = static_cast<int>(std::max(1, sparseCount)) + 16;
         if (!layer.addEmitter(params)) {
-            qCritical("Could not create the Mir ridge emitters");
+            qCritical("Could not create the sparse Mir emitter");
             return 5;
         }
+        layer.resetParticleSystem();
+        layer.play();
     }
-    layer.resetParticleSystem();
-    layer.play();
 
     // 未初期化 renderer を渡すとソフトウェアフォールバック経路を通る。
     Artifact::ArtifactIRenderer softwareRenderer;
@@ -762,6 +851,37 @@ int capture2DSoftware(const QString& outputDirectory)
     }
     gpuLayer.resetParticleSystem();
     gpuLayer.play();
+    if (sparseCount > 0) {
+        gpuLayer.clearEmitters();
+        auto params = makeEmberParams(false, 0.18f, 1.0f);
+        params.shape = Artifact::EmitterShape::Point;
+        params.position = emitterPositions.front();
+        params.radius = 26.0f;
+        params.randomSeed = 20261118u;
+        params.speedMin = 170.0f;
+        params.speedMax = 430.0f;
+        params.lifeMin = 4.2f;
+        params.lifeMax = 7.5f;
+        params.gravity = QVector3D(0.0f, 0.0f, 0.0f);
+        params.drag = 0.02f;
+        params.turbulenceAmplitude = 88.0f;
+        params.directionSpread = 30.0f;
+        params.scaleMin = 3.0f;
+        params.scaleMax = 8.0f;
+        params.scaleEndMin = 1.8f;
+        params.scaleEndMax = 4.0f;
+        params.opacityEndMin = 0.45f;
+        params.opacityEndMax = 0.45f;
+        params.rate = static_cast<float>(std::max(1, sparseCount)) / 4.6f;
+        params.maxParticles = static_cast<int>(std::max(1, sparseCount)) + 16;
+        if (!gpuLayer.addEmitter(params)) {
+            qCritical("Could not create the sparse Mir emitter on the GPU layer");
+            gpuRenderer.destroy();
+            return 9;
+        }
+        gpuLayer.resetParticleSystem();
+        gpuLayer.play();
+    }
     // GPU 経路は applyParticleRenderLOD() で screenScale に応じて粒子を間引く。
     // 合成不属于 composition のためグローバル変換の縮尺が 1 未満になり、
     // 間引きが過剰になっていないかを確認するため fullParticleDensity で
@@ -796,7 +916,7 @@ int capture2DSoftware(const QString& outputDirectory)
     report.write(QStringLiteral(
         "gpu_software_differing_pixels=%1 max_channel_delta=%2 "
         "gpu_visible_pixels=%3 software_visible_pixels=%4 "
-        "gpu_software_ratio=%5\n")
+        "gpu_software_ratio=%5 sparse_count=%6\n")
         .arg(static_cast<qulonglong>(pathDifference.differentPixels))
         .arg(static_cast<qulonglong>(pathDifference.maxChannelDelta))
         .arg(static_cast<qulonglong>(gpuStats.visiblePixels))
@@ -805,6 +925,7 @@ int capture2DSoftware(const QString& outputDirectory)
                  ? static_cast<double>(softwareStats.visiblePixels) /
                        static_cast<double>(gpuStats.visiblePixels)
                  : 0.0)
+        .arg(sparseCount)
         .toUtf8());
 
     qInfo("2D Mir software-vs-GPU comparison captured");
@@ -835,7 +956,7 @@ void setCamera(Artifact::ArtifactIRenderer& renderer, float orbitDegrees,
     renderer.set3DCameraMatrices(view, projection);
 }
 
-int capture3D(const QString& outputDirectory)
+int capture3D(const QString& outputDirectory, bool production = false)
 {
     QDir output(outputDirectory);
     if (!output.mkpath(QStringLiteral("."))) {
@@ -872,10 +993,15 @@ int capture3D(const QString& outputDirectory)
     terrainMaterial.setBaseColor(QColor(58, 74, 92));
     terrainMaterial.setMetallic(0.0f);
     terrainMaterial.setRoughness(0.85f);
+    if (production) {
+        // 施策: 地形を石膏 아니라地表らしい暖色寄りの土色に寄せる。
+        terrainMaterial.setBaseColor(QColor(74, 68, 66));
+        terrainMaterial.setRoughness(0.92f);
+    }
 
     Artifact::ArtifactParticle3DLayer layer;
     layer.clearEmitters();
-    auto* emitter = layer.addEmitter(makeEmberParams(true, 1.5f));
+    auto* emitter = layer.addEmitter(makeEmberParams(true, 1.5f, 1.0f, production));
     if (!emitter) {
         qCritical("Could not create the Mir 3D emitter");
         renderer.destroy();
@@ -886,8 +1012,44 @@ int capture3D(const QString& outputDirectory)
         renderer.destroy();
         return 7;
     }
+    if (production) {
+        // 施策①③: 3D でも life 中に膨張し、色が白熱 -> 橙 -> 灰 と推移する。
+        auto params = emitter->params();
+        const float base = 1.5f * 0.75f;
+        params.scaleMin = 1.0f * base;
+        params.scaleMax = 2.4f * base;
+        params.scaleEndMin = 5.0f * base;
+        params.scaleEndMax = 11.0f * base;
+        params.scaleLifeCurve = 3;  // Smooth
+        params.colorStart = QColor(255, 246, 220, 255);
+        params.colorMid = QColor(255, 128, 38, 255);
+        params.colorEnd = QColor(52, 50, 56, 255);
+        params.colorMidPosition = 0.26f;
+        params.colorLifeCurve = 3;  // Smooth
+        params.opacityEndMin = 0.0f;
+        params.opacityEndMax = 0.0f;
+        params.opacityLifeCurve = 1;  // EaseIn
+        params.rotationSpeedMin = -48.0f;
+        params.rotationSpeedMax = 48.0f;
+        params.maxParticles = 120000;
+        emitter->setParams(params);
+    }
     layer.resetParticleSystem();
     layer.play();
+    if (production) {
+        // 施策②: 3D の煙は VelocityAligned + やや強い stretch。
+        auto settings = layer.particleSystem()->renderSettings();
+        settings.falloffMode =
+            Artifact::ParticleRenderSettings::FalloffMode::GaussianDensity;
+        // 3D でも stretch は無効（棒状の潰れを避ける）。
+        settings.billboardMode =
+            Artifact::ParticleRenderSettings::BillboardMode::ScreenAligned;
+        settings.stretchEnabled = false;
+        settings.stretchFactor = 1.0f;
+        settings.colorIntensity = 1.15f;
+        settings.sortMode = Artifact::ParticleRenderSettings::SortMode::Distance;
+        layer.particleSystem()->setRenderSettings(settings);
+    }
 
     const auto renderFrame = [&renderer, &layer, &terrainMesh, &terrainMaterial](
                                  int frameNumber, float orbitDegrees, bool capture) {
@@ -898,7 +1060,8 @@ int capture3D(const QString& outputDirectory)
         renderer.clear();
         layer.goToFrame(frameNumber);
         renderer.drawMesh(QStringLiteral("mir-terrain"), terrainMesh,
-                          terrainMaterial, QMatrix4x4(), 1.0f, 3);        layer.draw(&renderer);
+                          terrainMaterial, QMatrix4x4(), 1.0f, 3);
+        layer.draw(&renderer);
         renderer.flushAndWait();
         if (!capture) {
             return QImage();
@@ -977,11 +1140,26 @@ int main(int argc, char** argv)
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-3d")) {
         return capture3D(arguments[2]);
     }
+    if (arguments.size() == 3 &&
+        arguments[1] == QStringLiteral("--capture-2d-production")) {
+        return capture2D(arguments[2], true);
+    }
+    if (arguments.size() == 3 &&
+        arguments[1] == QStringLiteral("--capture-3d-production")) {
+        return capture3D(arguments[2], true);
+    }
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-2d-software")) {
         return capture2DSoftware(arguments[2]);
     }
+    if (arguments.size() == 4 &&
+        arguments[1] == QStringLiteral("--capture-2d-software-sparse")) {
+        return capture2DSoftware(arguments[2], arguments[3].toInt());
+    }
     qCritical("Usage: ArtifactParticleMirPlayground "
               "--capture-2d <output-directory> | --capture-3d <output-directory> | "
-              "--capture-2d-software <output-directory>");
+              "--capture-2d-production <output-directory> | "
+              "--capture-3d-production <output-directory> | "
+              "--capture-2d-software <output-directory> | "
+              "--capture-2d-software-sparse <output-directory> <particle-count>");
     return 1;
 }

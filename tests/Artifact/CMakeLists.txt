@@ -77,8 +77,17 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
         LIBS
             ArtifactAppRuntime
     )
+    # Keep the test executable beside the shared runtime DLLs. CTest runs with
+    # tests/Artifact as its working directory, so placing only the executable
+    # there makes Windows fail before main() with 0xc0000135 unless a caller
+    # happens to amend PATH manually.
+    set_target_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
     set_tests_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:${CMAKE_CURRENT_BINARY_DIR}/platforms"
         LABELS "composition;timeline;transition;stack;serialization;ui;offscreen;cpu;gpu;contract"
         TIMEOUT 30
     )
@@ -157,18 +166,20 @@ set_tests_properties(ArtifactTimelinePropertyGroupContractTest PROPERTIES
 
 # Drives the existing Layer Panel Ctrl+G shortcut through the offscreen widget
 # and checks the resulting composition hierarchy plus Undo/Redo restoration.
-artifact_add_test(ArtifactLayerGroupingUiContractTest
-    SOURCES
-        ArtifactLayerGroupingUiContractTest.cpp
-    LIBS
-        ArtifactAppRuntime
-)
-set_tests_properties(ArtifactLayerGroupingUiContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "timeline;layer;grouping;keyboard;undo;qt;contract"
-    TIMEOUT 60
-    RUN_SERIAL TRUE
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactLayerGroupingUiContractTest.cpp")
+    artifact_add_test(ArtifactLayerGroupingUiContractTest
+        SOURCES
+            ArtifactLayerGroupingUiContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactLayerGroupingUiContractTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "timeline;layer;grouping;keyboard;undo;qt;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()
 
 # Project View panel contract test.
 #
@@ -591,7 +602,6 @@ set_tests_properties(ArtifactProcedural3DLayerLodContractTest PROPERTIES
     TIMEOUT 60
     RUN_SERIAL TRUE
 )
-
 # Keep text shaping acceptance in its own process: strict script-coverage and
 # per-profile capture are environment-driven and must not affect the generic
 # Core LOD/diagnostic contracts when the same test suite is run together.
@@ -1558,6 +1568,97 @@ artifact_add_test(ArtifactMosaicEffectContractTest
 set_tests_properties(ArtifactMosaicEffectContractTest PROPERTIES
     LABELS "effect;mosaic;cpu;contract"
 )
+
+    artifact_add_test(ArtifactImageEffectsContractTests
+        SOURCES
+            ApertureShapeBlurEffectContractTest.cpp
+            OpticalRasterEffectsContractTest.cpp
+            StylizeEffectsContractTest.cpp
+            CoordinateEffectsContractTest.cpp
+            DigitalDamageEffectsContractTest.cpp
+            ProceduralImageEffectsContractTest.cpp
+            SpatialFilterEffectsContractTest.cpp
+            PatternAndTransitionEffectsContractTest.cpp
+            KeyingAndEdgeEffectsContractTest.cpp
+            HalftoneAndHexGridEffectsContractTest.cpp
+            AddNoiseEffectContractTest.cpp
+            RimLightEffectContractTest.cpp
+            TurbulentDisplaceEffectContractTest.cpp
+            PolarCoordinatesEffectContractTest.cpp
+            ChromaticGlowEffectContractTest.cpp
+            EdgeBloomEffectContractTest.cpp
+            GlowEffectContractTest.cpp
+            RasterizerKaleidoscopeEffectContractTest.cpp
+            VolumetricShineEffectContractTest.cpp
+            GlintStarFilterEffectContractTest.cpp
+            DepthBokehEffectContractTest.cpp
+            PatternOverlayEffectContractTest.cpp
+            MagicSharpEffectContractTest.cpp
+            LUTEffectContractTest.cpp
+            InvertEffectContractTest.cpp
+            FillEffectContractTest.cpp
+            CurvesEffectContractTest.cpp
+            GradientRampEffectContractTest.cpp
+            ColorWheelsEffectContractTest.cpp
+            ColoramaEffectContractTest.cpp
+            HueAndSaturationEffectContractTest.cpp
+            PhotoFilterEffectContractTest.cpp
+            SelectiveColorEffectContractTest.cpp
+            TritoneEffectContractTest.cpp
+            LiftGammaGainEffectContractTest.cpp
+            ShadowHighlightEffectContractTest.cpp
+            BrightnessEffectContractTest.cpp
+            GrayscaleEffectContractTest.cpp
+            ChannelMixerEffectContractTest.cpp
+            WhiteBalanceEffectContractTest.cpp
+            ColorBalanceEffectContractTest.cpp
+            LevelsEffectContractTest.cpp
+            ChromaKeyEffectContractTest.cpp
+            LumaKeyEffectContractTest.cpp
+            DifferenceKeyEffectContractTest.cpp
+            IBKKeyerEffectContractTest.cpp
+            RippleEffectContractTest.cpp
+            EdgeEffectContractTest.cpp
+            DirectionalGlowEffectContractTest.cpp
+        LIBS
+            ArtifactEffectsBlur
+            ArtifactEffectsColor
+            ArtifactEffectsDigital
+            ArtifactEffectsDistort
+            ArtifactEffectsFilters
+            ArtifactEffectsFinishing
+            ArtifactEffectsGenerate
+            ArtifactEffectsGlow
+            ArtifactEffectsKeying
+            ArtifactEffectsNoise
+            ArtifactEffectsRasterizer
+            ArtifactEffectsStylize
+            ArtifactEffectsWave
+    )
+    target_sources(ArtifactImageEffectsContractTests
+        PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/src/Effects/ColorCorrection/LUTEffect.cpp"
+        PUBLIC FILE_SET CXX_MODULES
+        BASE_DIRS
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/include"
+        FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/include/Effects/ColorCorrection/LUTEffect.ixx"
+    )
+    set_tests_properties(ArtifactImageEffectsContractTests PROPERTIES
+        LABELS "effect;image-effect;cpu;contract"
+    )
+
+    artifact_add_test(ArtifactImageEffectsRuntimeContractTests
+        SOURCES
+            GaussianBlurEffectContractTest.cpp
+            BendTransformEffectContractTest.cpp
+            TwistTransformEffectContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactImageEffectsRuntimeContractTests PROPERTIES
+        LABELS "effect;image-effect;runtime;cpu;contract"
+    )
 
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES

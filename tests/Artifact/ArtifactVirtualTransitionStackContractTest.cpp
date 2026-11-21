@@ -4,7 +4,10 @@
 #include <QJsonArray>
 #include <QImage>
 #include <QJsonDocument>
+#include <QMouseEvent>
 #include <QJsonObject>
+#include <QPointF>
+#include <QWidget>
 
 import Artifact.Composition.Abstract;
 import Artifact.Composition.InitParams;
@@ -296,8 +299,8 @@ TEST(ArtifactVirtualTransitionStackContractTest,
     const auto migratedEvaluation =
         restoredLegacyComposition->evaluateTimelineTransitionAtFrame(35);
     ASSERT_TRUE(migratedEvaluation.active);
-    EXPECT_EQ(migratedEvaluation.leftLayerStackIndex, 1);
-    EXPECT_EQ(migratedEvaluation.rightLayerStackIndex, 2);
+    EXPECT_EQ(migratedEvaluation.leftLayerStackIndex, 0);
+    EXPECT_EQ(migratedEvaluation.rightLayerStackIndex, 1);
     EXPECT_EQ(migratedEvaluation.insertionIndex, 1);
 
     ASSERT_TRUE(composition.appendLayerTop(duplicateB.layer).success);
@@ -317,7 +320,7 @@ TEST(ArtifactVirtualTransitionStackContractTest,
     ASSERT_TRUE(reorderedEvaluation.active);
     EXPECT_EQ(reorderedEvaluation.leftLayerStackIndex, 1);
     EXPECT_EQ(reorderedEvaluation.rightLayerStackIndex, 0);
-    EXPECT_EQ(reorderedEvaluation.insertionIndex, 1);
+    EXPECT_EQ(reorderedEvaluation.insertionIndex, 2);
     ASSERT_TRUE(composition.setTimelineTransitionStackPosition(
         QStringLiteral("stable"), 0));
     EXPECT_EQ(composition.evaluateTimelineTransitionAtFrame(15).insertionIndex,
@@ -436,8 +439,6 @@ TEST(ArtifactVirtualTransitionStackContractTest,
     transition.fillColor = QColor(245, 174, 32);
     transition.title = QStringLiteral("Crossfade → Plate B");
     view.setClips({transition});
-    view.show();
-    application.processEvents();
 
     QImage compactMarker(240, 40, QImage::Format_ARGB32_Premultiplied);
     compactMarker.fill(Qt::transparent);
@@ -445,12 +446,132 @@ TEST(ArtifactVirtualTransitionStackContractTest,
 
     transition.selected = true;
     view.setClips({transition});
-    application.processEvents();
     QImage selectedRange(240, 40, QImage::Format_ARGB32_Premultiplied);
     selectedRange.fill(Qt::transparent);
     view.render(&selectedRange);
 
     EXPECT_NE(compactMarker.pixelColor(60, 16),
               selectedRange.pixelColor(60, 16));
+}
+
+TEST(ArtifactVirtualTransitionStackContractTest,
+     TimelineTransitionMarkerParticipatesInExistingHoverHitTest)
+{
+    int argc = 1;
+    char applicationName[] = "ArtifactVirtualTransitionStackContractTest";
+    char* argv[] = {applicationName, nullptr};
+    QApplication application(argc, argv);
+
+    Artifact::ArtifactTimelineTrackPainterView view;
+    view.resize(240, 40);
+    Artifact::ArtifactTimelineTrackPainterView::TrackClipVisual transition;
+    transition.clipId = QStringLiteral("transition-hover");
+    transition.title = QStringLiteral("A → B");
+    transition.startFrame = 10;
+    transition.durationFrame = 20;
+    transition.kind = Artifact::ArtifactTimelineTrackPainterView::
+        TrackClipVisual::Kind::Transition;
+    view.setClips({transition});
+
+    QMouseEvent move(QEvent::MouseMove, QPointF(80, 16),
+                     Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &move);
+
+    EXPECT_EQ(view.hoveredClip().clipId, transition.clipId);
+    EXPECT_EQ(view.hoveredClip().kind,
+              Artifact::ArtifactTimelineTrackPainterView::
+                  TrackClipVisual::Kind::Transition);
+}
+
+TEST(ArtifactVirtualTransitionStackContractTest,
+     DrawPlanPlacesTransitionCompositeAtInsertionIndex)
+{
+    Artifact::ArtifactCompositionInitParams params(
+        ArtifactCore::UniString(QStringLiteral("DrawPlanContract")),
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    params.setResolution(16, 16);
+    params.setFrameRate(24.0);
+    params.setDurationFrames(100);
+    Artifact::ArtifactAbstractComposition composition(
+        ArtifactCore::CompositionID(), params);
+    Artifact::ArtifactLayerFactory factory;
+
+    ArtifactCore::ArtifactArray<Artifact::ArtifactAbstractLayerPtr> layers;
+    for (const auto& name : {QStringLiteral("A"), QStringLiteral("B"),
+                             QStringLiteral("C"), QStringLiteral("D")}) {
+        Artifact::ArtifactSolidLayerInitParams layerParams(name);
+        layerParams.setWidth(16);
+        layerParams.setHeight(16);
+        const auto result = factory.createLayer(layerParams);
+        ASSERT_TRUE(result.success);
+        ASSERT_TRUE(composition.appendLayerTop(result.layer).success);
+        layers.append(result.layer);
+    }
+
+    auto atZero = makeTransition(QStringLiteral("at-zero"), QStringLiteral("C"),
+                                 QStringLiteral("D"), 10, 20);
+    atZero.leftLayerId = layers[2]->id();
+    atZero.rightLayerId = layers[3]->id();
+    atZero.stackPosition = 0;
+    composition.addTimelineTransition(atZero);
+
+    auto atTwo = makeTransition(QStringLiteral("at-two"), QStringLiteral("A"),
+                                QStringLiteral("B"), 10, 20);
+    atTwo.leftLayerId = layers[0]->id();
+    atTwo.rightLayerId = layers[1]->id();
+    atTwo.stackPosition = 2;
+    composition.addTimelineTransition(atTwo);
+
+    ArtifactCore::ArtifactArray<
+        Artifact::CompositionTimelineTransitionEvaluation> evaluations;
+    ArtifactCore::ArtifactArray<
+        Artifact::CompositionTimelineTransitionDrawStep> steps;
+    evaluations.reserve(2);
+    steps.reserve(6);
+    composition.buildTimelineTransitionDrawPlan(15, evaluations, steps);
+
+    ASSERT_EQ(evaluations.size(), 2u);
+    ASSERT_EQ(steps.size(), 6u);
+    EXPECT_EQ(steps[0].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite);
+    EXPECT_EQ(steps[0].layerIndex, 0);
+    EXPECT_TRUE(evaluations[steps[0].evaluationIndex].isSourceLayer(layers[3]->id()));
+    // Source layers are drawn at the insertion position, not at their natural
+    // stack index, so a transition cannot draw them twice.
+    EXPECT_EQ(steps[1].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[1].layerIndex, 2);
+    EXPECT_EQ(steps[2].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[2].layerIndex, 3);
+    EXPECT_EQ(steps[3].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite);
+    EXPECT_EQ(steps[3].layerIndex, 2);
+    EXPECT_TRUE(evaluations[steps[3].evaluationIndex].isSourceLayer(layers[0]->id()));
+    EXPECT_EQ(steps[4].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[4].layerIndex, 0);
+    EXPECT_EQ(steps[5].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[5].layerIndex, 1);
+    EXPECT_EQ(evaluations.capacity(), 2u);
+    EXPECT_EQ(steps.capacity(), 6u);
+
+    ASSERT_TRUE(composition.setTimelineTransitionStackPosition(
+        QStringLiteral("at-two"), 1));
+    composition.buildTimelineTransitionDrawPlan(15, evaluations, steps);
+    ASSERT_EQ(steps.size(), 6u);
+    bool sawCompositeAtOne = false;
+    for (const auto& step : steps) {
+        if (step.kind !=
+            Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite) {
+            continue;
+        }
+        if (step.layerIndex == 1 &&
+            evaluations[step.evaluationIndex].isSourceLayer(layers[0]->id())) {
+            sawCompositeAtOne = true;
+        }
+    }
+    EXPECT_TRUE(sawCompositeAtOne);
 }
 

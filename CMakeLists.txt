@@ -528,6 +528,16 @@ if(ARTIFACT_FRONTEND_MSVC)
     # C++ modules + dyndep with a shared target PDB frequently hit C2471.
     # Use embedded debug info (/Z7) to avoid compile-time PDB write contention.
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded" CACHE STRING "" FORCE)
+
+    # Incremental link databases (.ilk) can become very large in this module-
+    # heavy Debug build. Keep full compile/link debug information and target
+    # PDBs, but disable incremental linking by default to avoid those databases.
+    # Developers can opt back in when faster relinks matter more than disk use.
+    option(ARTIFACT_ENABLE_DEBUG_INCREMENTAL_LINKING
+        "Enable MSVC incremental linking for Debug targets (uses large .ilk files)" OFF)
+    if(NOT ARTIFACT_ENABLE_DEBUG_INCREMENTAL_LINKING)
+        add_link_options("$<$<CONFIG:Debug>:/INCREMENTAL:NO>")
+    endif()
 endif()
 
 if(ARTIFACT_COMPILER_MSVC_CL)
@@ -1170,6 +1180,29 @@ if(ARTIFACT_COMPILER_CLANG_CL AND WIN32)
 endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
+# Temporary local escape hatch: the Artifact child repository's
+# ArtifactPythonAPI.cpp does not compile at HEAD (toBool/toDouble take
+# std::string but are called with QString). The child repository must not be
+# edited without an explicit request, so the broken translation unit can be
+# excluded from ArtifactAppRuntime for local builds that do not need the
+# Python scripting bridge. Off by default; remove once the child repository
+# fixes the call sites.
+option(ARTIFACT_DISABLE_BROKEN_PYTHON_API
+    "Exclude ArtifactPythonAPI.cpp from ArtifactAppRuntime (local workaround)" OFF)
+if(ARTIFACT_DISABLE_BROKEN_PYTHON_API)
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/src/Export/Python/ArtifactPythonAPI.cpp"
+        TARGET_DIRECTORY Artifact
+        APPEND PROPERTY HEADER_FILE_ONLY TRUE)
+    # ArtifactLayerPanelWidget.cpp calls ArtifactCore::FileTypeDetector::
+    # suffixPatterns / FileCapability, which do not exist in any ArtifactCore
+    # revision yet. The file is timeline widget UI and is not needed by the
+    # headless preview targets, so exclude it the same way.
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp"
+        TARGET_DIRECTORY Artifact
+        APPEND PROPERTY HEADER_FILE_ONLY TRUE)
+endif()
 add_subdirectory(tools/Particle2DPlayground)
 add_subdirectory(tools/Particle3DPlayground)
 add_subdirectory(tools/ParticleMirPlayground)

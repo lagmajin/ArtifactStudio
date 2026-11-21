@@ -1148,3 +1148,45 @@
 - **価値 / 懸念:** ユーザー明示許可により `FFmpegEncoderSettings::pixelFormat` を追加し、ソフトウェアエンコーダーにのみ適用する形で解決した。HW エンコーダーは固定形式のため対象外で、今も pipe ルーティングで回避している。
 - **未検証:** 実ファイルでの alpha 保持、HW エンコーダの capability、H.264/MP4 の alpha 互換性は未検証。
 - **次に確認すること:** ビルド許可が出たら `native` バックエンドと software pipe の両方で alpha 保持を実機検証し、HW ルートは capability probe で切り分ける。
+
+## 2026-11-20: Virtual Transition の一時合成は既存の事前確保済み offscreen 系を再利用できる
+- **関連:** `Artifact/include/Render/ArtifactRenderLayerPipeline.ixx:72-319,192-206,270-280`（accum/layer/temp の事前確保と history pool）、`Artifact/src/Layer/ArtifactGroupLayer.cpp:245-457`（TextureManager の cached temp RT / scratch RT）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp:11436-11507`（precomp 2D GPU 出力キャッシュ）、`ArtifactCore/src/Graphics/LayerBlendPipeline.cpp:1011-1077`（crossfade compute）。
+- **確認できた事実:** transition の A/B 一時合成に必要な「別 SRV 2 枚 + 出力 UAV 1 枚 + 既存 accum への 1 回 blend」は、新規の汎用 group composite を書かずに既存 RenderPipeline のスクラッチ/target プールと `crossfadeLayers()` で構成できそう。group layer と precomp は既に同様の cached offscreen 方式を使う。crossfade kernel は入力/出力エイリアスを既に拒否する。
+- **仮説・未検証:** 既存スクラッチを transition 用に流用すると accum ping-pong や effect mask の temporaries と競合する可能性があり、専用スロット追加が必要かどうかは未検証。同時 active の上限とプール枯渇時の drop 契約も未計測。
+- **価値または懸念:** 新規 `QImage`/`QPainter` やフレーム中 GPU resource 生成を避けつつ stack insertion を実装する近道。逆に、ここを誤るとホットパスで target のエイリアス／再利用による画素汚染が起きる。
+- **次に確認すべきこと:** 実装時に RenderPipeline の既存 target と transition 用スロットの生存期間を図で固定し、D3D12/Vulkan 両 backend でエイリアス無しを契約テストにすること。設計方針は `docs/design/virtual-transition-stack/RENDER_INTEGRATION_DESIGN_2026-11-20.md` D2/D8。
+
+## 2026-11-21: HEAD の tests/Artifact/CMakeLists.txt に実体しない .cpp の登録があり、CMake 構成が失敗する
+- **関連:** `tests/Artifact/CMakeLists.txt:160`（`artifact_add_test(ArtifactLayerGroupingUiContractTest ...)`）、コミット `d9c84ac2`（"feat: define virtual transition stack project", 2026-11-20）。
+- **確認できた事実:** `d9c84ac2` は `tests/Artifact/CMakeLists.txt` に `ArtifactLayerGroupingUiContractTest` の登録（`SOURCES ArtifactLayerGroupingUiContractTest.cpp`）を追加したが、**当該 `.cpp` は同コミットにも後続コミットにも含まれず**、HEAD (`c7da0405`) でも作業ツリーでも実体が存在しない。`git log --all --diff-filter=A -- '*LayerGroupingUi*'` は 0 件、`git fsck --dangling` でも復元不能、`git worktree list` にある 8 ワークツリーのいずれにも存在しない。CMake 構成は `Cannot find source file: ArtifactLayerGroupingUiContractTest.cpp` で失敗し、`ARTIFACT_BUILD_TESTS=ON` の全ターゲット（tools/ 配下の Playground を含む）のビルドが不可になる。
+- **価値または懸念:** **テストの CMake 登録と実体を同一コミットで揃えない**と、リポジトリ全体が構成不能になる（此次は 1 ファイルの欠落で `tools/` 配下の作業も全部止まる）。AGENTS.md の「新規ソースは CMake に明示登録」「子リポジトリは明示依頼時のみ編集」と同じ軸の話だが、**親リポジトリ側のテスト登録**も「実体と同一コミット」の原則を持つべき。テスト無効化（`ARTIFACT_BUILD_TESTS=OFF`）で自分のターゲットだけビルドする回避策が使えるが、恒久対応は別セッションの `.cpp` 追加か登録の差し戻し。
+- **次に確認すべきこと:** 当該 `.cpp` を誰がどのブランチで作成予定だったか（`d9c84ac2` の作者セッションが作業中か）。本 R&D では他セッションのファイルを touch せず、別ビルドツリー（`ARTIFACT_BUILD_TESTS=OFF`）で自前ターゲットのみをビルドして切り分けを進めた。
+- **未検証:** 欠落ファイルがどの作業中だったか（未特定）。
+
+## 2026-11-21: J: ドライブが 0 byte になり、git index.lock 書き込みと CMake 構成が失敗する（Recycle Bin が同一ドライブ）
+- **関連:** `out/build/`（Ninja ツリー群）、`build/`（VS generator ツリー 203.5 GB）、`C:\Users\lagma\.minimax\bin\mavis-trash.js`（Recycle Bin 経由の削除）。
+- **確認できた事実:** 作業中の `git status` が `fatal: sha1 file '.git/index.lock' write error. Out of diskspace` で失敗し、`Win32_LogicalDisk` の `FreeSpace` が J: で **0 byte**（サイズ 953.9 GB）になっていた。容量を食っていたのは `build/` 203.5 GB（VS generator ツリー。AGENTS.md と作業記憶のとおり ArtifactWidgets の module 実装単位が衝突して**使用不能**）と、`out/build/` 配下の古いツリー群（`glow-lab-*`、`x64-Debug-Agent-V143-ImageRND*`、`x64-Debug-Clang*`、`x64-Release-*`、`rq-particle-v143`、失敗した `x64-Debug-MirPlayground` 9.7 GB）。**`mavis-trash` は Windows Recycle Bin を使うため同一ドライブ（J:）の空きは戻らない**（削除後に `Clear-RecycleBin -DriveLetter J -Force` が必要）。実行後 J: は 0 → **260.96 GB** まで回復した。
+- **価値または懸念:** 「trash に送った＝容量が戻った」わけではない。**同一ドライブの Recycle Bin は容量を保持し続ける**ため、ディスク起因の障害対処には Recycle Bin の空化まで含めるべき。使用不能と判明済みのビルドツリー（VS generator の `build/`）を温存し続けるのは容量の無駄であり、確認済みの使用不可に基づく再生成は不可避。
+- **次に確認すべきこと:** `build/`（VS generator）は trash は成功扱いだが `Test-Path` が true のままで、回収が不完全だった。J: の空きは回復しているので実害はないが定期的なビルドツリー清理（現在有効なツリーの一覧保持）を検討する。
+- **未検証:** Recycle Bin 空化後に `build/` の内容がどうなっているか（未確認）。
+
+## 2026-11-21: Artifact 子リポジトリの HEAD がビルド不能（Python API の型不一致 + ArtifactCore に存在しない API 参照）
+- **関連:** `Artifact/src/Export/Python/ArtifactPythonAPI.cpp:280,288,295`（`toBool`/`toDouble` は `std::string` を受けるのに `QString rawValue` を渡している）、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp:5296`（`ArtifactCore::FileTypeDetector::suffixPatterns` / `FileCapability` を呼ぶが `ArtifactCore/include/File/FileTypeDetector.ixx` には存在しない）、`Artifact/include/Export/Python/ArtifactPythonAPI.ixx`。
+- **確認できた事実:** (1) Python API の型不一致は子リポジトリの `b24d5a61` で導入され、`origin/main`（`83427f12`）でも**そのまま残っている**（`git show origin/main:...` で同一コードを確認）。(2) `FileTypeDetector::suffixPatterns` / `FileCapability` は `Artifact` 側の `41437d90`（"feat: evaluate multiple virtual transitions"）が `ArtifactLayerPanelWidget.cpp` に追加した呼び出しだが、`ArtifactCore` の**全参照（main / origin/main / origin/master / 全履歴）で実装が存在しない**（`git log --all -S 'FileCapability'` は 0 件）。(3) この 2 件で `ArtifactAppRuntime` のビルドが失敗し、`ArtifactAppRuntime` にリンクする `tools/Particle*Playground` も一緒にビルド不能になる。(4) 親リポジトリ側の `tests/Artifact/CMakeLists.txt` にも `ArtifactLayerGroupingUiContractTest.cpp` の登録だけがあり実体が存在せず、これは CMake **Generate 段階**の失敗（configure 自体が通らない）になる。(5) `Artifact`/`ArtifactCore` は子リポジトリのため AGENTS.md により明示依頼なしには編集できず、回避として親 `CMakeLists.txt` に `ARTIFACT_DISABLE_BROKEN_PYTHON_API` オプション（`HEADER_FILE_ONLY` による該当 TU の除外）と `ARTIFACT_BUILD_TESTS=OFF` 構成を使って自前ターゲットのみを通す運用、確認できた。
+- **価値または懸念:** **子リポジトリの HEAD がビルド不能な状態では、亲子構成の全体ビルドが成立しない**ため、孫（tools/ 配下のプレビュー用ターゲット）も含めて作業不能になる。Python API の型不一致は `origin/main` にもあるため、リモート側が壊れたままの可能性がある。`ArtifactCore` の API を `Artifact` 側が先行して使う形は、**子リポジトリ間の依存順序（ArtifactCore → Artifact）を守らない変更**の典型的な失敗例。
+- **次に確認すべきこと:** `41437d90` の作者セッションが `ArtifactCore` 側の `FileCapability` / `suffixPatterns` 実装を別の作業ツリー（未コミット）で持っているなら、それを同梱した 子リポジトリ bump コミットが本来的な形。`toBool`/`toDouble` の `QString` 受けオーバーロード追加か `toStdString()` 変換が必要。
+- **未検証:** 自分の区画（`tools/ParticleMirPlayground`）の最終ビルドと新しい `--capture-2d-software-sparse` モードの実測（Python API 回避で再構成は通ったが、リンクまで到達していない）。
+
+## 2026-11-21: ソフトフォールバックの「中空リング」は单个粒子ではなく高密度の重なりによる見かけ（画素プロファイルで確定）
+- **関連:** `tools/ParticleMirPlayground/profile_region.py`（alpha 基準）、`tools/ParticleMirPlayground/profile_luma.py`（輝度基準）、`captures/mir-particle-20261119-software/mir_2d_software_frame_45.png` と `mir_2d_gpu_frame_45.png`、`captures/mir-particle-20261119-v16/IMAGE_EVALUATION_REPORT.md`。
+- **確認できた事実:** 高密度キャプチャの単離ブローブ（周辺より 25 以上明るい孤立点）を探し、その行の alpha / 輝度プロファイルを分類した（中心平均 vs 外周平均）。ソフト経路は 15 ブローブすべてが **solid**（alpha ピーク 243〜255、中心平均 138〜162、外周平均 101〜123 で単調減衰）、GPU 経路も 8 ブローブすべて **solid**（輝度ピーク 250〜255、中心 250〜253、外周 199〜207）。**hollow（中心が外周より 25% 以上暗い）は両経路で 0 件**。視覚採点が「中空リング／細胞状スペックル／指状垂れ」と報告したのは、64 個の Point エミッターが高密度で重なり、1 粒子あたりのスプライト径が GPU 経路より大きい（crop 中央 run 長 17px 対 10px）ソフト経路で、加算合成が飽和した領域の輪郭として見えたため。
+- **価値または懸念:** **視覚モデルの「リング」「スペックル」「垂れ」という形状指摘は、実測プロファイルと突き合わせないと誤診に結び付く**。今回のようにブローブ単位で alpha/輝度プロファイルを取ると「単離ブローブは正常か、高密度の重なりか」を 1 つの数値（solid/hollow/flat の分類数）で切り分けられる。画像認識は見た目の異常を指摘する強い観測者だが、**「単個 instances の破綻」か「集合体の見かけ」かは区別しない**ので、形状指摘には必ず画素プロファイルによる裏取りを添えるべき。
+- **次に確認すべきこと:** 単一粒子条件で再キャプチャすれば密度依存を除いて確定できる（`--capture-2d-software-sparse` は実装済みだが、子リポジトリ起因のビルド不能で未到達）。粒子径の parity（ソフト `size*2` vs GPU `size*10`）は製品コード側の判断が必要。
+- **未検証:** 単粒子条件の実キャプチャ、粒子径 parity の修正方針、フォールバック到達条件の特定。
+
+## 2026-11-21: 翻訳カタログは「選択可能ロケール」だけ追えばよいが、そのロケールの中のキー欠落は別問題
+- **関連:** `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cpp:236-244`（`minKeys = max(50, en の 1/10)` で低カバレッジ言語を選択肢から除外）、`Artifact/translations/*.json`、`docs/analysis/TIMELINE_PROPERTY_TERMINOLOGY_AUDIT_2026-11-21.md` Slice A。
+- **確認できた事実:** 11 個のカタログのうち実キー数は `en`/`ja` 1850、`zh`/`zh-TW` 341、`ko`/`fr`/`de`/`es`/`pt`/`ru`/`ar` 68。閾値 185 のため設定画面で選べるのは **en/ja/zh/zh-TW の 4 つだけ**で、残り 7 言語はファイルが存在しても選択不能。一方で `zh`/`zh-TW` は `en` の 1850 キーに対し 341 しか持たず、`layer_panel.menu_trans_wipe` / `menu_trans_slide` のように **en にあって zh に無いキー**が既に存在する（今回の変更前から）。
+- **価値または懸念:** 「選択可能＝カバレッジ十分」ではない。新規キーを 4 言語に揃えるのは必須だが、**既存の欠落を全 locale parity と混同しない**こと。欠落キーは `tt(key, fallback)` により英語へフォールバックするため、日本語/中国語 UI に英語が 1 語だけ混ざる形で現れる。`en`/`ja` も `_meta` を持つが `zh`/`zh-TW` は持たないなど、ファイル構造自体が非対称。
+- **次に確認すべきこと:** `timeline` / `property` / `layer_panel` セクション全体の 4 言語 parity を機械的に差分し、欠落キー一覧を出す（`tools/i18n/check_locale_keysets.py` が `en/ja/zh/zh-TW/ko/...` を列挙する骨組みを持っている）。
+- **未検証:** 欠落キーが実画面でフォールバック表示されているか（UI 実行・キャプチャ未実施）、`zh`/`zh-TW` の欠落が意図的な段階的翻訳かどうか。
