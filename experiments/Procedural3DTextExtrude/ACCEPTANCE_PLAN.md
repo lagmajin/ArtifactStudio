@@ -51,6 +51,7 @@ ctest --test-dir out/build/x64-Debug-Agent -C Debug `
 ## Current evidence and outstanding work
 
 - Added result status, missing-glyph count, resolved families, font file SHA-256 snapshots, settings persistence, malformed mesh checks, a glyph budget, and closed-edge contracts for `O`, `B`, `8`, and `&` counter/compound glyphs plus a beveled `O`, using the bundled Roboto fixture.
+- Font-family and fingerprint snapshots are now lexically normalized on generation and load, so Bidi/fallback run-order changes do not report a changed font set; a JSON order-normalization contract covers this persistence behavior.
 - Added a legacy JSON contract that removes every newly introduced text layout and diagnostic key, reloads the project, and checks documented defaults.
 - Bounded generated and imported diagnostics: at most 64 font family/fingerprint entries, 256/512 characters per entry, 128 missing-glyph locations of at most 128 characters, and a 16,384 missing-glyph count. Truncation downgrades identity/location completeness instead of claiming a valid comparison.
 - Added generation diagnostics to the existing font property help and layer debug state, plus persistent JSON metadata. Font mismatch comparison occurs after the first regeneration following load.

@@ -715,6 +715,46 @@ TEST(Procedural3DLayerLodContractTest,
 }
 
 TEST(Procedural3DLayerLodContractTest,
+     FontFingerprintSnapshotsNormalizeRunOrderOnLoad)
+{
+    Artifact::ArtifactProcedural3DLayer source(
+        Artifact::Procedural3DLayerKind::TextExtrude);
+    QJsonObject project = source.toJson();
+    QJsonObject procedural = project.value(
+        QStringLiteral("procedural3D")).toObject();
+    QJsonObject text = procedural.value(
+        QStringLiteral("textExtrude")).toObject();
+    const QString first = QStringLiteral(
+        "Zulu Family|Regular|ffffffffffffffff");
+    const QString second = QStringLiteral(
+        "Alpha Family|Regular|0000000000000000");
+    QJsonArray reversed;
+    reversed.push_back(first);
+    reversed.push_back(second);
+    text[QStringLiteral("resolvedFontFingerprints")] = reversed;
+    text[QStringLiteral("expectedFontFingerprints")] = reversed;
+    text[QStringLiteral("fontIdentityComplete")] = true;
+    procedural[QStringLiteral("textExtrude")] = text;
+    project[QStringLiteral("procedural3D")] = procedural;
+
+    const auto restored = Artifact::ArtifactProcedural3DLayer::fromJson(project);
+    ASSERT_TRUE(restored);
+    const QJsonObject restoredText = restored->toJson()
+        .value(QStringLiteral("procedural3D")).toObject()
+        .value(QStringLiteral("textExtrude")).toObject();
+    const QJsonArray current = restoredText.value(
+        QStringLiteral("resolvedFontFingerprints")).toArray();
+    const QJsonArray expected = restoredText.value(
+        QStringLiteral("expectedFontFingerprints")).toArray();
+    ASSERT_EQ(current.size(), 2);
+    ASSERT_EQ(expected.size(), 2);
+    EXPECT_EQ(current.at(0).toString(), second);
+    EXPECT_EQ(current.at(1).toString(), first);
+    EXPECT_EQ(expected.at(0).toString(), second);
+    EXPECT_EQ(expected.at(1).toString(), first);
+}
+
+TEST(Procedural3DLayerLodContractTest,
      MalformedFontDiagnosticsAreBoundedAndMarkedUnverified)
 {
     Artifact::ArtifactProcedural3DLayer source(
