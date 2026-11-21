@@ -275,14 +275,29 @@ TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnosti
     EXPECT_EQ(limited.status, Procedural3DGenerationStatus::ResourceLimitExceeded);
 
     settings.maxGlyphCount = 4096;
-    settings.text = QString(4096, QLatin1Char('\n'));
-    const Procedural3DResult excessiveLines =
-        Procedural3DGenerators::generateTextExtrudeResult(settings);
-    EXPECT_FALSE(excessiveLines.valid);
-    EXPECT_EQ(excessiveLines.status,
-              Procedural3DGenerationStatus::ResourceLimitExceeded);
-    EXPECT_NE(excessiveLines.diagnosticMessage.indexOf(
-                  QStringLiteral("line count")), -1);
+    const auto expectLineBudgetRejection = [&](const QString& text) {
+        settings.text = text;
+        const Procedural3DResult result =
+            Procedural3DGenerators::generateTextExtrudeResult(settings);
+        EXPECT_FALSE(result.valid);
+        EXPECT_EQ(result.status,
+                  Procedural3DGenerationStatus::ResourceLimitExceeded);
+        EXPECT_NE(result.diagnosticMessage.indexOf(
+                      QStringLiteral("line count")), -1);
+    };
+    const auto repeatedLines = [](const QString& separator) {
+        QString text;
+        text.reserve(12288);
+        for (int line = 0; line < 4096; ++line) {
+            text += QLatin1Char('A');
+            text += separator;
+        }
+        return text;
+    };
+    expectLineBudgetRejection(repeatedLines(QStringLiteral("\n")));
+    expectLineBudgetRejection(repeatedLines(QStringLiteral("\r\n")));
+    expectLineBudgetRejection(repeatedLines(
+        QString(QChar(QChar::LineSeparator))));
 }
 
 TEST(Procedural3DQualityLodTest, TextExtrusionSupportsTrackingLeadingAndLineAlignment)
