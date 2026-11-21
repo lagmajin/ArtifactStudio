@@ -236,9 +236,13 @@ TEST(Procedural3DQualityLodTest, TextExtrusionResultReportsFontAndInputDiagnosti
     EXPECT_EQ(success.status, Procedural3DGenerationStatus::Success);
     EXPECT_FALSE(success.resolvedFontFamily.trimmed().isEmpty());
     EXPECT_FALSE(success.resolvedFontFamilies.isEmpty());
+    EXPECT_TRUE(std::is_sorted(success.resolvedFontFamilies.begin(),
+                               success.resolvedFontFamilies.end()));
     EXPECT_EQ(success.missingGlyphCount, 0u);
     ASSERT_TRUE(success.fontIdentityComplete) << success.diagnosticMessage.toStdString();
     ASSERT_FALSE(success.resolvedFontFingerprints.isEmpty());
+    EXPECT_TRUE(std::is_sorted(success.resolvedFontFingerprints.begin(),
+                               success.resolvedFontFingerprints.end()));
 
     const uint unavailableCodePoint = 0x10FFFFu;
     settings.text = QString::fromUcs4(&unavailableCodePoint, 1);
