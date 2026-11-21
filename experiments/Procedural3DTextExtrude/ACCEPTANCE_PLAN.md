@@ -21,10 +21,11 @@
 
 ## Headless test and geometry capture
 
-The acceptance set is `ArtifactCoreProcedural3DQualityLodTest`, `ArtifactProcedural3DLayerLodContractTest`, and `ArtifactProcedural3DTextExtrudeContractTest`; all are registered in the root `x64-Debug-Agent` preset and run with `QT_QPA_PLATFORM=offscreen`. Complex-script tests skip with family diagnostics on developer hosts that lack coverage. Set `ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE=1` for acceptance/CI runs so any requested family substitution or missing glyph fails instead of skipping. First check that `out/build/x64-Debug-Agent/CMakeCache.txt` matches the intended source, generator, compiler, toolchain, configuration, and ABI. In the current checkout the existing cache has `ARTIFACT_BUILD_TESTS=ON`, so reuse it without reconfiguring; if it is absent or incompatible, stop for explicit configure authorization. After build/test authorization, use:
+The acceptance set is `ArtifactCoreProcedural3DQualityLodTest`, `ArtifactProcedural3DLayerLodContractTest`, and `ArtifactProcedural3DTextExtrudeContractTest`; all are registered in the root `x64-Debug-Agent` preset and run with `QT_QPA_PLATFORM=offscreen`. Complex-script tests skip with family diagnostics on developer hosts that lack coverage. Set `ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE=1` for acceptance/CI runs so any requested family substitution or missing glyph fails instead of skipping. First check that `out/build/x64-Debug-Agent/CMakeCache.txt` matches the intended source, generator, compiler, toolchain, configuration, and ABI. The current cache matches those values and has `ARTIFACT_BUILD_TESTS=ON`, but `tests/Artifact/CMakeLists.txt` is newer than the generated `build.ninja`; the build will rerun CMake. Do not build until the user explicitly authorizes that reconfigure as well as the build/tests. Once authorized, reconfigure the same preset tree and use:
 
 ```powershell
 $env:ARTIFACT_TEXT_EXTRUDE_REQUIRE_SCRIPT_COVERAGE = "1"
+cmake --preset x64-Debug-Agent -DARTIFACT_BUILD_TESTS=ON
 cmake --build out/build/x64-Debug-Agent --target `
   ArtifactCoreProcedural3DQualityLodTest `
   ArtifactProcedural3DLayerLodContractTest `
