@@ -1,7 +1,7 @@
 # Virtual Transition — 描画統合設計（提案）
 
-**最終更新:** 2026-11-21
-**ステータス:** P1 実装中（model API と 3 描画経路の draw plan 接続を追加。ビルド・テスト・CMake 未実行）
+**最終更新:** 2026-11-22
+**ステータス:** P1/P2実装済み、P3画素合成統合は未完了（model API・3描画経路のdraw plan接続を追加。2026-11-22に対象target buildとtransition契約CTest 10/10 Passを確認）
 
 ## 1. 目的と範囲
 
@@ -139,8 +139,19 @@
 - 契約テスト `DrawPlanPlacesTransitionCompositeAtInsertionIndex` を追加。`stackPosition` 変更で composite step が目的の layer 直前に移動することを検査する。
 - P2 実装（2026-11-21）: draw plan が active transition の source A/B を insertionIndex 直前に移動する Layer step として出し、自然位置の Layer step を抑制した。4 描画ループはそのまま step 順で描画するだけのため、各 source は 1 フレームに 1 回だけ描画される。契約テストの期待 step 列を更新。256 layer 超・64 transition 超は登録順/移動なしのフォールバック。
 - ビルド/テスト実行（2026-11-21、ユーザ明示許可）: `x64-Debug-Agent` (Ninja/MSVC 14.52, `ARTIFACT_BUILD_TESTS=ON`) で `ArtifactVirtualTransitionStackContractTest` をビルド成功。実行結果は 8 件中 7 件 Pass（新規 `DrawPlanPlacesTransitionCompositeAtInsertionIndex` を含む）、`StableSourceIdsSurviveRenameAndLegacyNamesMustBeUnique` は layer stack index の期待値不一致で Fail、`TimelineShowsCompactMarkerUntilTransitionIsSelected` は offscreen 実行でハング。GPU crossfade kernel 単体テスト 1 件は Pass。
-- 未実装のまま: P3 の crossfade kernel 描画ループ接続、P4 parity、P5 Undo / UI 整理。Fail / ハングの 2 件は今回の変更範囲外の既存課題として残す。
+- この時点で未実装だった項目: P3 の crossfade kernel 描画ループ接続、P4 parity、P5 Undo / UI 整理。Fail / ハングの2件は後続の2026-11-22修正・検証で解消した。UI / Undo の現状は本書 §10 を参照。P3画素合成統合とP4 parityは引き続き未完了。
 - ビルドを通すための既存コード修正（今回の機能変更とは別）: Boost UUID `data()` 呼び出し、`ArtifactShapeLayer::evaluatePathAt()` の PImpl 定義後の配置、`ArtifactPythonAPI.cpp` の QString→std::string 変換、`ArtifactLayerPanelWidget.cpp` の画像 filter 固定文字列。一時プレースホルダ `tests/Artifact/ArtifactLayerGroupingUiContractTest.cpp` は CMake 参照切れ回避のため残している（Git 追跡対象の変更ではない）。
+
+## 10. Transition Stack UI / Undo 実装状況（2026-11-22）
+
+- Layer Panel の既存 Transition Stack メニューから開く編集ダイアログを追加し、name、source A/B、kind、easing、frame range、stack position、enabled を編集する。
+- ダイアログ上部にQPainter owner-drawのA/B stack previewを置き、ソースカード・遷移矢印・kind・easing・range長・挿入位置を表示する。可視UIの見た目／操作受入はまだ未確認。
+- 参照切れの source A/B はダイアログ上で明示し、代替レイヤーを選ぶまでApplyを受け付けない。別プロパティだけを編集してsourceが暗黙に差し替わることを防ぐ。
+- Frame range input は signed 64-bit として検証し、`FramePosition` の `int64_t` assignment を通して保存する。`int` constructor による暗黙 narrowing を避ける。
+- 作成・変更・複製・削除・全削除を `setTimelineTransitions()` ベースの in-memory snapshot Undo command に接続。新規公開signal/slot/event配線は追加していない。
+- Wipe/Slide は追加／種類変更メニューから除外。Dissolve を追加し、編集UI文言は ja/en/zh/zh-TW を用意。
+- 確認済み（2026-11-22）: Artifact app／Stack targetのbuild、および関連CTest 2/2（Core 20/20、Stack 10/10）。これらのCTestは新設編集dialog／Undoを行使しない。未確認: 可視UIの操作、owner-draw受入、Undo/Redoの実操作、Undo履歴の永続化、共同編集へのsnapshot operation dispatch。Computer Use runtimeは初期化失敗のため画面操作に至っていない。失敗確認は適用後のtransition countで行い、競合した編集は履歴へ入れない。
+- 既存CTestログ確認（2026-11-22 11:41）: `ArtifactCoreTransitionRenderContractTest` 20/20 と `ArtifactVirtualTransitionStackContractTest` 10/10 Pass。この記録は上記編集ダイアログ／Undo変更より前であり、それらの検証証跡には使わない。
 
 ## 9. 参考
 
