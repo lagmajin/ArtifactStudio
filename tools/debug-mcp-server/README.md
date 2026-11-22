@@ -14,10 +14,12 @@ This prototype is intentionally small:
 cd tools/debug-mcp-server
 npm start
 npm run check
+npm test
 ```
 
 - `npm start` runs the MCP server.
 - `npm run check` verifies syntax for the MCP server and its DAP/reproduction helpers.
+- `npm test` runs the stdio protocol and state-isolation tests against a scratch state file.
 
 ## Relationship with the integrated C++ MCP server
 
@@ -159,6 +161,12 @@ Set `ARTIFACT_DEBUG_MCP_STATE_FILE` to point at a different JSON file if needed.
 The Artifact app polls the same file and will cooperatively pause or resume
 playback when a breakpoint condition matches.
 
+Read-only tools (`get_debug_snapshot`, `get_latest_failure`, `get_failure_context`,
+`get_diagnostic_events`, `get_session_summary`, `get_break_history`,
+`list_debug_watches`, `list_break_conditions`, `get_last_break_hit`) do not write
+the state file and do not append read events to break history. Polling them is
+side-effect free, so genuine break-hit history is preserved.
+
 ## Tools
 
 - `dap_connect`, `dap_launch`, `dap_attach`
@@ -169,6 +177,7 @@ playback when a breakpoint condition matches.
 - `get_debug_snapshot`
 - `get_latest_failure`
 - `get_diagnostic_events`
+- `set_diagnostic_breakpoint`
 - `acknowledge_diagnostic_sequence`
 - `get_failure_context`
 - `set_break_condition`

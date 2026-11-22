@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check dap-client.js && node --check debug-loop.js"
+    "check": "node --check server.js && node --check dap-client.js && node --check debug-loop.js && node --check server.test.js",
+    "test": "node --test server.test.js"
   },
   "license": "MIT"
 }

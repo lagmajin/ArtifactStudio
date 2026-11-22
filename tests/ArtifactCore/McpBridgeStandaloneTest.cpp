@@ -351,6 +351,32 @@ TEST(McpBridgeStandaloneTest, MissingMethodReturnsInvalidRequest)
               -32600);
 }
 
+TEST(McpBridgeStandaloneTest, NotificationProducesNoResponse)
+{
+    const QJsonObject response = McpBridge::handleRequest(
+        makeRequest(QStringLiteral("notifications/initialized"), QJsonObject(),
+                    QJsonValue(QJsonValue::Undefined)));
+
+    EXPECT_TRUE(response.isEmpty());
+}
+
+TEST(McpBridgeStandaloneTest, InvalidJsonRpcVersionReturnsInvalidRequest)
+{
+    QJsonObject message;
+    message[QStringLiteral("jsonrpc")] = QStringLiteral("1.0");
+    message[QStringLiteral("id")] = 1;
+    message[QStringLiteral("method")] = QStringLiteral("ping");
+
+    const QJsonObject response = McpBridge::handleRequest(message);
+
+    ASSERT_TRUE(response.contains(QStringLiteral("error")));
+    EXPECT_EQ(response.value(QStringLiteral("error"))
+                  .toObject()
+                  .value(QStringLiteral("code"))
+                  .toInt(),
+              -32600);
+}
+
 TEST(McpBridgeStandaloneTest, ResponseEchoesRequestIdAndOmitsNullId)
 {
     const QJsonObject numeric =
@@ -499,7 +525,11 @@ TEST(McpBridgeStandaloneTest, ToolsCallGetToolsReturnsToolSurface)
 
     ASSERT_TRUE(response.contains(QStringLiteral("result")));
     const QJsonObject result = response.value(QStringLiteral("result")).toObject();
-    EXPECT_EQ(result.value(QStringLiteral("content")).toString(),
+    const QJsonArray content = result.value(QStringLiteral("content")).toArray();
+    ASSERT_EQ(content.size(), 1);
+    EXPECT_EQ(content.at(0).toObject().value(QStringLiteral("type")).toString(),
+              QStringLiteral("text"));
+    EXPECT_EQ(content.at(0).toObject().value(QStringLiteral("text")).toString(),
               QStringLiteral("debug.getTools"));
     const QJsonObject structured = result.value(QStringLiteral("structuredContent")).toObject();
     EXPECT_FALSE(structured.value(QStringLiteral("tools")).toArray().isEmpty());
@@ -508,6 +538,28 @@ TEST(McpBridgeStandaloneTest, ToolsCallGetToolsReturnsToolSurface)
                      .value(QStringLiteral("tools"))
                      .toObject()
                      .isEmpty());
+}
+
+TEST(McpBridgeStandaloneTest, ToolsCallResultContentIsMcpContentArray)
+{
+    const QStringList readOnlyTools = {
+        QStringLiteral("debug.log"), QStringLiteral("debug.getTools"),
+        QStringLiteral("debug.listLayers"), QStringLiteral("debug.getSelection"),
+        QStringLiteral("debug.gpuMemory"), QStringLiteral("debug.state")
+    };
+    for (const QString& tool : readOnlyTools) {
+        const QJsonObject response = McpBridge::handleRequest(makeRequest(
+            QStringLiteral("tools/call"),
+            QJsonObject{{QStringLiteral("name"), tool}}));
+        ASSERT_TRUE(response.contains(QStringLiteral("result"))) << tool.toStdString();
+        const QJsonArray content = response.value(QStringLiteral("result"))
+                                       .toObject()
+                                       .value(QStringLiteral("content"))
+                                       .toArray();
+        ASSERT_EQ(content.size(), 1) << tool.toStdString();
+        EXPECT_EQ(content.at(0).toObject().value(QStringLiteral("type")).toString(),
+                  QStringLiteral("text")) << tool.toStdString();
+    }
 }
 
 TEST(McpBridgeStandaloneTest, ToolsCallDebugLogReturnsEntries)
