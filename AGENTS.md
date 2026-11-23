@@ -1,18 +1,6 @@
 # AGENTS
 
-**最終更新:** 2026-11-19
-
-### Windows UI 操作の既定禁止
-
-Windows のデスクトップ／GUI 操作は原則行わない。Computer Use 等による Windows アプリの起動・操作、マウス／キーボード入力、ダイアログ操作、画面キャプチャ、Windows 設定変更を含む。必要な場合は、対象アプリと操作範囲をユーザーが明示的に依頼した場合に限り、その範囲内で行う。既存のビルド・テスト実行に関する個別制限や、アプリ／外部サービス上で別途確認が必要な操作も引き続き適用する。
-
-### Artifact の新規 UI 評価時のイベント配線
-
-Artifact の既存画面や新規評価用 UI を実行・観察するとき、画面操作や評価ハーネスからアプリ内部へ到達するためのシグナル＆スロット接続、イベントバス、ReactiveEvents、その他のイベント配線を新たに追加しない。評価は既存の公開 API、既存のテスト／オフスクリーン経路、または接続を伴わない観察・設計に限定する。既存の配線変更が必要なら、その変更範囲を先に設計レビューする。
-
-### 画像エフェクト R&D の評価（必須）
-
-画像エフェクトの R&D は [`docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`](docs/technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md) に従い、開始前に画像評価計画を定める。進行中の案件も不足を未実施として記録し、完了判定までに評価する。
+**最終更新:** 2026-10-01
 
 ### Composition Viewport 採用モックの参照範囲（2026-09-08・必須）
 
@@ -31,7 +19,6 @@ When working on a date-stamped development branch (for example, `codex/YYYY-MM-D
 **Before any commit/push operation**, read and follow: [`.github/GIT_WORKFLOW_PARENT_CHILD.md`](.github/GIT_WORKFLOW_PARENT_CHILD.md)
 
 ### Golden Rules (MUST FOLLOW)
-0. **`main` への force push は親・子を問わず禁止**。`main` は fast-forward push のみ許可し、force push が必要と表示された場合は実行せず停止して原因を確認する。この禁止は `main` のみに適用し、他ブランチには適用しない。
 1. **Always commit child repos first**, then push
 2. **NEVER push parent without updating child gitlinks** with `git add Artifact ArtifactCore ArtifactWidgets`
 3. **Child push → Parent gitlink update → Parent push** (this order is mandatory)
@@ -73,15 +60,6 @@ AI が UI 名称やウィジェット責務で迷ったら、まず [docs/WIDGET
 `docs/planned/` には計画中のマイルストーンが格納されている。
 
 文書ライフサイクルルールは `docs/DOC_LIFECYCLE.md` を参照すること。
-
-### 生成物・評価証跡の Git 追跡
-
-- ルートの `/captures/`、`/output/`、`/temp/` と GPU driver cache、IDE のローカル設定は再生成可能な作業出力として Git に追加しない。対応する `.gitignore` の規則を維持する。
-- ビルド・shader compile の中間物（`.obj` / `.ifc` / `.pdb` / `.dxil` / `.spv` / `.log` 等）、一時画像・配列（`.pfm` / `.npy` 等）、キャッシュ、scratch output は commit 対象外とする。
-- R&D の再現に必要な入力 fixture、評価計画、スクリプト、manifest は各 `experiments/<Lab>/` 配下へ置く。capture ディレクトリ内の生成画像・配列は `.gitignore` で既定除外し、手動で選んだ最終証跡だけ対象、条件、取得日、出所、hash を manifest に記録したうえで個別に `git add -f` する。大きな一時 fixture や全 sweep 出力は追加しない。
-- ignore 対象でも、ユーザーが明示した再配布・提出要件がある個別成果物は例外として内容と再生成性を確認し、`git add -f <path>` でそのファイルだけ追跡する。ディレクトリ全体を force-add しない。
-- blind review の割当て鍵（`*blind*key*.json`）は独立レビュー完了まで Git に追加しない。公開 manifest には hash と保管条件だけを記録する。
-- push 前に `git status --short` と `git diff --cached --stat` を見て、ローカル設定・cache・生成物が stage されていないことを確認する。
 
 ### ドキュメント更新日の記録
 
@@ -217,16 +195,6 @@ C++20 modules の再発防止ルール:
 サブモジュール（例: `ArtifactWidgets` / `libs/DiligentEngine` / `third_party/*`）は、ユーザーが明示的に依頼した場合を除き変更・コミット・push しないこと。
 
 サブモジュールに修正が必要な場合は、まず親リポジトリ側で代替可能か確認し、不可なら「fork 運用」または「パッチ運用」を提案してから進めること。
-
-### テストビルド生成物の共有（必須）
-
-- ルート CMake のテストは、対応する `CMakePresets.json` の構成済み binary directory を使う。標準の配置は `out/build/<preset名>`。テスト option は同じ build tree の cache に追加し、テストごとの `build` / `out/build/<test名>` を作らない。
-- 構成前に既存 `CMakeCache.txt` の source directory、generator、compiler/toolchain、configuration、ABI を確認する。一致する build tree があれば再利用し、条件が異なる構成だけ別 preset / build tree に分ける。互換性のない `.obj` / `.ifc` / `.pch` / `.pdb` を共有する目的で異なる toolchain や configuration を同じ binary directory に混在させない。
-- テストは可能な限り既存のルート target（例: `ArtifactCore`、`ArtifactAppRuntime`）へリンクする。製品ソースをテスト target ごとに再登録したり、同じ依存を持つテストのためだけに別 CMake project を追加したりしない。共通テスト helper も一度だけ library / object target として構成し、利用先からリンクする。
-- 同じ feature・依存・実行条件を使う GoogleTest source は、プロセス分離・環境変数・GPU backend・実行時間などの理由がなければ feature 単位の executable にまとめる。独立プロセスが必要なテストは別 target を維持し、分離理由を CMake コメントに記載する。
-- executable ごとの object、link、debug symbol は target 固有であり、PDB / ILK を複数 executable 間で強制共有しない。容量を減らすときは、まず重複した build tree と重複 target をなくし、コンパイラが共有可能な既存 target 依存を再利用する。
-- reduced module closure、意図的な compile failure、異なる toolchain / ABI など、ルート target と共有できない理由がある standalone suite だけは独立 project を許容する。その場合も suite をまとめて一つの configure tree にし、binary directory は `out/standalone-build/<preset名>/<suite名>` に置く。共有対象は互換な package installation や suite 内の共通 module / helper target とし、ルート CMake tree の object が再利用されるとは扱わない。単独 project 化の理由を README に記録する。
-- `sccache` 等の compiler cache は別 build tree 間の再コンパイル低減に使える場合があるが、同一 CMake target graph の依存共有の代わりにはしない。利用可否・設定を確認してから使う。
 
 ビルド・テスト・CMake はユーザーが明示的に指示するまで禁止。ビルドスクリプトの実行、CMake の生成・再実行、テストの起動を AI の判断で行わないこと。必要と判断した場合でも、まず「実行してもいいですか」と確認してからにすること。
 

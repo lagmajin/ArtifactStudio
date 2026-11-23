@@ -1,9 +1,9 @@
 # Milestone: Content-Aware Fill（コンテンツに応じた塗りつぶし） (2026-07-08)
 
-> 状態: 部分実装あり（静止画 Wire / Object Remover に複数方式と mask 入力が存在。動画の時間伝播・専用 Content-Aware Fill workflow は未確認）
+> 状態: DRAFT（新規・未実装・専用マイルストーン未作成を確認済み）
 
-**最終更新:** 2026-11-16
-**Status:** 静止画の wire/object removal と Telea/NS inpaint は既存実装あり。専用 Content-Aware Fill workflow、時間方向の背景伝播、製品品質評価は未完了。
+**最終更新:** 2026-08-15
+**Status:** Content-Aware Fill／inpaint／PatchMatch／動画伝播／専用UIは未実装。既存のRoto／Paint／Mask基盤は別責務。
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## 4. 現状（ソース確認・2026-07-08）
 
-- `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` は当時の調査結果であり、現行状態の根拠としては古い。
+- `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` で **0 hit / 完全未着手** を確認。
 - リポジトリ内に関連基盤は存在: `docs/FEATURE_DICTIONARY_2026-04-17.md` に `ImageProcessing/OpenCV/OpenCVPuppetEngine`, `OpenCVRotoBrushEngine` の記載あり → OpenCV バインディングは利用可能。
 - 専用マイルストーンは存在しない（grep で `Content.Aware` 0 hit）。
 
@@ -43,17 +43,26 @@
 - OpenCV 依存は既存の `OpenCVRotoBrushEngine` 経路で解決可能か要確認。
 - GPU 化（現在は CPU inpaint 中心）は後回し。
 
+## 2026-08-15 現行実装監査
+
+- 専用の `ContentAwareFill`／`inpaint`／PatchMatch API、動画フレーム間伝播、進捗／キャンセル／専用 UI は引き続き確認できない。
+- `RotoMask`、`RotoBrush`、Paint layer、MaskCutout／Rasterizer、OpenCV 系画像処理は存在するが、指定領域を周囲から補完する本機能の実装証拠にはならない。
+- 本マイルストーンは DRAFT／未着手を維持する。最初の実装単位は静止フレームの明示的な OpenCV inpaint と Paint／Mask の Undo 境界である。
+
+## Update 2026-08-15
+
+- 専用 `ContentAwareFill`／inpaint／PatchMatch API、動画フレーム間伝播、進捗・キャンセル・専用 UI は現行コードで確認できない。
+- `RotoMask`／`RotoBrush`／Paint／MaskCutout／Rasterizer／OpenCV 画像処理は関連基盤だが、本機能の補完処理そのものとは切り分ける。
+- 判定は DRAFT／未着手を維持。最初の実装候補は静止フレームの明示的 OpenCV inpaint と Paint／Mask Undo 境界であり、実装・runtime 検証は未実施。
+
 ## 7. 関連文書
 
 - `docs/planned/MILESTONE_PAINT_LAYER_2026-06-16.md`
 - `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md`
 - `docs/FEATURE_DICTIONARY_2026-04-17.md`
 
-## 2026-11-16 Object Removal R&D 初期着手
+## 2026-07-25 実装監査
 
-- 既存コードを調べ直し、`ArtifactCore/src/ImageProcessing/WireRemove.cpp` と `Artifact/src/Effect/ArtifactCreativeEffects.cpp` の静止画経路、複数 fill method、mask/clean inputs、GPU implementation の存在を記録した。専用 GPU 経路の runtime parity は未検証。
-- 新しい評価計画・deterministic fixture generator を `experiments/ObjectRemovalLab/` に追加。計画は品質 gate を候補比較前に固定する手順と、mask 内/境界帯/変更漏れの測定を定義する。
-- fixture は seed `20261116` の勾配、周期模様、交差細線、決定論的テクスチャ各512×320を生成する。clean/input/mask とSHA-256 manifest を保存する設計。
-- rd0 fixture generator を実行し、4ケースの clean/input/mask、8-bit preview、manifest/hash を生成した。寸法と mask pixel 数の consistency を確認。`measure_baseline.py` は候補処理なしで masked-region/boundary error と outside-mask change を記録する。
-- candidate output、quality gate、人手レビュー、製品 runtime、preview/final parity、性能は未実施。
-- 次段階: mask 内/境界帯/変更漏れの baseline sanity を取得し、画像を確認した後、候補比較より先に評価 gate を固定する。
+- 専用の Content-Aware Fill／inpaint／PatchMatch 実装、動画フレーム間伝播、専用 UI・進捗・キャンセル・Undo 統合は確認できない。
+- 既存の RotoMask／RotoBrush、MaskCutout、ColorCorrection の Fill は関連する基盤または別責務であり、Content-Aware Fill の補完処理を実装済みとはみなさない。
+- よって本マイルストーンは DRAFT／未着手の判定を維持する。最初の実装単位は OpenCV inpaint を使う静止フレーム補完である。

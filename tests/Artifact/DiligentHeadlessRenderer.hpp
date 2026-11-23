@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
-#include <QApplication>
+#include <QGuiApplication>
 
 import Artifact.Render.IRenderer;
 
@@ -17,7 +17,7 @@ public:
         static int argc = 1;
         static char applicationName[] = "ArtifactDiligentHeadlessTest";
         static char* argv[] = {applicationName, nullptr};
-        application_ = new QApplication(argc, argv);
+        application_ = new QGuiApplication(argc, argv);
     }
 
     void TearDown() override
@@ -27,7 +27,7 @@ public:
     }
 
 private:
-    QApplication* application_ = nullptr;
+    QGuiApplication* application_ = nullptr;
 };
 
 inline testing::Environment* const offscreenGuiApplication =

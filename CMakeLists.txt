@@ -161,12 +161,6 @@ endif()
 # needs the ArtifactCore target to exist.
 option(ARTIFACT_BUILD_CRYPTOMATTE_LAB "Build the standalone Cryptomatte research lab" OFF)
 
-# Burn Away effect image-evaluation lab.  The tool renders the shipped effect
-# over a synthetic paper surface and writes PNG frames plus alpha statistics,
-# so the burn look is judged from images.  It is a research tool, not a
-# shipping target, so it stays opt-in.
-option(ARTIFACT_BUILD_BURN_AWAY_LAB "Build the standalone Burn Away effect lab" OFF)
-
 if(ARTIFACT_USE_LLD)
     if(NOT WIN32 OR NOT MSVC)
         message(FATAL_ERROR "ARTIFACT_USE_LLD currently requires the Windows MSVC frontend")
@@ -528,16 +522,6 @@ if(ARTIFACT_FRONTEND_MSVC)
     # C++ modules + dyndep with a shared target PDB frequently hit C2471.
     # Use embedded debug info (/Z7) to avoid compile-time PDB write contention.
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded" CACHE STRING "" FORCE)
-
-    # Incremental link databases (.ilk) can become very large in this module-
-    # heavy Debug build. Keep full compile/link debug information and target
-    # PDBs, but disable incremental linking by default to avoid those databases.
-    # Developers can opt back in when faster relinks matter more than disk use.
-    option(ARTIFACT_ENABLE_DEBUG_INCREMENTAL_LINKING
-        "Enable MSVC incremental linking for Debug targets (uses large .ilk files)" OFF)
-    if(NOT ARTIFACT_ENABLE_DEBUG_INCREMENTAL_LINKING)
-        add_link_options("$<$<CONFIG:Debug>:/INCREMENTAL:NO>")
-    endif()
 endif()
 
 if(ARTIFACT_COMPILER_MSVC_CL)
@@ -1180,40 +1164,12 @@ if(ARTIFACT_COMPILER_CLANG_CL AND WIN32)
 endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
-# Temporary local escape hatch: the Artifact child repository's
-# ArtifactPythonAPI.cpp does not compile at HEAD (toBool/toDouble take
-# std::string but are called with QString). The child repository must not be
-# edited without an explicit request, so the broken translation unit can be
-# excluded from ArtifactAppRuntime for local builds that do not need the
-# Python scripting bridge. Off by default; remove once the child repository
-# fixes the call sites.
-option(ARTIFACT_DISABLE_BROKEN_PYTHON_API
-    "Exclude ArtifactPythonAPI.cpp from ArtifactAppRuntime (local workaround)" OFF)
-if(ARTIFACT_DISABLE_BROKEN_PYTHON_API)
-    set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/src/Export/Python/ArtifactPythonAPI.cpp"
-        TARGET_DIRECTORY Artifact
-        APPEND PROPERTY HEADER_FILE_ONLY TRUE)
-    # ArtifactLayerPanelWidget.cpp calls ArtifactCore::FileTypeDetector::
-    # suffixPatterns / FileCapability, which do not exist in any ArtifactCore
-    # revision yet. The file is timeline widget UI and is not needed by the
-    # headless preview targets, so exclude it the same way.
-    set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp"
-        TARGET_DIRECTORY Artifact
-        APPEND PROPERTY HEADER_FILE_ONLY TRUE)
-endif()
 add_subdirectory(tools/Particle2DPlayground)
 add_subdirectory(tools/Particle3DPlayground)
-add_subdirectory(tools/ParticleMirPlayground)
 add_subdirectory(tools/Light3DPlayground)
-add_subdirectory(tools/TimelineClipBarPlayground)
 add_subdirectory(tools/VideoPreviewBench)
 if(ARTIFACT_BUILD_CRYPTOMATTE_LAB)
     add_subdirectory(tools/CryptoMatteLab)
-endif()
-if(ARTIFACT_BUILD_BURN_AWAY_LAB)
-    add_subdirectory(tools/BurnAwayLab)
 endif()
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)

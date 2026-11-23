@@ -1,7 +1,7 @@
 # レイヤーマスク独立テスト
 
-**最終更新:** 2026-11-17
-**ステータス:** In Progress（CPU契約・Project round-trip・GPU統合ケース・独立GUI/MCP executableをソース追加済み。ビルド／runtime受入は未確認）
+**最終更新:** 2026-10-25
+**ステータス:** In Progress
 
 ## 進捗
 

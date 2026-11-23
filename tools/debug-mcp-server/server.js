@@ -12,8 +12,6 @@ const STATE_FILE = process.env.ARTIFACT_DEBUG_MCP_STATE_FILE || DEFAULT_STATE_FI
 const BRIDGE_FILE = process.env.ARTIFACT_DEBUG_BRIDGE_FILE || DEFAULT_BRIDGE_FILE;
 const SERVER_NAME = 'ArtifactStudio Debug MCP Server';
 const PROTOCOL_VERSION = '2024-11-05';
-const MAX_HEADER_BYTES = 16 * 1024;
-const MAX_FRAME_BODY_BYTES = 16 * 1024 * 1024;
 
 function nowIso() {
   return new Date().toISOString();
@@ -39,7 +37,6 @@ function readJsonFile(filePath, fallback) {
     }
     return JSON.parse(raw);
   } catch (error) {
-    process.stderr.write(`[artifact-debug-mcp] Cannot read ${filePath}: ${error.message}\n`);
     return fallback;
   }
 }
@@ -470,12 +467,7 @@ function historyActionLabel(type) {
     'update-break-condition': 'update',
     'clear-break-condition': 'clear-one',
     'clear-all-break-conditions': 'clear-all',
-    'list-break-conditions': 'list',
-    'list-debug-watches': 'watches',
-    'set-debug-watch': 'watch',
-    'clear-debug-watch': 'unwatch',
-    'diagnostic-acknowledge': 'ack',
-    'set-diagnostic-breakpoint': 'diag-break'
+    'list-break-conditions': 'list'
   };
   return labelMap[String(type || '')] || String(type || 'unknown');
 }
@@ -1104,6 +1096,9 @@ async function callTool(state, name, args) {
       return contentResult(jsonText(result), result);
     }
     case 'get_debug_snapshot':
+      state.session.lastAction = 'get_debug_snapshot';
+      pushHistory(state, { type: 'snapshot-read' });
+      saveState(state);
       return contentResult(
         jsonText(formatSnapshotForTool(snapshot, state)),
         formatSnapshotForTool(snapshot, state)
@@ -1126,6 +1121,9 @@ async function callTool(state, name, args) {
         latestFailure,
         snapshotTimestamp: snapshot && snapshot.timestamp ? snapshot.timestamp : null
       };
+      state.session.lastAction = 'get_latest_failure';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'latest' });
+      saveState(state);
       return contentResult(jsonText(result), result);
     }
 
@@ -1177,6 +1175,9 @@ async function callTool(state, name, args) {
         trace,
         snapshot
       };
+      state.session.lastAction = 'get_failure_context';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'context' });
+      saveState(state);
       return contentResult(jsonText(result), result);
     }
 
@@ -1240,6 +1241,9 @@ async function callTool(state, name, args) {
         severity: severity || null,
         events
       };
+      state.session.lastAction = 'get_diagnostic_events';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'events', count: events.length });
+      saveState(state);
       return contentResult(jsonText(result), result);
     }
 
@@ -1273,6 +1277,9 @@ async function callTool(state, name, args) {
     }
 
     case 'list_debug_watches':
+      state.session.lastAction = 'list_debug_watches';
+      pushHistory(state, { type: 'list-debug-watches' });
+      saveState(state);
       return contentResult(jsonText({ watches: state.watchDescriptors }),
         { watches: state.watchDescriptors });
 
@@ -1349,6 +1356,9 @@ async function callTool(state, name, args) {
     }
 
     case 'list_break_conditions': {
+      state.session.lastAction = 'list_break_conditions';
+      pushHistory(state, { type: 'list-break-conditions' });
+      saveState(state);
       const conditions = state.breakConditions.map((condition) => ({
         id: condition.id,
         kind: condition.kind,
@@ -1435,32 +1445,38 @@ async function callTool(state, name, args) {
     }
 
     case 'get_last_break_hit':
+      state.session.lastAction = 'get_last_break_hit';
+      pushHistory(state, { type: 'read-last-break-hit' });
+      saveState(state);
       return contentResult(
         jsonText({ lastBreakHit: state.lastBreakHit }),
         { lastBreakHit: state.lastBreakHit }
       );
 
     case 'get_session_summary':
-      // Reads must not persist state; refresh the in-memory summary instead.
-      refreshDerivedState(state);
+      state.session.lastAction = 'get_session_summary';
+      pushHistory(state, { type: 'read-session-summary' });
+      saveState(state);
       return contentResult(
         jsonText({ sessionSummary: state.sessionSummary }),
         { sessionSummary: state.sessionSummary }
       );
 
     case 'get_break_history': {
+      state.session.lastAction = 'get_break_history';
+      pushHistory(state, { type: 'read-history' });
       const requestedHistoryLimit = Number(args && args.limit);
       const limit = Number.isFinite(requestedHistoryLimit) ? Math.max(1, Math.min(100, Math.floor(requestedHistoryLimit))) : 20;
       const windowStartIndex = Math.max(0, state.history.length - limit);
       const windowEndIndex = state.history.length;
       const history = state.history.slice(windowStartIndex, windowEndIndex);
-      const recentAction = history.length > 0
-        ? historyActionLabel(history[history.length - 1].type)
-        : '<none>';
-      const priorRecentAction = history.length > 1
-        ? historyActionLabel(history[history.length - 2].type)
-        : '<none>';
-      const lastAction = String(state.session.lastAction || 'idle').trim() || '<none>';
+      const priorRecentAction = state.sessionSummary && typeof state.sessionSummary.recentAction === 'string'
+        ? state.sessionSummary.recentAction
+        : history.length > 1
+          ? historyActionLabel(history[history.length - 2].type)
+          : '<none>';
+      const recentAction = historyActionLabel('read-history');
+      const lastAction = String(state.sessionSummary && state.sessionSummary.lastAction ? state.sessionSummary.lastAction : 'get_break_history').trim() || 'get_break_history';
       const mode = state.sessionSummary && typeof state.sessionSummary.mode === 'string'
         ? state.sessionSummary.mode
         : state.sessionSummary && state.sessionSummary.source === 'bridge'
@@ -1494,9 +1510,10 @@ async function callTool(state, name, args) {
         priorRecentAction,
         lastHit: lastBreakHit ? `${lastBreakHit.conditionId}/${lastBreakHit.conditionKind}` : '<none>'
       });
+      saveState(state);
       return contentResult(
         jsonText({
-          includesReadEvent: false,
+          includesReadEvent: true,
           mode,
           bridgePath,
           lastAction,
@@ -1513,7 +1530,7 @@ async function callTool(state, name, args) {
           summary: historySummaryLines
         }),
         {
-          includesReadEvent: false,
+          includesReadEvent: true,
           mode,
           bridgePath,
           lastAction,
@@ -1615,15 +1632,6 @@ async function handleRequest(state, request) {
       : { code, message, data }
   });
 
-  if (request.jsonrpc !== '2.0') {
-    return makeError(-32600, 'Invalid request: jsonrpc must be "2.0"');
-  }
-
-  // Notifications carry no id and must never produce a response frame.
-  if (id === undefined && method.startsWith('notifications/')) {
-    return null;
-  }
-
   if (!method) {
     return makeError(-32600, 'Invalid request: missing method');
   }
@@ -1647,6 +1655,10 @@ async function handleRequest(state, request) {
       }
     };
     return makeResponse(result);
+  }
+
+  if (method === 'notifications/initialized') {
+    return null;
   }
 
   if (method === 'tools/list') {
@@ -1695,9 +1707,6 @@ function parseFrame(buffer) {
   if (headerEnd < 0) {
     return null;
   }
-  if (headerEnd > MAX_HEADER_BYTES) {
-    return { error: new Error('MCP header exceeds maximum size'), consume: buffer.length };
-  }
 
   const headerText = buffer.slice(0, headerEnd).toString('ascii');
   const contentLengthMatch = headerText.match(/content-length:\s*(\d+)/i);
@@ -1706,9 +1715,6 @@ function parseFrame(buffer) {
   }
 
   const contentLength = Number(contentLengthMatch[1]);
-  if (!Number.isSafeInteger(contentLength) || contentLength < 0 || contentLength > MAX_FRAME_BODY_BYTES) {
-    return { error: new Error('MCP body exceeds maximum size'), consume: buffer.length };
-  }
   const bodyStart = headerEnd + 4;
   const bodyEnd = bodyStart + contentLength;
   if (buffer.length < bodyEnd) {
@@ -1731,14 +1737,6 @@ function main() {
 
   process.stdin.on('data', (chunk) => {
     buffer = Buffer.concat([buffer, chunk]);
-    if (buffer.length > MAX_HEADER_BYTES + MAX_FRAME_BODY_BYTES) {
-      process.stdout.write(encodeFrame({
-        jsonrpc: '2.0',
-        error: { code: -32700, message: 'Frame exceeds maximum size' }
-      }));
-      buffer = Buffer.alloc(0);
-      return;
-    }
     while (true) {
       const parsed = parseFrame(buffer);
       if (!parsed) {

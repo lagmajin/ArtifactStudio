@@ -58,23 +58,17 @@ billow coherence.
 ## Build and run
 
 ```powershell
-$env:VSLANG = '1033'
-$repoRoot = (Get-Location).Path
 cmake -S tests/ArtifactCore/PyroVolumeStandalone `
-  -B out/standalone-build/x64-Debug-Agent/PyroVolumeStandalone `
-  -G Ninja -DCMAKE_BUILD_TYPE=Debug `
-  "-DCMAKE_TOOLCHAIN_FILE=$repoRoot/cmake/toolchain-msvc-v143.cmake" `
-  -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_MANIFEST_MODE=OFF
-cmake --build out/standalone-build/x64-Debug-Agent/PyroVolumeStandalone --config Debug `
+  -B build/smoke-pyro-volume-rnd `
+  -G "Visual Studio 18 2026" `
+  -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+  -DVCPKG_INSTALLED_DIR=J:/dev/ArtifactStudio/build/vcpkg_installed
+cmake --build build/smoke-pyro-volume-rnd --config Debug `
   --target ArtifactCorePyroVolumeSmokeTest
 $env:ARTIFACT_PYRO_VOLUME_OUTPUT_DIR = `
-  'J:\dev\ArtifactStudio\out\standalone-build\x64-Debug-Agent\PyroVolumeStandalone\captures'
-& 'J:\dev\ArtifactStudio\out\standalone-build\x64-Debug-Agent\PyroVolumeStandalone\ArtifactCorePyroVolumeSmokeTest.exe'
+  'J:\dev\ArtifactStudio\build\smoke-pyro-volume-rnd\captures'
+& 'J:\dev\ArtifactStudio\build\smoke-pyro-volume-rnd\Debug\ArtifactCorePyroVolumeSmokeTest.exe'
 ```
-
-This focused solver/R&D target is an isolated-project exception; it reuses the
-repository toolchain and vcpkg installation but cannot share the root build
-tree's compiled target artifacts. Keep its generated files under `out/`.
 
 The test emits PPM captures when `ARTIFACT_PYRO_VOLUME_OUTPUT_DIR` is set.
 The new force-versus-rotation fixture runs a fixed 3D emitter through the

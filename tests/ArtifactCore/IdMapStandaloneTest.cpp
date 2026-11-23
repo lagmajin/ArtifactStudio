@@ -1,5 +1,3 @@
-import Container.IdMap;
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -7,7 +5,11 @@ import Container.IdMap;
 #include <unordered_map>
 #include <vector>
 
+import Container.IdMap;
+
 using ArtifactCore::ContainerName;
+using ArtifactCore::ContainerWatchHit;
+using ArtifactCore::ContainerWatchRule;
 using ArtifactCore::IdMap;
 
 namespace {

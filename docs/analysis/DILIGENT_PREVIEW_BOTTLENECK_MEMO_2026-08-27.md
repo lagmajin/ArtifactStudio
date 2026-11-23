@@ -1,12 +1,7 @@
 # Diligent プレビュー ボトルネック メモ
 
-**最終更新:** 2026-11-18
+**最終更新:** 2026-08-27
 **作成者:** Muse Spark (codebase-walk + cpp-diligent-gpu-studio Investigative)
-
-> 2026-11-18 追記: 本文の `ファイル:行` は `.cppm` 時代のもので、現行ファイルは `.cpp` であり行番号もずれている。
-> 「その他」の B1（キャッシュキー無条件構築）と B3（sceneLight の毎フレーム CPU ループ）は現行コードで修正済み
-> （`Artifact/src/Render/ArtifactCompositionViewDrawing.cpp:2257-2263, 2639-2641, 2241-2248`）。
-> 2N+1 パスと調整レイヤー readback は未修正・未計測。
 **対象:** `ArtifactCompositionRenderController` / `DiligentImmediateSubmitter` / `GPUTextureCacheManager` / `ArtifactIRenderer` 経由のDiligentプレビュー
 
 ## 結論

@@ -1,7 +1,5 @@
 # ArtifactCore Audio Standalone Tests
 
-**最終更新:** 2026-11-21
-
 This CMake project registers fifty Audio and shared string / identifier
 contract suites in one module graph: Segment and Effect base, AllPassFilter and
 LFO, fifteen foundational, analysis, and spatial suites, Decibels, Volume,
@@ -10,18 +8,18 @@ and Id contract suites.
 Shared Core, utility, and Audio sources have one owner target; suites remain
 separate test executables.
 
-For regular work, use the combined `tests/ArtifactCore/StandaloneSuite`
-configure tree described in `tests/README.md`. Build only the Audio feature
-target to reuse its common module dependencies without compiling unrelated
-suite executables:
+Configure with the repository's vcpkg toolchain and triplet. Dependencies are
+Qt 6 Core, Gui, and Multimedia, GTest, and Boost headers for MixerFxPersistence and Id.
+Then build and run CTest:
 
 ```powershell
-cmake --build out/standalone-build/x64-Debug-Agent/ArtifactCoreStandaloneSuite --config Debug --target ArtifactCoreAudioFeatureTests
-ctest --test-dir out/standalone-build/x64-Debug-Agent/ArtifactCoreStandaloneSuite -C Debug -R '^ArtifactCoreAudioFeatureTests$' --output-on-failure
+cmake -S tests/ArtifactCore/AudioStandalone -B tests/ArtifactCore/AudioStandalone/build `
+  -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+  -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_MANIFEST_MODE=OFF
+cmake --build tests/ArtifactCore/AudioStandalone/build --config Debug --parallel 4
+ctest --test-dir tests/ArtifactCore/AudioStandalone/build -C Debug --output-on-failure
 ```
 
-The direct `AudioStandalone` project remains available for a focused
-investigation that needs its original executable boundaries. Configure that
-exception under `out/standalone-build/<preset>/AudioStandalone`; do not create a
-build directory below the test source tree. Its objects are separate from the
-combined suite, although it uses the repository toolchain and package install.
+The tests are still available from their original independent CMake projects.
+To reuse the shared Core/Container foundation artifacts with the Data suites,
+configure `tests/ArtifactCore/StandaloneSuite` as the parent project.

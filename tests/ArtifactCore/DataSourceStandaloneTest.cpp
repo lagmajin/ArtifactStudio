@@ -57,6 +57,14 @@ TEST(DataSourceStandaloneTest, UnregisteredExtensionReturnsNull)
     EXPECT_EQ(DataSourceRegistry::instance().open(String("asset.unregistered-standalone")), nullptr);
 }
 
+TEST(DataSourceStandaloneTest, EmptyFactoryReturnsNullWithoutThrowing)
+{
+    auto& registry = DataSourceRegistry::instance();
+    registry.registerFormat(String(".standalone-empty-factory"), {});
+
+    EXPECT_EQ(registry.open(String("asset.standalone-empty-factory")), nullptr);
+}
+
 TEST(DataSourceStandaloneTest, RegisteredExtensionDispatchesToFactory)
 {
     auto& registry = DataSourceRegistry::instance();

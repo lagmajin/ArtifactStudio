@@ -1,4 +1,4 @@
-**最終更新:** 2026-11-19
+**最終更新:** 2026-10-31
 
 # Artifact 2D ParticleLayer Playground
 
@@ -67,66 +67,6 @@ command exits nonzero if either render is missing:
 
 ```powershell
 <build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-gpu-particle <output-directory>
-```
-
-## 2D Shape/Text target evaluation
-
-Capture the production `ArtifactParticleLayer` targeting an ordered Shape
-Stack ring (outer and inner ellipse paths, Merge Paths/Subtract, then fill and
-stroke) and the stroked two glyph text `A8`. Fixed fixture LayerIDs keep target
-sampling seeds comparable across separate backend runs. The report includes rendered
-alpha at the hole center and ring edge. The headless Diligent backend is selected with
-`ARTIFACT_RENDER_BACKEND=d3d12` or `vulkan`. Captures include frames 30/60/90/180/240,
-a frame-60 direct-seek replay, disabled-default parity, alpha-preserving PNGs,
-and particle-center counts for the shape, its hole, and the text bounds:
-
-```powershell
-$env:ARTIFACT_RENDER_BACKEND = "d3d12"
-<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-shape-target output\particle-shape-target\d3d12
-$env:ARTIFACT_RENDER_BACKEND = "vulkan"
-<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-shape-target output\particle-shape-target\vulkan
-```
-
-Each output directory contains `shape_target_report.json` and the PNG sequence.
-Compare both backend reports and inspect full frames plus 100%/400% crops. The
-comparison report can be regenerated after both captures with:
-
-```powershell
-python tools/Particle2DPlayground/compare_shape_target_backends.py `
-  --d3d12 output\particle-shape-target\d3d12 `
-  --vulkan output\particle-shape-target\vulkan `
-  --output output\particle-shape-target\backend_comparison.json
-```
-
-It checks fixture metadata, disabled/no-op parity, direct-seek particle
-determinism, all five frames, and Shape/Text particle positions where captured.
-It exits nonzero when those contracts fail. Pixel differences between backends
-are reported as measurements, not pass/fail limits. Generated output files are
-ignored by Git and can be recreated.
-To regenerate RGBA distribution and black/white composite summaries for the same
-frames, run:
-
-```powershell
-python tools/Particle2DPlayground/analyze_shape_target_images.py `
-  --d3d12 output\particle-shape-target\d3d12 `
-  --vulkan output\particle-shape-target\vulkan `
-  --output output\particle-shape-target\image_statistics.json
-```
-The capture covers this controlled static Shape/Text fixture; it does not cover
-animated targets, stroke-only Shape targets, export color management, or all
-font backends. Each baseline/Shape/Text case also reports five warmed
-`ParticleSystem::update()` timing batches at 360 live particles and sampled process
-working-set growth. That timer excludes rendering, GPU readback, and PNG work;
-the working-set sample is CPU process memory, not GPU memory, and can miss
-short peaks. The Playground source also measures the first `sampleFillPoints()`
-call and five warmed sampler calls, separating glyph sampling from the broader
-target-preparation plus layer-draw timer. Rebuild the executable before those
-fields appear in `shape_target_report.json`.
-
-Check the option's default, JSON round trip, and legacy JSON defaults with:
-
-```powershell
-<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --check-shape-target-persistence
 ```
 
 ## PNG sequence and sprite-sheet capture

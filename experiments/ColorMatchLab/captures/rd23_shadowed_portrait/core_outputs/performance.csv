@@ -1,7 +1,0 @@
-image,width,height,method,intensity,samples,hardware_threads,min_ms,median_ms,max_ms
-portrait_1536x1024,1536,1024,Reinhard,1,7,24,54.167,55.0895,61.1142
-portrait_1536x1024,1536,1024,MeanStddev,1,7,24,20.9691,21.7984,23.6024
-portrait_1536x1024,1536,1024,Histogram,1,7,24,317.2945,322.1008,333.2273
-portrait_1280x851,1280,851,Reinhard,1,7,24,43.0184,43.8071,45.9219
-portrait_1280x851,1280,851,MeanStddev,1,7,24,14.3388,14.739,16.0658
-portrait_1280x851,1280,851,Histogram,1,7,24,220.1537,227.1106,235.2115

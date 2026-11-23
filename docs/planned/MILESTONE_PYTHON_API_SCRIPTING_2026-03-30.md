@@ -1,6 +1,6 @@
 # Milestone: Python API & Scripting Console (M-PY-1)
 
-**最終更新:** 2026-11-17
+**最終更新:** 2026-08-15
 
 ## 🎯 目的
 `ArtifactStudio` の操作を外部および内部からプログラム可能にし、大量の処理（バッチレンダリング、アセット整理、コンポジション生成）を自動化するための基盤を構築する。また、ユーザーが独自のツール（プラグイン）を作成できるエコシステムを提供する。
@@ -38,15 +38,6 @@
 ## 🔗 関連マイルストーン
 - [M-FE-6 Batch / Macro / Script Entry](MILESTONE_FEATURE_EXPANSION_2026-03-25.md)
 - [M-APP-1 Application Cross-Cutting Improvement](MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md)
-
-## Update 2026-11-17 — API の小さな正確性修正（静的確認のみ）
-
-`Artifact/src/Export/Python/ArtifactPythonAPI.cpp` を修正した。
-
-- **AE utility ラッバーの無限再帰を修正**: ネイティブ登録名を `_native_rename_selected_layers` / `_native_clean_selected_layers` / `_native_trim_comp_to_content` に変更し、Python 側デフォルト引数付きラッパーがそれらを呼ぶようにした。以前はラッパーが公開名 `artifact.clean_selected_layers` 等を自分自身で上書きしており、呼び出すたびに再帰していた。
-- **`set_layer_property` の数値対応**: 旧実装は全値を `toBool()` で解釈していた。`opacity` とドット区切りのレイヤープロパティパス（例 `transform.position.x`）を `double` として渡せるようにし、`get_layer_property("opacity")` も数値を返すようにした。プロパティ名は小文字正規化の既存規約を維持する。
-
-ビルド・実機実行は未実施（AGENTS.md 制約）。再帰修正は静的読み取りで confirmed だが、実行確認は今後のビルド時に実施する。
 
 ## Static Audit (2026-07-25)
 

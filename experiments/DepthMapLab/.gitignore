@@ -1,4 +1,0 @@
-models/
-*.npy
-captures/**/*.avi
-captures/**/*.mp4

@@ -1,7 +1,0 @@
-method,intensity,pixels,rgb_channels_below_zero,rgb_channels_above_alpha,max_excess_over_alpha,transparent_nonzero_rgb_channels,finite,alpha_preserved
-Reinhard,0.5,4096,0,155,0.007818100043,128,True,True
-Reinhard,1.0,4096,0,229,0.01563620009,128,True,True
-MeanStddev,0.5,4096,64,128,0.004420440178,192,True,True
-MeanStddev,1.0,4096,64,136,0.008840880357,192,True,True
-Histogram,0.5,4096,0,64,0.00196078443,64,True,True
-Histogram,1.0,4096,0,64,0.003921568859,64,True,True

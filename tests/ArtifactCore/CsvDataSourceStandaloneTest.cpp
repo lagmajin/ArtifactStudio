@@ -120,7 +120,7 @@ TEST(CsvDataSourceStandaloneTest,
 
     file.write("title;enabled;rank\nreplacement;true;7\nsecond;false;9\n");
 
-    ASSERT_TRUE(source.reload()) << source.lastError().toStdString();
+    ASSERT_TRUE(source.reload()) << toStdString(source.lastError());
     ASSERT_TRUE(source.isValid());
     EXPECT_EQ(source.table().columnCount(), 3);
     EXPECT_EQ(source.table().rowCount(), 2);

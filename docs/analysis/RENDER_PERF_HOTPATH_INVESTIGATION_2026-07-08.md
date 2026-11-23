@@ -1,13 +1,6 @@
 # Rendering Performance Hot-Path Investigation (2026-07-08)
 
-**最終更新:** 2026-11-18
-
 > 状態: 調査（実機プロファイル未実施・静的ソーストレースベース）
-> 2026-11-18 追記: B1 / B3 は現行コードで対応済み。キャッシュキー構築は
-> `Artifact/src/Render/ArtifactCompositionViewDrawing.cpp:2257-2263` で `usesSurfaceCache || usesStaticGpuCache`
-> に限定され、`:2639-2641` はキャッシュ未使用時に早期 return する。scene-light lift は
-> `:2241-2248` でキャッシュ済みサーフェスへ焼き込まれ、毎フレームの O(W*H) ループは廃止された。
-> 本文の `:行` は `.cppm` 時代のもので、現在のファイルは `.cpp`。
 > スコープ: インタラクティブ描画の per-frame パス `ArtifactCompositionViewDrawing.cppm::drawLayerForCompositionView`
 > 関連: `docs/analysis/REPORT_APP_PERF_BOTTLENECK_2026-06-16.md`（grep ヒューリスティクス版）
 

@@ -13,9 +13,6 @@ set_target_properties(ArtifactParticle2DPlayground PROPERTIES
 )
 
 target_link_libraries(ArtifactParticle2DPlayground PRIVATE ArtifactAppRuntime)
-if(WIN32)
-    target_link_libraries(ArtifactParticle2DPlayground PRIVATE Psapi)
-endif()
 
 if(MSVC)
     target_compile_options(ArtifactParticle2DPlayground PRIVATE

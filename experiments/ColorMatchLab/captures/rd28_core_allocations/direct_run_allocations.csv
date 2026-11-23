@@ -1,7 +1,0 @@
-image,width,height,method,intensity,hook,allocation_count,requested_bytes
-portrait_1536x1024,1536,1024,Reinhard,1,MSVC_Debug_CRT,36,37786170
-portrait_1536x1024,1536,1024,MeanStddev,1,MSVC_Debug_CRT,36,37786170
-portrait_1536x1024,1536,1024,Histogram,1,MSVC_Debug_CRT,25,40109187
-portrait_1280x851,1280,851,Reinhard,1,MSVC_Debug_CRT,36,26168826
-portrait_1280x851,1280,851,MeanStddev,1,MSVC_Debug_CRT,36,26168826
-portrait_1280x851,1280,851,Histogram,1,MSVC_Debug_CRT,24,27777780

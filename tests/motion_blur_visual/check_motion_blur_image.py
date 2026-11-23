@@ -61,14 +61,22 @@ def main() -> int:
 
     environment = os.environ.copy()
     environment["ARTIFACT_MOTION_BLUR_IMAGE_DIR"] = str(output_dir)
-    run = subprocess.run(
-        [str(executable),
-         "--gtest_filter=PostProcessPassGpuContractTest.MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions"],
-        env=environment,
-        check=False,
-    )
-    if run.returncode:
-        return run.returncode
+
+    def run_fixture(name: str) -> int:
+        return subprocess.run(
+            [str(executable),
+             f"--gtest_filter=PostProcessPassGpuContractTest.{name}"],
+            env=environment,
+            check=False,
+        ).returncode
+
+    for fixture in (
+        "MotionBlurPreservesStaticLayerAndBlursMultipleMovingLayerRegions",
+        "MotionBlurRotationFixtureWritesImagesForChecker",
+    ):
+        code = run_fixture(fixture)
+        if code:
+            return code
 
     input_path = output_dir / "motion-blur-input.ppm"
     output_path = output_dir / "motion-blur-output.ppm"
@@ -105,10 +113,56 @@ def main() -> int:
         "vertical motion stays out of the neighboring column": yellow_strength(after, 5, 6) == 0,
         "input fixture contains no horizontal trail": red_strength(before, 3, 4) == 0,
     }
+
+    rotation_input_path = output_dir / "motion-blur-rotation-input.ppm"
+    rotation_output_path = output_dir / "motion-blur-rotation-output.ppm"
+    if not rotation_input_path.is_file() or not rotation_output_path.is_file():
+        raise RuntimeError(
+            "The rotation fixture did not write its images. Check that its "
+            "GoogleTest case ran on this host."
+        )
+    rotation_width, rotation_height, rotation_before = read_ppm(
+        rotation_input_path
+    )
+    out_rotation_width, out_rotation_height, rotation_after = read_ppm(
+        rotation_output_path
+    )
+    if (rotation_width, rotation_height) != (9, 9) or (
+        out_rotation_width, out_rotation_height
+    ) != (rotation_width, rotation_height):
+        raise ValueError("Unexpected rotation fixture dimensions")
+
+    checks.update(
+        {
+            "rotation centre stays sharp": px(rotation_after, 4, 4)[1] > 240,
+            "rotation trail appears above the marker": red_strength(
+                rotation_after, 2, 3
+            )
+            > 0,
+            "rotation trail appears below the marker": red_strength(
+                rotation_after, 2, 5
+            )
+            > 0,
+            "rotation leaves no left horizontal trail": red_strength(
+                rotation_after, 1, 4
+            )
+            == 0,
+            "rotation leaves no right horizontal trail": red_strength(
+                rotation_after, 3, 4
+            )
+            == 0,
+            "rotation input contains no vertical trail": red_strength(
+                rotation_before, 2, 3
+            )
+            == 0,
+        }
+    )
+
     for label, passed in checks.items():
         print(f"{'PASS' if passed else 'FAIL'}: {label}")
     print(f"Recognized image: {output_path}")
     print(f"Input reference:  {input_path}")
+    print(f"Rotation image:   {rotation_output_path}")
     if owned_temp:
         print("Images are temporary; pass --output-dir to retain them.")
         owned_temp.cleanup()

@@ -1,8 +1,8 @@
 # M-VP-DCC-1: ビューポート DCC パリティ導入（C4D / Houdini / Maya）
 
-**最終更新:** 2026-11-19
+**最終更新:** 2026-09-26
 
-**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-6 / P1-10 は以前の記録どおり。P1-4 と P1-14 は renderer / controller backend と Shading メニュー操作を追加済み。メニュー状態は hide event で適用し、新しい signal/slot 接続は使わない。変更は未ビルド・実機未確認のため部分実装。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-3 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手または一部実装（分析完了）。
+**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-10 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-4 / P1-6 の readback 反映 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手（分析完了）。
 C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 ## 目的
@@ -31,9 +31,9 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-1 | Isolate Select の状態復元 | Not Started | 同上 |
 | P1-2 | Ghosted context display | Not Started | 同上 |
 | P1-3 | Per-viewport 設定 + Apply to all split views | Not Started | `PaneState` / 表示設定 |
-| P1-4 | Maya 風シェーディングトグル | **部分実装** — Shaded / Wireframe / Wireframe on Shaded / Bounding Box / Backface Culling / X-Ray 不透明度の renderer/controller とメニュー操作を追加。状態適用は menu hide event を使い、新規 signal/slot 接続なし。未ビルド・未検証。Cycle rig display は対象外 | 同上。詳細設計は `DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md` |
+| P1-4 | Maya 風シェーディングトグル | Not Started | 同上 |
 | P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | **実装済み（コード変更のみ、ビルド・実機未確認、2026-09-26）** | 表示専用 compute 段（`ArtifactIRenderer` / `ViewerHelperShaders`） |
-| P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **実装済み（2026-11-18、ビルド成功・実機未確認）** — 3 モードとも presenter 経由で表示 SRV に接続 | `ViewportChannelDisplayMode` / `LayerBlendComputeShader` |
+| P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **enum 拡張済み（コード変更のみ、ビルド・実機未確認）** / readback overlay での実描画反映は別マイルストーン | `ViewportChannelDisplayMode` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
 | P1-8 | Per-viewport Local Camera / Focal Length / Clip | Not Started | `PaneState` / カメラ状態 |
 | P1-9 | Local View / Local Collections の分離と復元 | Not Started | Isolation overlay / 選択管理 |
@@ -41,7 +41,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-11 | スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — 4 スコープの表示は**既に存在**（`ArtifactColorSciencePanel` の 2×2 ダッシュボード、`ArtifactCompositionEditor` の dialog）。GPU 版 `ScopeComputer` / `Histogram` はソース完全だが `.cppm` がビルド除外。**残るのは ROI 集計と部分 readback のみ**。GPU 化は submodule 変更を要する | 既存 4 スコープ widget / `ArtifactColorSciencePanel` |
 | P1-12 | カラーサンプルバー（ソース RGBA 生値、HieroPlayer 由来） | **✅ 実装済み（2026-09-26 実コード照合）** — 再実装不要。`updateColorSamplerOverlay` がカーソル下 1px を `captureCurrentFrameImage()` から読み、RGB / HSL / hex / Layer ID / canvas XY / image pixel を HUD 表示。トグルと状態復元は `ArtifactCompositionEditor` に既存。`finalPresentReadbackSRV_` を読むため今回の露出（P1-5）の影響を受けない |
 | P1-13 | OCIO 表示色空間切替（Viewer color transform、HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — OCIO は実依存として**統合済み**、`bakeViewTransformLUT` による 33³ LUT も存在する。ただし適用は `applyDisplayColorTransform` 経由で **composition-space cache 経路の 2 か所だけ**で、メインの `finalizeGpuRenderToViewport` には入っていない。**残るのは present 経路への適用・per-pane 状態・UI 接続**。`setOCIOConfig` は未実装（文書の通り） | `ViewportColorPipeline` / `PaneState` |
-| P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | **部分実装** — controller / overlay backend と Off / 1:1 / 4:3 / 16:9 / 2.39:1 の Shading メニュー操作を追加。状態適用は submenu hide event。未ビルド・未検証 | overlay / safe-area |
+| P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | Not Started | overlay / safe-area |
 | P2-1 | C4D HUD 相当のパラメータ常設表示 | Not Started | オーバーレイ / 既存 modal gizmo |
 | P2-2 | Hardware fog / volumetric fog / bloom | Not Started | Diligent パス |
 | P2-3 | Viewport tear-off copy | Not Started | ペイン管理 |
@@ -112,7 +112,6 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 - `ViewportChannelDisplayMode` に、Unpremultiplied（RGB/R/G/B Straight）、
   Luminance（Rec 709 係数）、Matte（αを赤へ加算）を追加する。
 - 既存のチャンネル表示 SRV 選択・合成表示経路を再利用し、D3D12 / Vulkan で同一結果にする。
-- **2026-11-18 実装:** 従来は enum・メニュー・HUD ラベルのみで、presenter (`finalizeGpuRenderToViewport`) と CPU fallback の both switch に case がなく beauty が表示される状態だった。Straight は既存 `ArtifactIRenderer::convertBgraAccumulatorToStraightRgba()` で `tempUAV` を経由し、Luminance / Matte は `LayerBlendComputeShader` の `displayComposite` mode 4 / 5（Rec709 luma / α→赤）として接続。`LayerBlendPipeline::displayComposite()` の mode 上限を 3 → 5 に緩和。コンパイル・`Artifact.exe` リンク成功。実機の色・D3D12/Vulkan parity は未確認。
 
 ### P1-7 パス overlay の可視性モードと種類別フィルタ（Autograph Path Overlays 相当）
 
@@ -172,32 +171,6 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 - 16:9 / 1.85:1 等の表示専用マスクを既存 safe-area overlay の派生として追加する。
   最終出力・合成結果には影響しない。
-- **2026-11-19 backend / menu 追加:** `CompositionViewportAspectMask`（Off / Square / FourByThree / SixteenByNine / Cinemascope=2.39:1）を controller の VP 専用状態として追加（既定 Off・非永続）。`ViewportOverlay::drawAspectMask()` は canvas 空間の 4 quad で外側を暗くし、pan / zoom / canvas rotation に追従する。Shading メニューにプリセットを追加し、submenu hide event で適用する。`finalizeGpuRenderToViewport()` と Render Queue には波及しない。新規 Qt signal/slot 接続は追加していない。未ビルド・未検証。
-
-### P1-15 Fly / Walk navigation（実験実装・ビューポート専用）
-
-**実装済み（コード変更のみ、ビルド・実機未確認、2026-11-15）**
-
-- `CompositionRenderController` に viewport-only の free camera を追加した。Fly は 6DoF、Walk は
-  床面に沿った移動で、どちらも WASD（Fly のみ Q/E で昇降）と **LMB/RMB/MMB ドラッグのマウスルック**で
-  操作する。Y 上向きの斜め視点ではワールド Y 平面、見下ろし／見上げのときは Z 軸を床法線に採るため、
-  XY 平面のコンポジションを真上から「床として」歩ける。通常のホバーはルックに消費せず、ギズモ／
-  オーバーレイのヒットテストを維持する。
-  Shift 併用で移動速度を 4 倍、ホイールで基準速度を 0.1〜8 倍に調整し、モードと現在速度は
-  ビューポート下部の navigation feedback チップに `FLY x1.25 | ...` として表示する。
-- カメラは開始時のパン／ズーム／オリエンテーションから導出するため、開始時に絵が飛ばない。
-  終了時は開始時のパン／ズーム／オリエンテーションへ戻る。Composition やカメラレイヤーへは書き込まない。
-- 進入はコマンドパレットの `View: Fly Navigation` / `View: Walk Navigation`、終了はビューポートに
-  フォーカスがある状態の `Escape` または `View: Exit Fly / Walk Navigation`。既存ショートカットとの
-  競合を避けるためキーバインドは追加していない。パレットから開始した場合はパレットのクローズ後に
-  ビューポートヘフォーカスを戻す。
-- モード中は view-cube／オービット／パン／ズームによるビュー変更要求（`setViewportOrientation*`、
-  `panBy`、`zoomAtFactor`）を無視し、View Undo 履歴にも積まない。`Reset View` はモードを終了してから
-  実行する。終了時は進入時のパン／ズーム／オリエンテーションへ戻る。
-- 移動は GUI render tick 上で delta time を積分してフレームレート非依存にした。押下キーはビットで保持し、
-  1 フレームあたりの新規確保はない。Fly 中の front 直交表示と 2D 専用オーバーレイは無効になる。
-- 変更対象: `ArtifactCompositionRenderController`（`.ixx` / `.cpp`）と `ArtifactCompositionEditor`。
-- 未確認: 実機での操作感、D3D12 / Vulkan の表示一致、ギズモ／ピッキングとの整合、マルチペイン挙動。
 
 ### P2 以降
 
@@ -211,10 +184,9 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   （World / Screen の2方式、Ridge / Valley の強度）。
 - P2-8 View Regions は IRR（部分レンダー）と違い表示のみをクリップする。ROI の
   描画スキップ機構を表示クリップにも流用できるかを P0-3 で確認する。
-- 未確認候補: Annotations（VP 注釈）、Measurement overlay、
-  View Lock（Lock to Object / Camera to View）、SteeringWheels、Sample Points、
-  Dope Sheet in Viewer、Show Flags。
-- Fly / Walk navigation は **P1-15** として実験実装済み（下記）。
+- 未確認候補: Fly / Walk navigation、Annotations（VP 注釈）、Measurement overlay、
+  View Lock（Lock to Object / Camera to View）、X-Ray 不透明度スライダ、
+  SteeringWheels、Sample Points、Dope Sheet in Viewer、Show Flags。
   着手前に現行コードでの有無を再確認する。
 
 ## 受入条件
@@ -313,14 +285,6 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   が既存の `SetViewports + SetScissorRects` 一括呼び出し経路を使うため、
   新規 API を追加せずに済む。`Insight.md` に着手記録を追加。ビルド・実機
   確認は未実施。
-- 2026-11-13: P1-4 部分実装（S1: X-Ray 不透明度、S2: shading モード）を着手。
-  設計は `docs/planned/DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md`（§6 実装記録）。
-  `Artifact` 子リポジトリのみ変更（`ArtifactIRenderer`、`Artifact3DModelLayer`、
-  `ArtifactCompositionRenderController`、`ArtifactCompositionEditor`）。
-  shadingMode は PS 内分岐のため PSO 再生成なし。Render Queue は独自
-  `ArtifactIRenderer` インスタンスで描画するため波及しない。
-  新規 `ShortcutId` は `ArtifactCore` 変更を伴うため未登録（メニュー操作のみ）。
-  ビルド・実機確認は未実施（ユーザー明示指示待ち）。
 - 2026-09-22: P0-3d（`renderPartialRegion(RenderQuality, RenderROI)`
   private 関数 + D4 Preview 強制ダウングレード）を着手。
   `ProgressiveRenderer::setRenderCallback` のシグネチャが
@@ -357,5 +321,4 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 - `docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md`
 - `docs/planned/P0_DESIGN_NOTES_2026-09-22.md`（P0 着手前調査メモ）
 - `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md`（P0-3b/c 設計統合 decision doc）
-- `docs/planned/DESIGN_VIEWPORT_SHADING_MODES_XRAY_2026-11-13.md`（P1-4 と X-Ray 不透明度の詳細設計）
 - `Insight.md`（2026-09-22 の項目）

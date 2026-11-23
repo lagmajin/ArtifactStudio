@@ -1,5 +1,71 @@
 # Milestone: Core Container Replacement
 
+**最終更新:** 2026-11-10
+
+## Update 2026-11-09 — FileWatcher path index migration
+
+- Replaced the private `std::unordered_map` with the named `NameMap` container. Existing watch, unwatch, callback replacement, polling, and synchronization behavior stays behind the same API.
+- Added a 48-path growth/removal contract case and registered the NameMap/ArtifactHashMap module dependencies in the standalone project.
+- **Verification:** MSVC 19.51 built the FileWatcher standalone target and all 14 contract tests passed via CTest.
+
+## Update 2026-11-09 — TypedColumn owned storage migration
+
+- Replaced `TypedColumn`'s private parsed-value `std::vector` with `ArtifactCore::Array`. The constructor input remains `std::vector<String>` for source compatibility.
+- Added a storage-growth and input-release contract case, and corrected the standalone module file set base directory so its `.cppm` dependency configures correctly.
+- **Verification:** MSVC 19.51 built the standalone target and all 21 `TypedColumnStandaloneTest` cases passed via CTest.
+
+## Update 2026-11-09 — NLE edit-history storage migration
+
+- Replaced the private undo/redo `std::vector` stacks with named `NamedVector` instances. Public NLE APIs and serialized project/history entries remain unchanged; depth trimming now uses the named front-removal operation.
+- **Verification:** MSVC 19.51 successfully compiled both `ArtifactCoreNLE/src/NLE/Core.cpp` and `tests/ArtifactCore/NLETest.cpp` through their Ninja object targets. The existing `ArtifactCoreNLETest` executable was not linked or run because its normal target dependency graph requested 2,623 build steps; runtime history tests remain the next check.
+
+## Update 2026-11-09 — StepSequencer storage migration
+
+- Replaced the private step array's `std::vector` with a named `NamedVector` instance without changing the public step access API.
+- Added a standalone 10-case contract suite. It exposed and fixed initialization leaving the default loop at step zero, and signed advancement now widens to 64-bit before modulo so `INT32_MIN` / `INT32_MAX` cannot overflow.
+- **Verification:** StepSequencer standalone target built and all 10 contract tests passed on MSVC 19.51.
+
+## Update 2026-11-09 — DebugIdentity registry migration
+
+- Replaced the private live-object registry's `std::vector<DebugIdentity*>` with the existing `NamedVector` API. Snapshot return values remain `std::vector` at the public compatibility boundary.
+- **Verification:** DebugIdentity standalone target built and all 10 contract tests passed on MSVC 19.51.
+
+## Update 2026-11-09 — HashSet contract hardening
+
+- `HashSet` copy, move, and swap now keep stateful hash/equality functors paired with their stored buckets.
+- Copying rebuilds the same observable iteration order; `values()` returns oldest-to-newest insertion order as its contract tests specify.
+- Expanded the standalone contract coverage for stateful functors. All 29 tests passed on MSVC 19.51.
+
+## Update 2026-11-09 — ArtifactArray memory and aliasing hardening
+
+- `Array<T>` uses correctly aligned storage for over-aligned elements. Reallocation now cleans up partial construction on exceptions and preserves the old buffer until all elements are relocated; `squeeze()` releases storage for an empty array.
+- Self-append and aliased append / insert / replace inputs are staged before growth or shifting. Fixed the typed `Optional<T&>` return in `find()` that prevented its missing-value path from instantiating.
+- Added alignment and throwing-copy coverage; the standalone ArtifactArray contract suite passes on MSVC 19.51.
+
+## Update 2026-11-09 — Zero-capacity StaticArray support
+
+- Added `StaticArray<T, 0>` as an empty, constexpr-capable specialization that does not construct a `T`, matching the valid zero-element case of the standard fixed array abstraction.
+- Added compile-time and runtime contract coverage, including a non-default-constructible element type.
+
+## Update 2026-11-09 — Array mutation exception safety
+
+- `insert`, `replace`, and `removeAt` now avoid destroying or shifting existing elements before potentially throwing copies complete. Types with non-throwing moves keep the in-place mutation path; other types rebuild using `move_if_noexcept`. Copyable types retain the original elements when rebuilding throws; move-only types with throwing moves retain valid object lifetimes but may leave already-moved elements in a moved-from state.
+- Added failure-injection coverage checking values, buffer identity, capacity, and live object counts after failed mutations. The standalone contract suite passes on MSVC 19.51.
+
+## Update 2026-11-09 — Move-only HashSet insertion
+
+- Added rvalue overloads for `HashSet::add` / `insert`, enabling copy-disabled keys and preserving duplicate arguments by checking membership before moving them.
+- Corrected the repeated collision-chain contract to remove all modeled entries before asserting the set is empty. The standalone suite now exercises 31 cases and passes on MSVC 19.51.
+
+## Update 2026-11-09 — SmallVector storage and lifetime safety
+
+- Heap growth now uses aligned allocation and keeps old elements alive until relocation completes; failed copies clean up the partial destination.
+- Inline moves no longer promise unconditional `noexcept`, and partial inline moves clean up constructed elements before propagating exceptions. Self-aliased add/insert values are staged before growth or shifting.
+- Resize, insert, remove, and take paths keep `size_` consistent with constructed objects when element operations throw. Added standalone tests for alignment, failed reserve/remove/insert, and throwing inline moves.
+- Configured the standalone project with the installed MSVC 19.51 / Ninja toolchain and corrected its module list so `ArtifactOptional.cppm` is built as an interface unit. The watch test also exposed a missing explicit `NamedVector::toStdVector()` conversion in `debugSnapshot()`.
+- Removed `noexcept` from `debugSnapshot()` because it builds bounded sample vectors and the explicit compatibility conversion can allocate.
+- **Verification:** ArtifactArray, HashSet, and SmallVector standalone targets built successfully and passed CTest on MSVC 19.51. The SmallVector executable reports 43 passing contract cases.
+
 ## Goal
 
 Reduce direct use of `std` and Qt core containers in domain code by growing ArtifactCore-owned container APIs first, then migrating call sites gradually.
@@ -301,6 +367,59 @@ Status:
 - Do not force every call site to mention template-heavy debug types.
 - Keep source-location capture optional where call-site noise would get high.
 - Keep hot render-path adoption opt-in until overhead is measured.
+
+## 2026-11-09: DataCache and NameMap indexing
+
+- Replaced `DataCache`'s private `std::unordered_map` index with `NameMap`, retaining the cache's URI-keyed behavior and locking boundary.
+- Added `NameMap::findValue` for optional pointer lookup that counts reads without recording a failed access.
+- Kept `NameMap` copy semantics by deep-copying entries and metadata. Updated its snapshot sampling to match the existing `std::vector` field contract.
+- Fixed `ArtifactHashMap` duplicate `tryEmplace` behavior so existing values are not overwritten and constructor arguments are not evaluated for duplicate keys; made destruction safe after move by allowing `clear()` on a moved-from map.
+- Preserved key-sorted `NameMap::keys()` and `values()` results. Added a monotonic access sequence to DataCache LRU ranking because millisecond timestamps can tie on immediate access.
+- Added regression coverage for lookup accounting, zero capacity clamping, and replacement at capacity. MSVC 19.51 standalone tests: NameMap 52/52 and DataCache 18/18 passed.
+- FileWatcher standalone 14/14 passed on rerun. Its first execution missed one timestamp-poll callback, so timing-based flakiness remains under observation.
+- Full DataStandalone CTest was not run because only `ArtifactCoreDataCacheStandaloneTest` was built; the other six registered executables were absent from that build directory.
+
+## 2026-11-09: DataTable column index migration
+
+- Replaced the private `std::unordered_map<std::string, int>` column index with `NameMap`, preserving last-duplicate-header-wins lookup and DataTable's implicit copy behavior.
+- Added a copy-independence contract test for column lookup/schema changes.
+- Strengthened numeric text parsing to reject valid numeric prefixes followed by trailing text; the pre-existing regression test exposed the issue during the suite run.
+- MSVC 19.51 `ArtifactCoreDataTableStandaloneTest`: 41/41 passed.
+
+## 2026-11-09: DataSourceRegistry factory index migration
+
+- Replaced the private `std::unordered_map` with `NameMap`; extension normalization, replacement semantics, and registered-extension listing remain intact.
+- `open()` now uses one pointer lookup and returns null for a registered empty factory instead of throwing `std::bad_function_call`.
+- Updated DataTable-consuming standalone module lists for the NameMap dependency. Fixed a pre-existing CsvDataSource test diagnostic that called a nonexistent `String::toStdString()` member.
+- MSVC 19.51 standalone results: DataSource 11/11, CsvDataSource 12/12, and DataCache 18/18 passed.
+
+## 2026-11-09: PluginRegistry storage migration
+
+- Replaced the private `std::unordered_map` / `std::unordered_set` pair with `NameMap` / `ArtifactSet`; the existing mutex still guards every read and write.
+- Added an isolated standalone CMake target around the existing plugin lifecycle contract suite so this module can be built without the full ArtifactCore application build.
+- `ArtifactSet` iterates in insertion order, so `activePlugins()` now returns a stable activation order where the previous unordered set made order unspecified. Plugin lifecycle behavior remains covered by all seven existing contract tests.
+- MSVC 19.51 `ArtifactCorePluginRegistryStandaloneTest`: 7/7 passed.
+
+## 2026-11-09: ArtifactHashMap contract hardening and IdMap storage migration
+
+- Fixed const iteration so const maps yield const entries, and iterator increment now traverses collision-chain nodes before advancing buckets.
+- Added iterator erase with next-entry return, `reserve()` / `rehash()` capacity operations, nonzero bucket storage for a zero request, and reuse of moved-from maps.
+- `tryEmplace()` now constructs mapped values directly in the node and avoids temporary mapped objects for duplicate keys.
+- Replaced `IdMap`'s private `std::unordered_map` with `ArtifactHashMap`, preserving reserve/squeeze, diagnostics, copy independence, and the explicit `toStdUnorderedMap()` compatibility conversion.
+- The IdMap debug snapshot now converts its bounded `NamedVector` samples to the existing `std::vector` snapshot field and no longer promises `noexcept` across that allocation.
+- MSVC 19.51 verification passed across nine dependent standalone suites: HashMap 33, IdMap 53, NameMap 52, DataTable 41, DataSource 11, CsvDataSource 12, DataCache 18, FileWatcher 14, and PluginRegistry 7 contract cases (241 total).
+
+## 2026-11-09: ProgressAggregator worker index migration
+
+- Replaced the private `std::unordered_map<QString, WorkerEntry>` with `ArtifactHashMap` and a small `QString` hasher that delegates to Qt's `qHash`; the `QString` equality semantics, mutex boundary, registration replacement behavior, and snapshot `std::vector` API remain unchanged.
+- Added module IFC wiring for `Core.ArtifactHashMap` and a contract case covering distinct ASCII and Unicode worker IDs.
+- The full target build still stops on an unrelated existing `ScopeComputer.cpp` C2511 declaration mismatch. After reconfiguration, the ProgressAggregator interface object, implementation object, and contract-test source object each compiled successfully in isolation; the linked contract test could not run because the full `ArtifactCore` target did not finish.
+
+## 2026-11-10: Lottie validation index migration
+
+- Replaced the five validation-local `std::unordered_map` indexes in `LottieExporter` with `ArtifactHashMap`, reserving known document/asset/precomp layer counts before insertion. Parent traversal still uses lookup-by-index, asset and layer duplicate checks still use insert-result semantics, and cycle tracking retains default-inserted boolean behavior. Root layers skip constructing an unused visited map, avoiding its eager bucket allocation.
+- Added explicit `Core.ArtifactHashMap` IFC and object dependency wiring for the exporter implementation.
+- Added Lottie contract cases for duplicate asset IDs and cyclic nested precomp parent references. The exporter implementation and test source objects compile successfully in isolation. The full target remains blocked by the unrelated existing `ScopeComputer.cpp` C2511 mismatch, so these tests have not run yet.
 
 ## First Success Criteria
 

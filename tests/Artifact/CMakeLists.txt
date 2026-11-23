@@ -70,27 +70,31 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
-    artifact_add_test(ArtifactVirtualTransitionStackContractTest
-        SOURCES
-            ArtifactVirtualTransitionStackContractTest.cpp
-            ArtifactVirtualTransitionGpuCrossfadeTest.cpp
-        LIBS
-            ArtifactAppRuntime
-    )
-    # Keep the test executable beside the shared runtime DLLs. CTest runs with
-    # tests/Artifact as its working directory, so placing only the executable
-    # there makes Windows fail before main() with 0xc0000135 unless a caller
-    # happens to amend PATH manually.
-    set_target_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    )
-    set_tests_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-        ENVIRONMENT_MODIFICATION
-            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>/platforms"
-        LABELS "composition;timeline;transition;stack;serialization;ui;offscreen;cpu;gpu;contract"
-        TIMEOUT 30
-    )
+artifact_add_test(ArtifactTextAnimatorLayerContractTest
+    SOURCES
+        TextAnimatorLayerContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "text;layer;animation;serialization;undo;cpu;contract"
+    TIMEOUT 90
+    RUN_SERIAL TRUE
+)
+
+artifact_add_test(ArtifactMotionBlurLayerPersistenceContractTest
+    SOURCES
+        MotionBlurLayerPersistenceContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "motion-blur;layer;camera;serialization;undo;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
 
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
@@ -129,19 +133,6 @@ set_tests_properties(ArtifactVariationSystemContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
-artifact_add_test(ArtifactLayerVariantContractTest
-    SOURCES
-        LayerVariantContractTest.cpp
-    LIBS
-        ArtifactAppRuntime
-)
-set_tests_properties(ArtifactLayerVariantContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "layer;variant;serialization;cpu;contract"
-    TIMEOUT 60
-    RUN_SERIAL TRUE
-)
-
 artifact_add_test(ArtifactLODManagerContractTest
     SOURCES
         LODManagerContractTest.cpp
@@ -162,88 +153,6 @@ set_tests_properties(ArtifactTimelinePropertyGroupContractTest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     LABELS "timeline;property-groups;cpu;contract"
     TIMEOUT 30
-)
-
-# Drives the existing Layer Panel Ctrl+G shortcut through the offscreen widget
-# and checks the resulting composition hierarchy plus Undo/Redo restoration.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactLayerGroupingUiContractTest.cpp")
-    artifact_add_test(ArtifactLayerGroupingUiContractTest
-        SOURCES
-            ArtifactLayerGroupingUiContractTest.cpp
-        LIBS
-            ArtifactAppRuntime
-    )
-    set_tests_properties(ArtifactLayerGroupingUiContractTest PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-        LABELS "timeline;layer;grouping;keyboard;undo;qt;contract"
-        TIMEOUT 60
-        RUN_SERIAL TRUE
-    )
-endif()
-
-# Project View panel contract test.
-#
-# Exercises the Project View surfaces headless: the project model, the
-# search/type filter proxy and the Project View widget (expand/collapse,
-# presentation mode, hit testing, column width, sorting, selection).
-artifact_add_test(ArtifactProjectViewContractTest
-    SOURCES
-        ArtifactProjectViewContractTest.cpp
-    LIBS
-        ArtifactAppRuntime
-)
-# Place the executable next to the application runtime DLLs (and the Qt
-# platform plugins) instead of the default test directory, so the headless run
-# finds every dependency without a PATH override.
-set_target_properties(ArtifactProjectViewContractTest PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-)
-if(WIN32)
-    add_custom_command(TARGET ArtifactProjectViewContractTest POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ArtifactProjectViewContractTest>
-            "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/"
-        COMMAND_EXPAND_LISTS
-        VERBATIM
-    )
-
-    # The contract run is headless (QT_QPA_PLATFORM=offscreen), so the offscreen
-    # platform plugin has to sit next to the executable or QApplication aborts
-    # before any test runs.
-    set(_artifact_project_view_vcpkg_installed "${VCPKG_INSTALLED}")
-    if(NOT EXISTS "${_artifact_project_view_vcpkg_installed}/debug/bin"
-       AND DEFINED VCPKG_INSTALLED_DIR
-       AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
-        set(_artifact_project_view_vcpkg_installed
-            "${VCPKG_INSTALLED_DIR}/x64-windows")
-    endif()
-    if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
-        set(_artifact_project_view_vcpkg_installed
-            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
-    endif()
-
-    set(_project_view_offscreen_plugin
-        "${_artifact_project_view_vcpkg_installed}/debug/Qt6/plugins/platforms/qoffscreend.dll")
-    if(NOT EXISTS "${_project_view_offscreen_plugin}")
-        set(_project_view_offscreen_plugin
-            "${_artifact_project_view_vcpkg_installed}/Qt6/plugins/platforms/qoffscreen.dll")
-    endif()
-    if(EXISTS "${_project_view_offscreen_plugin}")
-        add_custom_command(TARGET ArtifactProjectViewContractTest POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E make_directory
-                "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/platforms"
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${_project_view_offscreen_plugin}"
-                "$<TARGET_FILE_DIR:ArtifactProjectViewContractTest>/platforms/"
-            VERBATIM
-        )
-    endif()
-endif()
-set_tests_properties(ArtifactProjectViewContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "project-view;project;widget;qt;cpu;contract"
-    TIMEOUT 120
-    RUN_SERIAL TRUE
 )
 
 artifact_add_test(ArtifactRenderContextLodContractTest
@@ -602,49 +511,6 @@ set_tests_properties(ArtifactProcedural3DLayerLodContractTest PROPERTIES
     TIMEOUT 60
     RUN_SERIAL TRUE
 )
-# Keep text shaping acceptance in its own process: strict script-coverage and
-# per-profile capture are environment-driven and must not affect the generic
-# Core LOD/diagnostic contracts when the same test suite is run together.
-artifact_add_test(ArtifactProcedural3DTextExtrudeContractTest
-    SOURCES
-        Procedural3DTextExtrudeContractTest.cpp
-    LIBS
-        ArtifactCore
-)
-set_target_properties(ArtifactProcedural3DTextExtrudeContractTest PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-)
-if(WIN32)
-    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ArtifactProcedural3DTextExtrudeContractTest>
-            "$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>/"
-        COMMAND_EXPAND_LISTS
-        VERBATIM
-    )
-    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-            "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>"
-            "-DVCPKG_INSTALLED=${VCPKG_INSTALLED}"
-            "-DCONFIG=$<CONFIG>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyVcpkgRuntimeDeps.cmake"
-        VERBATIM
-    )
-    add_custom_command(TARGET ArtifactProcedural3DTextExtrudeContractTest POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-            "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactProcedural3DTextExtrudeContractTest>"
-            "-DVCPKG_INSTALLED=${VCPKG_INSTALLED}"
-            "-DCONFIG=$<CONFIG>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyQtPlatformPlugin.cmake"
-        VERBATIM
-    )
-endif()
-set_tests_properties(ArtifactProcedural3DTextExtrudeContractTest PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    LABELS "procedural-3d;text;extrude;geometry;cpu;contract"
-    TIMEOUT 60
-    RUN_SERIAL TRUE
-)
 set_tests_properties(ArtifactVideoProxyQualityLodContractTest PROPERTIES
     LABELS "video;proxy;lod;cpu;contract"
 )
@@ -879,16 +745,6 @@ artifact_add_test(ArtifactDitheringEffectContractTest
 )
 set_tests_properties(ArtifactDitheringEffectContractTest PROPERTIES
     LABELS "effect;dithering;cpu;contract"
-)
-
-artifact_add_test(ArtifactBurnAwayEffectContractTest
-    SOURCES
-        BurnAwayEffectContractTest.cpp
-    LIBS
-        ArtifactEffectsStylize
-)
-set_tests_properties(ArtifactBurnAwayEffectContractTest PROPERTIES
-    LABELS "effect;burnaway;cpu;contract"
 )
 
 artifact_add_test(ArtifactKuwaharaEffectContractTest
@@ -1134,16 +990,6 @@ artifact_add_test(ArtifactTemporalMedianEffectContractTest
 )
 set_tests_properties(ArtifactTemporalMedianEffectContractTest PROPERTIES
     LABELS "effect;temporal-median;temporal;cpu;contract"
-)
-artifact_add_test(ArtifactTemporalEffectsRDContractTest
-    SOURCES
-        ArtifactEffectFrameSamplerContractTest.cpp
-    LIBS
-        ArtifactEffectContract
-        ArtifactEffectsRasterizer
-)
-set_tests_properties(ArtifactTemporalEffectsRDContractTest PROPERTIES
-    LABELS "effect;temporal;frame-sampler;cpu;contract"
 )
 artifact_add_test(ArtifactEchoEffectContractTest
     SOURCES
@@ -1568,97 +1414,6 @@ artifact_add_test(ArtifactMosaicEffectContractTest
 set_tests_properties(ArtifactMosaicEffectContractTest PROPERTIES
     LABELS "effect;mosaic;cpu;contract"
 )
-
-    artifact_add_test(ArtifactImageEffectsContractTests
-        SOURCES
-            ApertureShapeBlurEffectContractTest.cpp
-            OpticalRasterEffectsContractTest.cpp
-            StylizeEffectsContractTest.cpp
-            CoordinateEffectsContractTest.cpp
-            DigitalDamageEffectsContractTest.cpp
-            ProceduralImageEffectsContractTest.cpp
-            SpatialFilterEffectsContractTest.cpp
-            PatternAndTransitionEffectsContractTest.cpp
-            KeyingAndEdgeEffectsContractTest.cpp
-            HalftoneAndHexGridEffectsContractTest.cpp
-            AddNoiseEffectContractTest.cpp
-            RimLightEffectContractTest.cpp
-            TurbulentDisplaceEffectContractTest.cpp
-            PolarCoordinatesEffectContractTest.cpp
-            ChromaticGlowEffectContractTest.cpp
-            EdgeBloomEffectContractTest.cpp
-            GlowEffectContractTest.cpp
-            RasterizerKaleidoscopeEffectContractTest.cpp
-            VolumetricShineEffectContractTest.cpp
-            GlintStarFilterEffectContractTest.cpp
-            DepthBokehEffectContractTest.cpp
-            PatternOverlayEffectContractTest.cpp
-            MagicSharpEffectContractTest.cpp
-            LUTEffectContractTest.cpp
-            InvertEffectContractTest.cpp
-            FillEffectContractTest.cpp
-            CurvesEffectContractTest.cpp
-            GradientRampEffectContractTest.cpp
-            ColorWheelsEffectContractTest.cpp
-            ColoramaEffectContractTest.cpp
-            HueAndSaturationEffectContractTest.cpp
-            PhotoFilterEffectContractTest.cpp
-            SelectiveColorEffectContractTest.cpp
-            TritoneEffectContractTest.cpp
-            LiftGammaGainEffectContractTest.cpp
-            ShadowHighlightEffectContractTest.cpp
-            BrightnessEffectContractTest.cpp
-            GrayscaleEffectContractTest.cpp
-            ChannelMixerEffectContractTest.cpp
-            WhiteBalanceEffectContractTest.cpp
-            ColorBalanceEffectContractTest.cpp
-            LevelsEffectContractTest.cpp
-            ChromaKeyEffectContractTest.cpp
-            LumaKeyEffectContractTest.cpp
-            DifferenceKeyEffectContractTest.cpp
-            IBKKeyerEffectContractTest.cpp
-            RippleEffectContractTest.cpp
-            EdgeEffectContractTest.cpp
-            DirectionalGlowEffectContractTest.cpp
-        LIBS
-            ArtifactEffectsBlur
-            ArtifactEffectsColor
-            ArtifactEffectsDigital
-            ArtifactEffectsDistort
-            ArtifactEffectsFilters
-            ArtifactEffectsFinishing
-            ArtifactEffectsGenerate
-            ArtifactEffectsGlow
-            ArtifactEffectsKeying
-            ArtifactEffectsNoise
-            ArtifactEffectsRasterizer
-            ArtifactEffectsStylize
-            ArtifactEffectsWave
-    )
-    target_sources(ArtifactImageEffectsContractTests
-        PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/src/Effects/ColorCorrection/LUTEffect.cpp"
-        PUBLIC FILE_SET CXX_MODULES
-        BASE_DIRS
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/include"
-        FILES
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/include/Effects/ColorCorrection/LUTEffect.ixx"
-    )
-    set_tests_properties(ArtifactImageEffectsContractTests PROPERTIES
-        LABELS "effect;image-effect;cpu;contract"
-    )
-
-    artifact_add_test(ArtifactImageEffectsRuntimeContractTests
-        SOURCES
-            GaussianBlurEffectContractTest.cpp
-            BendTransformEffectContractTest.cpp
-            TwistTransformEffectContractTest.cpp
-        LIBS
-            ArtifactAppRuntime
-    )
-    set_tests_properties(ArtifactImageEffectsRuntimeContractTests PROPERTIES
-        LABELS "effect;image-effect;runtime;cpu;contract"
-    )
 
 artifact_add_test(ArtifactEffectSequenceContractTest
     SOURCES
@@ -2479,6 +2234,7 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     target_compile_definitions(ArtifactTextGlyphRenderContractTest PRIVATE
         ARTIFACT_TEXT_TEST_USE_VULKAN=1
+        ARTIFACT_TEXT_ANIMATOR_BASELINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/baselines/text-animator"
     )
     target_include_directories(ArtifactTextGlyphRenderContractTest PRIVATE
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface"
@@ -2488,7 +2244,9 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
         "${CMAKE_SOURCE_DIR}/libs/DiligentEngine/DiligentCore/Primitives/interface"
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
-        LABELS "animation;renderer;gpu;text;headless;contract"
+        ENVIRONMENT
+            "ARTIFACT_TEXT_ANIMATOR_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/text-animator"
+        LABELS "animation;renderer;gpu;text;headless;image;contract"
     )
 endif()
 
@@ -2501,17 +2259,6 @@ if(ARTIFACT_BUILD_TESTS)
     )
     set_tests_properties(ArtifactCreativeEffectAdapterContractTest PROPERTIES
         LABELS "effect;creative;adapter;cpu;contract"
-        TIMEOUT 60
-    )
-
-    artifact_add_test(ArtifactInpaintEffectContractTest
-        SOURCES
-            InpaintEffectContractTest.cpp
-        LIBS
-            ArtifactAppRuntime
-    )
-    set_tests_properties(ArtifactInpaintEffectContractTest PROPERTIES
-        LABELS "effect;inpaint;cpu;contract"
         TIMEOUT 60
     )
 

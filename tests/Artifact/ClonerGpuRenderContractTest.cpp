@@ -50,7 +50,6 @@ import Artifact.Render.Pipeline;
 import Artifact.Layer.FluidRuntimeState;
 import Core.ArtifactArray;
 import Core.Simulation.Pyro;
-import Memory.SharedPtr;
 import Render.VolumeRenderer;
 
 namespace {
@@ -8009,105 +8008,4 @@ TEST(ClonerGpuRenderContractTest,
             .arg(requestedBackend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
-}
-
-// R&D capture for docs/planned/MILESTONE_BUFFER_PRECISION_ALPHA_CHAIN_RD_2026-11-17.md,
-// section 15. This records the actual layer -> layerFloat conversion instead of
-// assuming a color/alpha order. No pass/fail is declared on the conversion
-// order; only sane numeric properties are asserted.
-TEST(ClonerGpuRenderContractTest, LayerToFloatConversionCapture)
-{
-    ArtifactTest::HeadlessRenderer renderer;
-    if (!renderer.initialize(64, 64)) {
-        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
-    }
-    renderer.flushAndWait();
-
-    constexpr Diligent::Uint32 width = 4;
-    constexpr Diligent::Uint32 height = 1;
-    // BGRA bytes: opaque, half coverage, transparent, low coverage.
-    const std::array<std::uint8_t, width * 4> pixels{{
-        128, 64, 192, 255,
-        64, 32, 96, 128,
-        0, 0, 0, 0,
-        192, 96, 255, 64,
-    }};
-
-    Diligent::TextureDesc srcDesc;
-    srcDesc.Type = Diligent::TEXTURE_TYPE_2D;
-    srcDesc.Width = width;
-    srcDesc.Height = height;
-    srcDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB;
-    srcDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
-    srcDesc.Usage = Diligent::USAGE_DEFAULT;
-    Diligent::RefCntAutoPtr<Diligent::ITexture> srcTexture;
-    renderer.device()->CreateTexture(srcDesc, nullptr, &srcTexture);
-    ASSERT_TRUE(srcTexture);
-    const Diligent::TextureSubResData subRes{pixels.data(), width * 4};
-    renderer.immediateContext()->UpdateTextureSubresources(srcTexture, 0, 1, &subRes);
-
-    Diligent::TextureDesc dstDesc = srcDesc;
-    dstDesc.Format = Diligent::TEX_FORMAT_RGBA32_FLOAT;
-    dstDesc.BindFlags = Diligent::BIND_UNORDERED_ACCESS | Diligent::BIND_SHADER_RESOURCE;
-    Diligent::RefCntAutoPtr<Diligent::ITexture> dstTexture;
-    renderer.device()->CreateTexture(dstDesc, nullptr, &dstTexture);
-    ASSERT_TRUE(dstTexture);
-
-    auto pipeline = renderer.createLayerBlendPipeline();
-    ASSERT_TRUE(pipeline);
-    ASSERT_TRUE(pipeline->initialize());
-    ASSERT_TRUE(renderer.convertLayerToFloat(
-        pipeline.get(),
-        srcTexture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
-        dstTexture->GetDefaultView(Diligent::TEXTURE_VIEW_UNORDERED_ACCESS),
-        width, height));
-    renderer.flushAndWait();
-
-    std::promise<std::vector<float>> captured;
-    auto capturedFuture = captured.get_future();
-    ASSERT_TRUE(renderer.readbackTextureViewToBufferAsync(
-        dstTexture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
-        [&captured](const ArtifactCore::SharedPtr<const ArtifactCore::ImageUploadBuffer>& buffer) {
-            std::vector<float> values;
-            if (buffer && buffer->isValid()) {
-                const auto* floats = reinterpret_cast<const float*>(buffer->bytes.data());
-                values.assign(floats, floats + buffer->bytes.size() / sizeof(float));
-            }
-            captured.set_value(std::move(values));
-        },
-        true));
-
-    const std::vector<float> actual = capturedFuture.get();
-    ASSERT_EQ(actual.size(), width * height * 4u);
-    for (float value : actual) {
-        EXPECT_TRUE(std::isfinite(value));
-    }
-    for (Diligent::Uint32 x = 0; x < width; ++x) {
-        EXPECT_NEAR(actual[x * 4 + 3], static_cast<float>(pixels[x * 4 + 3]) / 255.0f, 1.0e-5f)
-            << "alpha must survive conversion, x=" << x;
-        if (pixels[x * 4 + 3] == 0) {
-            for (int channel = 0; channel < 3; ++channel) {
-                EXPECT_FLOAT_EQ(actual[x * 4 + channel], 0.0f)
-                    << "hidden RGB must be zeroed, x=" << x;
-            }
-        }
-    }
-
-    const auto backend = qEnvironmentVariable(
-        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
-    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
-                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
-    ASSERT_TRUE(QDir().mkpath(captureDirectory));
-    QFile capture(QDir(captureDirectory).filePath(
-        QStringLiteral("layer_to_float_capture_%1.txt").arg(backend)));
-    ASSERT_TRUE(capture.open(QIODevice::WriteOnly | QIODevice::Text));
-    for (Diligent::Uint32 x = 0; x < width; ++x) {
-        const QString line = QStringLiteral("x=%1 b=%2 g=%3 r=%4 a=%5\n")
-                                 .arg(x)
-                                 .arg(actual[x * 4], 0, 'f', 8)
-                                 .arg(actual[x * 4 + 1], 0, 'f', 8)
-                                 .arg(actual[x * 4 + 2], 0, 'f', 8)
-                                 .arg(actual[x * 4 + 3], 0, 'f', 8);
-        capture.write(line.toUtf8());
-    }
 }
