@@ -10042,6 +10042,54 @@ TEST_F(RayTracingAcceptanceTest, AppliesThinWallTransmissionFresnelAdjustment) {
     EXPECT_NEAR(maskedAreaShadowBlockPixel[1],
                 partiallyShadowedAreaBacklightPixel[1], 0.02f)
         << "an opaque masked blocker should preserve its area-light shadow";
+
+    constexpr int shadowOpacityTextureSize = 128;
+    const auto checkerShadowPath = transmissionShadowOpacityDirectory.filePath(
+        QStringLiteral("checker-area-shadow.png"));
+    const auto averageShadowPath = transmissionShadowOpacityDirectory.filePath(
+        QStringLiteral("average-area-shadow.png"));
+    QImage checkerShadowImage(shadowOpacityTextureSize,
+                              shadowOpacityTextureSize,
+                              QImage::Format_RGBA8888);
+    QImage averageShadowImage(shadowOpacityTextureSize,
+                              shadowOpacityTextureSize,
+                              QImage::Format_RGBA8888);
+    ASSERT_FALSE(checkerShadowImage.isNull());
+    ASSERT_FALSE(averageShadowImage.isNull());
+    for (int y = 0; y < shadowOpacityTextureSize; ++y) {
+        auto* checkerRow = checkerShadowImage.scanLine(y);
+        auto* averageRow = averageShadowImage.scanLine(y);
+        for (int x = 0; x < shadowOpacityTextureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = checkerPixel[1] = checkerPixel[2] = 255;
+            checkerPixel[3] = ((x + y) & 1) != 0 ? 255 : 0;
+            averagePixel[0] = averagePixel[1] = averagePixel[2] = 255;
+            averagePixel[3] = 128;
+        }
+    }
+    ASSERT_TRUE(checkerShadowImage.save(checkerShadowPath, "PNG"));
+    ASSERT_TRUE(averageShadowImage.save(averageShadowPath, "PNG"));
+
+    areaShadowBlockerMaterial.alphaCutoff = 0.4f;
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(checkerShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    const auto checkerMaskedAreaShadowPixel =
+        traceAreaBacklightShadow(2.0f);
+    areaShadowBlockerMaterial.opacityTexture =
+        ArtifactCore::UniString(averageShadowPath);
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-transmission-area-shadow-blocker"),
+        areaShadowBlockerMaterial));
+    const auto averageMaskedAreaShadowPixel =
+        traceAreaBacklightShadow(2.0f);
+    EXPECT_NEAR(checkerMaskedAreaShadowPixel[1],
+                averageMaskedAreaShadowPixel[1], 0.04f)
+        << "minified alpha checker should match its average-alpha mip in "
+           "area-light transmission shadows";
 }
 
 TEST_F(RayTracingAcceptanceTest, SelectsTransmissionPerMaterialSlot) {
