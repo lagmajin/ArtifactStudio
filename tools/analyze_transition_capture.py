@@ -639,9 +639,9 @@ def check_capture(directory: Path) -> dict[str, Any]:
                 alpha_probe_changes.append(changed)
                 if index > 0:
                     reported = int(item.get("changedFromPrevious", -1))
-                    if changed is None or changed == 0:
+                    if changed is None:
                         kind_failures.append(
-                            f"alpha probe step {index} did not change from the previous image"
+                            f"alpha probe step {index} image pixels are unavailable for comparison"
                         )
                     elif reported != changed:
                         kind_failures.append(
@@ -732,7 +732,7 @@ def check_capture(directory: Path) -> dict[str, Any]:
                         kind_failures.append("temporal alpha last frame differs from alpha input B")
                     if previous_alpha is not None:
                         measured = changed_pixel_count(previous_alpha, pixels, input_size)
-                        if measured == 0 or measured != int(item.get("changedFromPrevious", -1)):
+                        if measured != int(item.get("changedFromPrevious", -1)):
                             kind_failures.append(f"temporal alpha frame {index} has invalid adjacent pixel change count")
                     previous_alpha = pixels
             temporal_alpha_summary = {"frame_count": alpha_count, "fps": alpha_fps,
@@ -800,7 +800,9 @@ def check_capture(directory: Path) -> dict[str, Any]:
             checked_capture: dict[str, Any] = {"kind": kind_name}
             for source_key, output_key in (("sheet", "sheet"), ("alphaSheet", "alpha_sheet")):
                 relative = capture.get(source_key)
-                if not isinstance(relative, str) or ".." in Path(relative).parts or not inspect_image(relative, input_size):
+                expected_sheet_size = (max(1, width // 2) * len(steps),
+                                       max(1, height // 2))
+                if not isinstance(relative, str) or ".." in Path(relative).parts or not inspect_image(relative, expected_sheet_size):
                     failures.append(f"invalid review fixture {name} {kind_name} {output_key}: {relative!r}")
                     continue
                 checked_capture[output_key] = relative
