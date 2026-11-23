@@ -1,10 +1,12 @@
 # レイヤーコンポーネント 追加候補
 
-**最終更新:** 2026-08-24
+**最終更新:** 2026-11-24
 
 レイヤーコンポーネントシステム（`ArtifactLayerComponentSystem.ixx`）に追加すべきコンポーネント候補を、既存のフェーズ構造（Source → Drive → Generate → Arrange → Intent → Dynamics → Topology → Emit → RenderExtraction）に沿って整理したもの。
 
 > 進捗 (2026-08-24): Source 相の第一歩として、平面レイヤーに `builtin.source-solid-fill`、画像レイヤーに `builtin.source-image` の descriptor 登録と `resolveLayerSourceOverride()` 実装を追加済み。平面はグラデ系フィルがバッファ経路に接続（単色は fast path 維持）。画像は既存 draw() がバッファファーストのため再配線なし・override 公開のみ。ノイズは平面 Fill 拡張を断念し独立レイヤー方式へ方針変更（`MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md` を Superseded に）。詳細は `Insight.md` の 2026-08-24 項目を参照。
+
+> 現行 main の確認 (2026-11-24): 平面・画像・ノイズの各レイヤーは Source descriptor を登録し、`resolveLayerSourceOverride()` を実装している。Cloner の Sequence modifier は `clonerSequenceEnabled_` に連動する。9月3日の開発ブランチにある `sourceComponentSettingsSnapshot()` は現行 main に見当たらず、各レイヤーの現在値を Source descriptor の `settings` に載せる処理は取り込み検討事項として残る。
 
 > 注意: 本稿は「既存実装との重複・実現可否をコードで検証した結果」ではない。各候補の実装状況は別途ソース確認が必要（未検証と明記する）。
 
