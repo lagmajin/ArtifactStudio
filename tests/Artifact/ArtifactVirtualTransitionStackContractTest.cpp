@@ -10,15 +10,20 @@
 #include <QPointF>
 #include <QWidget>
 
+#include <array>
+#include <cstdint>
+
 import Artifact.Composition.Abstract;
 import Artifact.Composition.InitParams;
 import Artifact.Layer.Factory;
 import Artifact.Layer.InitParams;
 import Artifact.Layers.SolidImage;
 import Artifact.Timeline.TrackPainterView;
+import Artifact.Render.SoftwareCompositor;
 import Color.Float;
 import Core.ArtifactArray;
 import Frame.Range;
+import Layer.Blend;
 import Utils.Id;
 import Utils.String.UniString;
 
@@ -57,6 +62,30 @@ Artifact::CompositionTimelineTransition makeTransition(
 }
 
 } // namespace
+
+TEST(ArtifactVirtualTransitionStackContractTest,
+     SoftwareCrossfadeTileInterpolatesPremultipliedAlpha)
+{
+    QImage canvas(2, 1, QImage::Format_RGBA8888);
+    canvas.fill(Qt::transparent);
+    const std::array<std::uint8_t, 8> left = {
+        0, 0, 128, 128,
+        0, 0, 0, 0};
+    const std::array<std::uint8_t, 8> right = {
+        128, 0, 0, 128,
+        0, 0, 0, 0};
+
+    ASSERT_TRUE(Artifact::SoftwareRender::blendCrossfadeTile(
+        canvas, left.data(), 8, right.data(), 8, 0, 0, 2, 1, 0.5f,
+        1.0f, 1.0f, ArtifactCore::BlendMode::Normal));
+
+    const QColor midpoint = canvas.pixelColor(0, 0);
+    EXPECT_NEAR(midpoint.red(), 188, 1);
+    EXPECT_NEAR(midpoint.green(), 0, 1);
+    EXPECT_NEAR(midpoint.blue(), 188, 1);
+    EXPECT_NEAR(midpoint.alpha(), 128, 1);
+    EXPECT_EQ(canvas.pixelColor(1, 0).alpha(), 0);
+}
 
 TEST(ArtifactVirtualTransitionStackContractTest,
      EvaluatesAllConcurrentDisjointTransitionsIntoReusableOutput)
@@ -555,28 +584,29 @@ TEST(ArtifactVirtualTransitionStackContractTest,
 
     ASSERT_EQ(evaluations.size(), 2u);
     ASSERT_EQ(steps.size(), 6u);
+    // Each transition stages both sources first, then emits its composite at
+    // the insertion point. This lets renderers reuse one bounded A/B target
+    // pair while still suppressing each source's natural stack draw.
     EXPECT_EQ(steps[0].kind,
-              Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite);
-    EXPECT_EQ(steps[0].layerIndex, 0);
-    EXPECT_TRUE(evaluations[steps[0].evaluationIndex].isSourceLayer(layers[3]->id()));
-    // Source layers are drawn at the insertion position, not at their natural
-    // stack index, so a transition cannot draw them twice.
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[0].layerIndex, 2);
     EXPECT_EQ(steps[1].kind,
               Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
-    EXPECT_EQ(steps[1].layerIndex, 2);
+    EXPECT_EQ(steps[1].layerIndex, 3);
     EXPECT_EQ(steps[2].kind,
-              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
-    EXPECT_EQ(steps[2].layerIndex, 3);
-    EXPECT_EQ(steps[3].kind,
               Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite);
-    EXPECT_EQ(steps[3].layerIndex, 2);
-    EXPECT_TRUE(evaluations[steps[3].evaluationIndex].isSourceLayer(layers[0]->id()));
+    EXPECT_EQ(steps[2].layerIndex, 0);
+    EXPECT_TRUE(evaluations[steps[2].evaluationIndex].isSourceLayer(layers[3]->id()));
+    EXPECT_EQ(steps[3].kind,
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
+    EXPECT_EQ(steps[3].layerIndex, 0);
     EXPECT_EQ(steps[4].kind,
               Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
-    EXPECT_EQ(steps[4].layerIndex, 0);
+    EXPECT_EQ(steps[4].layerIndex, 1);
     EXPECT_EQ(steps[5].kind,
-              Artifact::CompositionTimelineTransitionDrawStep::Kind::Layer);
-    EXPECT_EQ(steps[5].layerIndex, 1);
+              Artifact::CompositionTimelineTransitionDrawStep::Kind::TransitionComposite);
+    EXPECT_EQ(steps[5].layerIndex, 2);
+    EXPECT_TRUE(evaluations[steps[5].evaluationIndex].isSourceLayer(layers[0]->id()));
     EXPECT_EQ(evaluations.capacity(), 2u);
     EXPECT_EQ(steps.capacity(), 6u);
 

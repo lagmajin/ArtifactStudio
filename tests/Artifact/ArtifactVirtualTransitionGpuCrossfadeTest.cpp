@@ -93,12 +93,14 @@ TEST(ArtifactVirtualTransitionGpuCrossfadeTest,
     ASSERT_NE(blendPipeline, nullptr);
     ASSERT_TRUE(blendPipeline->initialize());
     const ArtifactCore::ComputeRegion region{0, 0, width, height};
-    const auto renderAt = [&](const float progress) {
+    const auto renderAt = [&](const float progress,
+                              const float leftOpacity = 1.0f,
+                              const float rightOpacity = 1.0f) {
         EXPECT_TRUE(renderer.crossfadeLayers(
             blendPipeline.get(),
             leftTexture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
             rightTexture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
-            outputUAV, progress, region));
+            outputUAV, progress, region, leftOpacity, rightOpacity));
         renderer.flushAndWait();
         return renderer.readbackTextureViewToImage(
             outputSRV, ArtifactCore::SurfaceChannelOrder::BGRA);
@@ -125,4 +127,12 @@ TEST(ArtifactVirtualTransitionGpuCrossfadeTest,
     EXPECT_NEAR(endPixel.red(), 0, 1);
     EXPECT_NEAR(endPixel.blue(), 225, 2);
     EXPECT_NEAR(endPixel.alpha(), 255, 1);
+
+    const QImage leftHalfOpacity = renderAt(0.0f, 0.5f, 1.0f);
+    ASSERT_FALSE(leftHalfOpacity.isNull());
+    EXPECT_NEAR(leftHalfOpacity.pixelColor(1, 1).alpha(), 64, 1);
+
+    const QImage rightHalfOpacity = renderAt(1.0f, 1.0f, 0.5f);
+    ASSERT_FALSE(rightHalfOpacity.isNull());
+    EXPECT_NEAR(rightHalfOpacity.pixelColor(1, 1).alpha(), 128, 1);
 }

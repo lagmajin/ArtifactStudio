@@ -2983,6 +2983,361 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     RenderQueueBackendsWriteCrossfadedTimelineTransitionPixels)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 65;
+    constexpr int height = 63;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("CpuTransitionRenderTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("CpuTransitionRender")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    compositionParams.setBackgroundColor(
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const auto compositionResult = projects.createComposition(compositionParams);
+    ASSERT_TRUE(compositionResult.success);
+
+    Artifact::ArtifactSolidLayerInitParams redParams(QStringLiteral("Red"));
+    redParams.setWidth(width);
+    redParams.setHeight(height);
+    redParams.setColor(ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
+    const auto red = projects.addLayerToComposition(
+        compositionResult.id, redParams);
+    ASSERT_TRUE(red.success);
+
+    Artifact::ArtifactSolidLayerInitParams greenParams(QStringLiteral("Green"));
+    greenParams.setWidth(width);
+    greenParams.setHeight(height);
+    greenParams.setColor(ArtifactCore::FloatColor(0.0f, 1.0f, 0.0f, 1.0f));
+    const auto green = projects.addLayerToComposition(
+        compositionResult.id, greenParams);
+    ASSERT_TRUE(green.success);
+
+    Artifact::ArtifactSolidLayerInitParams blueParams(QStringLiteral("Blue"));
+    blueParams.setWidth(width);
+    blueParams.setHeight(height);
+    blueParams.setColor(ArtifactCore::FloatColor(0.0f, 0.0f, 1.0f, 1.0f));
+    const auto blue = projects.addLayerToComposition(
+        compositionResult.id, blueParams);
+    ASSERT_TRUE(blue.success);
+
+    auto composition = projects.currentComposition();
+    ASSERT_NE(composition.get(), nullptr);
+    QString failure;
+
+    Artifact::CompositionTimelineTransition transition;
+    transition.name = QStringLiteral("Red to Blue");
+    transition.leftClipName = QStringLiteral("Red");
+    transition.rightClipName = QStringLiteral("Blue");
+    transition.leftLayerId = red.layer->id();
+    transition.rightLayerId = blue.layer->id();
+    transition.range = ArtifactCore::FrameRange(0, 2);
+    transition.stackPosition = 2;
+    composition->addTimelineTransition(transition);
+    ASSERT_EQ(composition->timelineTransitions().size(), 1);
+    const QString transitionId = composition->timelineTransitions().front().id;
+
+    const QString cpuOutputPath = isolatedOutputPath(
+        QStringLiteral("cpu_transition_render.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, compositionResult.id, QStringLiteral("CpuTransitionRender"),
+        cpuOutputPath,
+        width, height,
+        [](const QImage& image) {
+            const QColor start = image.pixelColor(width / 2, height / 2);
+            return start.red() > 248 && start.green() < 8 &&
+                   start.blue() < 8 && start.alpha() > 248;
+        },
+        &failure, 3, QStringLiteral("cpu"), 0))
+        << failure.toStdString();
+    const auto framePath = [](const QString& outputPath, int frame) {
+        const QFileInfo outputInfo(outputPath);
+        return QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputInfo.completeBaseName())
+                .arg(frame, 4, 10, QLatin1Char('0')));
+    };
+    const auto isMidpoint = [](const QImage& image) {
+        const QColor pixel = image.pixelColor(width / 2, height / 2);
+        return pixel.red() > 184 && pixel.red() < 193 &&
+               pixel.green() < 8 && pixel.blue() > 184 &&
+               pixel.blue() < 193 && pixel.alpha() > 248;
+    };
+    const auto isBlue = [](const QImage& image) {
+        const QColor pixel = image.pixelColor(width / 2, height / 2);
+        return pixel.red() < 8 && pixel.green() < 8 &&
+               pixel.blue() > 248 && pixel.alpha() > 248;
+    };
+    const auto isGreen = [](const QImage& image) {
+        const QColor pixel = image.pixelColor(width / 2, height / 2);
+        return pixel.red() < 8 && pixel.green() > 248 &&
+               pixel.blue() < 8 && pixel.alpha() > 248;
+    };
+    EXPECT_TRUE(isMidpoint(QImage(framePath(cpuOutputPath, 1))));
+    EXPECT_TRUE(isBlue(QImage(framePath(cpuOutputPath, 2))));
+    const auto compareImages = [](const QImage& left, const QImage& right) {
+        if (left.isNull() || right.isNull() || left.size() != right.size()) {
+            return std::array<int, 7>{-1, 0, -1, -1, -1, -1, -1};
+        }
+        int maxDelta = 0;
+        int differingPixels = 0;
+        int interiorDifferingPixels = 0;
+        int maxInteriorDelta = 0;
+        int maxX = -1;
+        int maxY = -1;
+        int maxChannel = -1;
+        for (int y = 0; y < left.height(); ++y) {
+            for (int x = 0; x < left.width(); ++x) {
+                const QColor leftPixel = left.pixelColor(x, y);
+                const QColor rightPixel = right.pixelColor(x, y);
+                const std::array<int, 4> deltas = {
+                    qAbs(leftPixel.red() - rightPixel.red()),
+                    qAbs(leftPixel.green() - rightPixel.green()),
+                    qAbs(leftPixel.blue() - rightPixel.blue()),
+                    qAbs(leftPixel.alpha() - rightPixel.alpha())};
+                if (std::any_of(deltas.begin(), deltas.end(),
+                                [](int delta) { return delta > 0; })) {
+                    ++differingPixels;
+                    if (x > 0 && y > 0 && x + 1 < left.width() &&
+                        y + 1 < left.height()) {
+                        ++interiorDifferingPixels;
+                    }
+                }
+                for (int channel = 0; channel < 4; ++channel) {
+                    if (x > 0 && y > 0 && x + 1 < left.width() &&
+                        y + 1 < left.height()) {
+                        maxInteriorDelta = std::max(
+                            maxInteriorDelta,
+                            deltas[static_cast<std::size_t>(channel)]);
+                    }
+                    if (deltas[static_cast<std::size_t>(channel)] > maxDelta) {
+                        maxDelta = deltas[static_cast<std::size_t>(channel)];
+                        maxX = x;
+                        maxY = y;
+                        maxChannel = channel;
+                    }
+                }
+            }
+        }
+        return std::array<int, 7>{maxDelta, differingPixels, maxX, maxY,
+                                  maxChannel, interiorDifferingPixels,
+                                  maxInteriorDelta};
+    };
+
+    const QString gpuOutputPath = isolatedOutputPath(
+        QStringLiteral("gpu_transition_render.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, compositionResult.id, QStringLiteral("GpuTransitionRender"),
+        gpuOutputPath,
+        width, height,
+        [](const QImage& image) {
+            const QColor start = image.pixelColor(width / 2, height / 2);
+            return start.red() > 248 && start.green() < 8 &&
+                   start.blue() < 8 && start.alpha() > 248;
+        },
+        &failure, 3, QStringLiteral("gpu"), 0))
+        << failure.toStdString();
+    EXPECT_TRUE(isMidpoint(QImage(framePath(gpuOutputPath, 1))));
+    EXPECT_TRUE(isBlue(QImage(framePath(gpuOutputPath, 2))));
+    for (int frame = 0; frame <= 2; ++frame) {
+        const auto parity = compareImages(
+            QImage(framePath(cpuOutputPath, frame)),
+            QImage(framePath(gpuOutputPath, frame)));
+        EXPECT_GE(parity[0], 0) << "CPU/GPU transition images are unavailable";
+        EXPECT_EQ(parity[5], 0)
+            << "CPU/GPU transition interiors contain differing pixels at frame "
+            << frame;
+        EXPECT_LE(parity[6], 1)
+            << "CPU/GPU transition interior differs by " << parity[6]
+            << " code values; differing interior pixels=" << parity[5]
+            << ", whole-image max=" << parity[0]
+            << " code values at (" << parity[2] << ',' << parity[3]
+            << "), channel " << parity[4] << "; differing pixels="
+            << parity[1] << ", frame=" << frame
+            << ". Only one-pixel outer-edge differences are currently tolerated.";
+    }
+
+    ASSERT_TRUE(composition->setTimelineTransitionStackPosition(
+        transitionId, 0));
+    const QString cpuStackZeroOutputPath = isolatedOutputPath(
+        QStringLiteral("transition_stack_zero_cpu.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, compositionResult.id, QStringLiteral("TransitionStackPositionCpu"),
+        cpuStackZeroOutputPath, width, height, isGreen, &failure,
+        2, QStringLiteral("cpu"), 1))
+        << failure.toStdString();
+    const QString gpuStackZeroOutputPath = isolatedOutputPath(
+        QStringLiteral("transition_stack_zero_gpu.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, compositionResult.id, QStringLiteral("TransitionStackPositionGpu"),
+        gpuStackZeroOutputPath, width, height, isGreen, &failure,
+        2, QStringLiteral("gpu"), 1))
+        << failure.toStdString();
+    const auto stackZeroParity = compareImages(
+        QImage(framePath(cpuStackZeroOutputPath, 1)),
+        QImage(framePath(gpuStackZeroOutputPath, 1)));
+    EXPECT_GE(stackZeroParity[0], 0)
+        << "CPU/GPU stack-position images are unavailable";
+    EXPECT_EQ(stackZeroParity[5], 0)
+        << "CPU/GPU stack-position interiors contain differing pixels";
+    EXPECT_LE(stackZeroParity[6], 1)
+        << "CPU/GPU stack-position interior differs by " << stackZeroParity[6]
+        << " code values; differing interior pixels=" << stackZeroParity[5]
+        << ", whole-image max=" << stackZeroParity[0]
+        << " code values at (" << stackZeroParity[2] << ',' << stackZeroParity[3]
+        << "), channel " << stackZeroParity[4] << "; differing pixels="
+        << stackZeroParity[1]
+        << ". Only one-pixel outer-edge differences are currently tolerated.";
+
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     CompositionDuplicateRetargetsTimelineTransitions)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 64;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("TransitionDuplicateTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("TransitionSource")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(12);
+    const auto compositionResult = projects.createComposition(compositionParams);
+    ASSERT_TRUE(compositionResult.success);
+
+    Artifact::ArtifactSolidLayerInitParams redParams(QStringLiteral("Red"));
+    redParams.setWidth(width);
+    redParams.setHeight(height);
+    redParams.setColor(ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
+    const auto red = projects.addLayerToComposition(
+        compositionResult.id, redParams);
+    ASSERT_TRUE(red.success);
+
+    Artifact::ArtifactSolidLayerInitParams blueParams(QStringLiteral("Blue"));
+    blueParams.setWidth(width);
+    blueParams.setHeight(height);
+    blueParams.setColor(ArtifactCore::FloatColor(0.0f, 0.0f, 1.0f, 1.0f));
+    const auto blue = projects.addLayerToComposition(
+        compositionResult.id, blueParams);
+    ASSERT_TRUE(blue.success);
+
+    auto sourceComposition = projects.findComposition(compositionResult.id)
+                                 .ptr.lock();
+    ASSERT_NE(sourceComposition.get(), nullptr);
+    Artifact::CompositionTimelineTransition transition;
+    transition.id = QStringLiteral("source-transition-id");
+    transition.name = QStringLiteral("Source Fade");
+    transition.kind = QStringLiteral("Dissolve");
+    transition.easing = QStringLiteral("EaseInOut");
+    transition.leftClipName = QStringLiteral("Red");
+    transition.rightClipName = QStringLiteral("Blue");
+    transition.leftLayerId = red.layer->id();
+    transition.rightLayerId = blue.layer->id();
+    transition.range = ArtifactCore::FrameRange(3, 8);
+    transition.stackPosition = 1;
+    transition.enabled = true;
+    sourceComposition->addTimelineTransition(transition);
+    ASSERT_EQ(sourceComposition->timelineTransitionCount(), 1);
+
+    const auto duplicateResult = projects.duplicateComposition(
+        compositionResult.id);
+    ASSERT_TRUE(duplicateResult.success)
+        << duplicateResult.message.toQString().toStdString();
+    ASSERT_NE(duplicateResult.id, compositionResult.id);
+    const auto duplicatedComposition = projects.findComposition(
+        duplicateResult.id).ptr.lock();
+    ASSERT_NE(duplicatedComposition.get(), nullptr);
+
+    const auto sourceTransitions = sourceComposition->timelineTransitions();
+    const auto duplicatedTransitions =
+        duplicatedComposition->timelineTransitions();
+    ASSERT_EQ(sourceTransitions.size(), 1);
+    ASSERT_EQ(duplicatedTransitions.size(), 1);
+    const auto& sourceTransition = sourceTransitions.front();
+    const auto& duplicatedTransition = duplicatedTransitions.front();
+    EXPECT_NE(duplicatedTransition.id, sourceTransition.id);
+    EXPECT_EQ(duplicatedTransition.name, sourceTransition.name);
+    EXPECT_EQ(duplicatedTransition.kind, sourceTransition.kind);
+    EXPECT_EQ(duplicatedTransition.easing, sourceTransition.easing);
+    EXPECT_EQ(duplicatedTransition.range.start(), sourceTransition.range.start());
+    EXPECT_EQ(duplicatedTransition.range.end(), sourceTransition.range.end());
+    EXPECT_EQ(duplicatedTransition.stackPosition, sourceTransition.stackPosition);
+    EXPECT_EQ(duplicatedTransition.enabled, sourceTransition.enabled);
+
+    const auto duplicateLayers = duplicatedComposition->allLayerRef();
+    ASSERT_EQ(duplicateLayers.size(), 2);
+    EXPECT_EQ(duplicatedTransition.leftLayerId, duplicateLayers[0]->id());
+    EXPECT_EQ(duplicatedTransition.rightLayerId, duplicateLayers[1]->id());
+    EXPECT_NE(duplicatedTransition.leftLayerId, sourceTransition.leftLayerId);
+    EXPECT_NE(duplicatedTransition.rightLayerId, sourceTransition.rightLayerId);
+    EXPECT_EQ(duplicatedTransition.leftClipName,
+              duplicateLayers[0]->layerName());
+    EXPECT_EQ(duplicatedTransition.rightClipName,
+              duplicateLayers[1]->layerName());
+
+    const auto reloadedDuplicate = Artifact::ArtifactAbstractComposition::fromJson(
+        duplicatedComposition->toJson());
+    ASSERT_NE(reloadedDuplicate.get(), nullptr);
+    ASSERT_EQ(reloadedDuplicate->timelineTransitions().size(), 1);
+    const auto reloadedTransition = reloadedDuplicate->timelineTransitions().front();
+    EXPECT_EQ(reloadedTransition.leftLayerId, duplicatedTransition.leftLayerId);
+    EXPECT_EQ(reloadedTransition.rightLayerId, duplicatedTransition.rightLayerId);
+    EXPECT_EQ(reloadedTransition.stackPosition,
+              duplicatedTransition.stackPosition);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      ComplexArabicIndicTextRendersThroughManagerQueue)
 {
     QTemporaryDir projectRoot;
