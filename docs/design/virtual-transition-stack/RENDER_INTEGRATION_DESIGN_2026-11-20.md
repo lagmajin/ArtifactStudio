@@ -152,7 +152,7 @@
 - Wipe/Slide は追加／種類変更メニューから除外。Dissolve を追加し、編集UI文言は ja/en/zh/zh-TW を用意。
 - 確認済み（2026-11-23）: Artifact app／Stack targetのbuild、および関連CTest 2/2（Core 20/20、Stack 10/10）。hidden UI MCPでdialog表示・stack図・Apply・名前変更後の反映を確認し、transition追加のCtrl+Z/Ctrl+Shift+Zによるmarker除去／復元を確認した。未確認: 編集値変更そのもののUndo/Redo、Undo履歴の永続化、共同編集へのsnapshot operation dispatch。編集UIの操作完了後に値は反映されたが、編集値の履歴復元はまだ確認していない。
 - 既存CTestログ確認（2026-11-22 11:41）: `ArtifactCoreTransitionRenderContractTest` 20/20 と `ArtifactVirtualTransitionStackContractTest` 10/10 Pass。この記録は上記編集ダイアログ／Undo変更より前であり、それらの検証証跡には使わない。
-- 2026-11-23 hidden UI実操作: `run_ui_offline.py` の仮想Qt入力でComposition作成、Solid 2枚追加、2 layer選択、Crossfade追加、編集dialogのname変更とApply、Stack一覧での変更名反映まで確認した。GPU Composition captureは成功したが、白一色のsourceなのでpixel blendの目視証拠とはしない。menuを開いたままUndoした後の一覧は古いmenu snapshotだったため、編集値Undo/Redoとプロジェクト保存・再読込は依然未確証。Render Queueの関連pixel/duplicateテストは2/2、Core/Stack CTestは2/2 Pass（20/20と10/10）。
+- 2026-11-23 hidden UI実操作: `run_ui_offline.py` の仮想Qt入力でComposition作成、Solid 2枚追加、2 layer選択、Crossfade追加、編集dialogのname変更とApply、Stack一覧での変更名反映まで確認した。GPU Composition captureは成功したが、白一色のsourceなのでpixel blendの目視証拠とはしない。menuを開いたままUndoした後の一覧は古いmenu snapshotだったため、編集値Undo/Redoとプロジェクト保存・再読込は依然未確証。当時の作業ツリーではRender Queueの関連pixel/duplicateテストが2/2、Core/Stack CTestが2/2 Pass（20/20と10/10）。Render Queueの結果は未統合の実装を含むビルドでの記録であり、mainの最終出力経路の検証結果には使わない。
 - 2026-11-23 locale matrix: `ja/en/zh/zh-TW`ごとに同じ仮想Qt入力経路で編集dialogを開いてcaptureし、主要field/buttonの表示範囲内配置を確認。`zh`/`zh-TW`ではStack preview見出しの一部文字列が英語で、Source名は試験fixtureの日本語名だった。Pixel parity判定は行わず、`temp/transition-ui-*`のcaptureはGit対象外。
 
 ## 9. 参考
