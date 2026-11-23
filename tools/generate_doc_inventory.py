@@ -310,6 +310,9 @@ def check_lifecycle_issues(all_files: list[dict]) -> list[str]:
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     print("=" * 60)
     print("M-DOCMETA Phase 1: Document Inventory Generator")
     print("=" * 60)
