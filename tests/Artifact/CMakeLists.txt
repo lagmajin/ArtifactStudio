@@ -2317,6 +2317,16 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionSmokeCurlABRendersThroughCompositionView
     )
+    add_test(NAME ArtifactCompositionViewSmokePostStopSeekIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionSmokeCurlABRendersThroughCompositionView
+    )
+    set_tests_properties(ArtifactCompositionViewSmokePostStopSeekIntegrationTest PROPERTIES
+        LABELS "composition-view;smoke;fluid;renderer;gpu;headless;image;integration;contract"
+        TIMEOUT 900
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_SMOKE_POST_STOP_SEEK=1"
+    )
     set_tests_properties(ArtifactCompositionViewSmokeCurlLongRunIntegrationTest PROPERTIES
         LABELS "composition-view;smoke;fluid;renderer;gpu;headless;image;integration;stress;contract"
         TIMEOUT 1800

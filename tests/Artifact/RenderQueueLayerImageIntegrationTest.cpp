@@ -46,6 +46,7 @@
 #include <vector>
 
 import Artifact.Composition.InitParams;
+import Artifact.Composition.Abstract;
 import Artifact.Composition.Result;
 import Artifact.Application.Manager;
 import Artifact.Layer.Abstract;
@@ -2490,6 +2491,9 @@ TEST(RenderQueueLayerImageIntegrationTest,
             : 1;
     const bool flameEnabled =
         qEnvironmentVariableIntValue("ARTIFACT_SMOKE_AB_FLAME_RND") != 0;
+    const bool checkPostStopSeek =
+        qEnvironmentVariableIntValue("ARTIFACT_SMOKE_POST_STOP_SEEK") != 0;
+    constexpr int emissionStopFrame = 48;
     const int requestedEndFrame = qEnvironmentVariableIntValue(
         "ARTIFACT_SMOKE_AB_END_FRAME_RND");
     const int endFrame = std::clamp(
@@ -2549,6 +2553,20 @@ TEST(RenderQueueLayerImageIntegrationTest,
     for (const auto& [path, value] : properties) {
         ASSERT_TRUE(created.layer->setLayerPropertyValue(
             QString::fromLatin1(path), value)) << "property=" << path;
+    }
+
+    if (checkPostStopSeek) {
+        const auto density = created.layer->getProperty(
+            QStringLiteral("component.fluid.emitterDensity"));
+        ASSERT_NE(density.get(), nullptr);
+        density->clearKeyFrames();
+        density->setAnimatable(true);
+        const auto scale = created.layer->keyframeTimeScale();
+        density->addKeyFrame(ArtifactCore::RationalTime(0, scale), 0.04,
+                             ArtifactCore::InterpolationType::Constant);
+        density->addKeyFrame(
+            ArtifactCore::RationalTime(emissionStopFrame, scale), 0.0,
+            ArtifactCore::InterpolationType::Constant);
     }
 
     const auto compositionObject = projects.findComposition(composition.id)
@@ -2706,6 +2724,23 @@ TEST(RenderQueueLayerImageIntegrationTest,
         smokeCurl, replayFrame, replayChangedPixels, replayMaxChannelDiff);
     EXPECT_EQ(replayedImage, frameImages[replayIndex])
         << "checkpoint replay must reproduce the same smoke image";
+
+    if (checkPostStopSeek) {
+        ASSERT_GT(replayFrame, emissionStopFrame);
+        ASSERT_GT(measureSmokeImage(frameImages[replayIndex]).visiblePixels, 100)
+            << "the reference must still contain smoke after emission stops";
+
+        compositionObject->resetLayerComponentSimulation();
+        created.layer->resetFluidSmokeSimulation();
+        compositionObject->goToFrame(replayFrame);
+        compositionObject->evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(replayFrame), false);
+        const QImage directSeekImage = renderCurrentFrame(replayFrame);
+        ASSERT_FALSE(directSeekImage.isNull());
+        EXPECT_EQ(directSeekImage, frameImages[replayIndex])
+            << "a cold direct seek after emission stops must match sequential "
+               "playback at frame " << replayFrame;
+    }
 
     std::printf(
         "smoke-curl-summary curl=%.3f octaves=%d flame=%d "
