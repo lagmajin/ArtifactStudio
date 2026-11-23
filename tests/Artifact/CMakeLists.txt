@@ -87,7 +87,7 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
     set_tests_properties(ArtifactVirtualTransitionStackContractTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         ENVIRONMENT_MODIFICATION
-            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:${CMAKE_CURRENT_BINARY_DIR}/platforms"
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:$<TARGET_FILE_DIR:ArtifactVirtualTransitionStackContractTest>/platforms"
         LABELS "composition;timeline;transition;stack;serialization;ui;offscreen;cpu;gpu;contract"
         TIMEOUT 30
     )

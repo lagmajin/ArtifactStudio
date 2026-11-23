@@ -86,6 +86,14 @@ Image inputB(const int width = kWidth, const int height = kHeight)
     return ArtifactTestTransitionRenderer::makeDiagnosticImage(width, height, true);
 }
 
+Image withUniformAlpha(Image image, const std::uint8_t alpha)
+{
+    for (std::size_t index = 3; index < image.pixels.size(); index += 4) {
+        image.pixels[index] = alpha;
+    }
+    return image;
+}
+
 ArtifactTestTransitionBridge::RenderOptions optionsAt(const double progress,
                                                       const int width = kWidth,
                                                       const int height = kHeight,
@@ -200,14 +208,6 @@ QString progressStem(const double progress)
 {
     const int percent = static_cast<int>(std::lround(progress * 100.0));
     return QString::number(percent).rightJustified(3, QChar('0'));
-}
-
-Image withUniformAlpha(Image image, const std::uint8_t alpha)
-{
-    for (std::size_t index = 3; index < image.pixels.size(); index += 4) {
-        image.pixels[index] = alpha;
-    }
-    return image;
 }
 
 QJsonObject writeReviewFixtureTransition(const TransitionKind kind, const QString& name,
@@ -389,11 +389,11 @@ QJsonObject writeKindArtifacts(const TransitionKind kind, const QString& directo
 
     if (!directory.isEmpty()) {
         writePng(ArtifactTestTransitionRenderer::makeContactSheet(
-                     frames, static_cast<int>(kSteps.size()), 2),
+                     frames, static_cast<int>(kSteps.size()), 1),
                  directory + QStringLiteral("/transition_") + name +
                      QStringLiteral("_sheet.png"));
         writePng(ArtifactTestTransitionRenderer::makeContactSheet(
-                     alphaFrames, static_cast<int>(kSteps.size()), 2),
+                     alphaFrames, static_cast<int>(kSteps.size()), 1),
                  directory + QStringLiteral("/transition_alpha_") + name +
                      QStringLiteral("_sheet.png"));
     }

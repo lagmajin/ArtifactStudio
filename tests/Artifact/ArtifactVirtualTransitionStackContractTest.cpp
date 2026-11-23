@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QImage>
 #include <QJsonDocument>
@@ -22,6 +23,22 @@ import Utils.Id;
 import Utils.String.UniString;
 
 namespace {
+
+QApplication* ensureTestApplication()
+{
+    if (auto* existing = qobject_cast<QApplication*>(QCoreApplication::instance())) {
+        return existing;
+    }
+    if (QCoreApplication::instance()) {
+        return nullptr;
+    }
+
+    static int argc = 1;
+    static char applicationName[] = "ArtifactVirtualTransitionStackContractTest";
+    static char* argv[] = {applicationName, nullptr};
+    static QApplication application(argc, argv);
+    return &application;
+}
 
 Artifact::CompositionTimelineTransition makeTransition(
     const QString& id, const QString& left, const QString& right,
@@ -418,10 +435,11 @@ TEST(ArtifactVirtualTransitionStackContractTest,
 TEST(ArtifactVirtualTransitionStackContractTest,
      TimelineShowsCompactMarkerUntilTransitionIsSelected)
 {
-    int argc = 1;
-    char applicationName[] = "ArtifactVirtualTransitionStackContractTest";
-    char* argv[] = {applicationName, nullptr};
-    QApplication application(argc, argv);
+    ASSERT_NE(ensureTestApplication(), nullptr)
+        << "Existing application type: "
+        << (QCoreApplication::instance()
+                ? QCoreApplication::instance()->metaObject()->className()
+                : "none");
 
     Artifact::ArtifactTimelineTrackPainterView view;
     view.resize(240, 40);
@@ -457,15 +475,18 @@ TEST(ArtifactVirtualTransitionStackContractTest,
 TEST(ArtifactVirtualTransitionStackContractTest,
      TimelineTransitionMarkerParticipatesInExistingHoverHitTest)
 {
-    int argc = 1;
-    char applicationName[] = "ArtifactVirtualTransitionStackContractTest";
-    char* argv[] = {applicationName, nullptr};
-    QApplication application(argc, argv);
+    ASSERT_NE(ensureTestApplication(), nullptr)
+        << "Existing application type: "
+        << (QCoreApplication::instance()
+                ? QCoreApplication::instance()->metaObject()->className()
+                : "none");
 
     Artifact::ArtifactTimelineTrackPainterView view;
     view.resize(240, 40);
+    view.setPixelsPerFrame(2.0);
     Artifact::ArtifactTimelineTrackPainterView::TrackClipVisual transition;
     transition.clipId = QStringLiteral("transition-hover");
+    transition.trackIndex = 0;
     transition.title = QStringLiteral("A → B");
     transition.startFrame = 10;
     transition.durationFrame = 20;
@@ -473,7 +494,9 @@ TEST(ArtifactVirtualTransitionStackContractTest,
         TrackClipVisual::Kind::Transition;
     view.setClips({transition});
 
-    QMouseEvent move(QEvent::MouseMove, QPointF(80, 16),
+    // The compact transition marker is centered at
+    // (startFrame + durationFrame / 2) * pixelsPerFrame = 40 px.
+    QMouseEvent move(QEvent::MouseMove, QPointF(40, 16),
                      Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(&view, &move);
 
