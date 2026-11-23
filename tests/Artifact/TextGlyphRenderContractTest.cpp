@@ -8,6 +8,7 @@
 #include <QSize>
 #include <QString>
 #include <QtCore/qglobal.h>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <vector>
@@ -338,4 +339,78 @@ TEST_F(TextGlyphRenderContractTest, StackedAnimatorsAreAppliedBeforeGpuRasteriza
     ASSERT_GT(countVisiblePixels(stacked), 0);
     EXPECT_LT(sumAlpha(stacked), sumAlpha(baseline));
     EXPECT_NE(baseline, stacked);
+}
+
+TEST_F(TextGlyphRenderContractTest, IntenseStackedAnimationFramesStayDeterministic)
+{
+    std::vector<ArtifactCore::GlyphItem> glyphs(3);
+    for (int index = 0; index < 3; ++index) {
+        glyphs[static_cast<size_t>(index)] = makeGlyph();
+        glyphs[static_cast<size_t>(index)].charCode =
+            static_cast<char32_t>(U'A' + index);
+        glyphs[static_cast<size_t>(index)].index = index;
+        glyphs[static_cast<size_t>(index)].clusterIndex = index;
+        glyphs[static_cast<size_t>(index)].clusterText = QStringLiteral("A");
+        glyphs[static_cast<size_t>(index)].basePosition =
+            QPointF(16.0 + 32.0 * index, 64.0);
+    }
+
+    ArtifactCore::AnimatorSelectorSet positionSet;
+    positionSet.range.units = ArtifactCore::SelectorUnits::Index;
+    positionSet.range.start = 0.0f;
+    positionSet.range.end = 2.0f;
+    positionSet.range.shape = ArtifactCore::SelectorShape::Square;
+    positionSet.properties.position = QPointF(6.0, -4.0);
+
+    ArtifactCore::AnimatorSelectorSet rotationSet;
+    rotationSet.range.units = ArtifactCore::SelectorUnits::Index;
+    rotationSet.range.start = 1.0f;
+    rotationSet.range.end = 1.0f;
+    rotationSet.range.shape = ArtifactCore::SelectorShape::Square;
+    rotationSet.properties.rotation = 18.0f;
+
+    ArtifactCore::AnimatorSelectorSet opacitySet;
+    opacitySet.range.shape = ArtifactCore::SelectorShape::Square;
+    opacitySet.expression.enabled = true;
+    opacitySet.expression.expression = QStringLiteral("textIndex / textTotal");
+    opacitySet.properties.opacity = 0.3f;
+
+    ArtifactCore::AnimatorSelectorSet wigglySet;
+    wigglySet.range.shape = ArtifactCore::SelectorShape::Square;
+    wigglySet.wiggly.enabled = true;
+    wigglySet.wiggly.wigglesPerSecond = 4.0f;
+    wigglySet.wiggly.correlation = 0.0f;
+    wigglySet.wiggly.seed = 99;
+    wigglySet.properties.position = QPointF(3.0, -2.0);
+
+    const std::vector<ArtifactCore::AnimatorSelectorSet> sets{
+        positionSet, rotationSet, opacitySet, wigglySet};
+
+    ArtifactCore::TextStyle style;
+    style.fontSize = 32.0f;
+    style.pixelSize = 32.0f;
+
+    std::vector<QImage> frames;
+    for (const float time : {0.0f, 0.75f, 1.5f}) {
+        auto animated = glyphs;
+        ArtifactCore::TextAnimatorEngine::applyAnimatorSets(
+            animated, sets, time, QStringLiteral("ABC"));
+        ASSERT_EQ(animated.size(), glyphs.size());
+        for (const auto& glyph : animated) {
+            EXPECT_TRUE(std::isfinite(glyph.offsetPosition.x()));
+            EXPECT_TRUE(std::isfinite(glyph.offsetPosition.y()));
+            EXPECT_TRUE(std::isfinite(glyph.offsetRotation));
+            EXPECT_TRUE(std::isfinite(glyph.offsetOpacity));
+        }
+
+        const QImage first = render(animated, style);
+        const QImage repeat = render(animated, style);
+        ASSERT_GT(countVisiblePixels(first), 0) << "time=" << time;
+        EXPECT_EQ(first, repeat) << "time=" << time;
+        frames.push_back(first);
+    }
+
+    ASSERT_EQ(frames.size(), 3u);
+    EXPECT_NE(frames[0], frames[1]);
+    EXPECT_NE(frames[1], frames[2]);
 }
