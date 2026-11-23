@@ -1508,11 +1508,12 @@ set_tests_properties(ArtifactResidualGlowEffectContractTest PROPERTIES
 artifact_add_test(ArtifactReactiveGlowEffectContractTest
     SOURCES
         ReactiveGlowEffectContractTest.cpp
+        DirectionalGlowEffectContractTest.cpp
     LIBS
         ArtifactEffectsGlow
 )
 set_tests_properties(ArtifactReactiveGlowEffectContractTest PROPERTIES
-    LABELS "effect;reactive-glow;spatial;cpu;contract"
+    LABELS "effect;reactive-glow;directional-glow;spatial;cpu;contract"
 )
 artifact_add_test(ArtifactPhysicalHalationEffectContractTest
     SOURCES
@@ -1619,7 +1620,6 @@ set_tests_properties(ArtifactMosaicEffectContractTest PROPERTIES
             IBKKeyerEffectContractTest.cpp
             RippleEffectContractTest.cpp
             EdgeEffectContractTest.cpp
-            DirectionalGlowEffectContractTest.cpp
         LIBS
             ArtifactEffectsBlur
             ArtifactEffectsColor

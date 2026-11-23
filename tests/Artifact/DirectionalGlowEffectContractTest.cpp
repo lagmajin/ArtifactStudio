@@ -95,3 +95,29 @@ TEST(DirectionalGlowEffectContractTest, NonFiniteSettingsResetToDefaults)
     EXPECT_FLOAT_EQ(effect.weight2(), 0.4f);
     EXPECT_FLOAT_EQ(effect.angleOffset(), 0.0f);
 }
+
+TEST(DirectionalGlowEffectContractTest, Star6PresetAppliesThreeStageLook)
+{
+    DirectionalGlowEffect effect;
+    effect.applyPreset(2);
+
+    EXPECT_EQ(effect.preset(), 2);
+    EXPECT_EQ(effect.pattern(), StreakPattern::Star6);
+    EXPECT_FLOAT_EQ(effect.length1(), 48.0f);
+    EXPECT_FLOAT_EQ(effect.length2(), 112.0f);
+    EXPECT_FLOAT_EQ(effect.length3(), 208.0f);
+    EXPECT_FLOAT_EQ(effect.weight3(), 0.16f);
+}
+
+TEST(DirectionalGlowEffectContractTest, CustomAnglesSwitchPatternAndIgnoreNonFinite)
+{
+    DirectionalGlowEffect effect;
+    effect.setPattern(StreakPattern::Horizontal);
+    effect.setCustomAngles({30.0f, std::numeric_limits<float>::quiet_NaN(),
+                            120.0f});
+
+    EXPECT_EQ(effect.pattern(), StreakPattern::Custom);
+    ASSERT_EQ(effect.customAngles().size(), 2);
+    EXPECT_FLOAT_EQ(effect.customAngles()[0], 30.0f);
+    EXPECT_FLOAT_EQ(effect.customAngles()[1], 120.0f);
+}
