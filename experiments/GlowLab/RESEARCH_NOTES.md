@@ -1,10 +1,12 @@
 # Image Light Effects R&D Notes
 
-**最終更新:** 2026-11-12
+**最終更新:** 2026-11-24
+
+The five capture sets preserved from the November 2 development branch are available in the [archived Glow Lab captures](https://github.com/lagmajin/ArtifactStudio/tree/6f7b7c6f1e3d4f9b908e74291286887bc61e111f/experiments/GlowLab/captures).
 
 ## 2026-11-11 — Edge Bloom contour response and Reactive Glow saturation response
 
-**方法:** Installed-effect CPU captures used the same 960×540 synthetic neon plate and matched Threshold (.65), Radius (8), amount/intensity (.35), and independent source pixels. Edge Bloom varied only Edge Boost (.15/.8); Reactive Glow varied only Saturation Weight (.1/.8), with Reaction .8 and Tint Mix .18 fixed. Four outputs, property readback, common-source hashes, and an aspect-preserving contact sheet are in `captures/glow-edge-reactive-role-probe-neon-cpu-rd3/`; profile: `glow_edge_reactive_role_probe_rd3.json`.
+**方法:** Installed-effect CPU captures used the same 960×540 synthetic neon plate and matched Threshold (.65), Radius (8), amount/intensity (.35), and independent source pixels. Edge Bloom varied only Edge Boost (.15/.8); Reactive Glow varied only Saturation Weight (.1/.8), with Reaction .8 and Tint Mix .18 fixed. Four outputs, property readback, common-source hashes, and an aspect-preserving contact sheet are in [captures/glow-edge-reactive-role-probe-neon-cpu-rd3/](https://github.com/lagmajin/ArtifactStudio/tree/6f7b7c6f1e3d4f9b908e74291286887bc61e111f/experiments/GlowLab/captures/glow-edge-reactive-role-probe-neon-cpu-rd3); profile: `glow_edge_reactive_role_probe_rd3.json`.
 
 **結果:** Raising Edge Boost from .15 to .8 increased full-frame mean linear-luma change from .00106 to .00218 and newly clipped channels from .152% to .494%. Raising Reactive Saturation Weight from .1 to .8 increased the corresponding mean change from .000275 to .00155 and clipping from .025% to .451%. Alpha remained identical in all captures. At the contact-sheet's amplified difference scale, Edge Bloom reads as a more neutral contour/edge lift, while Reactive Glow adds more source-colored halo around the saturated ring, text, and tube. This is a role-separation signal on this fixture, not proof of aesthetic quality or transfer to photos.
 
@@ -837,7 +839,7 @@ For Still Light Leak, additionally compare the Core CPU API, Artifact CPU refere
 
 ## 2026-11-11 — Seven standalone Glow-family roles on one CC0 city photo
 
-**方法:** provenance-recorded `cc0-neon-streets-1536.jpg`を共通入力にし、各familyをidentity inputから1 effectだけ適用してArtifactUiTest installed CPU pathで撮影した。Edge Bloom、Reactive Glow、Chromatic Glow、Directional Glow、Physical Halation、Luminescence Caustics、4-ray Glintの7設定を使用。source / output hash、properties sidecar、全体contact sheet、交差点・上部灯火・下部サインの3つの手動等倍ROIを保存。profileは`glow_suite_family_city_singletons_rd1.json`、captureとreviewは`captures/glow-suite-family-city-singletons-rd1/`。
+**方法:** provenance-recorded `cc0-neon-streets-1536.jpg`を共通入力にし、各familyをidentity inputから1 effectだけ適用してArtifactUiTest installed CPU pathで撮影した。Edge Bloom、Reactive Glow、Chromatic Glow、Directional Glow、Physical Halation、Luminescence Caustics、4-ray Glintの7設定を使用。source / output hash、properties sidecar、全体contact sheet、交差点・上部灯火・下部サインの3つの手動等倍ROIを保存。profileは`glow_suite_family_city_singletons_rd1.json`、captureとreviewは[captures/glow-suite-family-city-singletons-rd1/](https://github.com/lagmajin/ArtifactStudio/tree/6f7b7c6f1e3d4f9b908e74291286887bc61e111f/experiments/GlowLab/captures/glow-suite-family-city-singletons-rd1)。
 
 **結果:** 7 captureは同じ入力hash、1536×1025、alpha MAE 0。full-frame new clipはEdge .688%、Reactive .421%、Chromatic .796%、Directional 1.068%、Halation .185%、Caustics .422%、Glint 1.160%。3 ROIの最大new clipはそれぞれ3.190%、2.231%、3.863%、4.652%、.920%、1.645%、5.345%。交差点ROIでは赤い拡散(Halation)、輪郭の細い構造(Caustics)、長い筋(Direction)、色分離(Chromatic)が差分像で異なる。縮小contactだけでは差が弱く、source / output / x4差分の等倍ROIが役割の判断に必要。contactは`review/family-city-singletons-contact.jpg`、詳細は`review/family-city-singletons-intersection-practicals.jpg`など3 ROI sheet。
 
