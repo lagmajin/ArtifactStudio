@@ -1,6 +1,48 @@
 # Milestones Backlog
 
-**最終更新:** 2026-10-11
+**最終更新:** 2026-11-20
+
+### Motion Handoff / Match Cut（モーション受け渡し）
+- **M-MOTION-HANDOFF-1** カット地点をまたぐ終端速度の受け渡し（Not Started / メモのみ）
+  - 構想: 前レイヤーの終端キーから瞬間速度を求め、後続レイヤーの先頭へ同じ初速のキーを挿入する。カット前後の動き速度を揃え、タイポグラフィやループの継ぎ目を目立たなくする。AE の Pick Whip（恒久リンク）とは異なり、**一度きりの値移送**で結果は通常の編集可能なキーとして残す
+  - 既存の材料: キー列と `InterpolationType`、`SetLayerPropertyKeyframesCommand` / `TimelineKeyframeSnapshotCommand`（`Artifact/include/Undo/UndoManager.ixx`）、複数レイヤーを1 Undo にまとめる `MacroUndoCommand`（同 :1640）。新規シグナル／スロットは不要
+  - 最小スコープ: 同一プロパティの隣接レイヤー2枚、送り側の末尾2キーから `(値差)/(フレーム差)` で速度算出、受け側の in-point に速度シードkeyを2点挿入、倍率係数（減速）を指定可能。UI はタイムラインのカット位置右クリック導線を想定
+  - 受入れ候補: 送り側終端速度と受け側初速が一致（倍率1.0）、倍率0.5で半速、逆再生／シーク後も結果が同一、Undo/Redo と保存／再読込でキーが復元、送り側にキーが無い場合の安全な no-op
+  - 対象外: 型安全な恒久リンク（Pick Whip）、カット位置の自動検出、シミュレーション由来の速度、レンダラ／GPU 経路の変更
+  - 未検証: 既存キー表現でのタンジェント一致的精度、倍率係数の妥当な既定値、実機 UI 導線。詳細仕様は未作成
+
+### Cinematic Looks 画像補正 R&D
+- **M-LOOKS-RND-1** cinematic look の静止画評価（In Progress: rd0修正前、rd1 Tritone式更新後、rd2 Tritone alpha wrapper更新後のsource-mirrorを5素材で記録。3 familyの名前付きpreset選択、Composition concrete-effect restore（重複instance suffix対応）、Tritone HLSL/premultiplied-alpha wrapperとLUT CPU premultiplied-alpha wrapperを実装。Tritone mirror差0、alpha差は最大1.2e-7。LUT alpha fixture mirror差は最大2.3e-16未満（旧式最大1.321154）。shader/runtime未確認。HDR、人手画質/gate/C++ differential/runtime parityは未検証。外部LUT file browserの部分実装とは別件）
+  - 既存 BuiltinLUTs と未接続の Looks browser preset 定義を区別し、決定論 chart と provenance 済み CC0 photo で応答・色/階調・細部・強度・性能を比較する。RD0で人物／肌・森林・夜景の素材カテゴリを確保した
+  - 未確定ゲートを人の baseline review 後に固定し、候補比較と実アプリ経路の証拠を分けて記録する。R&D は UI・新規 LUT・既定値の実装承認ではない
+  - 詳細: `docs/planned/MILESTONE_CINEMATIC_LOOKS_RND_2026-11-16.md`
+
+### Offline UI 操作・キャプチャ
+- **M-UI-OFFLINE-1** オフライン・不可視 UI 操作／キャプチャ基盤（In Progress: hidden launcher、widget / GPU frame capture入口。runtime未検証）
+  - Windows desktop window に依存せず、Artifact の実 widget tree をローカル action から操作し、widget / renderer capture・状態・ログを保存する
+  - Qt widget capture と Diligent GPU viewport capture を別 lane として段階導入し、各 lane の制約と再現条件を manifest 化する
+  - 詳細: `docs/planned/MILESTONE_OFFLINE_UI_AUTOMATION_2026-11-13.md`
+
+### Shader Graph R&D / Core Promotion
+- **M-SHADER-GRAPH-RD-1** Blender-style 3D material shader graph の評価と段階的 Core 昇格（In Progress: source-only dynamic prototype、typed IR sidecar、per-node optional socket default/schema v3、CPU/GPU capture source。Core統合・shader compile/runtime画像評価は未検証）
+  - 既存 `ArtifactCore::ShaderNode::NodeGraph`、`ArtifactShaderGraphWidget`、`Material::materialGraphJson`、3D Raster shader 接続を基準実装として扱い、独立再実装しない
+  - R0: graph schema／pin type／cycle・型検証／HLSL lowering／Material Output・fallback／保存互換性を静的監査。R1: deterministic fixtureと画像評価を追加し、既定Principled parity、ノード別応答、エラーfallback、保存往復を比較。R2: D3D12／Vulkan runtime・shader compile・GPU費用を測定。R3: 安定した値型 graph IR／validator／backend-neutral lowering APIをCore候補として抽出し、UI・Qt・GPU device所有をCoreから分離する
+  - **画像評価計画:** baselineは現行固定Principled Raster出力と既存graph無効時出力。素材はUV checker＋球／平面、base color・metallic・roughness・normal・opacityの境界、HDR emission、透明背景を含む決定論fixture（出所・hash・seedを記録）。linear HDR float／同一露出・表示変換／同一alpha association／固定解像度で記録する。全体と境界・ハイライト・透明縁cropを目視し、分布（RGB/alpha、非有限・clip率）、baseline差分（MAE/RMSE/p99/max、閾値超過率）、ノード応答曲線、境界漏れを測る。Principled既定値はbaselineと許容差をR1比較前に確定し、任意グラフは期待応答を明記。時間安定性は静的グラフでは対象外（アニメーション値・動的入力導入時に追加）。Preview/final、D3D12/Vulkanを評価し、GPU時間・CPU compile時間・PSO/cache churn・VRAMをbaseline比較する。環境未使用は未検証。
+  - 合格ゲート: deterministic serialization/hash、cycle・不正pin拒否、unknown node/versionの安全なfallback、Principled baseline parity、save/reload、RHI両backend shader compileと画像応答、steady-state resource churnなし、compile/cache性能予算が証跡付きで成立してからCore API昇格を提案する。未達は未検証として残し、製品採用と表現しない
+  - Core昇格時は独自コンテナを優先し、現在の`std::vector`／`unique_ptr`・Qt JSON依存をそのまま移植しない。初期R&Dでは本番Renderer、既定材質、RT、UIを変更しない。製品統合はゲート通過後の別段階
+  - 詳細: `docs/planned/MILESTONE_SHADER_GRAPH_RND_2026-11-13.md`
+
+### Fog / Atmospheric Scattering R&D
+- **M-FOG-RD-1** Fog・大気散乱の方式比較（In Progress: source audit・CPU積分／画像fixture・GPU式mirror診断・cloud/light fog積分監査・局所fog froxel CPU proxy・light count・depth slice・camera temporal・XY tile・Gaussian/fine/hard-boundary volume・subsample injection・grid/integration convergence・interval oracle・single/multi-box coverage・Gaussian optical-depth probes・球状大気single-scattering参照）
+  - 既存CPU AtmosphereFog、GPU height fog試作、cloud shader内fogを区別し、linear HDR/depth契約を固定した決定論的fixtureでuniform／analytic height／raymarch height／single scattering／froxel／大気LUTを段階評価する
+  - 画質・数値誤差・GPU時間・memoryを比較して用途別の採用方式を提案する。runtime統合、UI、既定値変更はこのR&Dの対象外
+  - 詳細: `docs/planned/MILESTONE_FOG_ATMOSPHERIC_SCATTERING_RD_2026-11-12.md`
+
+### Professional Depth of Field Effect R&D
+- **M-DOF-RND-1** プロ向け被写界深度エフェクトの R&D（In Progress）
+  - 既存 GPU camera DoF、2.5D layer 近似、Deep CPU DoF を別経路として評価し、再現 scene pack で focus fidelity、occlusion／halo、bokeh、alpha/HDR、temporal stability、performance、backend parity を検証する
+  - R0 baseline → R1 画質ベンチマーク → R2 アルゴリズム候補比較 → R3 実装計画・受入契約の順に進め、調査結果なしに production renderer を広く変更しない
+  - 詳細: `docs/planned/MILESTONE_DOF_PROFESSIONAL_EFFECT_RND_2026-11-10.md`
 
 ### MPM 2D Granular Sand
 - **M-MPM-SAND-1** MPM顆粒砂シミュレーション（In Progress）
@@ -46,11 +88,54 @@
   - OIIO、Asset System、Static Layer GPU Cache 等の既存計画を再実装せず、`ArtifactImageLayer` の end-to-end 完成責任を持つ
   - 詳細: `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`
 
-- **M-IMG-LAYER-1** 単一画像レイヤー化（Not Started）
+- **M-IMG-LAYER-1** 単一画像レイヤー化（In Progress: Phase 0A standalone CLI を実装済み。Phase 0 の受入素材・モデル境界とアプリ統合は未着手）
   - 一枚の静止画から前景候補・背景・補助要素を解析し、マスク付きの通常画像レイヤーへ変換する
   - 既存の画像バッファ、LayerMask、RotoBrush／AI基盤、GPU cutout、保存／再読込経路を再利用し、推定画素と元画像由来の画素を区別する
   - 動画・連番・時間伝播・完全な隠し領域復元は対象外とする
   - 詳細: `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md`
+
+
+
+### Still Image / Super Resolution R&D
+
+- **M-IMG-UP-RD-1** 静止画アップスケーラ（超解像）の方式比較（In Progress: rd0 実行済みで classical control とゲート baseline を実測。学習モデル比較は重み未入手で未着手）
+  - 現行リサンプル（bilinear / bicubic / Lanczos4）と「bicubic + シャープ」を control とし、学習型超解像がディテール・エッジ・色・時間安定性・コストを改善するか、何を壊すかを決定論 fixture で比較する
+  - 対象は静止画 1 枚・連番 5 フレーム・×2 / ×4・straight alpha の縁。製品 GPU 経路、OCIO、HDR、動画、DirectML、VRAM 計測は対象外（未検証として記録）
+  - R0: fixture 生成と control 計測、ゲート確定、証跡整備（rd0, 実行済み）→ R1: 学習モデル比較（rd1）→ R2: 連番・alpha・解像度・性能（rd2）→ R3: 採用／不採用判断と後続実装の受入条件（rd3）
+  - **画像評価計画:** `experiments/UpscaleLab/EVALUATION_PLAN.md` に登録済み。baseline 計測後に相対ゲートを確定し、学習モデル実行前に固定する。捏造ディテールは数値判定不能のため、人間の視覚レビュー未実施の候補は合格扱いにしない
+  - rd0 実測: chart ×2 で bicubic PSNR 28.92 / SSIM 0.9976 / OKLab ΔE 0.0099、step edge rise 0.60→1.24、リンギング 0.0、noise_fine σ 比 0.38。Lanczos4 はリンギング 5.8%（×2）/ 9.0%（×4）、bicubic+unsharp は rise 0.78 まで改善するがノイズ σ 比 0.61
+  - **ゲート改訂（承認済み）:** alpha 合成誤差の絶対ゲート（2/255）は bicubic baseline 自体が max 60.5（×2）で超過し識別力が無いため、同一倍率の `baseline_bicubic` 比（band mean +1.0 code、band max 1.25 倍）へ変更。前後値は `captures/rd0/gates.json` の `gate_revision`
+  - 製品コードは変更しない。モデル重みはリポジトリに含めず、出所・ライセンス・SHA-256 を `MODELS.md` と manifest に記録する
+  - 詳細: `docs/planned/MILESTONE_UPSCALER_SUPER_RESOLUTION_RD_2026-11-15.md`
+
+### AI Matte / Still Image R&D
+
+- **M-IMG-MATTE-RD-1** AI マット抽出（静止画レイヤー化）の方式比較（In Progress: rd0〜rd5 実行済み。学習モデル 3 本 + 併用経路 2 種 + refinement 3 種、ゲート合格 0/8）
+  - GT alpha が既知の合成 8 fixture（AA 円・髪状細線・ガラス・細ワイヤ・獣毛境界・ソフトシャドウ・グリーンスクリーン・CC0 実写合成）で、二値マスクが破綻する境界と半透明を測る
+  - classical baseline は GrabCut（矩形）/ GrabCut（GT trimap oracle）/ chroma key / Otsu luma。oracle は合格判定に使わない
+  - 指標は SAD / MSE / Gradient / Connectivity、境界帯 MAE、半透明 MAE、軟らかさ、複数背景合成誤差、color spill、runtime
+  - R0: fixture と baseline 計測、ゲート確定（rd0, 実行済み）→ R1: 学習モデル比較（rd1）→ R2: 実写合成・境界・spill・性能（rd2）→ R3: 採用／不採用判断と後続実装の受入条件（rd3）
+  - rd0 実測: 二値マスク系は部分 α 率 0.000。境界帯 MAE は `hair_strands` 0.672 / `soft_shadow` 0.459、GT trimap oracle でも 0.091 / 0.130 でゲート 0.05 に届かない。半透明 MAE は baseline 0.29〜0.64。chroma key は `green_screen` のみ有効（SAD 4.17）
+  - **ゲート改訂（承認済み）:** 軟らかさ比は baseline が 0 で比が定義できず、GT 部分 α の回収率 0.50 以上（±0.1）へ変更。合成誤差は `grabcut_rect` 比（band mean +1.0 code、band max 1.25 倍）へ変更。前後値は `captures/rd0/gates.json` の `gate_revision`
+  - rd1 実測（U2Net・320×320・CPU 1 スレッド、`captures/rd1/`）: ゲート合格 0/8。境界帯 MAE 8/8 不合格（0.079〜0.568）、半透明 MAE 8/8 不合格（0.23〜0.61）、部分 α 回収は `hair_strands` 0.290 / `fur_edge` 0.206 で 0.50 未達。SAD は 5/8 で 40% 改善するが、`hair_strands` 予測 α 平均 0.015・`photo_composite` 0.013 とほぼ空マスクのため改善は見かけ。`soft_shadow` は実際に改善（0.459 → 0.140、灰色背景合成 mean 27.6 → 8.4）
+  - rd2 実測（`--derive-trimap`、`captures/rd2/`）: U2Net の α を trimap にして GrabCut へ渡す経路は、モデルが前景を出している画（`disc_aa` / `fur_edge`）で退行を戻す（SAD 0.94 → 0.34、境界帯 0.079 → 0.029 / SAD 1.26 → 0.92）。ただし確実前景率が 0 の `hair_strands`・`photo_composite` では空マスクをそのまま継承し、改善しない。未知帯は全画素の 0.8〜1.9% しかなく「未知帯だけ軟らかさを残す」効果はほぼ無い。3 候補ともゲート合格 0/8、半透明 MAE は依然 8/8 不合格
+  - rd3 実測（MODNet 追加、`captures/rd3/`）: `disc_aa` で境界帯 MAE 0.017・半透明 MAE 0.075・部分 α 回収 0.693 と、事前登録ゲートのうち 2 つを初めて満たした（SAD は 27% 改善で未達、connectivity も未達）。ただし MODNet は人物 matting 用で `hair_strands` / `soft_shadow` の予測 α 平均は 0.000、`fur_edge` / `green_screen` は GrabCut より悪化。3 モデルともゲート合格 0/8
+  - rd4 実測（BiRefNet 512 追加、`captures/rd4/`）: SAD は 7/8 で `grabcut_rect` 比 40% 以上改善し、境界帯 MAE ゲート 0.05 を `disc_aa`（0.011）と `fur_edge`（0.0496）で満たした。部分 α 回収は 0.546 / 0.358 / 0.345 で 0.50 未達、半透明 MAE は `glass_panel` 0.552 で全モデル不合格。3 モデルとも fixture 合格 0/8
+  - rd5 実測（guided filter refinement、`captures/rd5/`）: U2Net（320 入力）は `disc_aa` で SAD 0.94 → 0.34、境界帯 0.079 → 0.027 と大きく回復し、raw の劣化が拡大ぼけ由来だったことを示す。BiRefNet は `hair_strands` で SAD 9.69 → 7.46・部分 α 回収 0.345 → 0.464 だが、`disc_aa` 0.13 → 0.19、`fur_edge` 0.68 → 0.78 と既に良い境界を壊す。eps は 0〜1 スケールで無効、radius は 2 が最良。6 候補とも合格 0/8
+  - **画像評価計画:** `experiments/MatteLab/EVALUATION_PLAN.md` に登録済み
+  - 製品コードは変更しない。モデル重みはリポジトリに含めず、出所・ライセンス・SHA-256 を `MODELS.md` と manifest に記録する
+  - 詳細: `docs/planned/MILESTONE_AI_MATTE_EXTRACTION_RD_2026-11-15.md`
+
+### Spatial Denoise R&D
+
+- **M-IMG-DENOISE-RD-1** 静止画・連番の空間デノイズ方式比較（In Progress: rd0 実行済み。古典 6 候補 × 3 ノイズモデル、判定 0/15、ゲート 2 件の不備を検出して承認待ち）
+  - 製品には `Artifact/src/Effects/Rasterizer/TemporalDenoiseEffect.cpp`（フレーム履歴型）だけがあり、1 枚の絵を空間フィルタで整える経路が無い。高 ISO 静止画・低照度素材・未収束 CG ノイズを対象に、既知 clean への再構成誤差とディテール保持を同時に測る
+  - R0: fixture（合成チャート 1536×1024、CC0 実写 1 枚）と 3 ノイズモデル、古典 6 候補、ゲート確定（rd0, 実行済み）→ R1: 適応 h・luma/chroma 分離・guided 系の比較（rd1）→ R2: 実写追加・解像度・連番安定性・GPU コスト（rd2）→ R3: 採用／不採用判断と受入条件（rd3）
+  - **画像評価計画:** `experiments/DenoiseLab/EVALUATION_PLAN.md` に登録済み。ゲートは `baseline_raw` 比で事前登録した
+  - rd0 実測: チャート PSNR（fine/strong/lowlight）は raw 33.35 / 24.63 / 18.69 に対し `nlm_light` 42.36、`bilateral` 39.42、`nlm_strong` 35.32。ただし固定 h の NLM は `flat_dark`（値 26）で σ 比 0.998 と暗部でほぼ無効（`flat_mid`/`flat_light` は 0.14）。`median3` / `gaussian_s1` は 1px 細線のコントラストを 26〜29% まで破壊し、エッジ保存系は 0.99〜1.01 を維持。連番の平坦平均 luma 標準偏差は fine で raw 0.032 に対し `nlm_strong` 0.091（2.84 倍）
+  - **ゲート改訂（承認待ち、未適用）:** `ramp_max_adjacent_step_codes`（≤2 code）は control 自身が 3.6/5.8/11.3 で超過し識別力が無い。`delta_e_improvement_min`（≥0.5）はスケール誤り（control の ΔE は 0.017〜0.109）。前後案は `captures/rd0/gates.json` の `gate_review`
+  - 製品コードは変更しない。人間の独立した視覚レビューは未実施
+  - 詳細: `docs/planned/MILESTONE_SPATIAL_DENOISE_RD_2026-11-15.md`
 
 ## Next Walk TODO: Still Image and Production Workflow
 
@@ -2154,3 +2239,30 @@ active milestone の重複名としては扱わない。
 - 詳細は `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md`
 - Update 2026-08-15: 完了文書と現行コードで stop／cancelPendingDecode、generation invalidation、seek前cancel、stale completion排除を確認。roadmap上は完了、専用unit coverageとruntime受入のみ追跡対象。
 - **完了確認（Update 2026-09-19）**: `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` のroadmap closureと、stop／cancelPendingDecode、generation invalidation、seek前cancel、stale completion排除を再確認した。専用unit coverageは追跡対象だが、製品マイルストーンは完了扱いとする。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Image-to-Image Color Matching R&D
+- **Core契約実行:** 2026-11-17、Visual Studio 18 Debugで既存targetをbuildし、RD24追加後も10/10 GoogleTest pass。追加5ケースは固定小fixture、ColorChecker Core/float32 mirror比較、portrait synthetic cast経路一致、実CoreのRD22 165行・RD23 9行・RD24 27行測定。RD24はMiddlebury登録済みCanon EOS 20D WB1固定tungsten/WB2 auto-WB chart pairのskin-tone proxy 2 patch/white 1/neutral gray 5を中央60×60px ROIで測定。強度1のWB2への平均ΔE76はskin proxyでReinhard/MeanStddev/Histogramが6.88/3.00/1.67、白色票が3.02/3.10/1.26、neutral grayが4.49/2.41/2.24。WB2は測色ground truthではなく、人肌/自然白でもないため記述値に留める。RD9 testのcombined-skin C*abはsource 14.23、合成target 11.77、MeanStddev 11.75 / Histogram 11.78 / Reinhard 12.71。RD23は別CC0 portraitの顔候補ROI 25,913 pixelを3方式×強度0/0.5/1の9条件で実Core測定。さらにCore raw-buffer `match()`のDebug単回 timing（warm-up1＋各7 sample、source restore/IO除外）は1280×851で中央値43.93/14.28/217.06ms、1536×1024で58.08/21.53/326.27ms（Reinhard/MeanStddev/Histogram）。製品budget・Release/GPU・memoryを示す値ではない。いずれも方式順位・許容肌変化・品質合格ではない。ブラウス候補は実測白でなく、自然肌・実白の品質証拠は未取得。2 ΔE cutoffは記述用。詳細はRD22/RD23/RD24 captures。
+- **データ候補監査:** York/Adobe Rendered WB は技術的には有力だが、提供ページがpost-capture WB評価以外の目的・reasonable academic fair useと明記するため、書面許諾まで製品R&D利用から除外する。詳細は評価計画とマイルストーンを参照。
+- **取得フォールバック:** 外部素材の権利が確定しない場合に備え、同一RAWからWBのみ異なるsource/referenceを生成し、測色済み中立・白素材と同意済み人物を撮る社内撮影プロトコルを評価計画へ記録（未撮影）。
+- **M-IMG-COLOR-MATCH-RD-1** 画像間色合わせにおける肌色・白保持の評価（In Progress: synthetic chart rd0、CC0 portrait cast recovery rd1、neutral axis／Histogram境界・面積対照rd2–4、contract-vector mirror照合rd5、Middlebury ColorChecker WB pair rd6と自然風景RAW/JPEG rd7、肌/白Lab色相・彩度分解rd8、CC0実写portrait合成cast rd9、手動肌/柄物白布ROI strength tradeoff rd10、3方向・3強度cast感度rd11–12、透明画素hidden-RGB出力および面積感度rd13–14、transfer/HDR値域rd15–16、白ROI reject/採用rd17–18を記録。ISSAは画像pairでなくitem-level terms未確認のため未取得。DASTは肌露出stress-test候補として条件を事前固定したが、DAST-EX consentはdataset license agreementを要求。派生画像・ROI・metricsの製品R&D利用条件、example archive terms、測色spotの画像座標対応が未確認のため未取得。静的全repo検索ではapplication callerなし。PPR10K/FiveK/York-Adobe WB datasetは非商用・研究限定で除外、PolyU facial setおよびColor Constancy Using Facesは利用条件未確認で未取得。PolyU 2025は1,299 dual-illuminant face imagesを説明するがpixel illuminant map/修正target imageなし。global matcherの混合照明stress候補に限定し、許諾・照明/色票対応・ROI条件が確認できるまで不採用。Core 9/9契約テストとMiddlebury 606×404 ColorChecker pairの3方式×3強度Core/image-overload対float32 mirror比較はpass（肌tone chart proxyのみ）。float64旧Histogram mirrorとの差を解消しRD6/RD8 manifestを再検証。実撮影portrait+neutral/WB pair、明示的利用条件、解像度別比較、実経路性能、独立ROI注釈、測色済み実白、盲検視覚gateは未実施。時間安定性はstill-image範囲外、sequence適用は別ゲート）
+  - 既存 `ArtifactCore::AutoColorMatcher` の Reinhard / MeanStddev / Histogram を、無変更source baselineおよび合成chart referenceと区別して比較し、強度別の色移動と肌・中立白の保持を調べる
+  - ライセンスとprovenanceを確認した複数portrait／非portrait素材、レビュー済みROI、固定色・alpha条件を用意し、候補比較前に人手視覚レビューとbaselineから許容gateを固定する
+  - synthetic offline control / cast recovery / neutral-axis response のfixtureとROI別統計は `experiments/ColorMatchLab/`。いずれもCore出力や自然写真の画質を示すものではない
+  - **画像評価計画:** `docs/planned/MILESTONE_COLOR_MATCH_SKIN_WHITE_RND_2026-11-16.md`。品質評価開始条件、ROI指標、alpha・細部・性能評価、完了条件を規定。製品UI・runtime統合・既定値変更は対象外

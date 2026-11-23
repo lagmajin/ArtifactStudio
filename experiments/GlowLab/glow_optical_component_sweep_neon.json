@@ -1,0 +1,38 @@
+{
+  "intent": "Isolate primary optical halo from the secondary afterglow, streak, and atmosphere components; exploratory only.",
+  "profiles": {
+    "primary-halo-only": {
+      "threshold": 0.4,
+      "softKnee": 0.3,
+      "radius": 8.0,
+      "intensity": 0.55,
+      "afterglowRadius": 20.0,
+      "afterglowIntensity": 0.0,
+      "streakStrength": 0.0,
+      "atmosphere": 0.0,
+      "warmth": 0.0
+    },
+    "secondary-only": {
+      "threshold": 0.4,
+      "softKnee": 0.3,
+      "radius": 8.0,
+      "intensity": 0.0,
+      "afterglowRadius": 20.0,
+      "afterglowIntensity": 0.25,
+      "streakStrength": 0.2,
+      "atmosphere": 0.1,
+      "warmth": 0.2
+    },
+    "restrained-stack": {
+      "threshold": 0.4,
+      "softKnee": 0.3,
+      "radius": 8.0,
+      "intensity": 0.55,
+      "afterglowRadius": 20.0,
+      "afterglowIntensity": 0.12,
+      "streakStrength": 0.08,
+      "atmosphere": 0.04,
+      "warmth": 0.1
+    }
+  }
+}

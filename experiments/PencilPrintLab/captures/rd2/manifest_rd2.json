@@ -1,0 +1,96 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd2",
+  "stage": "descriptor_safe_comparison",
+  "date": "2026-11-17",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "seed_base": 20263118,
+  "blind_seed": 20263618,
+  "outputs": {
+    "alpha_boundary_small_v1_pp_a": {
+      "npy": "alpha_boundary_small_v1_pp_a.npy",
+      "npy_sha256": "3927d1e1a0f567660059d46d796c55f41f3b7dd109c52604a437edfe4f0e8916"
+    },
+    "alpha_boundary_small_v1_pp_b": {
+      "npy": "alpha_boundary_small_v1_pp_b.npy",
+      "npy_sha256": "420ab90015e80218243deaaceae5379d6417809f1007f0742cc394dfabfc6ead"
+    },
+    "alpha_boundary_small_v1_pp_c": {
+      "npy": "alpha_boundary_small_v1_pp_c.npy",
+      "npy_sha256": "c5be17ebaf7d8bf3ae5af7799272559d7304b0b2531e387bc532969d78a328eb"
+    },
+    "alpha_boundary_small_v2_pp_a": {
+      "npy": "alpha_boundary_small_v2_pp_a.npy",
+      "npy_sha256": "0b8f8b4732c3efa096beec03eebdc07804346bbceccef01b01f6a8dac9756a12"
+    },
+    "alpha_boundary_small_v2_pp_b": {
+      "npy": "alpha_boundary_small_v2_pp_b.npy",
+      "npy_sha256": "4f64901921f07fba8e6001a0423641efc204e9c26b4bde180fdbd2f643ea46d1"
+    },
+    "alpha_boundary_small_v2_pp_c": {
+      "npy": "alpha_boundary_small_v2_pp_c.npy",
+      "npy_sha256": "65ff75772334d88957c11893e4c3abfec4bb380d8dc8700670041414ecdec2f7"
+    },
+    "alpha_boundary_large_v1_pp_a": {
+      "npy": "alpha_boundary_large_v1_pp_a.npy",
+      "npy_sha256": "990d649bc92e03359f2ca2d1e57a03051bd4acffb44cafaa19715fea4ed9c95f"
+    },
+    "alpha_boundary_large_v1_pp_b": {
+      "npy": "alpha_boundary_large_v1_pp_b.npy",
+      "npy_sha256": "38e92428ddc01c507073895436026bbe19fe8174e9f42bb72f323495225962c9"
+    },
+    "alpha_boundary_large_v1_pp_c": {
+      "npy": "alpha_boundary_large_v1_pp_c.npy",
+      "npy_sha256": "7b00161ee407c610da94f294c170ab2058de59686705dd2eaa6bf5d5bdbc85f1"
+    },
+    "alpha_boundary_large_v2_pp_a": {
+      "npy": "alpha_boundary_large_v2_pp_a.npy",
+      "npy_sha256": "d36bd689e46dfacbde2d05ccfc6f1f75874d81a158c252a95484574f1facaaef"
+    },
+    "alpha_boundary_large_v2_pp_b": {
+      "npy": "alpha_boundary_large_v2_pp_b.npy",
+      "npy_sha256": "8a47892f32e52e7a7a2172d82c4f6858f4cad2911e951f87b2403e035671a570"
+    },
+    "alpha_boundary_large_v2_pp_c": {
+      "npy": "alpha_boundary_large_v2_pp_c.npy",
+      "npy_sha256": "e82920aeea0679029e98c817e7a009e5443dd4c35ee60ff0693a16c13bf1cce0"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd2.json",
+      "sha256": "3eed8ffd3d35ea4de01c278f09b3e60d5cb1edc68f6c52ea61f036595c390d60"
+    },
+    "tables": {
+      "file": "review/RD2_TABLES.md",
+      "sha256": "a0a3994f59be02a93ff3f402a2b0eefc13f11b0940b62f18ad2ba70550c38be8"
+    },
+    "blind_sheet": {
+      "file": "review/rd2_v2_blind_sheet.png",
+      "sha256": "ba86aabd1c74c7b46d9190c775797735d13ad20bf1906f2becfb595d21cb7dda"
+    },
+    "blind_key": {
+      "file": "blind_key.json",
+      "sha256": "4144fe9306dc22375e94c3f8296462765d11941f9c363b1d365b3c53d4f9288c"
+    },
+    "form": {
+      "file": "review/CANDIDATE_BLIND_FORM.md",
+      "sha256": "f4b481c1bb1aef18abb36c100b642447decd42f90e7fa2ef583d6184523f4ae9"
+    }
+  },
+  "gates": "unset; no judgment or ranking performed",
+  "predecessor": "RD1 blind set uses v1 and is retained as history; do not use it as v2 evidence",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference artwork images",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

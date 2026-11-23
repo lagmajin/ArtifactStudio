@@ -1,0 +1,64 @@
+{
+  "plan_version": 1,
+  "plan_id": "match-grain-temporal-jitter-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Extend the four-frame Match Grain jitter model with a fixed-reference, 240-frame characterization of displacement scale, frame-to-frame change, wrap coverage, and output-resolution dependence across temporalJitter controls.",
+  "scope": {
+    "effect": "ArtifactMatchGrainEffect source equations for the named-reference Gaussian residual and frame-hash integer cyclic shift",
+    "method": "Independent Python/NumPy/OpenCV model from the inspected source. Use a deterministic synthetic multi-scale RGB reference and measure its Gaussian high-frequency residual after fixed resolution preparation.",
+    "included": ["source hash and float-to-int displacement equation", "temporalJitter values 0, .05, .1, .25, .5, 1", "frame keys 0..239", "512x256 and 1024x512 output grids", "continuous adjacent-frame displacement and residual change", "cyclic wrap coverage and static-source residual"],
+    "excluded": ["Artifact executable or compiled C++", "named-input sampler routing and reference import metadata", "actual playback clock, frame dropping, seek/reverse behavior", "motion interaction", "GPU/preview/final parity", "aesthetic acceptance", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "Same deterministic reference residual with temporalJitter=0, which should produce zero displacement and identical residual field on every frame.",
+    "candidates": ["temporalJitter .05, .1, .25, .5, and 1 at both output sizes; grainSize=1.15 and frame keys 0..239"],
+    "ground_truth": "None. The synthetic reference is a diagnostic texture, not a real film scan or approved temporal appearance target.",
+    "acceptance": "Descriptive source-model study only. Check exact source markers, deterministic regeneration, zero-jitter identity, periodic wrap equivalence, finite outputs, and report frame-to-frame displacement/residual statistics. No temporal quality pass threshold or product verdict."
+  },
+  "materials": {
+    "fixture": "Script-generated fixed 3-channel Float32 reference based on the same deterministic multiscale texture construction as match-grain-reference-transfer-r1; alpha opaque and unused by residual extraction.",
+    "rights": "Locally generated synthetic material; no external assets.",
+    "identity": "Metrics record source, plan, runner, reference residual and output checksums, dimensions, seed and libraries.",
+    "regions": {
+      "whole_frame": "All pixels of the synthetic residual field.",
+      "wrap_area": "Analytic fraction of output coordinates whose x or y lookup crosses a frame boundary after cyclic shifting."
+    }
+  },
+  "conditions": {
+    "resolution_wh": [[512, 256], [1024, 512]],
+    "frame_range_inclusive": [0, 239],
+    "frame_rate_for_duration_interpretation": "24 fps (10 seconds); source equation uses integer composition-frame key only.",
+    "reference_seed": 20261112,
+    "grain_size": 1.15,
+    "amount_luma_chroma_mix": [1.0, 1.0, 0.65, 1.0],
+    "shadow_highlight_response": [0.25, -0.2],
+    "temporal_jitter": [0.0, 0.05, 0.1, 0.25, 0.5, 1.0],
+    "fixed_source_luma_for_residual_output": 0.5,
+    "metrics": ["jitter x/y min, max, median absolute, p95 absolute, unique offset count", "adjacent-frame displacement vector distribution in pixels and as a fraction of the frame diagonal, plus zero-step rate", "adjacent residual luma correlation and delta RMSE", "predicted cyclic wrap coverage per frame", "temporalJitter=0 exact field identity", "known-offset reverse alignment RMSE", "finite-value count and residual/output range statistics"],
+    "display": "Contact sheet of mean-centered luma residuals for frames 0,1,2,3 at all temporalJitter values and 512x256; common fixed 4x residual gain. Metrics use Float32 arrays before display conversion."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_model_only", "method": "Match the uint32 creativeHash and C++ float32 arithmetic / truncation-toward-zero / modulo-wrapped coordinate lookup; compare source markers and exact zero-jitter identity.", "acceptance_criteria": "All markers true; deterministic offsets; zero jitter gives zero offset and identical field; known-offset reverse alignment returns the same source field within Float32 tolerance."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect the contact sheet and residual plots at native and enlarged scales; report motion of reference texture only.", "acceptance_criteria": "No aesthetic pass/fail, no claim that grain motion is undesirable."},
+    "color_and_alpha": {"status": "partial_luma_residual_only", "method": "Use luma projection of RGB residual for temporal statistics.", "unverified": "Colored source response, alpha association, reference descriptors and compositing."},
+    "temporal_stability": {"status": "source_model_only", "method": "Measure per-frame shifts and aligned/unaligned residual change for 240 static-source frames.", "unverified": "Playback scheduling, real-time frame cadence, motion interaction, seek/reverse, viewer perception."},
+    "render_paths_and_resolution": {"status": "source_equation_resolution_model_only", "unverified": "Compiled runtime, actual named input, preview/final output and GPU/backend behavior."},
+    "performance": {"status": "not_measured", "reason": "No product runtime or allocation profiling."},
+    "decision": "No effect quality acceptance, preferred jitter setting, or product integration decision."
+  },
+  "execution": {
+    "backend": "Python 3, NumPy, OpenCV, Pillow; offline equation model only.",
+    "threshold_policy": "Only exact model invariants use tolerances; no temporal-quality threshold.",
+    "reproducibility": "Fixed synthetic reference seed, source hash, frame range, dimensions, settings, library versions and SHA-256 manifest.",
+    "artifacts": "experiments/FilmEffectsLab/captures/match-grain-temporal-jitter-response-r1/"
+  },
+  "amendments": [
+    {
+      "date": "2026-11-12",
+      "reason": "The first report exposed a normalized-axis Euclidean step measure that could be misread as a fraction of the pixel-space frame diagonal.",
+      "change": "Report physical pixel displacement and an explicit pixel-space frame-diagonal fraction alongside the normalized-axis measure.",
+      "scope_effect": "Adds a clearly defined descriptive statistic; conditions, candidates, acceptance criteria, and prior results are unchanged. Regenerate the complete report."
+    }
+  ]
+}

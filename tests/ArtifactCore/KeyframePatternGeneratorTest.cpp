@@ -198,3 +198,98 @@ TEST(KeyframePatternGeneratorTest, TrajectoryFiltersNonFiniteSamplesAndResamples
         EXPECT_DOUBLE_EQ(result[index].value.y(), expected[index].y());
     }
 }
+
+TEST(KeyframePatternGeneratorTest, BeatGridDetectsTempoFromSyntheticEnergyEnvelope)
+{
+    // 100 Hz envelope, one pulse every 0.5 s -> 120 BPM -> 15 frames at 30 fps.
+    QVector<double> envelope(400, 0.0);
+    for (int i = 0; i < envelope.size(); i += 50) {
+        envelope[i] = 1.0;
+    }
+
+    BeatGridDetector::Config config;
+    config.minBpm = 60.0;
+    config.maxBpm = 180.0;
+    config.fps = 30.0;
+    config.frameScale = 24;
+
+    const BeatGrid grid = BeatGridDetector::detectFromEnergyEnvelope(envelope, 100.0, config);
+
+    ASSERT_TRUE(grid.valid());
+    EXPECT_NEAR(grid.bpm, 120.0, 2.0);
+    EXPECT_DOUBLE_EQ(grid.fps, 30.0);
+    EXPECT_EQ(grid.frameScale, 24);
+    EXPECT_DOUBLE_EQ(grid.framesPerBeat(), 15.0);
+    EXPECT_GT(grid.confidence, 0.0);
+    EXPECT_DOUBLE_EQ(grid.beatFrames.front(), 0.0);
+    for (qsizetype i = 1; i < grid.beatFrames.size(); ++i) {
+        EXPECT_NEAR(grid.beatFrames[i] - grid.beatFrames[i - 1], 15.0, 0.5);
+    }
+}
+
+TEST(KeyframePatternGeneratorTest, BeatGridQuantizesToNearestBeatAndHandlesEmptyGrid)
+{
+    BeatGrid grid;
+    EXPECT_FALSE(grid.valid());
+    EXPECT_DOUBLE_EQ(grid.quantizeFrame(37.0), 37.0);
+
+    grid.bpm = 120.0;
+    grid.fps = 30.0;
+    grid.beatFrames = { 0.0, 15.0, 30.0, 45.0 };
+    EXPECT_DOUBLE_EQ(grid.nearestBeatFrame(7.0), 0.0);
+    EXPECT_DOUBLE_EQ(grid.nearestBeatFrame(23.0), 30.0);
+    EXPECT_DOUBLE_EQ(grid.quantizeFrame(28.0), 30.0);
+}
+
+TEST(KeyframePatternGeneratorTest, MotionRecipeResolvesAllKindsToFiniteOrderedKeys)
+{
+    const MotionRecipeKind kinds[] = {
+        MotionRecipeKind::PopIn, MotionRecipeKind::SnapBack,
+        MotionRecipeKind::StaggerWave, MotionRecipeKind::BounceIn,
+        MotionRecipeKind::Wiggle, MotionRecipeKind::SpringFollow,
+        MotionRecipeKind::BeatPulse,
+    };
+
+    for (const MotionRecipeKind kind : kinds) {
+        MotionRecipe recipe;
+        recipe.kind = kind;
+        recipe.durationFrames = 18.0;
+        recipe.selectionIndex = 2;
+        recipe.seed = 91;
+
+        const auto result = MotionRecipeService::apply(
+            recipe, 0.0, 10.0, 6.0, 30.0, 24, nullptr);
+
+        ASSERT_FALSE(result.keyframes.keyframes.isEmpty());
+        double previous = -std::numeric_limits<double>::infinity();
+        for (const auto& keyframe : result.keyframes.keyframes) {
+            const double frame = static_cast<double>(keyframe.time.value());
+            EXPECT_GE(frame, previous);
+            previous = frame;
+            EXPECT_TRUE(std::isfinite(keyframe.value.toDouble()));
+            EXPECT_EQ(keyframe.time.scale(), 24);
+        }
+    }
+}
+
+TEST(KeyframePatternGeneratorTest, MotionRecipeAlignToBeatSnapsStartAndUsesGridBpm)
+{
+    BeatGrid grid;
+    grid.bpm = 120.0;
+    grid.fps = 30.0;
+    grid.beatFrames = { 0.0, 15.0, 30.0, 45.0 };
+
+    MotionRecipe recipe;
+    recipe.kind = MotionRecipeKind::BeatPulse;
+    recipe.durationFrames = 20.0;
+    recipe.alignToBeat = true;
+
+    const auto result = MotionRecipeService::apply(
+        recipe, 0.0, 1.0, 23.0, 30.0, 30, &grid);
+
+    ASSERT_FALSE(result.keyframes.keyframes.isEmpty());
+    EXPECT_DOUBLE_EQ(static_cast<double>(result.keyframes.keyframes.front().time.value()), 30.0);
+    // 20 frames rounds to two 15-frame beats.
+    EXPECT_DOUBLE_EQ(static_cast<double>(result.keyframes.keyframes.back().time.value()), 60.0);
+    EXPECT_TRUE(result.warning.isEmpty());
+}

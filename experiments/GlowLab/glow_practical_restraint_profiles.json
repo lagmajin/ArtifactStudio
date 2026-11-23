@@ -1,0 +1,68 @@
+{
+  "intent": "Test practical-local clipping restraint for three Glow roles; exploratory only, not accepted presets.",
+  "source": "captures/light-leak-neon-source.png",
+  "compute": "cpu",
+  "profiles": {
+    "edge-bloom-edgeboost-0p15-amount-0p25": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.25,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "edge-bloom-threshold-0p95-restraint": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.95,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.25,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "reactive-intensity-0p25": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.25,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      }
+    },
+    "optical-high-threshold-restraint": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.65,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.35,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.08,
+        "streakStrength": 0.05,
+        "atmosphere": 0.02,
+        "warmth": 0.1
+      }
+    },
+    "optical-threshold-0p50-restraint": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.5,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.35,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.08,
+        "streakStrength": 0.05,
+        "atmosphere": 0.02,
+        "warmth": 0.1
+      }
+    }
+  }
+}

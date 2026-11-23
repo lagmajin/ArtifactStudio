@@ -1,9 +1,23 @@
 # マイルストーン: ArtifactScript Language Evolution
 
-**最終更新:** 2026-10-09
+**最終更新:** 2026-11-17
 **ステータス:** In Progress
 **優先度:** High
 **関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md`(完了済みコア), `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md`, `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md`, `docs/planned/MILESTONE_AUTOMATED_TESTING_FOUNDATION_2026-08-21.md`
+
+## 進捗 2026-11-17 — 文字列／配列ユーティリティ追加（静的確認のみ）
+
+`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cpp` の組み込み関数に以下を追加した。いずれも既存の `argumentValues` 評価経路に乗せ、既存の UTF-8 byte offset 規約を維持する。
+
+- `toUpperCase(string)` / `toLowerCase(string)`: ASCII のみ変換（マルチバイト文字のバイト長を変えない）。引数は1つの文字列。
+- `trim(string)`: 既存のファイル内部 `trim()` を再利用し前後の ASCII 空白を除去。
+- `substring(string, start[, length])`: start は UTF-8 byte offset。省略時 length は末尾まで。範囲外・小数・負は診断。
+- `reverse(array)`: 要素を逆順にした**新しい配列**を返す（破壊的ではない）。
+- `sort(array)`: 既存 `evalBinary(Lt, ...)` を使う安定ソートの新しい配列。混在型の順序は既存の `<` 規則に依存する。
+- `slice(array, start[, end])`: 新しい部分配列。範囲外・小数・start>end は診断。
+- `range(start, end[, step])`: 数値の新しい配列。step は 0 を拒否、要素数上限 1,000,000。全引数が int64 なら要素も int64。
+
+実装は既存パターンに合わせ、結果配列は `reserve()` を1回だけ行う。参照 fast path（`stringReference`）は今回追加していないため、ホットパスでのアロケーション影響は未計測。ビルド・CTest は未実行（AGENTS.md 制約）。
 
 ## 進捗 2026-10-07
 

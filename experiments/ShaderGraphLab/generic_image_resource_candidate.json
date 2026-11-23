@@ -1,0 +1,1575 @@
+{
+  "documentStatus": "valid",
+  "selectedOutput": {
+    "nodeId": "combine",
+    "socketId": "result",
+    "valueType": "Vector4"
+  },
+  "activeNodeIds": [
+    "combine",
+    "image_sample",
+    "roughness_sample",
+    "uv"
+  ],
+  "resourceRequirements": [
+    {
+      "resourceKey": "artifact.shadergraph.image.image_sample",
+      "resourceId": "image.albedo",
+      "nodeId": "image_sample",
+      "resourceKind": "sampledTexture2D"
+    },
+    {
+      "resourceKey": "artifact.shadergraph.image.roughness_sample",
+      "resourceId": "image.roughness",
+      "nodeId": "roughness_sample",
+      "resourceKind": "sampledTexture2D"
+    }
+  ],
+  "resourceRequirementIdentitySha256": "9BBF97EE0DA84D700E68F257B6CD1436EC3B412FD6937C9F745CE7E1D7D8F9CE",
+  "assetResolutions": [
+    {
+      "resourceKey": "artifact.shadergraph.image.image_sample",
+      "resourceId": "image.albedo",
+      "assetId": "11111111-1111-4111-8111-111111111111",
+      "assetType": "Image"
+    },
+    {
+      "resourceKey": "artifact.shadergraph.image.roughness_sample",
+      "resourceId": "image.roughness",
+      "assetId": "33333333-3333-4333-8333-333333333333",
+      "assetType": "Image"
+    }
+  ],
+  "assetResolutionStatus": "resolved",
+  "unresolvedResourceKeys": [],
+  "resourceBindingStatus": "not-projected",
+  "resourceBindingKeySha256": null,
+  "runtimeStatus": "synthetic asset catalog lookup only; source revisions, samplers, UV/color binding, asset loading, and GPU sampling are not projected",
+  "runtimeBindingProjection": {
+    "resourceBindingStatus": "resolved",
+    "resolvedResourceBindings": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "nodeId": "image_sample",
+        "assetId": "11111111-1111-4111-8111-111111111111",
+        "assetType": "Image",
+        "sourceRevision": 1,
+        "sampler": {
+          "addressU": "repeat",
+          "addressV": "repeat",
+          "magFilter": "linear",
+          "maxAnisotropy": 1,
+          "minFilter": "linear",
+          "mipFilter": "linear"
+        },
+        "colorInterpretation": "srgb"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.roughness",
+        "nodeId": "roughness_sample",
+        "assetId": "33333333-3333-4333-8333-333333333333",
+        "assetType": "Image",
+        "sourceRevision": 7,
+        "sampler": {
+          "addressU": "repeat",
+          "addressV": "repeat",
+          "magFilter": "linear",
+          "maxAnisotropy": 1,
+          "minFilter": "linear",
+          "mipFilter": "linear"
+        },
+        "colorInterpretation": "linear"
+      }
+    ],
+    "unresolvedResourceKeys": [],
+    "resourceBindingKeySha256": "966D8F2C4ED37F279EB77968E162591DEA183AEA1E292B4BCF688BA9ADD2BA2B",
+    "bindingIdentityFields": [
+      "resourceKey",
+      "resourceId",
+      "assetId",
+      "assetType",
+      "sourceRevision",
+      "sampler",
+      "colorInterpretation"
+    ],
+    "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"
+  },
+  "sharedResourceSelectionProjection": {
+    "documentStatus": "valid",
+    "resourceRequirements": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "nodeId": "image_sample",
+        "resourceKind": "sampledTexture2D"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.albedo",
+        "nodeId": "roughness_sample",
+        "resourceKind": "sampledTexture2D"
+      }
+    ],
+    "assetResolutions": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "assetId": "11111111-1111-4111-8111-111111111111",
+        "assetType": "Image"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.albedo",
+        "assetId": "11111111-1111-4111-8111-111111111111",
+        "assetType": "Image"
+      }
+    ],
+    "resourceRequirementIdentitySha256": "7FAFB539B231333C9D0ACF82B4F9F84BC61276D74BA4F4340E7453763DAB54E8",
+    "runtimeBindingProjection": {
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "srgb"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "roughness_sample",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "linear"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "85EBC75EDA09E34F1F0985C64DFF8D0CFC25DB81F4D3D61584F6BF0FFA7F5BB3",
+      "bindingIdentityFields": [
+        "resourceKey",
+        "resourceId",
+        "assetId",
+        "assetType",
+        "sourceRevision",
+        "sampler",
+        "colorInterpretation"
+      ],
+      "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"
+    },
+    "contract": "two image nodes may reference one document resourceId while keeping distinct node-scoped resource keys and bindings"
+  },
+  "assetRelinkProjection": {
+    "previousAssetId": "11111111-1111-4111-8111-111111111111",
+    "replacementAssetId": "22222222-2222-4222-8222-222222222222",
+    "previousResolution": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "assetId": "11111111-1111-4111-8111-111111111111",
+        "assetType": "Image"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.roughness",
+        "assetId": "33333333-3333-4333-8333-333333333333",
+        "assetType": "Image"
+      }
+    ],
+    "replacementResolution": [
+      {
+        "resourceKey": "artifact.shadergraph.image.image_sample",
+        "resourceId": "image.albedo",
+        "assetId": "22222222-2222-4222-8222-222222222222",
+        "assetType": "Image"
+      },
+      {
+        "resourceKey": "artifact.shadergraph.image.roughness_sample",
+        "resourceId": "image.roughness",
+        "assetId": "33333333-3333-4333-8333-333333333333",
+        "assetType": "Image"
+      }
+    ],
+    "resourceRequirementsUnchanged": true,
+    "resourceRequirementIdentityUnchanged": true,
+    "resourceBindingKeyChanged": true,
+    "replacementBindingProjection": {
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "assetId": "22222222-2222-4222-8222-222222222222",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "srgb"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceId": "image.roughness",
+          "nodeId": "roughness_sample",
+          "assetId": "33333333-3333-4333-8333-333333333333",
+          "assetType": "Image",
+          "sourceRevision": 7,
+          "sampler": {
+            "addressU": "repeat",
+            "addressV": "repeat",
+            "magFilter": "linear",
+            "maxAnisotropy": 1,
+            "minFilter": "linear",
+            "mipFilter": "linear"
+          },
+          "colorInterpretation": "linear"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "AB31CCBD4F4B2FAC82488B068E8822F08C97692DE1BFFCE8ED7A369707D9135D",
+      "bindingIdentityFields": [
+        "resourceKey",
+        "resourceId",
+        "assetId",
+        "assetType",
+        "sourceRevision",
+        "sampler",
+        "colorInterpretation"
+      ],
+      "runtimeStatus": "logical binding identity only; GPU objects and backend generation are not represented"
+    },
+    "shaderCodeIdentity": "not-measured-no-shader-code-is-generated"
+  },
+  "bindingIdentityMutationProbes": {
+    "sourceRevisionChangesBindingKey": true,
+    "samplerChangePreservesSymbolicRequirementButChangesBindingKey": true,
+    "colorInterpretationChangePreservesSymbolicRequirementButChangesBindingKey": true,
+    "missingSourceRevisionProducesNoBindingKey": true,
+    "staleAssetProjectionIsRejectedAfterResourceTableRelink": true,
+    "UVCoordinatesRemainGraphInputs": true
+  },
+  "dynamicResolverBindingAdapter": {
+    "status": "generic-node-document-adapted-and-lowered-by-dynamic-prototype",
+    "dynamicDocument": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "uv",
+          "operationId": "artifact.input.texcoord.uv0.vector2",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 48,
+            "y": 80
+          }
+        },
+        {
+          "nodeId": "image_sample",
+          "operationId": "artifact.texture.sample.image2d",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 280,
+            "y": 80
+          },
+          "resourceReference": {
+            "resourceKey": "artifact.shadergraph.image.image_sample",
+            "resourceId": "image.albedo",
+            "sampler": {
+              "minFilter": "linear",
+              "magFilter": "linear",
+              "mipFilter": "linear",
+              "addressU": "repeat",
+              "addressV": "repeat",
+              "maxAnisotropy": 1
+            },
+            "colorInterpretation": "srgb"
+          }
+        },
+        {
+          "nodeId": "roughness_sample",
+          "operationId": "artifact.texture.sample.image2d",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 280,
+            "y": 240
+          },
+          "resourceReference": {
+            "resourceKey": "artifact.shadergraph.image.roughness_sample",
+            "resourceId": "image.roughness",
+            "sampler": {
+              "minFilter": "linear",
+              "magFilter": "linear",
+              "mipFilter": "linear",
+              "addressU": "repeat",
+              "addressV": "repeat",
+              "maxAnisotropy": 1
+            },
+            "colorInterpretation": "linear"
+          }
+        },
+        {
+          "nodeId": "combine",
+          "operationId": "artifact.rd.math.add.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 520,
+            "y": 160
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "uv",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "image_sample",
+            "socketId": "uv"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "uv",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "roughness_sample",
+            "socketId": "uv"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "image_sample",
+            "socketId": "color"
+          },
+          "to": {
+            "nodeId": "combine",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "roughness_sample",
+            "socketId": "color"
+          },
+          "to": {
+            "nodeId": "combine",
+            "socketId": "b"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "resourceId": "image.albedo",
+          "resourceKind": "sampledTexture2D",
+          "source": {
+            "kind": "projectAsset",
+            "assetId": "11111111-1111-4111-8111-111111111111"
+          }
+        },
+        {
+          "resourceId": "image.roughness",
+          "resourceKind": "sampledTexture2D",
+          "source": {
+            "kind": "projectAsset",
+            "assetId": "33333333-3333-4333-8333-333333333333"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "combine",
+        "socketId": "result"
+      }
+    },
+    "projection": {
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "srgb"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "33333333-3333-4333-8333-333333333333",
+          "assetType": "Image",
+          "sourceRevision": 7,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "linear"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "D4A5ED98318B86F31C9AD5BAD350BFD5DAA5F0231EE49590DEDC7478B4ECC872"
+    },
+    "compilerCandidate": {
+      "status": "candidate-lowered-no-shader-runtime",
+      "semanticHashSha256": "6CB34D7457CCAAA867AC403F18E88FADC1FAB1AF07FFE752628BF79791CAA406",
+      "typedIRSemanticHashSha256": "51B22B204917DEC590814931741383CF1B7FB2EB4226F164ECB7C3B9C1FC22FC",
+      "typedIR": {
+        "schemaId": "artifact.shadergraph.typed-ir",
+        "schemaVersion": 1,
+        "output": {
+          "nodeId": "combine",
+          "socketId": "result",
+          "valueType": "Vector4"
+        },
+        "operations": [
+          {
+            "nodeId": "uv",
+            "operationId": "artifact.input.texcoord.uv0.vector2",
+            "semanticVersion": 1,
+            "implementationId": "vector2.uv0",
+            "inputs": [],
+            "outputs": [
+              {
+                "socketId": "value",
+                "valueType": "Vector2"
+              }
+            ],
+            "parameters": [],
+            "sourceContext": {
+              "contextId": "artifact.material.surface.uv0",
+              "component": "xy",
+              "valueType": "Vector2"
+            }
+          },
+          {
+            "nodeId": "image_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "implementationId": "texture.sample.image2d",
+            "inputs": [
+              {
+                "socketId": "uv",
+                "valueType": "Vector2",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "uv",
+                  "socketId": "value"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "color",
+                "valueType": "Vector4"
+              },
+              {
+                "socketId": "alpha",
+                "valueType": "Float"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": [
+              {
+                "resourceKey": "artifact.shadergraph.image.image_sample",
+                "resourceId": "image.albedo",
+                "nodeId": "image_sample",
+                "resourceKind": "sampledTexture2D",
+                "shaderSymbol": "g_GraphTexture_image_sample",
+                "samplerSymbol": "g_GraphSampler_image_sample",
+                "samplerContract": "resolved-per-node-binding",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+              }
+            ]
+          },
+          {
+            "nodeId": "roughness_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "implementationId": "texture.sample.image2d",
+            "inputs": [
+              {
+                "socketId": "uv",
+                "valueType": "Vector2",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "uv",
+                  "socketId": "value"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "color",
+                "valueType": "Vector4"
+              },
+              {
+                "socketId": "alpha",
+                "valueType": "Float"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": [
+              {
+                "resourceKey": "artifact.shadergraph.image.roughness_sample",
+                "resourceId": "image.roughness",
+                "nodeId": "roughness_sample",
+                "resourceKind": "sampledTexture2D",
+                "shaderSymbol": "g_GraphTexture_roughness_sample",
+                "samplerSymbol": "g_GraphSampler_roughness_sample",
+                "samplerContract": "resolved-per-node-binding",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+              }
+            ]
+          },
+          {
+            "nodeId": "combine",
+            "operationId": "artifact.rd.math.add.vector4.float32",
+            "semanticVersion": 1,
+            "implementationId": "vector4.add",
+            "inputs": [
+              {
+                "socketId": "a",
+                "valueType": "Vector4",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "image_sample",
+                  "socketId": "color"
+                }
+              },
+              {
+                "socketId": "b",
+                "valueType": "Vector4",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "roughness_sample",
+                  "socketId": "color"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "result",
+                "valueType": "Vector4"
+              }
+            ],
+            "parameters": []
+          }
+        ],
+        "graphParameters": []
+      },
+      "shaderStructureHashSha256": "14951BA835D46280C1B9533AD22CB9410B360C83AF2897C39B91A20FFE11CD34",
+      "hlslBodySha256": "A3EDF704041C7B95F379759DA0663970257FCF6BB7915598CCC3870678EEDE55",
+      "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "parameterValues": [],
+      "parameterBindings": [],
+      "parameterBlock": null,
+      "resourceRequirements": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "resourceKind": "sampledTexture2D",
+          "shaderSymbol": "g_GraphTexture_image_sample",
+          "samplerSymbol": "g_GraphSampler_image_sample",
+          "samplerContract": "resolved-per-node-binding",
+          "uvContract": "explicit-Vector2-input-no-implicit-transform",
+          "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceId": "image.roughness",
+          "nodeId": "roughness_sample",
+          "resourceKind": "sampledTexture2D",
+          "shaderSymbol": "g_GraphTexture_roughness_sample",
+          "samplerSymbol": "g_GraphSampler_roughness_sample",
+          "samplerContract": "resolved-per-node-binding",
+          "uvContract": "explicit-Vector2-input-no-implicit-transform",
+          "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+        }
+      ],
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "srgb"
+        },
+        {
+          "resourceKey": "artifact.shadergraph.image.roughness_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "33333333-3333-4333-8333-333333333333",
+          "assetType": "Image",
+          "sourceRevision": 7,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "linear"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "D4A5ED98318B86F31C9AD5BAD350BFD5DAA5F0231EE49590DEDC7478B4ECC872",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "xy",
+          "valueType": "Vector2",
+          "hlslExpression": "In.UV",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "topologicalNodeIds": [
+        "uv",
+        "image_sample",
+        "roughness_sample",
+        "combine"
+      ],
+      "outputType": "Vector4",
+      "hlslBody": "float2 n_uv_value = In.UV;\nfloat4 n_image_sample_color = g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_uv_value);\nfloat n_image_sample_alpha = n_image_sample_color.a;\nfloat4 n_roughness_sample_color = g_GraphTexture_roughness_sample.Sample(g_GraphSampler_roughness_sample, n_uv_value);\nfloat n_roughness_sample_alpha = n_roughness_sample_color.a;\nfloat4 n_combine_result = (n_image_sample_color + n_roughness_sample_color);\nreturn n_combine_result;\n",
+      "warnings": [],
+      "limitations": [
+        "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and 40 closed implementation IDs only",
+        "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+        "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
+        "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+        "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+        "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+      ]
+    },
+    "sharedResourceSelection": {
+      "dynamicDocument": {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": [
+          {
+            "nodeId": "uv",
+            "operationId": "artifact.input.texcoord.uv0.vector2",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 48,
+              "y": 80
+            }
+          },
+          {
+            "nodeId": "image_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 280,
+              "y": 80
+            },
+            "resourceReference": {
+              "resourceKey": "artifact.shadergraph.image.image_sample",
+              "resourceId": "image.albedo",
+              "sampler": {
+                "minFilter": "linear",
+                "magFilter": "linear",
+                "mipFilter": "linear",
+                "addressU": "repeat",
+                "addressV": "repeat",
+                "maxAnisotropy": 1
+              },
+              "colorInterpretation": "srgb"
+            }
+          },
+          {
+            "nodeId": "roughness_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 280,
+              "y": 240
+            },
+            "resourceReference": {
+              "resourceKey": "artifact.shadergraph.image.roughness_sample",
+              "resourceId": "image.albedo",
+              "sampler": {
+                "minFilter": "linear",
+                "magFilter": "linear",
+                "mipFilter": "linear",
+                "addressU": "repeat",
+                "addressV": "repeat",
+                "maxAnisotropy": 1
+              },
+              "colorInterpretation": "linear"
+            }
+          },
+          {
+            "nodeId": "combine",
+            "operationId": "artifact.rd.math.add.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 520,
+              "y": 160
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "nodeId": "uv",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "image_sample",
+              "socketId": "uv"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "uv",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "roughness_sample",
+              "socketId": "uv"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "image_sample",
+              "socketId": "color"
+            },
+            "to": {
+              "nodeId": "combine",
+              "socketId": "a"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "roughness_sample",
+              "socketId": "color"
+            },
+            "to": {
+              "nodeId": "combine",
+              "socketId": "b"
+            }
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "image.albedo",
+            "resourceKind": "sampledTexture2D",
+            "source": {
+              "kind": "projectAsset",
+              "assetId": "11111111-1111-4111-8111-111111111111"
+            }
+          },
+          {
+            "resourceId": "image.roughness",
+            "resourceKind": "sampledTexture2D",
+            "source": {
+              "kind": "projectAsset",
+              "assetId": "33333333-3333-4333-8333-333333333333"
+            }
+          }
+        ],
+        "output": {
+          "nodeId": "combine",
+          "socketId": "result"
+        }
+      },
+      "compilerCandidate": {
+        "status": "candidate-lowered-no-shader-runtime",
+        "semanticHashSha256": "AC5851726C49E7F3ABB34ADBA8FFC05F43D5BC242B509EC8364A15F3CD21671F",
+        "typedIRSemanticHashSha256": "2EEF2A8171025625135A1EC658BE1464EDA8725B7AE36F17574738F8987489C2",
+        "typedIR": {
+          "schemaId": "artifact.shadergraph.typed-ir",
+          "schemaVersion": 1,
+          "output": {
+            "nodeId": "combine",
+            "socketId": "result",
+            "valueType": "Vector4"
+          },
+          "operations": [
+            {
+              "nodeId": "uv",
+              "operationId": "artifact.input.texcoord.uv0.vector2",
+              "semanticVersion": 1,
+              "implementationId": "vector2.uv0",
+              "inputs": [],
+              "outputs": [
+                {
+                  "socketId": "value",
+                  "valueType": "Vector2"
+                }
+              ],
+              "parameters": [],
+              "sourceContext": {
+                "contextId": "artifact.material.surface.uv0",
+                "component": "xy",
+                "valueType": "Vector2"
+              }
+            },
+            {
+              "nodeId": "image_sample",
+              "operationId": "artifact.texture.sample.image2d",
+              "semanticVersion": 1,
+              "implementationId": "texture.sample.image2d",
+              "inputs": [
+                {
+                  "socketId": "uv",
+                  "valueType": "Vector2",
+                  "required": true,
+                  "defaultValue": null,
+                  "producer": {
+                    "nodeId": "uv",
+                    "socketId": "value"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "socketId": "color",
+                  "valueType": "Vector4"
+                },
+                {
+                  "socketId": "alpha",
+                  "valueType": "Float"
+                }
+              ],
+              "parameters": [],
+              "resourceDependencies": [
+                {
+                  "resourceKey": "artifact.shadergraph.image.image_sample",
+                  "resourceId": "image.albedo",
+                  "nodeId": "image_sample",
+                  "resourceKind": "sampledTexture2D",
+                  "shaderSymbol": "g_GraphTexture_image_sample",
+                  "samplerSymbol": "g_GraphSampler_image_sample",
+                  "samplerContract": "resolved-per-node-binding",
+                  "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                  "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+                }
+              ]
+            },
+            {
+              "nodeId": "roughness_sample",
+              "operationId": "artifact.texture.sample.image2d",
+              "semanticVersion": 1,
+              "implementationId": "texture.sample.image2d",
+              "inputs": [
+                {
+                  "socketId": "uv",
+                  "valueType": "Vector2",
+                  "required": true,
+                  "defaultValue": null,
+                  "producer": {
+                    "nodeId": "uv",
+                    "socketId": "value"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "socketId": "color",
+                  "valueType": "Vector4"
+                },
+                {
+                  "socketId": "alpha",
+                  "valueType": "Float"
+                }
+              ],
+              "parameters": [],
+              "resourceDependencies": [
+                {
+                  "resourceKey": "artifact.shadergraph.image.roughness_sample",
+                  "resourceId": "image.albedo",
+                  "nodeId": "roughness_sample",
+                  "resourceKind": "sampledTexture2D",
+                  "shaderSymbol": "g_GraphTexture_roughness_sample",
+                  "samplerSymbol": "g_GraphSampler_roughness_sample",
+                  "samplerContract": "resolved-per-node-binding",
+                  "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                  "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+                }
+              ]
+            },
+            {
+              "nodeId": "combine",
+              "operationId": "artifact.rd.math.add.vector4.float32",
+              "semanticVersion": 1,
+              "implementationId": "vector4.add",
+              "inputs": [
+                {
+                  "socketId": "a",
+                  "valueType": "Vector4",
+                  "required": true,
+                  "defaultValue": null,
+                  "producer": {
+                    "nodeId": "image_sample",
+                    "socketId": "color"
+                  }
+                },
+                {
+                  "socketId": "b",
+                  "valueType": "Vector4",
+                  "required": true,
+                  "defaultValue": null,
+                  "producer": {
+                    "nodeId": "roughness_sample",
+                    "socketId": "color"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "socketId": "result",
+                  "valueType": "Vector4"
+                }
+              ],
+              "parameters": []
+            }
+          ],
+          "graphParameters": []
+        },
+        "shaderStructureHashSha256": "670272EFE7AE14F551DE31294053CEF3710D1BCC0E46A3668B794C2066B77632",
+        "hlslBodySha256": "A3EDF704041C7B95F379759DA0663970257FCF6BB7915598CCC3870678EEDE55",
+        "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+        "parameterValues": [],
+        "parameterBindings": [],
+        "parameterBlock": null,
+        "resourceRequirements": [
+          {
+            "resourceKey": "artifact.shadergraph.image.image_sample",
+            "resourceId": "image.albedo",
+            "nodeId": "image_sample",
+            "resourceKind": "sampledTexture2D",
+            "shaderSymbol": "g_GraphTexture_image_sample",
+            "samplerSymbol": "g_GraphSampler_image_sample",
+            "samplerContract": "resolved-per-node-binding",
+            "uvContract": "explicit-Vector2-input-no-implicit-transform",
+            "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+          },
+          {
+            "resourceKey": "artifact.shadergraph.image.roughness_sample",
+            "resourceId": "image.albedo",
+            "nodeId": "roughness_sample",
+            "resourceKind": "sampledTexture2D",
+            "shaderSymbol": "g_GraphTexture_roughness_sample",
+            "samplerSymbol": "g_GraphSampler_roughness_sample",
+            "samplerContract": "resolved-per-node-binding",
+            "uvContract": "explicit-Vector2-input-no-implicit-transform",
+            "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+          }
+        ],
+        "resourceBindingStatus": "resolved",
+        "resolvedResourceBindings": [
+          {
+            "resourceKey": "artifact.shadergraph.image.image_sample",
+            "resourceKind": "sampledTexture2D",
+            "assetId": "11111111-1111-4111-8111-111111111111",
+            "assetType": "Image",
+            "sourceRevision": 1,
+            "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+            "uvSet": 0,
+            "uvTransform": {
+              "offsetU": 0.0,
+              "offsetV": 0.0,
+              "rotationDegrees": 0.0,
+              "scaleU": 1.0,
+              "scaleV": 1.0
+            },
+            "colorInterpretation": "srgb"
+          },
+          {
+            "resourceKey": "artifact.shadergraph.image.roughness_sample",
+            "resourceKind": "sampledTexture2D",
+            "assetId": "11111111-1111-4111-8111-111111111111",
+            "assetType": "Image",
+            "sourceRevision": 1,
+            "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+            "uvSet": 0,
+            "uvTransform": {
+              "offsetU": 0.0,
+              "offsetV": 0.0,
+              "rotationDegrees": 0.0,
+              "scaleU": 1.0,
+              "scaleV": 1.0
+            },
+            "colorInterpretation": "linear"
+          }
+        ],
+        "unresolvedResourceKeys": [],
+        "resourceBindingKeySha256": "FA21A3C8D4EC3319470FCF4E628A6DBB789BBDC0698D40C0874A406F218FC282",
+        "contextBindings": [
+          {
+            "contextId": "artifact.material.surface.uv0",
+            "component": "xy",
+            "valueType": "Vector2",
+            "hlslExpression": "In.UV",
+            "nodeIds": [
+              "uv"
+            ]
+          }
+        ],
+        "topologicalNodeIds": [
+          "uv",
+          "image_sample",
+          "roughness_sample",
+          "combine"
+        ],
+        "outputType": "Vector4",
+        "hlslBody": "float2 n_uv_value = In.UV;\nfloat4 n_image_sample_color = g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_uv_value);\nfloat n_image_sample_alpha = n_image_sample_color.a;\nfloat4 n_roughness_sample_color = g_GraphTexture_roughness_sample.Sample(g_GraphSampler_roughness_sample, n_uv_value);\nfloat n_roughness_sample_alpha = n_roughness_sample_color.a;\nfloat4 n_combine_result = (n_image_sample_color + n_roughness_sample_color);\nreturn n_combine_result;\n",
+        "warnings": [],
+        "limitations": [
+          "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and 40 closed implementation IDs only",
+          "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+          "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
+          "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+          "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+          "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+        ]
+      },
+      "contract": "two image nodes may share one resourceId while retaining node-scoped resource keys and shader symbols"
+    },
+    "adapterPolicy": {
+      "samplerKey": "SHA-256 of canonical authored sampler descriptor, prefixed sampler.",
+      "uv": "UV remains an explicit graph link; this fixture maps the UV0 source to set 0 and identity transform only as resolver compatibility metadata.",
+      "scope": "The translated graph persists node resourceReference fields and the document resourceId-to-Asset-UUID table. Asset type/source revision resolution, shader compilation, and GPU binding remain host/runtime responsibilities."
+    }
+  },
+  "mappedUvDynamicResolverAdapter": {
+    "dynamicDocument": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "uv",
+          "operationId": "artifact.input.texcoord.uv0.vector2",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 48,
+            "y": 80
+          }
+        },
+        {
+          "nodeId": "mapping",
+          "operationId": "artifact.mapping.vector2.scale_offset",
+          "semanticVersion": 1,
+          "parameters": {
+            "scaleX": 2.0,
+            "scaleY": 0.5,
+            "offsetX": 0.25,
+            "offsetY": -0.125
+          },
+          "layout": {
+            "x": 260,
+            "y": 80
+          }
+        },
+        {
+          "nodeId": "image_sample",
+          "operationId": "artifact.texture.sample.image2d",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 480,
+            "y": 80
+          },
+          "resourceReference": {
+            "resourceKey": "artifact.shadergraph.image.image_sample",
+            "resourceId": "image.albedo",
+            "sampler": {
+              "minFilter": "linear",
+              "magFilter": "linear",
+              "mipFilter": "linear",
+              "addressU": "repeat",
+              "addressV": "repeat",
+              "maxAnisotropy": 1
+            },
+            "colorInterpretation": "srgb"
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "uv",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "mapping",
+            "socketId": "vector"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "mapping",
+            "socketId": "vector"
+          },
+          "to": {
+            "nodeId": "image_sample",
+            "socketId": "uv"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "resourceId": "image.albedo",
+          "resourceKind": "sampledTexture2D",
+          "source": {
+            "kind": "projectAsset",
+            "assetId": "11111111-1111-4111-8111-111111111111"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "image_sample",
+        "socketId": "color"
+      }
+    },
+    "resourceProjection": {
+      "documentStatus": "valid",
+      "selectedOutput": {
+        "nodeId": "image_sample",
+        "socketId": "color",
+        "valueType": "Vector4"
+      },
+      "activeNodeIds": [
+        "image_sample",
+        "mapping",
+        "uv"
+      ],
+      "resourceRequirements": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "resourceKind": "sampledTexture2D"
+        }
+      ],
+      "resourceRequirementIdentitySha256": "C9945C0AC346AE789D713C8BE4A6E8AB5F5792BFCD8D1CB6D13BDE4DD7730538",
+      "assetResolutions": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image"
+        }
+      ],
+      "assetResolutionStatus": "resolved",
+      "unresolvedResourceKeys": [],
+      "resourceBindingStatus": "not-projected",
+      "resourceBindingKeySha256": null,
+      "runtimeStatus": "synthetic asset catalog lookup only; source revisions, samplers, UV/color binding, asset loading, and GPU sampling are not projected"
+    },
+    "compilerCandidate": {
+      "status": "candidate-lowered-no-shader-runtime",
+      "semanticHashSha256": "C13D5951F820BD1BDD82D2FB9E72C897CB0158B6A1FAE6C7D1CD1368EA95CBF0",
+      "typedIRSemanticHashSha256": "71E9129BA5BDA3700629742D89CDE43FB5DD840E58C35E31C6866386CBDF287D",
+      "typedIR": {
+        "schemaId": "artifact.shadergraph.typed-ir",
+        "schemaVersion": 1,
+        "output": {
+          "nodeId": "image_sample",
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        "operations": [
+          {
+            "nodeId": "uv",
+            "operationId": "artifact.input.texcoord.uv0.vector2",
+            "semanticVersion": 1,
+            "implementationId": "vector2.uv0",
+            "inputs": [],
+            "outputs": [
+              {
+                "socketId": "value",
+                "valueType": "Vector2"
+              }
+            ],
+            "parameters": [],
+            "sourceContext": {
+              "contextId": "artifact.material.surface.uv0",
+              "component": "xy",
+              "valueType": "Vector2"
+            }
+          },
+          {
+            "nodeId": "mapping",
+            "operationId": "artifact.mapping.vector2.scale_offset",
+            "semanticVersion": 1,
+            "implementationId": "vector2.mapping.scale_offset",
+            "inputs": [
+              {
+                "socketId": "vector",
+                "valueType": "Vector2",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "uv",
+                  "socketId": "value"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "vector",
+                "valueType": "Vector2"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "scaleX",
+                "valueType": "Float32",
+                "value": 2.0,
+                "graphParameterId": null
+              },
+              {
+                "parameterId": "scaleY",
+                "valueType": "Float32",
+                "value": 0.5,
+                "graphParameterId": null
+              },
+              {
+                "parameterId": "offsetX",
+                "valueType": "Float32",
+                "value": 0.25,
+                "graphParameterId": null
+              },
+              {
+                "parameterId": "offsetY",
+                "valueType": "Float32",
+                "value": -0.125,
+                "graphParameterId": null
+              }
+            ]
+          },
+          {
+            "nodeId": "image_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "implementationId": "texture.sample.image2d",
+            "inputs": [
+              {
+                "socketId": "uv",
+                "valueType": "Vector2",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "mapping",
+                  "socketId": "vector"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "color",
+                "valueType": "Vector4"
+              },
+              {
+                "socketId": "alpha",
+                "valueType": "Float"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": [
+              {
+                "resourceKey": "artifact.shadergraph.image.image_sample",
+                "resourceId": "image.albedo",
+                "nodeId": "image_sample",
+                "resourceKind": "sampledTexture2D",
+                "shaderSymbol": "g_GraphTexture_image_sample",
+                "samplerSymbol": "g_GraphSampler_image_sample",
+                "samplerContract": "resolved-per-node-binding",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+              }
+            ]
+          }
+        ],
+        "graphParameters": []
+      },
+      "shaderStructureHashSha256": "95A6ACCFF94FCE7D1AEAAB381FA225F9B90AFDB010E7D8BE339EC20C3C10698E",
+      "hlslBodySha256": "233090FA2BC15C12ECA58C94E38E7D2B08F3899C194AE7F296BA9B8F7E3D348B",
+      "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "parameterValues": [],
+      "parameterBindings": [],
+      "parameterBlock": null,
+      "resourceRequirements": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "resourceKind": "sampledTexture2D",
+          "shaderSymbol": "g_GraphTexture_image_sample",
+          "samplerSymbol": "g_GraphSampler_image_sample",
+          "samplerContract": "resolved-per-node-binding",
+          "uvContract": "explicit-Vector2-input-no-implicit-transform",
+          "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+        }
+      ],
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "srgb"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "CD11BB6D0B4B354129D0B17FCFB1FEB2352C31D06B2E3B9403C6F52AF9A7F61E",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "xy",
+          "valueType": "Vector2",
+          "hlslExpression": "In.UV",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "topologicalNodeIds": [
+        "uv",
+        "mapping",
+        "image_sample"
+      ],
+      "outputType": "Vector4",
+      "hlslBody": "float2 n_uv_value = In.UV;\nfloat2 n_mapping_vector = ((n_uv_value * float2(2.0f, 0.5f)) + float2(0.25f, -0.125f));\nfloat4 n_image_sample_color = g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_mapping_vector);\nfloat n_image_sample_alpha = n_image_sample_color.a;\nreturn n_image_sample_color;\n",
+      "warnings": [],
+      "limitations": [
+        "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and 40 closed implementation IDs only",
+        "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+        "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
+        "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+        "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+        "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+      ]
+    },
+    "directUvCompilerCandidate": {
+      "status": "candidate-lowered-no-shader-runtime",
+      "semanticHashSha256": "D85CCEC0FA61656454BE6FB516A074083ADE6975649B1516DF5A4588FD51C9D5",
+      "typedIRSemanticHashSha256": "5AC07BD321EB329A21AA7C72F632C047A1F0A8987C3E2E4A4069A0D3EA23412A",
+      "typedIR": {
+        "schemaId": "artifact.shadergraph.typed-ir",
+        "schemaVersion": 1,
+        "output": {
+          "nodeId": "image_sample",
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        "operations": [
+          {
+            "nodeId": "uv",
+            "operationId": "artifact.input.texcoord.uv0.vector2",
+            "semanticVersion": 1,
+            "implementationId": "vector2.uv0",
+            "inputs": [],
+            "outputs": [
+              {
+                "socketId": "value",
+                "valueType": "Vector2"
+              }
+            ],
+            "parameters": [],
+            "sourceContext": {
+              "contextId": "artifact.material.surface.uv0",
+              "component": "xy",
+              "valueType": "Vector2"
+            }
+          },
+          {
+            "nodeId": "image_sample",
+            "operationId": "artifact.texture.sample.image2d",
+            "semanticVersion": 1,
+            "implementationId": "texture.sample.image2d",
+            "inputs": [
+              {
+                "socketId": "uv",
+                "valueType": "Vector2",
+                "required": true,
+                "defaultValue": null,
+                "producer": {
+                  "nodeId": "uv",
+                  "socketId": "value"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "socketId": "color",
+                "valueType": "Vector4"
+              },
+              {
+                "socketId": "alpha",
+                "valueType": "Float"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": [
+              {
+                "resourceKey": "artifact.shadergraph.image.image_sample",
+                "resourceId": "image.albedo",
+                "nodeId": "image_sample",
+                "resourceKind": "sampledTexture2D",
+                "shaderSymbol": "g_GraphTexture_image_sample",
+                "samplerSymbol": "g_GraphSampler_image_sample",
+                "samplerContract": "resolved-per-node-binding",
+                "uvContract": "explicit-Vector2-input-no-implicit-transform",
+                "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+              }
+            ]
+          }
+        ],
+        "graphParameters": []
+      },
+      "shaderStructureHashSha256": "B87504172BD4E496903F1B8319DA276BAE28D9F7F5B4F5246A539F3A685E2B42",
+      "hlslBodySha256": "880516DF4A22C5169107DAA5E88A454A1009A25196FDA11CEC15C7136271E85A",
+      "parameterValuesHashSha256": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "parameterValues": [],
+      "parameterBindings": [],
+      "parameterBlock": null,
+      "resourceRequirements": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceId": "image.albedo",
+          "nodeId": "image_sample",
+          "resourceKind": "sampledTexture2D",
+          "shaderSymbol": "g_GraphTexture_image_sample",
+          "samplerSymbol": "g_GraphSampler_image_sample",
+          "samplerContract": "resolved-per-node-binding",
+          "uvContract": "explicit-Vector2-input-no-implicit-transform",
+          "sampleContract": "raw-float4-no-implicit-swizzle-or-color-decode"
+        }
+      ],
+      "resourceBindingStatus": "resolved",
+      "resolvedResourceBindings": [
+        {
+          "resourceKey": "artifact.shadergraph.image.image_sample",
+          "resourceKind": "sampledTexture2D",
+          "assetId": "11111111-1111-4111-8111-111111111111",
+          "assetType": "Image",
+          "sourceRevision": 1,
+          "samplerKey": "sampler.c12f383e279937ed64747d1f7e88b96f34620024f497afd4c42631e4c55ddec0",
+          "uvSet": 0,
+          "uvTransform": {
+            "offsetU": 0.0,
+            "offsetV": 0.0,
+            "rotationDegrees": 0.0,
+            "scaleU": 1.0,
+            "scaleV": 1.0
+          },
+          "colorInterpretation": "srgb"
+        }
+      ],
+      "unresolvedResourceKeys": [],
+      "resourceBindingKeySha256": "CD11BB6D0B4B354129D0B17FCFB1FEB2352C31D06B2E3B9403C6F52AF9A7F61E",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "xy",
+          "valueType": "Vector2",
+          "hlslExpression": "In.UV",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "topologicalNodeIds": [
+        "uv",
+        "image_sample"
+      ],
+      "outputType": "Vector4",
+      "hlslBody": "float2 n_uv_value = In.UV;\nfloat4 n_image_sample_color = g_GraphTexture_image_sample.Sample(g_GraphSampler_image_sample, n_uv_value);\nfloat n_image_sample_alpha = n_image_sample_color.a;\nreturn n_image_sample_color;\n",
+      "warnings": [],
+      "limitations": [
+        "prototype supports Float/Vector2/Vector3/Vector4 sockets, Float/Vector3/Vector4 socket defaults, node-owned Vector3F32 values, Float/Vector3/Vector4 graph parameters, and 40 closed implementation IDs only",
+        "registry metadata may select existing implementations but cannot supply executable code or HLSL",
+        "typed IR materializes active Float/Vector3/Vector4 socket defaults and symbolic material-slot texture dependencies; runtime resource identity, sampler state, color interpretation, and backend semantics remain incomplete",
+        "generated HLSL is a deterministic candidate string; no shader compiler/backend/runtime is invoked",
+        "diagnostic codes and document paths are golden-checked for eleven representative rejection classes; other structured diagnostics need broader fixture coverage",
+        "this is an R&D prototype, not ArtifactCore API or Blender compatibility evidence"
+      ]
+    },
+    "contract": "Mapping is retained as a graph operation and its output reaches the generic Image Texture UV input; resource and resolved binding identities match the direct-UV graph"
+  }
+}

@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <limits>
 #include <memory>
 
@@ -386,6 +387,204 @@ TEST(Model3DLayerImageTest, DefaultCubeProducesVisiblePixels)
         QStringLiteral("model3d_default_cube_wireframe"), wireframeImage);
     EXPECT_GT(visiblePixelCount(wireframeImage), 100)
         << "The production 3D model layer did not produce a visible wireframe";
+}
+
+TEST(Model3DLayerImageTest, MaterialShaderGraphChangesProductionLayerOutput)
+{
+    if (rendererUnavailable()) {
+        GTEST_SKIP() << "No supported headless Diligent device is available";
+    }
+    Artifact::Artifact3DLayer model;
+    const QImage baseline = imageEnvironment->render(&model);
+    ASSERT_FALSE(baseline.isNull());
+
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto graphPath = projectRoot / "tests" / "fixtures" /
+                           "shader-graph-rd" / "chartreuse_emission.json";
+    QFile graphFile(QString::fromStdString(graphPath.string()));
+    ASSERT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+    const QString graphJson = QString::fromUtf8(graphFile.readAll());
+    model.setMaterialGraphJson(graphJson);
+    EXPECT_EQ(model.materialGraphJson(), graphJson);
+
+    const QImage graphOutput = imageEnvironment->render(&model);
+    ASSERT_FALSE(graphOutput.isNull());
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_production_layer_baseline"), baseline);
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_production_layer_chartreuse"), graphOutput);
+
+    EXPECT_GT(changedPixelCount(baseline, graphOutput), 250)
+        << "Applying the material graph did not visibly change the production layer";
+    const QVector3D average = averageVisibleColor(graphOutput);
+    EXPECT_GT(average.y(), average.x() * 1.25f)
+        << "The graph's green base/emission response is absent; RGB="
+        << average.x() << ',' << average.y() << ',' << average.z();
+    EXPECT_GT(average.y(), average.z() * 1.25f)
+        << "The graph's green base/emission response is absent; RGB="
+        << average.x() << ',' << average.y() << ',' << average.z();
+}
+
+TEST(Model3DLayerImageTest, DefaultPrincipledGraphCharacterizesFixedPbrBoundary)
+{
+    if (rendererUnavailable()) {
+        GTEST_SKIP() << "No supported headless Diligent device is available";
+    }
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto graphPath = projectRoot / "tests" / "fixtures" /
+                           "shader-graph-rd" / "principled_default.json";
+
+    Artifact::Artifact3DLayer model;
+    const QImage fixedPbr = imageEnvironment->render(&model);
+    ASSERT_FALSE(fixedPbr.isNull());
+
+    QFile graphFile(QString::fromStdString(graphPath.string()));
+    ASSERT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+    const QString graphJson = QString::fromUtf8(graphFile.readAll());
+    model.setMaterialGraphJson(graphJson);
+    EXPECT_EQ(model.materialGraphJson(), graphJson);
+
+    const QImage defaultGraph = imageEnvironment->render(&model);
+    ASSERT_FALSE(defaultGraph.isNull());
+    ASSERT_EQ(fixedPbr.size(), defaultGraph.size());
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_default_principled_fixed_pbr"), fixedPbr);
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_default_principled_graph"), defaultGraph);
+}
+
+TEST(Model3DLayerImageTest, MaterialShaderGraphSurfaceNumericFixtureChangesOutput)
+{
+    if (rendererUnavailable()) {
+        GTEST_SKIP() << "No supported headless Diligent device is available";
+    }
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto graphPath = projectRoot / "tests" / "fixtures" /
+                           "shader-graph-rd" / "surface_numeric_semantics.json";
+
+    Artifact::Artifact3DLayer model;
+    const QImage baseline = imageEnvironment->render(&model);
+    ASSERT_FALSE(baseline.isNull());
+
+    QFile graphFile(QString::fromStdString(graphPath.string()));
+    ASSERT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+    const QString graphJson = QString::fromUtf8(graphFile.readAll());
+    model.setMaterialGraphJson(graphJson);
+    EXPECT_EQ(model.materialGraphJson(), graphJson);
+
+    const QImage graphOutput = imageEnvironment->render(&model);
+    ASSERT_FALSE(graphOutput.isNull());
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_surface_numeric_baseline"), baseline);
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_surface_numeric_fixture"), graphOutput);
+
+    EXPECT_GT(changedPixelCount(baseline, graphOutput), 100)
+        << "The Principled metallic/roughness/emission fixture did not visibly "
+           "change the production layer output";
+}
+
+TEST(Model3DLayerImageTest, MaterialShaderGraphSurfaceNumericParameterSweepChangesOutput)
+{
+    if (rendererUnavailable()) {
+        GTEST_SKIP() << "No supported headless Diligent device is available";
+    }
+    struct SurfaceParameterPair {
+        const char* label;
+        const char* lowFixture;
+        const char* middleFixture;
+        const char* highFixture;
+        const char* lowCapture;
+        const char* middleCapture;
+        const char* highCapture;
+    };
+    constexpr std::array<SurfaceParameterPair, 3> parameterPairs{{
+        {"metallic", "metallic_zero.json", "metallic_half.json", "metallic_one.json",
+         "shader_graph_metallic_zero", "shader_graph_metallic_half",
+         "shader_graph_metallic_one"},
+        {"roughness", "roughness_floor.json", "roughness_half.json", "roughness_one.json",
+         "shader_graph_roughness_floor", "shader_graph_roughness_half",
+         "shader_graph_roughness_one"},
+        {"emission", "emission_zero.json", "emission_1_25.json", "emission_2_5.json",
+         "shader_graph_emission_zero", "shader_graph_emission_1_25",
+         "shader_graph_emission_2_5"},
+    }};
+
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto fixtureDirectory = projectRoot / "tests" / "fixtures" /
+                                  "shader-graph-rd";
+    Artifact::Artifact3DLayer model;
+    for (const auto& pair : parameterPairs) {
+        const auto renderFixture = [&](const char* fixtureName,
+                                       const char* captureName) {
+            const auto graphPath = fixtureDirectory / fixtureName;
+            QFile graphFile(QString::fromStdString(graphPath.string()));
+            EXPECT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+            if (!graphFile.isOpen()) {
+                return QImage{};
+            }
+            const QString graphJson = QString::fromUtf8(graphFile.readAll());
+            model.setMaterialGraphJson(graphJson);
+            EXPECT_EQ(model.materialGraphJson(), graphJson);
+            const QImage image = imageEnvironment->render(&model);
+            imageEnvironment->saveCapture(QString::fromLatin1(captureName), image);
+            return image;
+        };
+
+        const QImage lowImage = renderFixture(pair.lowFixture, pair.lowCapture);
+        ASSERT_FALSE(lowImage.isNull()) << pair.label << " low capture failed";
+        const QImage middleImage = renderFixture(pair.middleFixture, pair.middleCapture);
+        ASSERT_FALSE(middleImage.isNull()) << pair.label << " middle capture failed";
+        const QImage highImage = renderFixture(pair.highFixture, pair.highCapture);
+        ASSERT_FALSE(highImage.isNull()) << pair.label << " high capture failed";
+        // Response detection only; derive quantitative tolerances from repeated baselines.
+        EXPECT_GT(changedPixelCount(lowImage, middleImage), 0)
+            << pair.label << " low and middle captures are identical";
+        EXPECT_GT(changedPixelCount(middleImage, highImage), 0)
+            << pair.label << " middle and high captures are identical";
+    }
+}
+
+TEST(Model3DLayerImageTest, MaterialGraphImageTextureSamplesChannelProbe)
+{
+    if (rendererUnavailable()) {
+        GTEST_SKIP() << "No supported headless Diligent device is available";
+    }
+    const auto projectRoot = std::filesystem::path(__FILE__)
+                                 .parent_path().parent_path().parent_path();
+    const auto texturePath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "textures" / "channel_probe_4x4_rgba.png";
+    const auto graphPath = projectRoot / "tests" / "fixtures" /
+        "shader-graph-rd" / "channel_probe_basecolor.json";
+
+    Artifact::Artifact3DLayer model;
+    ASSERT_TRUE(model.setLayerPropertyValue(
+        QStringLiteral("material.baseColorTexture"),
+        QString::fromStdString(texturePath.string())));
+    const QImage baseline = imageEnvironment->render(&model);
+    ASSERT_FALSE(baseline.isNull());
+
+    QFile graphFile(QString::fromStdString(graphPath.string()));
+    ASSERT_TRUE(graphFile.open(QIODevice::ReadOnly)) << graphPath.string();
+    const QString graphJson = QString::fromUtf8(graphFile.readAll());
+    model.setMaterialGraphJson(graphJson);
+    EXPECT_EQ(model.materialGraphJson(), graphJson);
+
+    const QImage graphOutput = imageEnvironment->render(&model);
+    ASSERT_FALSE(graphOutput.isNull());
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_channel_probe_basecolor_baseline"), baseline);
+    imageEnvironment->saveCapture(
+        QStringLiteral("shader_graph_channel_probe_basecolor_graph"), graphOutput);
+
+    EXPECT_GT(visiblePixelCount(graphOutput), 250)
+        << "The channel-probe graph did not produce a visible production-layer image";
+    EXPECT_GT(changedPixelCount(baseline, graphOutput), 20)
+        << "Applying the ImageTexture graph did not change the production-layer output";
 }
 
 TEST(Model3DLayerImageTest, LowDetailDropsNormalMapWhileHighDetailKeepsIt)

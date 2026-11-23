@@ -1,0 +1,6 @@
+# Regenerable fixture data; rebuild with generate_fixtures.py.
+assets/generated/
+
+# Python bytecode from local runs.
+__pycache__/
+*.pyc

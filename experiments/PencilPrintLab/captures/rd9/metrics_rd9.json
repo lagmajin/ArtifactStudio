@@ -1,0 +1,262 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd9",
+  "stage": "integer_shift_reference",
+  "gates": "unset; no pass/fail judgment or quality ranking performed",
+  "definitions": {
+    "reference": "source frame 0 translated by exact integer k px (INTER_NEAREST, replicate fill)",
+    "dither_offset": "exact integer k px for content-locked variants",
+    "purpose": "isolate dither-following residual from bilinear warp blur"
+  },
+  "shift_per_frame_px": 1,
+  "variants": {
+    "screen": {
+      "dither_lock": "screen",
+      "phase_mode": "interp"
+    },
+    "content_nearest": {
+      "dither_lock": "content",
+      "phase_mode": "nearest"
+    },
+    "content_interp": {
+      "dither_lock": "content",
+      "phase_mode": "interp"
+    }
+  },
+  "temporal": {
+    "screen": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.0023451064066951706
+        },
+        {
+          "step": 2,
+          "global_mae": 0.0025702583231274425
+        },
+        {
+          "step": 3,
+          "global_mae": 0.0025200738598262734
+        },
+        {
+          "step": 4,
+          "global_mae": 0.002581787186318252
+        },
+        {
+          "step": 5,
+          "global_mae": 0.002387831017343463
+        },
+        {
+          "step": 6,
+          "global_mae": 0.0025478787651688132
+        },
+        {
+          "step": 7,
+          "global_mae": 0.0023959690384193284
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.14934226798097067
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.14928694742704163
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.1493095909953657
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.1493319136890174
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.14926000371780598
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.14923306664378894
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.14923499782218339
+        }
+      ],
+      "flicker_proxy_step_std": 9.138275526951062e-05,
+      "note": "reference = source frame 0 translated by exact integer k px; no bilinear warp blur"
+    },
+    "content_nearest": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.2540466384305546
+        },
+        {
+          "step": 2,
+          "global_mae": 0.25377740556662803
+        },
+        {
+          "step": 3,
+          "global_mae": 0.25366211693471996
+        },
+        {
+          "step": 4,
+          "global_mae": 0.2536126106398418
+        },
+        {
+          "step": 5,
+          "global_mae": 0.25363227752410844
+        },
+        {
+          "step": 6,
+          "global_mae": 0.25357666771342335
+        },
+        {
+          "step": 7,
+          "global_mae": 0.2533691481759888
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.14931354266538316
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.14929747540365193
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.14932839608841278
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.1492708095097593
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.14927537197841048
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.14926062508573826
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.14923408958858697
+        }
+      ],
+      "flicker_proxy_step_std": 0.0001917473108256829,
+      "note": "reference = source frame 0 translated by exact integer k px; no bilinear warp blur"
+    },
+    "content_interp": {
+      "per_step": [
+        {
+          "step": 1,
+          "global_mae": 0.2537936816087798
+        },
+        {
+          "step": 2,
+          "global_mae": 0.2538058886403936
+        },
+        {
+          "step": 3,
+          "global_mae": 0.2538330153773131
+        },
+        {
+          "step": 4,
+          "global_mae": 0.25382691186150624
+        },
+        {
+          "step": 5,
+          "global_mae": 0.2536851746611016
+        },
+        {
+          "step": 6,
+          "global_mae": 0.25358548390292224
+        },
+        {
+          "step": 7,
+          "global_mae": 0.2535468283028119
+        }
+      ],
+      "integer_aligned": [
+        {
+          "frame": 1,
+          "aligned_mae": 0.14931742058532413
+        },
+        {
+          "frame": 2,
+          "aligned_mae": 0.14932157201842527
+        },
+        {
+          "frame": 3,
+          "aligned_mae": 0.1493352133073889
+        },
+        {
+          "frame": 4,
+          "aligned_mae": 0.1493316996158531
+        },
+        {
+          "frame": 5,
+          "aligned_mae": 0.14924262303664668
+        },
+        {
+          "frame": 6,
+          "aligned_mae": 0.14923782833437446
+        },
+        {
+          "frame": 7,
+          "aligned_mae": 0.149230618391645
+        }
+      ],
+      "flicker_proxy_step_std": 0.00011091108079300556,
+      "note": "reference = source frame 0 translated by exact integer k px; no bilinear warp blur"
+    }
+  },
+  "performance": {
+    "screen": {
+      "seconds_median": 0.04814289999194443,
+      "tracemalloc_peak_bytes": 39324448
+    },
+    "content_nearest": {
+      "seconds_median": 0.04530289999092929,
+      "tracemalloc_peak_bytes": 38668856
+    },
+    "content_interp": {
+      "seconds_median": 0.05081419998896308,
+      "tracemalloc_peak_bytes": 39324440
+    }
+  },
+  "absolute_probe": {
+    "screen": {
+      "nonfinite_count": 0,
+      "visible_max": 0.6666666865348816,
+      "near_transparent_max": 0.6666666865348816,
+      "near_transparent_channels_gt_1": 0,
+      "near_transparent_channels_gt_10": 0
+    },
+    "content_nearest": {
+      "nonfinite_count": 0,
+      "visible_max": 0.6666666865348816,
+      "near_transparent_max": 0.6666666865348816,
+      "near_transparent_channels_gt_1": 0,
+      "near_transparent_channels_gt_10": 0
+    },
+    "content_interp": {
+      "nonfinite_count": 0,
+      "visible_max": 0.6666666865348816,
+      "near_transparent_max": 0.6666666865348816,
+      "near_transparent_channels_gt_1": 0,
+      "near_transparent_channels_gt_10": 0
+    }
+  },
+  "descriptor_check": {
+    "screen": 5.960464477539063e-08,
+    "content_nearest": 5.960464477539063e-08,
+    "content_interp": 5.960464477539063e-08
+  }
+}

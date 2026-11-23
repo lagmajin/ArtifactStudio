@@ -3,6 +3,9 @@
 const { spawn } = require('child_process');
 const net = require('net');
 
+const MAX_HEADER_BYTES = 16 * 1024;
+const MAX_FRAME_BODY_BYTES = 16 * 1024 * 1024;
+
 class DapClient {
   constructor() {
     this.transport = null;
@@ -95,9 +98,19 @@ class DapClient {
 
   onData(chunk) {
     this.buffer = Buffer.concat([this.buffer, chunk]);
+    if (this.buffer.length > MAX_HEADER_BYTES + MAX_FRAME_BODY_BYTES) {
+      this.recordEvent({ event: 'protocolError', body: { message: 'DAP frame exceeds maximum size' } });
+      this.buffer = Buffer.alloc(0);
+      return;
+    }
     while (true) {
       const headerEnd = this.buffer.indexOf('\r\n\r\n');
       if (headerEnd < 0) return;
+      if (headerEnd > MAX_HEADER_BYTES) {
+        this.recordEvent({ event: 'protocolError', body: { message: 'DAP header exceeds maximum size' } });
+        this.buffer = Buffer.alloc(0);
+        return;
+      }
       const header = this.buffer.slice(0, headerEnd).toString('ascii');
       const match = header.match(/content-length:\s*(\d+)/i);
       if (!match) {
@@ -105,6 +118,11 @@ class DapClient {
         continue;
       }
       const length = Number(match[1]);
+      if (!Number.isSafeInteger(length) || length < 0 || length > MAX_FRAME_BODY_BYTES) {
+        this.recordEvent({ event: 'protocolError', body: { message: 'DAP body exceeds maximum size' } });
+        this.buffer = Buffer.alloc(0);
+        return;
+      }
       const end = headerEnd + 4 + length;
       if (this.buffer.length < end) return;
       const body = this.buffer.slice(headerEnd + 4, end).toString('utf8');
@@ -257,6 +275,8 @@ class DapClient {
     this.adapterCapabilities = {};
     this.transport = null;
     this.process = null;
+    // A partial frame from the previous adapter must not leak into a new session.
+    this.buffer = Buffer.alloc(0);
     for (const waiter of this.eventWaiters) {
       clearTimeout(waiter.timer);
       waiter.reject(error);

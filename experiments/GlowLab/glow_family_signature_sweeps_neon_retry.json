@@ -1,0 +1,83 @@
+{
+  "intent": "Exploratory product-path sweep of chromatic dispersion and liquid distortion on the same synthetic neon plate; not accepted presets.",
+  "source": "captures/glow-suite-role-candidates-neon-cpu-rd1/app-role-glow.png",
+  "profiles": {
+    "chromatic-dispersion-3p0": {
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 3.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      },
+      "effect_id": "chromatic_glow"
+    },
+    "chromatic-dispersion-6p0": {
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 6.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      },
+      "effect_id": "chromatic_glow"
+    },
+    "liquid-distortion-0p0": {
+      "properties": {
+        "Distortion": 0.0,
+        "Flow Scale": 30.0,
+        "Threshold": 0.45,
+        "Phase": 0.0,
+        "Radius": 10.0,
+        "Intensity": 0.6
+      },
+      "effect_id": "liquid_glow"
+    },
+    "liquid-distortion-1p5": {
+      "properties": {
+        "Distortion": 1.5,
+        "Flow Scale": 30.0,
+        "Threshold": 0.45,
+        "Phase": 0.0,
+        "Radius": 10.0,
+        "Intensity": 0.6
+      },
+      "effect_id": "liquid_glow"
+    },
+    "liquid-distortion-3p0": {
+      "properties": {
+        "Distortion": 3.0,
+        "Flow Scale": 30.0,
+        "Threshold": 0.45,
+        "Phase": 0.0,
+        "Radius": 10.0,
+        "Intensity": 0.6
+      },
+      "effect_id": "liquid_glow"
+    },
+    "liquid-distortion-6p0": {
+      "properties": {
+        "Distortion": 6.0,
+        "Flow Scale": 30.0,
+        "Threshold": 0.45,
+        "Phase": 0.0,
+        "Radius": 10.0,
+        "Intensity": 0.6
+      },
+      "effect_id": "liquid_glow"
+    },
+    "liquid-distortion-12p0": {
+      "properties": {
+        "Distortion": 12.0,
+        "Flow Scale": 30.0,
+        "Threshold": 0.45,
+        "Phase": 0.0,
+        "Radius": 10.0,
+        "Intensity": 0.6
+      },
+      "effect_id": "liquid_glow"
+    }
+  }
+}

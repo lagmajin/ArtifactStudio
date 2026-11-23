@@ -1,0 +1,1938 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-typed-ir-fixture-readiness-report",
+  "status": "fixture-driven-candidate-projection-created-no-core-ir",
+  "fixtures": [
+    {
+      "fixture": "principled_default.json",
+      "fixtureSha256": "046A923DBEE6BE961FF5FC8D94EBC7C52D2B6F7285327D2096888120BF0607E9",
+      "status": "candidate-projection-unverified",
+      "rootBoundary": {
+        "nodeId": "output",
+        "legacyKind": "MaterialOutput",
+        "classification": "selected-output-boundary-not-a-typed-operation",
+        "surfaceInputLinks": [
+          {
+            "sourceNodeId": "principled",
+            "sourceOutputSocket": "BSDF",
+            "sourceOutputStableSocketId": "surface.out.bsdf",
+            "inputStableSocketId": "output.in.surface",
+            "sourceOutputLegacyPinType": "Shader",
+            "inputLegacyPinType": "Shader",
+            "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+            "status": "identified-pin-types-recorded"
+          }
+        ]
+      },
+      "diagnosticCodes": [],
+      "activeNodeIds": [
+        "output",
+        "principled"
+      ],
+      "candidateOperations": [
+        {
+          "nodeId": "principled",
+          "legacyKind": "Principled",
+          "operationId": "artifact.surface.principled.fields",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "base_color",
+              "legacySocket": "BaseColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.base_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.8,
+                  0.8,
+                  0.8,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0.8,0.8,0.8,1); preserve authored RGBA without conversion"
+              }
+            },
+            {
+              "inputId": "metallic",
+              "legacySocket": "Metallic",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.metallic",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.0,
+                "declaredPolicy": "0; saturate during surface-field assembly"
+              }
+            },
+            {
+              "inputId": "roughness",
+              "legacySocket": "Roughness",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.roughness",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.5,
+                "declaredPolicy": "0.5; saturate during surface-field assembly, with renderer boundary applying its documented 0.04 floor"
+              }
+            },
+            {
+              "inputId": "emission_color",
+              "legacySocket": "EmissionColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.emission_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0,0,0,1); output uses RGB multiplied by nonnegative strength and ignores input alpha"
+              }
+            },
+            {
+              "inputId": "emission_strength",
+              "legacySocket": "EmissionStrength",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.emission_strength",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; clamp strength to nonnegative before multiplying emission RGB"
+              }
+            },
+            {
+              "inputId": "alpha",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.alpha",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; saturate before field assembly"
+              }
+            },
+            {
+              "inputId": "normal",
+              "legacySocket": "Normal",
+              "legacyPinType": "Vector3",
+              "valueType": "Vector3",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.normal",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "normalSample",
+                  "coordinateSpace": "unresolved"
+                },
+                "declaredPolicy": "pass through host normalSample fallback as Vector3; coordinate-space meaning remains unresolved"
+              }
+            },
+            {
+              "inputId": "occlusion",
+              "legacySocket": "Occlusion",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.occlusion",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "occlusionSample"
+                },
+                "declaredPolicy": "host occlusionSample fallback; saturate before field assembly"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "surface",
+              "valueType": "SurfaceFields",
+              "legacySocket": "BSDF",
+              "legacyPinType": "Shader",
+              "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+              "stableSocketId": "surface.out.bsdf"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        }
+      ],
+      "candidateTypedIrProjection": {
+        "kind": "artifact-typed-ir-projection-candidate",
+        "status": "proposal-fixture-projection-not-core-ir",
+        "operations": [
+          {
+            "nodeId": "principled",
+            "operationId": "artifact.surface.principled.fields",
+            "semanticVersion": 1,
+            "inputs": [
+              {
+                "inputId": "base_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                  ]
+                }
+              },
+              {
+                "inputId": "metallic",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 0.0
+                }
+              },
+              {
+                "inputId": "roughness",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 0.5
+                }
+              },
+              {
+                "inputId": "emission_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                  ]
+                }
+              },
+              {
+                "inputId": "emission_strength",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 1.0
+                }
+              },
+              {
+                "inputId": "alpha",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 1.0
+                }
+              },
+              {
+                "inputId": "normal",
+                "valueType": "Vector3",
+                "legacyPinType": "Vector3",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "normalSample",
+                    "coordinateSpace": "unresolved"
+                  }
+                }
+              },
+              {
+                "inputId": "occlusion",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "occlusionSample"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "outputId": "surface",
+                "valueType": "SurfaceFields",
+                "legacySocket": "BSDF",
+                "legacyPinType": "Shader",
+                "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+                "stableSocketId": "surface.out.bsdf"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": []
+          }
+        ],
+        "root": {
+          "nodeId": "principled",
+          "outputId": "surface",
+          "valueType": "SurfaceFields",
+          "sourceLegacyPinType": "Shader",
+          "boundaryInputLegacyPinType": "Shader",
+          "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified"
+        },
+        "candidateSerializationSha256": "7E892AA57A4C79EFC0200E3198179DD4B967CCDC8A35EACA51EBD63FE33BC006"
+      },
+      "projectionDiagnostics": [],
+      "unsupportedNodes": [],
+      "cycleNodeIds": [],
+      "stabilityCases": [
+        {
+          "id": "reverse-node-and-link-storage-order",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-layout-only",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-stable-node-id",
+          "expectedMatchesBaseline": false,
+          "matchesBaseline": false
+        }
+      ],
+      "irProduced": false
+    },
+    {
+      "fixture": "surface_numeric_semantics.json",
+      "fixtureSha256": "52AAB1FD2934C7FC02111CE1548629C6585C79CC9726E6A599B9856D33342DF5",
+      "status": "candidate-projection-unverified",
+      "rootBoundary": {
+        "nodeId": "output",
+        "legacyKind": "MaterialOutput",
+        "classification": "selected-output-boundary-not-a-typed-operation",
+        "surfaceInputLinks": [
+          {
+            "sourceNodeId": "surface",
+            "sourceOutputSocket": "BSDF",
+            "sourceOutputStableSocketId": "surface.out.bsdf",
+            "inputStableSocketId": "output.in.surface",
+            "sourceOutputLegacyPinType": "Shader",
+            "inputLegacyPinType": "Shader",
+            "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+            "status": "identified-pin-types-recorded"
+          }
+        ]
+      },
+      "diagnosticCodes": [],
+      "activeNodeIds": [
+        "emission_color",
+        "emission_strength",
+        "metallic_value",
+        "output",
+        "roughness_value",
+        "surface"
+      ],
+      "candidateOperations": [
+        {
+          "nodeId": "emission_color",
+          "legacyKind": "RGB",
+          "operationId": "artifact.constant.color4.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "color",
+              "valueType": "Color4",
+              "legacySocket": "Color",
+              "legacyPinType": "Vector4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "color.out.color"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "rgba",
+              "value": [
+                0.25,
+                0.5,
+                1.0,
+                1.0
+              ],
+              "source": "node-owned channel parameters or constructor defaults"
+            }
+          ],
+          "legacyParameters": {
+            "r": 0.25,
+            "g": 0.5,
+            "b": 1.0,
+            "a": 1.0
+          }
+        },
+        {
+          "nodeId": "emission_strength",
+          "legacyKind": "Value",
+          "operationId": "artifact.constant.scalar.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Float",
+              "legacySocket": "Value",
+              "legacyPinType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "value.out.value"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": 2.5,
+              "source": "node-owned parameter or constructor default"
+            }
+          ],
+          "legacyParameters": {
+            "value": 2.5
+          }
+        },
+        {
+          "nodeId": "metallic_value",
+          "legacyKind": "Value",
+          "operationId": "artifact.constant.scalar.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Float",
+              "legacySocket": "Value",
+              "legacyPinType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "value.out.value"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": 0.75,
+              "source": "node-owned parameter or constructor default"
+            }
+          ],
+          "legacyParameters": {
+            "value": 0.75
+          }
+        },
+        {
+          "nodeId": "roughness_value",
+          "legacyKind": "Value",
+          "operationId": "artifact.constant.scalar.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Float",
+              "legacySocket": "Value",
+              "legacyPinType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "value.out.value"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": 0.25,
+              "source": "node-owned parameter or constructor default"
+            }
+          ],
+          "legacyParameters": {
+            "value": 0.25
+          }
+        },
+        {
+          "nodeId": "surface",
+          "legacyKind": "Principled",
+          "operationId": "artifact.surface.principled.fields",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "base_color",
+              "legacySocket": "BaseColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.base_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.8,
+                  0.8,
+                  0.8,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0.8,0.8,0.8,1); preserve authored RGBA without conversion"
+              }
+            },
+            {
+              "inputId": "metallic",
+              "legacySocket": "Metallic",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.metallic",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "metallic_value",
+                "sourceOutputSocket": "Value",
+                "sourceOutputLegacyPinType": "Float",
+                "sourceOutputStableSocketId": "value.out.value"
+              }
+            },
+            {
+              "inputId": "roughness",
+              "legacySocket": "Roughness",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.roughness",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "roughness_value",
+                "sourceOutputSocket": "Value",
+                "sourceOutputLegacyPinType": "Float",
+                "sourceOutputStableSocketId": "value.out.value"
+              }
+            },
+            {
+              "inputId": "emission_color",
+              "legacySocket": "EmissionColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.emission_color",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "emission_color",
+                "sourceOutputSocket": "Color",
+                "sourceOutputLegacyPinType": "Vector4",
+                "sourceOutputStableSocketId": "color.out.color"
+              }
+            },
+            {
+              "inputId": "emission_strength",
+              "legacySocket": "EmissionStrength",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.emission_strength",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "emission_strength",
+                "sourceOutputSocket": "Value",
+                "sourceOutputLegacyPinType": "Float",
+                "sourceOutputStableSocketId": "value.out.value"
+              }
+            },
+            {
+              "inputId": "alpha",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.alpha",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; saturate before field assembly"
+              }
+            },
+            {
+              "inputId": "normal",
+              "legacySocket": "Normal",
+              "legacyPinType": "Vector3",
+              "valueType": "Vector3",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.normal",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "normalSample",
+                  "coordinateSpace": "unresolved"
+                },
+                "declaredPolicy": "pass through host normalSample fallback as Vector3; coordinate-space meaning remains unresolved"
+              }
+            },
+            {
+              "inputId": "occlusion",
+              "legacySocket": "Occlusion",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.occlusion",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "occlusionSample"
+                },
+                "declaredPolicy": "host occlusionSample fallback; saturate before field assembly"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "surface",
+              "valueType": "SurfaceFields",
+              "legacySocket": "BSDF",
+              "legacyPinType": "Shader",
+              "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+              "stableSocketId": "surface.out.bsdf"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        }
+      ],
+      "candidateTypedIrProjection": {
+        "kind": "artifact-typed-ir-projection-candidate",
+        "status": "proposal-fixture-projection-not-core-ir",
+        "operations": [
+          {
+            "nodeId": "emission_color",
+            "operationId": "artifact.constant.color4.float32",
+            "semanticVersion": 1,
+            "inputs": [],
+            "outputs": [
+              {
+                "outputId": "color",
+                "valueType": "Color4",
+                "legacySocket": "Color",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "stableSocketId": "color.out.color"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "rgba",
+                "value": [
+                  0.25,
+                  0.5,
+                  1.0,
+                  1.0
+                ]
+              }
+            ],
+            "resourceDependencies": []
+          },
+          {
+            "nodeId": "emission_strength",
+            "operationId": "artifact.constant.scalar.float32",
+            "semanticVersion": 1,
+            "inputs": [],
+            "outputs": [
+              {
+                "outputId": "value",
+                "valueType": "Float",
+                "legacySocket": "Value",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "stableSocketId": "value.out.value"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "value",
+                "value": 2.5
+              }
+            ],
+            "resourceDependencies": []
+          },
+          {
+            "nodeId": "metallic_value",
+            "operationId": "artifact.constant.scalar.float32",
+            "semanticVersion": 1,
+            "inputs": [],
+            "outputs": [
+              {
+                "outputId": "value",
+                "valueType": "Float",
+                "legacySocket": "Value",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "stableSocketId": "value.out.value"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "value",
+                "value": 0.75
+              }
+            ],
+            "resourceDependencies": []
+          },
+          {
+            "nodeId": "roughness_value",
+            "operationId": "artifact.constant.scalar.float32",
+            "semanticVersion": 1,
+            "inputs": [],
+            "outputs": [
+              {
+                "outputId": "value",
+                "valueType": "Float",
+                "legacySocket": "Value",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "stableSocketId": "value.out.value"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "value",
+                "value": 0.25
+              }
+            ],
+            "resourceDependencies": []
+          },
+          {
+            "nodeId": "surface",
+            "operationId": "artifact.surface.principled.fields",
+            "semanticVersion": 1,
+            "inputs": [
+              {
+                "inputId": "base_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                  ]
+                }
+              },
+              {
+                "inputId": "metallic",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "metallic_value",
+                  "sourceOutputId": "value",
+                  "sourceLegacyPinType": "Float"
+                }
+              },
+              {
+                "inputId": "roughness",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "roughness_value",
+                  "sourceOutputId": "value",
+                  "sourceLegacyPinType": "Float"
+                }
+              },
+              {
+                "inputId": "emission_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "emission_color",
+                  "sourceOutputId": "color",
+                  "sourceLegacyPinType": "Vector4"
+                }
+              },
+              {
+                "inputId": "emission_strength",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "emission_strength",
+                  "sourceOutputId": "value",
+                  "sourceLegacyPinType": "Float"
+                }
+              },
+              {
+                "inputId": "alpha",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 1.0
+                }
+              },
+              {
+                "inputId": "normal",
+                "valueType": "Vector3",
+                "legacyPinType": "Vector3",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "normalSample",
+                    "coordinateSpace": "unresolved"
+                  }
+                }
+              },
+              {
+                "inputId": "occlusion",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "occlusionSample"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "outputId": "surface",
+                "valueType": "SurfaceFields",
+                "legacySocket": "BSDF",
+                "legacyPinType": "Shader",
+                "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+                "stableSocketId": "surface.out.bsdf"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": []
+          }
+        ],
+        "root": {
+          "nodeId": "surface",
+          "outputId": "surface",
+          "valueType": "SurfaceFields",
+          "sourceLegacyPinType": "Shader",
+          "boundaryInputLegacyPinType": "Shader",
+          "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified"
+        },
+        "candidateSerializationSha256": "00AC1C37B94D81EFA809A47885B7CB14207ABE6434741A8DEAAE4F56C1F3424D"
+      },
+      "projectionDiagnostics": [],
+      "unsupportedNodes": [],
+      "cycleNodeIds": [],
+      "stabilityCases": [
+        {
+          "id": "reverse-node-and-link-storage-order",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-layout-only",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-stable-node-id",
+          "expectedMatchesBaseline": false,
+          "matchesBaseline": false
+        }
+      ],
+      "irProduced": false
+    },
+    {
+      "fixture": "channel_probe_basecolor.json",
+      "fixtureSha256": "77072BFEF22B48601D5E962360734964097BE7454F799A244701E9ED1E0C4286",
+      "status": "candidate-projection-unverified",
+      "rootBoundary": {
+        "nodeId": "output",
+        "legacyKind": "MaterialOutput",
+        "classification": "selected-output-boundary-not-a-typed-operation",
+        "surfaceInputLinks": [
+          {
+            "sourceNodeId": "surface",
+            "sourceOutputSocket": "BSDF",
+            "sourceOutputStableSocketId": "surface.out.bsdf",
+            "inputStableSocketId": "output.in.surface",
+            "sourceOutputLegacyPinType": "Shader",
+            "inputLegacyPinType": "Shader",
+            "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+            "status": "identified-pin-types-recorded"
+          }
+        ]
+      },
+      "diagnosticCodes": [],
+      "activeNodeIds": [
+        "output",
+        "surface",
+        "texture",
+        "uv"
+      ],
+      "candidateOperations": [
+        {
+          "nodeId": "surface",
+          "legacyKind": "Principled",
+          "operationId": "artifact.surface.principled.fields",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "base_color",
+              "legacySocket": "BaseColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.base_color",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "texture",
+                "sourceOutputSocket": "Color",
+                "sourceOutputLegacyPinType": "Vector4",
+                "sourceOutputStableSocketId": "image_texture.out.color"
+              }
+            },
+            {
+              "inputId": "metallic",
+              "legacySocket": "Metallic",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.metallic",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.0,
+                "declaredPolicy": "0; saturate during surface-field assembly"
+              }
+            },
+            {
+              "inputId": "roughness",
+              "legacySocket": "Roughness",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.roughness",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.5,
+                "declaredPolicy": "0.5; saturate during surface-field assembly, with renderer boundary applying its documented 0.04 floor"
+              }
+            },
+            {
+              "inputId": "emission_color",
+              "legacySocket": "EmissionColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.emission_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0,0,0,1); output uses RGB multiplied by nonnegative strength and ignores input alpha"
+              }
+            },
+            {
+              "inputId": "emission_strength",
+              "legacySocket": "EmissionStrength",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.emission_strength",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; clamp strength to nonnegative before multiplying emission RGB"
+              }
+            },
+            {
+              "inputId": "alpha",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.alpha",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; saturate before field assembly"
+              }
+            },
+            {
+              "inputId": "normal",
+              "legacySocket": "Normal",
+              "legacyPinType": "Vector3",
+              "valueType": "Vector3",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.normal",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "normalSample",
+                  "coordinateSpace": "unresolved"
+                },
+                "declaredPolicy": "pass through host normalSample fallback as Vector3; coordinate-space meaning remains unresolved"
+              }
+            },
+            {
+              "inputId": "occlusion",
+              "legacySocket": "Occlusion",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.occlusion",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "occlusionSample"
+                },
+                "declaredPolicy": "host occlusionSample fallback; saturate before field assembly"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "surface",
+              "valueType": "SurfaceFields",
+              "legacySocket": "BSDF",
+              "legacyPinType": "Shader",
+              "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+              "stableSocketId": "surface.out.bsdf"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        },
+        {
+          "nodeId": "texture",
+          "legacyKind": "ImageTexture",
+          "operationId": "artifact.texture.material_slot_sample.color4",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "uv",
+              "legacySocket": "UV",
+              "legacyPinType": "Vector2",
+              "valueType": "Vector2",
+              "typeAdapter": "identity",
+              "stableSocketId": "image_texture.in.uv",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "uv",
+                "sourceOutputSocket": "UV",
+                "sourceOutputLegacyPinType": "Vector2",
+                "sourceOutputStableSocketId": "coordinates.out.uv"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "color",
+              "valueType": "Color4",
+              "legacySocket": "Color",
+              "legacyPinType": "Vector4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "image_texture.out.color"
+            },
+            {
+              "outputId": "alpha",
+              "valueType": "Float",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "image_texture.out.alpha"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "material_slot",
+              "value": "base_color",
+              "legacyOrdinal": 0,
+              "source": "legacy enum mapping",
+              "resolved": true
+            }
+          ],
+          "legacyParameters": {
+            "slot": 0
+          }
+        },
+        {
+          "nodeId": "uv",
+          "legacyKind": "TexCoord",
+          "operationId": "artifact.context.texture_coordinates.uv",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "uv",
+              "valueType": "Vector2",
+              "legacySocket": "UV",
+              "legacyPinType": "Vector2",
+              "typeAdapter": "identity",
+              "stableSocketId": "coordinates.out.uv"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        }
+      ],
+      "candidateTypedIrProjection": {
+        "kind": "artifact-typed-ir-projection-candidate",
+        "status": "proposal-fixture-projection-not-core-ir",
+        "operations": [
+          {
+            "nodeId": "uv",
+            "operationId": "artifact.context.texture_coordinates.uv",
+            "semanticVersion": 1,
+            "inputs": [],
+            "outputs": [
+              {
+                "outputId": "uv",
+                "valueType": "Vector2",
+                "legacySocket": "UV",
+                "legacyPinType": "Vector2",
+                "typeAdapter": "identity",
+                "stableSocketId": "coordinates.out.uv"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": []
+          },
+          {
+            "nodeId": "texture",
+            "operationId": "artifact.texture.material_slot_sample.color4",
+            "semanticVersion": 1,
+            "inputs": [
+              {
+                "inputId": "uv",
+                "valueType": "Vector2",
+                "legacyPinType": "Vector2",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "uv",
+                  "sourceOutputId": "uv",
+                  "sourceLegacyPinType": "Vector2"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "outputId": "color",
+                "valueType": "Color4",
+                "legacySocket": "Color",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "stableSocketId": "image_texture.out.color"
+              },
+              {
+                "outputId": "alpha",
+                "valueType": "Float",
+                "legacySocket": "Alpha",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "stableSocketId": "image_texture.out.alpha"
+              }
+            ],
+            "parameters": [
+              {
+                "parameterId": "material_slot",
+                "value": "base_color"
+              }
+            ],
+            "resourceDependencies": [
+              {
+                "resourceKey": "materialSlot",
+                "symbolicValue": null,
+                "status": "symbolic-slot-only-asset-identity-revision-and-sampler-unresolved"
+              }
+            ]
+          },
+          {
+            "nodeId": "surface",
+            "operationId": "artifact.surface.principled.fields",
+            "semanticVersion": 1,
+            "inputs": [
+              {
+                "inputId": "base_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "edge",
+                  "sourceNodeId": "texture",
+                  "sourceOutputId": "color",
+                  "sourceLegacyPinType": "Vector4"
+                }
+              },
+              {
+                "inputId": "metallic",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 0.0
+                }
+              },
+              {
+                "inputId": "roughness",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 0.5
+                }
+              },
+              {
+                "inputId": "emission_color",
+                "valueType": "Color4",
+                "legacyPinType": "Vector4",
+                "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                  ]
+                }
+              },
+              {
+                "inputId": "emission_strength",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 1.0
+                }
+              },
+              {
+                "inputId": "alpha",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": 1.0
+                }
+              },
+              {
+                "inputId": "normal",
+                "valueType": "Vector3",
+                "legacyPinType": "Vector3",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "normalSample",
+                    "coordinateSpace": "unresolved"
+                  }
+                }
+              },
+              {
+                "inputId": "occlusion",
+                "valueType": "Float",
+                "legacyPinType": "Float",
+                "typeAdapter": "identity",
+                "binding": {
+                  "kind": "candidate-default",
+                  "value": {
+                    "hostContext": "occlusionSample"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "outputId": "surface",
+                "valueType": "SurfaceFields",
+                "legacySocket": "BSDF",
+                "legacyPinType": "Shader",
+                "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+                "stableSocketId": "surface.out.bsdf"
+              }
+            ],
+            "parameters": [],
+            "resourceDependencies": []
+          }
+        ],
+        "root": {
+          "nodeId": "surface",
+          "outputId": "surface",
+          "valueType": "SurfaceFields",
+          "sourceLegacyPinType": "Shader",
+          "boundaryInputLegacyPinType": "Shader",
+          "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified"
+        },
+        "candidateSerializationSha256": "4AD86EA9F314E5F8EBAD6E08BDF24FCD0F9F6526D8109B9D4D88D011DA8189B5"
+      },
+      "projectionDiagnostics": [],
+      "unsupportedNodes": [],
+      "cycleNodeIds": [],
+      "stabilityCases": [
+        {
+          "id": "reverse-node-and-link-storage-order",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-layout-only",
+          "expectedMatchesBaseline": true,
+          "matchesBaseline": true
+        },
+        {
+          "id": "change-stable-node-id",
+          "expectedMatchesBaseline": false,
+          "matchesBaseline": false
+        }
+      ],
+      "irProduced": false
+    },
+    {
+      "fixture": "skipped_type_mismatch_link_negative.json",
+      "fixtureSha256": "E9D7713657BF93C7D7D712516677AE5166AB87B0A64C27D91D6B17F22AB1A780",
+      "status": "blocked-no-partial-ir",
+      "rootBoundary": {
+        "nodeId": "output",
+        "legacyKind": "MaterialOutput",
+        "classification": "selected-output-boundary-not-a-typed-operation",
+        "surfaceInputLinks": [
+          {
+            "sourceNodeId": "surface",
+            "sourceOutputSocket": "BSDF",
+            "sourceOutputStableSocketId": "surface.out.bsdf",
+            "inputStableSocketId": "output.in.surface",
+            "sourceOutputLegacyPinType": "Shader",
+            "inputLegacyPinType": "Shader",
+            "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+            "status": "identified-pin-types-recorded"
+          }
+        ]
+      },
+      "diagnosticCodes": [
+        "lowering.projection.candidate-invalid"
+      ],
+      "activeNodeIds": [
+        "output",
+        "scalar",
+        "surface"
+      ],
+      "candidateOperations": [
+        {
+          "nodeId": "scalar",
+          "legacyKind": "Value",
+          "operationId": "artifact.constant.scalar.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Float",
+              "legacySocket": "Value",
+              "legacyPinType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "value.out.value"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": 0.75,
+              "source": "node-owned parameter or constructor default"
+            }
+          ],
+          "legacyParameters": {
+            "value": 0.75
+          }
+        },
+        {
+          "nodeId": "surface",
+          "legacyKind": "Principled",
+          "operationId": "artifact.surface.principled.fields",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "base_color",
+              "legacySocket": "BaseColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.base_color",
+              "binding": {
+                "status": "linked-source-identified-pin-types-recorded",
+                "sourceNodeId": "scalar",
+                "sourceOutputSocket": "Value",
+                "sourceOutputLegacyPinType": "Float",
+                "sourceOutputStableSocketId": "value.out.value"
+              }
+            },
+            {
+              "inputId": "metallic",
+              "legacySocket": "Metallic",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.metallic",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.0,
+                "declaredPolicy": "0; saturate during surface-field assembly"
+              }
+            },
+            {
+              "inputId": "roughness",
+              "legacySocket": "Roughness",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.roughness",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.5,
+                "declaredPolicy": "0.5; saturate during surface-field assembly, with renderer boundary applying its documented 0.04 floor"
+              }
+            },
+            {
+              "inputId": "emission_color",
+              "legacySocket": "EmissionColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.emission_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0,0,0,1); output uses RGB multiplied by nonnegative strength and ignores input alpha"
+              }
+            },
+            {
+              "inputId": "emission_strength",
+              "legacySocket": "EmissionStrength",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.emission_strength",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; clamp strength to nonnegative before multiplying emission RGB"
+              }
+            },
+            {
+              "inputId": "alpha",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.alpha",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; saturate before field assembly"
+              }
+            },
+            {
+              "inputId": "normal",
+              "legacySocket": "Normal",
+              "legacyPinType": "Vector3",
+              "valueType": "Vector3",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.normal",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "normalSample",
+                  "coordinateSpace": "unresolved"
+                },
+                "declaredPolicy": "pass through host normalSample fallback as Vector3; coordinate-space meaning remains unresolved"
+              }
+            },
+            {
+              "inputId": "occlusion",
+              "legacySocket": "Occlusion",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.occlusion",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "occlusionSample"
+                },
+                "declaredPolicy": "host occlusionSample fallback; saturate before field assembly"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "surface",
+              "valueType": "SurfaceFields",
+              "legacySocket": "BSDF",
+              "legacyPinType": "Shader",
+              "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+              "stableSocketId": "surface.out.bsdf"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        }
+      ],
+      "candidateTypedIrProjection": null,
+      "projectionDiagnostics": [
+        "surface.base_color: candidate edge type mismatch Float -> Color4"
+      ],
+      "unsupportedNodes": [],
+      "cycleNodeIds": [],
+      "stabilityCases": [],
+      "irProduced": false
+    },
+    {
+      "fixture": "duplicate_input_negative.json",
+      "fixtureSha256": "047C42BA2BDF58A6D44380B93090EEA2120EC2BEB02917FCAD8E974F640559A1",
+      "status": "blocked-no-partial-ir",
+      "rootBoundary": {
+        "nodeId": "output",
+        "legacyKind": "MaterialOutput",
+        "classification": "selected-output-boundary-not-a-typed-operation",
+        "surfaceInputLinks": [
+          {
+            "sourceNodeId": "principled",
+            "sourceOutputSocket": "BSDF",
+            "sourceOutputStableSocketId": "surface.out.bsdf",
+            "inputStableSocketId": "output.in.surface",
+            "sourceOutputLegacyPinType": "Shader",
+            "inputLegacyPinType": "Shader",
+            "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+            "status": "identified-pin-types-recorded"
+          }
+        ]
+      },
+      "diagnosticCodes": [
+        "lowering.projection.candidate-invalid"
+      ],
+      "activeNodeIds": [
+        "blue",
+        "output",
+        "principled",
+        "red"
+      ],
+      "candidateOperations": [
+        {
+          "nodeId": "blue",
+          "legacyKind": "RGB",
+          "operationId": "artifact.constant.color4.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "color",
+              "valueType": "Color4",
+              "legacySocket": "Color",
+              "legacyPinType": "Vector4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "color.out.color"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "rgba",
+              "value": [
+                0.0,
+                0.0,
+                1.0,
+                1.0
+              ],
+              "source": "node-owned channel parameters or constructor defaults"
+            }
+          ],
+          "legacyParameters": {
+            "r": 0.0,
+            "g": 0.0,
+            "b": 1.0,
+            "a": 1.0
+          }
+        },
+        {
+          "nodeId": "principled",
+          "legacyKind": "Principled",
+          "operationId": "artifact.surface.principled.fields",
+          "classification": "representative typed operation record",
+          "inputs": [
+            {
+              "inputId": "base_color",
+              "legacySocket": "BaseColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.base_color",
+              "binding": {
+                "status": "ambiguous-multiple-source-links",
+                "linkCount": 2
+              }
+            },
+            {
+              "inputId": "metallic",
+              "legacySocket": "Metallic",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.metallic",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.0,
+                "declaredPolicy": "0; saturate during surface-field assembly"
+              }
+            },
+            {
+              "inputId": "roughness",
+              "legacySocket": "Roughness",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.roughness",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 0.5,
+                "declaredPolicy": "0.5; saturate during surface-field assembly, with renderer boundary applying its documented 0.04 floor"
+              }
+            },
+            {
+              "inputId": "emission_color",
+              "legacySocket": "EmissionColor",
+              "legacyPinType": "Vector4",
+              "valueType": "Color4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "surface.in.emission_color",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "declaredPolicy": "unconnected source default float4(0,0,0,1); output uses RGB multiplied by nonnegative strength and ignores input alpha"
+              }
+            },
+            {
+              "inputId": "emission_strength",
+              "legacySocket": "EmissionStrength",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.emission_strength",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; clamp strength to nonnegative before multiplying emission RGB"
+              }
+            },
+            {
+              "inputId": "alpha",
+              "legacySocket": "Alpha",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.alpha",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": 1.0,
+                "declaredPolicy": "1; saturate before field assembly"
+              }
+            },
+            {
+              "inputId": "normal",
+              "legacySocket": "Normal",
+              "legacyPinType": "Vector3",
+              "valueType": "Vector3",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.normal",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "normalSample",
+                  "coordinateSpace": "unresolved"
+                },
+                "declaredPolicy": "pass through host normalSample fallback as Vector3; coordinate-space meaning remains unresolved"
+              }
+            },
+            {
+              "inputId": "occlusion",
+              "legacySocket": "Occlusion",
+              "legacyPinType": "Float",
+              "valueType": "Float",
+              "typeAdapter": "identity",
+              "stableSocketId": "surface.in.occlusion",
+              "binding": {
+                "status": "unconnected-candidate-default",
+                "candidateValue": {
+                  "hostContext": "occlusionSample"
+                },
+                "declaredPolicy": "host occlusionSample fallback; saturate before field assembly"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "surface",
+              "valueType": "SurfaceFields",
+              "legacySocket": "BSDF",
+              "legacyPinType": "Shader",
+              "typeAdapter": "renderer-specific Shader bundle to SurfaceFields candidate adapter; field parity remains unverified",
+              "stableSocketId": "surface.out.bsdf"
+            }
+          ],
+          "parameters": [],
+          "legacyParameters": {}
+        },
+        {
+          "nodeId": "red",
+          "legacyKind": "RGB",
+          "operationId": "artifact.constant.color4.float32",
+          "classification": "representative typed operation record",
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "color",
+              "valueType": "Color4",
+              "legacySocket": "Color",
+              "legacyPinType": "Vector4",
+              "typeAdapter": "component-wise identity Vector4-to-Color4 semantic relabel; no swizzle or conversion",
+              "stableSocketId": "color.out.color"
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "rgba",
+              "value": [
+                1.0,
+                0.0,
+                0.0,
+                1.0
+              ],
+              "source": "node-owned channel parameters or constructor defaults"
+            }
+          ],
+          "legacyParameters": {
+            "r": 1.0,
+            "g": 0.0,
+            "b": 0.0,
+            "a": 1.0
+          }
+        }
+      ],
+      "candidateTypedIrProjection": null,
+      "projectionDiagnostics": [
+        "principled.base_color: unsupported binding state 'ambiguous-multiple-source-links'"
+      ],
+      "unsupportedNodes": [],
+      "cycleNodeIds": [],
+      "stabilityCases": [],
+      "irProduced": false
+    }
+  ],
+  "explicitConversionExpression": {
+    "fixture": "tests/fixtures/shader-graph-rd/typed_ir_explicit_conversion_expression.json",
+    "fixtureSha256": "6B30D45E1AC94E849D9871B911A4937460C0DFBF4761978A4E5D62E7EA984CAD",
+    "sourceLegacyFixture": "skipped_type_mismatch_link_negative.json",
+    "sourceLegacyFixtureSha256": "E9D7713657BF93C7D7D712516677AE5166AB87B0A64C27D91D6B17F22AB1A780",
+    "operationId": "artifact.convert.scalar.replicate.rgb_alpha_one",
+    "from": "Float",
+    "to": "Vector4",
+    "computedOutput": [
+      0.25,
+      0.25,
+      0.25,
+      1.0
+    ],
+    "expectedOutput": [
+      0.25,
+      0.25,
+      0.25,
+      1.0
+    ],
+    "status": "explicit-conversion-candidate-valid-no-core-ir",
+    "candidateExpression": {
+      "kind": "artifact-typed-operation-expression-candidate",
+      "status": "explicit-conversion-proposal-not-core-ir",
+      "operations": [
+        {
+          "nodeId": "scalar",
+          "operationId": "artifact.constant.scalar.float32",
+          "semanticVersion": 1,
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Float",
+              "cardinality": 1
+            }
+          ],
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": 0.25
+            }
+          ]
+        },
+        {
+          "nodeId": "explicit_convert",
+          "operationId": "artifact.convert.scalar.replicate.rgb_alpha_one",
+          "semanticVersion": 1,
+          "inputs": [
+            {
+              "inputId": "value",
+              "valueType": "Float",
+              "binding": {
+                "kind": "edge",
+                "sourceNodeId": "scalar",
+                "sourceOutputId": "value"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "vector",
+              "valueType": "Vector4",
+              "cardinality": 1
+            }
+          ],
+          "parameters": []
+        }
+      ],
+      "root": {
+        "nodeId": "explicit_convert",
+        "outputId": "vector",
+        "valueType": "Vector4"
+      },
+      "candidateSerializationSha256": "801335A79CD9738FC6126490E994A1DF5C77EFA686F37F1B9ACEF5DB978EDBA3"
+    },
+    "diagnostics": [],
+    "irProduced": false
+  },
+  "vectorTruncationExpression": {
+    "fixture": "tests/fixtures/shader-graph-rd/typed_ir_vector4_to_vector3_expression.json",
+    "fixtureSha256": "9D05EAA836D35BB0594FF35AFEE83D5A55328ECE1C60FE45BC57F8C47C396900",
+    "operationId": "artifact.convert.vector4.truncate_xyz",
+    "from": "Vector4",
+    "to": "Vector3",
+    "computedOutput": [
+      0.25,
+      -0.5,
+      0.75
+    ],
+    "expectedOutput": [
+      0.25,
+      -0.5,
+      0.75
+    ],
+    "status": "explicit-conversion-candidate-valid-no-core-ir",
+    "candidateExpression": {
+      "kind": "artifact-typed-operation-expression-candidate",
+      "status": "explicit-conversion-proposal-not-core-ir",
+      "operations": [
+        {
+          "nodeId": "vector",
+          "operationId": "artifact.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": [
+            {
+              "parameterId": "value",
+              "value": [
+                0.25,
+                -0.5,
+                0.75,
+                0.375
+              ]
+            }
+          ],
+          "inputs": [],
+          "outputs": [
+            {
+              "outputId": "value",
+              "valueType": "Vector4",
+              "cardinality": 1
+            }
+          ]
+        },
+        {
+          "nodeId": "explicit_convert",
+          "operationId": "artifact.convert.vector4.truncate_xyz",
+          "semanticVersion": 1,
+          "parameters": [],
+          "inputs": [
+            {
+              "inputId": "value",
+              "valueType": "Vector4",
+              "binding": {
+                "kind": "edge",
+                "sourceNodeId": "vector",
+                "sourceOutputId": "value"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "outputId": "vector",
+              "valueType": "Vector3",
+              "cardinality": 1
+            }
+          ]
+        }
+      ],
+      "root": {
+        "nodeId": "explicit_convert",
+        "outputId": "vector",
+        "valueType": "Vector3"
+      },
+      "candidateSerializationSha256": "DBDC67FBE69EC3C508F7BB7615A63A29CB27C7DB8F7D06AC937A651342179704"
+    },
+    "diagnostics": []
+  },
+  "limitations": [
+    "uses legacy fixture topology and proposed operation coverage only",
+    "MaterialOutput selects the graph root and is treated as a boundary; it does not require a typed operation record",
+    "checks selected legacy PinType fragments against source and candidate record types; does not validate the complete Document schema or numeric lowering",
+    "input links are matched by legacy display socket labels; stable socket IDs and conversion semantics are unresolved",
+    "stable socket IDs are included only where the proposal manifest defines a legacy-label mapping; null means no mapping is proposed",
+    "unconnected values are candidate source defaults and host-context inputs remain unresolved",
+    "candidate parameter values are source-fixture projections; binary32 canonicalization and parameter validation are not performed",
+    "candidateOperations are not a partial IR and must not be compiled or hashed as one",
+    "candidateTypedIrProjection is a fixture-driven schema projection only; its serialization digest is not the Core semantic hash",
+    "symbolic material texture slots do not resolve asset identity, revision, sampler, color interpretation, or alpha association",
+    "no Core implementation, HLSL, shader compiler, renderer, or GPU evidence is included"
+  ]
+}

@@ -159,6 +159,72 @@ inline Image makeDiagnosticImage(const int width, const int height,
     return image;
 }
 
+// Additional deterministic review fixtures. These are generated in memory so
+// their source parameters and resulting PNG hashes can be recorded per capture.
+inline Image makeFineLineFixture(const int width, const int height, const bool second)
+{
+    Image image = makeImage(width, height);
+    if (image.empty()) return image;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const bool line = ((x + (second ? y : 0)) % 7) == 0 ||
+                              ((y + (second ? x : 0)) % 9) == 0;
+            auto* pixel = image.at(x, y);
+            const std::uint8_t base = static_cast<std::uint8_t>(second ? 32 : 220);
+            const std::uint8_t detail = line ? static_cast<std::uint8_t>(second ? 245 : 12) : base;
+            pixel[0] = detail;
+            pixel[1] = static_cast<std::uint8_t>(second ? 220 - (y % 100) : 20 + (y % 100));
+            pixel[2] = static_cast<std::uint8_t>(second ? 40 + (x % 120) : 210 - (x % 120));
+            pixel[3] = 255;
+        }
+    }
+    return image;
+}
+
+inline Image makeNaturalTextureFixture(const int width, const int height, const bool second)
+{
+    Image image = makeImage(width, height);
+    if (image.empty()) return image;
+    // Fixed integer hash lattice gives repeatable, non-periodic fine texture.
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            std::uint32_t value = static_cast<std::uint32_t>(x + 1) * 0x9E3779B9u ^
+                                  static_cast<std::uint32_t>(y + 7) * 0x85EBCA6Bu ^
+                                  (second ? 0xC2B2AE35u : 0x27D4EB2Fu);
+            value ^= value >> 16; value *= 0x7FEB352Du;
+            value ^= value >> 15; value *= 0x846CA68Bu; value ^= value >> 16;
+            const int grain = static_cast<int>(value & 31u) - 15;
+            const int wave = ((x * 3 + y * 5 + (second ? 37 : 0)) % 47) - 23;
+            auto* pixel = image.at(x, y);
+            pixel[0] = static_cast<std::uint8_t>(std::clamp((second ? 145 : 92) + grain + wave, 0, 255));
+            pixel[1] = static_cast<std::uint8_t>(std::clamp((second ? 94 : 132) + grain - wave, 0, 255));
+            pixel[2] = static_cast<std::uint8_t>(std::clamp((second ? 68 : 104) + grain, 0, 255));
+            pixel[3] = 255;
+        }
+    }
+    return image;
+}
+
+inline Image makeTransparentEdgeFixture(const int width, const int height, const bool second)
+{
+    Image image = makeImage(width, height);
+    if (image.empty()) return image;
+    const int center = second ? width * 2 / 3 : width / 3;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int distance = std::abs(x - center);
+            const std::uint8_t alpha = distance < width / 5 ? 255 :
+                static_cast<std::uint8_t>(std::clamp(255 - (distance - width / 5) * 255 / std::max(1, width / 8), 0, 255));
+            auto* pixel = image.at(x, y);
+            pixel[0] = second ? 32 : 230;
+            pixel[1] = static_cast<std::uint8_t>((y * 255) / std::max(1, height - 1));
+            pixel[2] = second ? 220 : 48;
+            pixel[3] = alpha;
+        }
+    }
+    return image;
+}
+
 inline bool pixelEquals(const std::uint8_t* a, const std::uint8_t* b)
 {
     return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];

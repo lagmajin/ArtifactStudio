@@ -1,0 +1,42 @@
+{
+  "intent": "One-knob follow-up to the intermediate portrait Point Rays candidate: lower only Volumetric Shine intensity from 2.4 to 2.0 to clear the streetlamp local clipping gate while preserving the long-ray geometry and Glint settings.",
+  "input": "assets/flash-photo-plate.png",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 2.5,
+      "layerCount": 4,
+      "baseSigma": 10.0
+    }
+  },
+  "recipes": {
+    "portrait-point-rays-intermediate-2": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.74,
+          "sourceY": 0.19,
+          "rayLength": 0.85,
+          "intensity": 2.0,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.45,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ]
+  }
+}

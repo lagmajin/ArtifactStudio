@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "factor", "type": "Value", "params": {"value": 0.5}},
+    {"id": "ramp", "type": "ColorRamp", "params": {"interp": 2, "stops": [
+      {"pos": -0.25, "r": 0.1, "g": 0.2, "b": 0.3, "a": 1.0},
+      {"pos": 1.25, "r": 0.9, "g": 0.8, "b": 0.7, "a": 0.5}
+    ]}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "factor", "out": "Value", "to": "ramp", "in": "Fac"},
+    {"from": "ramp", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

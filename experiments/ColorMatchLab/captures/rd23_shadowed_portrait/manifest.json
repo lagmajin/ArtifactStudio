@@ -1,0 +1,363 @@
+{
+  "rd": "rd23-shadowed-cc0-portrait-synthetic-cast-preparation",
+  "status": "exploratory Core synthetic-cast stress measurement completed; not acceptance",
+  "source": {
+    "path": "experiments/CinematicLooksLab/assets/portrait-2024-1536.jpg",
+    "sha256": "9c14e3c0206ad6fe080c349368bf29219071892002fc01f1b6fc947af3bd40e2",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "source_page": "https://commons.wikimedia.org/wiki/File:Portrait_2024.jpg",
+    "license": "CC0 1.0 per Wikimedia Commons source page; see experiments/CinematicLooksLab/assets/SOURCES.md",
+    "embedded_photographer_credit": "Louis Rivest-Henault"
+  },
+  "reference": {
+    "operation": "clip(source_sRGB * scale + offset, 0, 1)",
+    "scale": [
+      0.94,
+      1.015,
+      1.075
+    ],
+    "offset": [
+      0.012,
+      0.006,
+      -0.008
+    ],
+    "role": "constructed cast, not captured WB reference or physical ground truth"
+  },
+  "roi": {
+    "face_skin_candidate": {
+      "pixels": 25913,
+      "mask": "face_skin_candidate.png",
+      "sha256": "ba855b3c3134ac59d1507e3906fa753eb8bd99b95b7a636a8938ce7a90efbb2b",
+      "polygon_xy": [
+        [
+          644,
+          292
+        ],
+        [
+          647,
+          265
+        ],
+        [
+          660,
+          242
+        ],
+        [
+          681,
+          225
+        ],
+        [
+          708,
+          214
+        ],
+        [
+          744,
+          211
+        ],
+        [
+          780,
+          216
+        ],
+        [
+          810,
+          231
+        ],
+        [
+          831,
+          255
+        ],
+        [
+          843,
+          286
+        ],
+        [
+          844,
+          319
+        ],
+        [
+          834,
+          352
+        ],
+        [
+          817,
+          382
+        ],
+        [
+          793,
+          408
+        ],
+        [
+          765,
+          426
+        ],
+        [
+          738,
+          427
+        ],
+        [
+          710,
+          414
+        ],
+        [
+          686,
+          394
+        ],
+        [
+          668,
+          370
+        ],
+        [
+          653,
+          341
+        ],
+        [
+          645,
+          316
+        ]
+      ],
+      "exclusions": "ellipse masks for eyes and mouth"
+    }
+  },
+  "source_only_observation": "portrait has strong shadow/highlight split across face; after reviewing an enlarged source crop, fixed eye and mouth exclusions were repositioned to cover visible features. The contour and exclusions remain a single-review candidate, not independent annotation.",
+  "visual_review": {
+    "reviewed": true,
+    "reviewer": "R&D visual inspection",
+    "scope": "source-only full-frame overlay and enlarged face crop",
+    "result": "face contour is approximately within visible facial skin and eye/mouth features are excluded at overview scale",
+    "acceptance": false
+  },
+  "artifacts": {
+    "source.png": "aa92861470cbd385ef9563289e95612e0dbe54193e585948b2f9887ae6905021",
+    "synthetic_cast_reference.png": "8281897d1fc629c5423560466b6c3d740e2fe09fe3668bc451d9a7d7a9b4c32b",
+    "face_skin_candidate.png": "ba855b3c3134ac59d1507e3906fa753eb8bd99b95b7a636a8938ce7a90efbb2b",
+    "roi_review_sheet.png": "0d928592ea2e0b995d1c8f91ba0d3d47412d8e1085e75c75ff3e338718c90da7",
+    "face_detail.png": "df1f41f37d74f3dcd6a4a1136342742846afb32dc91b7624a376ef3bc0523edd"
+  },
+  "limits": [
+    "DeltaE76 greater than 2 is descriptive, not a quality threshold",
+    "face mask is a single-review candidate, not independent annotation",
+    "no independent or blind visual acceptance",
+    "no measured neutral-white material",
+    "no neutral-white ROI",
+    "one CC0 portrait; no participant consent record",
+    "single-review hand-drawn face ROI candidate",
+    "synthetic cast rather than paired white-balance capture",
+    "synthetic target, not paired capture"
+  ],
+  "core_test": {
+    "name": "AutoColorMatcherContractTest.CoreImageOverloadMeasuresShadowedPortraitSyntheticCast",
+    "test_source_sha256": "63d3527d63f09be07aba8ada956cc76f25eeb914cc3a0c455da8de9fa4afc965",
+    "roi_pixels": 25913,
+    "metrics_csv": "core_outputs/face_metrics.csv",
+    "run_log": "temp\\rd28_core_full.log",
+    "methods": [
+      "Histogram",
+      "MeanStddev",
+      "Reinhard"
+    ],
+    "intensities": [
+      0.0,
+      0.5,
+      1.0
+    ],
+    "metrics": "D65/2-degree Lab mean and nearest-rank p95/max source-relative DeltaE76, descriptive fraction above DeltaE76 2, and synthetic-reference mean DeltaE76",
+    "role": "actual Core ImageF32x4_RGBA overload output against the source and constructed synthetic cast; not captured WB ground truth",
+    "full_suite_run_log": "temp\\rd28_core_full.log",
+    "full_suite_run_log_sha256": "127547459cee52d265ceaba591210868fbd5d7881261cdcbbac0c5da860c4375"
+  },
+  "metrics": {
+    "rows": [
+      {
+        "method": "Reinhard",
+        "intensity": "0",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "0",
+        "source_p95_delta_e76": "0",
+        "source_max_delta_e76": "0",
+        "source_pct_over_2": "0",
+        "synthetic_reference_mean_delta_e76": "3.537029508"
+      },
+      {
+        "method": "Reinhard",
+        "intensity": "0.5",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "2.393241268",
+        "source_p95_delta_e76": "3.234533853",
+        "source_max_delta_e76": "3.735461865",
+        "source_pct_over_2": "70.25431251",
+        "synthetic_reference_mean_delta_e76": "4.228198608"
+      },
+      {
+        "method": "Reinhard",
+        "intensity": "1",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "4.652578808",
+        "source_p95_delta_e76": "6.396412874",
+        "source_max_delta_e76": "7.432153039",
+        "source_pct_over_2": "94.17280901",
+        "synthetic_reference_mean_delta_e76": "5.825362365"
+      },
+      {
+        "method": "MeanStddev",
+        "intensity": "0",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "0",
+        "source_p95_delta_e76": "0",
+        "source_max_delta_e76": "0",
+        "source_pct_over_2": "0",
+        "synthetic_reference_mean_delta_e76": "3.537029508"
+      },
+      {
+        "method": "MeanStddev",
+        "intensity": "0.5",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "1.762741355",
+        "source_p95_delta_e76": "3.531125843",
+        "source_max_delta_e76": "3.925147478",
+        "source_pct_over_2": "35.13680392",
+        "synthetic_reference_mean_delta_e76": "1.779440881"
+      },
+      {
+        "method": "MeanStddev",
+        "intensity": "1",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "3.54151186",
+        "source_p95_delta_e76": "7.046261738",
+        "source_max_delta_e76": "7.802025416",
+        "source_pct_over_2": "74.49542701",
+        "synthetic_reference_mean_delta_e76": "0.1526854027"
+      },
+      {
+        "method": "Histogram",
+        "intensity": "0",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "0",
+        "source_p95_delta_e76": "0",
+        "source_max_delta_e76": "0",
+        "source_pct_over_2": "0",
+        "synthetic_reference_mean_delta_e76": "3.537029508"
+      },
+      {
+        "method": "Histogram",
+        "intensity": "0.5",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "1.748937862",
+        "source_p95_delta_e76": "3.4060813",
+        "source_max_delta_e76": "4.047231931",
+        "source_pct_over_2": "34.43059468",
+        "synthetic_reference_mean_delta_e76": "1.804829464"
+      },
+      {
+        "method": "Histogram",
+        "intensity": "1",
+        "roi_pixels": "25913",
+        "source_mean_delta_e76": "3.513655793",
+        "source_p95_delta_e76": "6.801540711",
+        "source_max_delta_e76": "8.051267233",
+        "source_pct_over_2": "71.04928028",
+        "synthetic_reference_mean_delta_e76": "0.3340843847"
+      }
+    ],
+    "sha256": "2d83f15575e4f7efaa5ade89337223da558a140468b137529fec421ad286702d"
+  },
+  "core_png_outputs": {
+    "Histogram_0.0.png": "e802bad3fe767887de0bfb57df12b90454c5bb99f74f3dcfc88ed04a14f7b119",
+    "Histogram_0.5.png": "bf150b94bce8bc230532f6fd4a3eb64f0764a45bcbe04b1a0eddb551087d3a21",
+    "Histogram_1.0.png": "e7988dda0f386793a78ce947d8ce36aa50adff273c97c63f67434fd5b8e2c744",
+    "MeanStddev_0.0.png": "e802bad3fe767887de0bfb57df12b90454c5bb99f74f3dcfc88ed04a14f7b119",
+    "MeanStddev_0.5.png": "3ca22936d43b95a03537ec02b993cddda98541ea322fb2b6108c76d016b6da09",
+    "MeanStddev_1.0.png": "d0833c5c92a9bbd0c661eb3f97d84200f800528916725f31d683108a8bdacf06",
+    "Reinhard_0.0.png": "e802bad3fe767887de0bfb57df12b90454c5bb99f74f3dcfc88ed04a14f7b119",
+    "Reinhard_0.5.png": "bd3f2882356e0c2bea9da8621fb9f2e1dbef44587b7805e14cdf794c6b64ef09",
+    "Reinhard_1.0.png": "89cc994e11eb8794207713a0100f52156b8cd3495a9a35374e0055830398f758"
+  },
+  "core_visual_review": {
+    "file": "core_visual_review.png",
+    "sha256": "c4ce689fd96f1578e6bb4d152290b22f3dd9499e4f2d377f230d61cd2e3602e0",
+    "view": "source, synthetic reference, and three actual Core strength-1 outputs; full frame and fixed face crop",
+    "review_status": "single unblinded R&D inspection; no independent acceptance review",
+    "acceptance": false
+  },
+  "performance": {
+    "csv": "core_outputs/performance.csv",
+    "sha256": "c7306ffbe5e3aec5bce01f1f1fcf4fce163d0b26688bef567d69739107b421ff",
+    "rows": [
+      {
+        "image": "portrait_1536x1024",
+        "width": "1536",
+        "height": "1024",
+        "method": "Reinhard",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "54.167",
+        "median_ms": "55.0895",
+        "max_ms": "61.1142"
+      },
+      {
+        "image": "portrait_1536x1024",
+        "width": "1536",
+        "height": "1024",
+        "method": "MeanStddev",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "20.9691",
+        "median_ms": "21.7984",
+        "max_ms": "23.6024"
+      },
+      {
+        "image": "portrait_1536x1024",
+        "width": "1536",
+        "height": "1024",
+        "method": "Histogram",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "317.2945",
+        "median_ms": "322.1008",
+        "max_ms": "333.2273"
+      },
+      {
+        "image": "portrait_1280x851",
+        "width": "1280",
+        "height": "851",
+        "method": "Reinhard",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "43.0184",
+        "median_ms": "43.8071",
+        "max_ms": "45.9219"
+      },
+      {
+        "image": "portrait_1280x851",
+        "width": "1280",
+        "height": "851",
+        "method": "MeanStddev",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "14.3388",
+        "median_ms": "14.739",
+        "max_ms": "16.0658"
+      },
+      {
+        "image": "portrait_1280x851",
+        "width": "1280",
+        "height": "851",
+        "method": "Histogram",
+        "intensity": "1",
+        "samples": "7",
+        "hardware_threads": "24",
+        "min_ms": "220.1537",
+        "median_ms": "227.1106",
+        "max_ms": "235.2115"
+      }
+    ],
+    "measurement": "raw-buffer Core match() call only; one warm-up and seven timed samples per method/resolution; source restore, IO and reporting excluded; median/min/max in milliseconds",
+    "scope": "single Visual Studio Debug run on two fixed portrait dimensions; descriptive CPU Core timing only, no app budget or acceptance threshold"
+  }
+}

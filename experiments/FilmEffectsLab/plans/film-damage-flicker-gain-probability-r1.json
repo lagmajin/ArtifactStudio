@@ -1,0 +1,93 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-flicker-gain-probability-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Quantify theoretical signed-output and above-one event probabilities from Film Damage Flicker driven by a standard-normal sample, across supported control values and representative tones.",
+  "scope": {
+    "effect": "FilmDamageCPUImpl flickerGain=1+normal(rng)*flicker; RGB source values are multiplied by gain before overlay; alpha is restored unchanged. Other controls are zero.",
+    "method": "Offline analytic Gaussian CDF model; do not execute or emulate std::mt19937 / std::normal_distribution sequences. Use tone values [0,.01,.02,.05,.18,.5,.9,.98,1] and controls [0,.08,.25,.5,1].",
+    "excluded": [
+      "C++ or app execution",
+      "exact standard-library RNG sequence or platform-specific draw histogram",
+      "temporal frame correlation or perceptual flicker acceptance",
+      "grain, dust, scratch, weave, burn interactions",
+      "downstream clamp or display transform",
+      "GPU/preview/final parity",
+      "performance/allocation",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "flicker=0, gain=1; analytic identity reference, not a visual quality target.",
+    "candidates": [
+      "flicker 0/.08/.25/.5/1",
+      "neutral gray and near-black/near-white levels",
+      "raw signed RGB before downstream operations"
+    ],
+    "ground_truth": "No image-quality ground truth. Standard-normal probabilities follow the explicit normal model; exact runtime draw outcomes are unknown.",
+    "acceptance": "Descriptive probability only. Verify formula, zero-control behavior, monotonic event behavior and Gaussian tail calculations. Do not call probabilities actual product frame frequencies or infer viewer-visible severity."
+  },
+  "materials": {
+    "fixture": "Synthetic neutral Float32 tone levels, direct numeric [0,1], one channel-equal value per plate; no transfer function.",
+    "rights": "Locally generated mathematical fixture.",
+    "identity": "Record source marker, plan/runner hashes, exact control/tone grid and analytic definitions.",
+    "regions": {
+      "tone_sample": "each uniform plate tone",
+      "control_sweep": "all five control values"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [
+      64,
+      64
+    ],
+    "numeric_domain": "Float64 probability calculation, source tones direct numeric [0,1]. No RGB output clamp in source equation.",
+    "equation": "For f>0 and Z~N(0,1), G=1+fZ. P(G<0)=Phi(-1/f). For v>0, P(vG<0)=same and P(vG>1)=Q((1/v-1)/f). For f=0 use deterministic identity; strict inequalities apply.",
+    "regions_and_rois": "Every pixel in a uniform neutral tone plate; probabilities are per-channel event probabilities, not empirical pixel samples.",
+    "metrics": [
+      "gain mean/variance",
+      "negative-gain probability",
+      "per-tone probability output<0 and output>1",
+      "probability any RGB channel crosses a bound for neutral RGB",
+      "expected event count per 24 and 120 samples (no independence or observed-count claim)",
+      "tail z threshold and stable Gaussian survival calculation",
+      "zero-control exact behavior"
+    ],
+    "display": "Probability heatmap and curves in percent; logarithmic display for rare events, exact values retained in JSON."
+  },
+  "evaluation": {
+    "effect_correctness": {
+      "status": "analytic_source_equation_model_only",
+      "method": "Verify source markers, event formulas, zero-control identity and monotonic behavior.",
+      "acceptance_criteria": "Exact agreement with declared Gaussian equations to double precision; no RNG or product parity claim."
+    },
+    "image_quality_and_detail": {
+      "status": "not_evaluated",
+      "reason": "Probability model has no rendered image or accepted visual target."
+    },
+    "color_and_alpha": {
+      "status": "partial_numeric_only",
+      "method": "Neutral RGB signed/headroom event probabilities; source restores alpha.",
+      "unverified": "Colored materials, premultiplied semantics, real compositor and downstream clamp."
+    },
+    "temporal_stability": {
+      "status": "unverified_distribution_only",
+      "reason": "Marginal probability does not describe sequence correlation, run lengths, repeated seeks or perceived flicker."
+    },
+    "render_paths_and_resolution": {
+      "status": "not_verified",
+      "reason": "No application or renderer executed."
+    },
+    "performance": {
+      "status": "not_measured",
+      "reason": "Analytic offline calculation only."
+    },
+    "decision": "No quality acceptance, parameter recommendation or implementation approval. Record only distribution-derived risks and runtime evidence still needed."
+  },
+  "execution": {
+    "backend": "Python standard library math.erfc and Pillow visualization; offline analytic model.",
+    "threshold_policy": "No perceptual thresholds; probabilities are descriptive.",
+    "reproducibility": "Fixed formulas, tone/control grid, source markers, source and runner hashes."
+  }
+}

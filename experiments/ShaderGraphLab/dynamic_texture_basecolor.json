@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "uv",
+      "operationId": "artifact.input.texcoord.uv0.vector2",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {
+        "x": 48,
+        "y": 80
+      }
+    },
+    {
+      "nodeId": "texture",
+      "operationId": "artifact.texture.sample.base_color",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {
+        "x": 280,
+        "y": 80
+      }
+    }
+  ],
+  "links": [
+    {
+      "from": {
+        "nodeId": "uv",
+        "socketId": "value"
+      },
+      "to": {
+        "nodeId": "texture",
+        "socketId": "uv"
+      }
+    }
+  ],
+  "output": {
+    "nodeId": "texture",
+    "socketId": "color"
+  }
+}

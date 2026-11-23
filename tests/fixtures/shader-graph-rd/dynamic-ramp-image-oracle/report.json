@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-ramp-cpu-image-oracle",
+  "status": "cpu-formula-image-only-no-core-hlsl-runtime-or-backend-capture",
+  "sourceDocument": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
+  "sourceDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
+  "generator": "tools/shader_graph_rd/generate_dynamic_ramp_image_oracle.py",
+  "generatorFormula": "tools/shader_graph_rd/generate_dynamic_ramp_golden.py",
+  "width": 256,
+  "height": 256,
+  "gradientMapping": "UV0.x = x / (width - 1), repeated across rows",
+  "swatchFactors": [
+    0.0,
+    0.4999,
+    0.5,
+    0.5001,
+    1.0
+  ],
+  "alphaDisplay": "linear RGB composited over black and white, then sRGB encoded for PNG only",
+  "artifacts": {
+    "gradient": {
+      "rawPath": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/gradient.rgba32f",
+      "rawSha256": "69F6B9376BBBE8BA9BA877F72706AF2CA8D1F4050941FA27C37F2D1EE06F8D83",
+      "rawBytes": 1048576,
+      "width": 256,
+      "height": 256,
+      "channelOrder": "RGBA",
+      "dtype": "IEEE-754 binary32 little-endian",
+      "statistics": {
+        "r": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "mean": 0.5000000198670023,
+          "p50": 0.501960813999176,
+          "p95": 0.9529411792755127,
+          "p99": 0.9921568632125854,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "g": {
+          "minimum": 0.0,
+          "maximum": 0.998039186000824,
+          "mean": 0.374509796500206,
+          "p50": 0.5,
+          "p95": 0.9509803652763367,
+          "p99": 0.9901960492134094,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "b": {
+          "minimum": 0.0,
+          "maximum": 0.25,
+          "mean": 0.062745101749897,
+          "p50": 0.0009804069995880127,
+          "p95": 0.22647058963775635,
+          "p99": 0.24607843160629272,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "a": {
+          "minimum": 0.20313721895217896,
+          "maximum": 1.0,
+          "mean": 0.7509803886059672,
+          "p50": 0.841568648815155,
+          "p95": 0.9858823418617249,
+          "p99": 0.998431384563446,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        }
+      },
+      "displayPngs": {
+        "black": {
+          "path": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/gradient-over-black.png",
+          "sha256": "FF18C5C39347B6A52D6A9F9F2065B0B8A3302E9C633CC9A2EF82EA6F670EEEBA"
+        },
+        "white": {
+          "path": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/gradient-over-white.png",
+          "sha256": "3077C8BB1111C32B8451F75DDC4B603E785D943B6CAA808EAAF99C5463353D2D"
+        }
+      }
+    },
+    "swatchAtlas": {
+      "rawPath": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/swatch-atlas.rgba32f",
+      "rawSha256": "2C3D540EEFDCC78FF80D184B608C7C6D1891AB4EAE87AAAC848348B4F2AB7F53",
+      "rawBytes": 1048576,
+      "width": 256,
+      "height": 256,
+      "channelOrder": "RGBA",
+      "dtype": "IEEE-754 binary32 little-endian",
+      "statistics": {
+        "r": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "mean": 0.3984375118743628,
+          "p50": 0.00020003318786621094,
+          "p95": 1.0,
+          "p99": 1.0,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "g": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "mean": 0.4980269498191774,
+          "p50": 0.5,
+          "p95": 1.0,
+          "p99": 1.0,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "b": {
+          "minimum": 0.0,
+          "maximum": 0.25,
+          "mean": 0.049814650090411305,
+          "p50": 0.0,
+          "p95": 0.25,
+          "p99": 0.25,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        },
+        "a": {
+          "minimum": 0.2001599669456482,
+          "maximum": 1.0,
+          "mean": 0.760977340862155,
+          "p50": 0.8000400066375732,
+          "p95": 1.0,
+          "p99": 1.0,
+          "nonFiniteCount": 0,
+          "outsideUnitRangeCount": 0
+        }
+      },
+      "displayPngs": {
+        "black": {
+          "path": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/swatch-atlas-over-black.png",
+          "sha256": "FF02C4C1663889C26F62D8DFC2DA7425F4C368FA760E169253CA4A9DEAE9BAE5"
+        },
+        "white": {
+          "path": "tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/swatch-atlas-over-white.png",
+          "sha256": "BCB17E5FDD98C7881C71F357DA3F767C3E6A031ADC54616BBA46CE03FCF36BE0"
+        }
+      }
+    }
+  },
+  "swatchCenterSamples": [
+    {
+      "factor": 0.0,
+      "rgba": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 0,
+        "rightAuthoredIndex": 1
+      }
+    },
+    {
+      "factor": 0.4999,
+      "rgba": [
+        0.9998000264167786,
+        0.0,
+        0.0,
+        0.2001599669456482
+      ],
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 0,
+        "rightAuthoredIndex": 1
+      }
+    },
+    {
+      "factor": 0.5,
+      "rgba": [
+        0.0,
+        1.0,
+        0.0,
+        0.800000011920929
+      ],
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 2,
+        "rightAuthoredIndex": 3
+      }
+    },
+    {
+      "factor": 0.5001,
+      "rgba": [
+        0.00020003318786621094,
+        0.9998999834060669,
+        5.0008296966552734e-05,
+        0.8000400066375732
+      ],
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 2,
+        "rightAuthoredIndex": 3
+      }
+    },
+    {
+      "factor": 1.0,
+      "rgba": [
+        1.0,
+        0.5,
+        0.25,
+        1.0
+      ],
+      "selection": {
+        "kind": "at-or-after-last",
+        "authoredIndex": 3
+      }
+    }
+  ],
+  "gradientCenterSeamAdjacentDelta": [
+    -0.9921568036079407,
+    0.998039186000824,
+    0.0009804069995880127,
+    0.5976471304893494
+  ],
+  "limitations": [
+    "CPU formula output is not an HLSL compiler, GPU, Artifact renderer, legacy ColorRamp, or Blender capture",
+    "PNG output is a display view; raw RGBA32F files are authoritative numeric data"
+  ]
+}

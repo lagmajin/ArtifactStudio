@@ -1,0 +1,1229 @@
+{
+  "schemaId": "artifact.shadergraph.legacy-core-read-only-projection-candidate",
+  "schemaVersion": 1,
+  "status": "python-prototype-source-audited-not-core-runtime",
+  "sourceFixture": "tests/fixtures/shader-graph-rd/math_add.json",
+  "sourceSha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
+  "selectedLegacyInput": {
+    "nodeId": "surface",
+    "socketId": "BaseColor"
+  },
+  "includedNodeIds": [
+    "input_a",
+    "input_b",
+    "math"
+  ],
+  "excludedNodeIds": [
+    "surface",
+    "output"
+  ],
+  "layoutProvenance": {
+    "input_a": "deterministic-rd-canvas-projection",
+    "input_b": "deterministic-rd-canvas-projection",
+    "math": "deterministic-rd-canvas-projection"
+  },
+  "document": {
+    "schemaVersion": 1,
+    "kind": "artifact-shader-graph-rd-document",
+    "nodes": [
+      {
+        "nodeId": "input_a",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {
+          "value": [
+            0.25,
+            -2.0,
+            3.0,
+            0.5
+          ]
+        },
+        "layout": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "nodeId": "input_b",
+        "operationId": "artifact.rd.constant.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {
+          "value": [
+            0.5,
+            1.0,
+            -4.0,
+            0.25
+          ]
+        },
+        "layout": {
+          "x": 0.0,
+          "y": 120.0
+        }
+      },
+      {
+        "nodeId": "math",
+        "operationId": "artifact.rd.math.add.vector4.float32",
+        "semanticVersion": 1,
+        "parameters": {},
+        "layout": {
+          "x": 220.0,
+          "y": 0.0
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": {
+          "nodeId": "input_a",
+          "socketId": "value"
+        },
+        "to": {
+          "nodeId": "math",
+          "socketId": "a"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "input_b",
+          "socketId": "value"
+        },
+        "to": {
+          "nodeId": "math",
+          "socketId": "b"
+        }
+      }
+    ],
+    "output": {
+      "nodeId": "math",
+      "socketId": "result"
+    }
+  },
+  "baseColorMathVariants": {
+    "add": {
+      "legacyOperation": 0,
+      "operationId": "artifact.rd.math.add.vector4.float32",
+      "sourceSha256": "2A042993C72AAE85CABE63F450D242307873BCC700D2502F7048172222E73DE6",
+      "includedNodeIds": [
+        "input_a",
+        "input_b",
+        "math"
+      ],
+      "document": {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": [
+          {
+            "nodeId": "input_a",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.25,
+                -2.0,
+                3.0,
+                0.5
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          {
+            "nodeId": "input_b",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.5,
+                1.0,
+                -4.0,
+                0.25
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 120.0
+            }
+          },
+          {
+            "nodeId": "math",
+            "operationId": "artifact.rd.math.add.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 220.0,
+              "y": 0.0
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "nodeId": "input_a",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "a"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "input_b",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "b"
+            }
+          }
+        ],
+        "output": {
+          "nodeId": "math",
+          "socketId": "result"
+        }
+      },
+      "candidateHlslBodySha256": "ACAD1F397E52F402B4893CFE827EEA9E3B11C0FE35BC7C927009BE5F23DCA950",
+      "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value + n_input_b_value);\nreturn n_math_result;\n",
+      "cpuVector4Golden": [
+        0.75,
+        -1.0,
+        -1.0,
+        0.75
+      ]
+    },
+    "subtract": {
+      "legacyOperation": 1,
+      "operationId": "artifact.rd.math.subtract.vector4.float32",
+      "sourceSha256": "91207F05A4B7DE140934042B930CAF9F116A900DC1BC3ECDDDCF240924E41116",
+      "includedNodeIds": [
+        "input_a",
+        "input_b",
+        "math"
+      ],
+      "document": {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": [
+          {
+            "nodeId": "input_a",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.25,
+                -2.0,
+                3.0,
+                0.5
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          {
+            "nodeId": "input_b",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.5,
+                1.0,
+                -4.0,
+                0.25
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 120.0
+            }
+          },
+          {
+            "nodeId": "math",
+            "operationId": "artifact.rd.math.subtract.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 220.0,
+              "y": 0.0
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "nodeId": "input_a",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "a"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "input_b",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "b"
+            }
+          }
+        ],
+        "output": {
+          "nodeId": "math",
+          "socketId": "result"
+        }
+      },
+      "candidateHlslBodySha256": "E2CF9BEFF5344586429221E0336AD010C16226F0916F626D292F9F259996F35B",
+      "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value - n_input_b_value);\nreturn n_math_result;\n",
+      "cpuVector4Golden": [
+        -0.25,
+        -3.0,
+        7.0,
+        0.25
+      ]
+    },
+    "multiply": {
+      "legacyOperation": 2,
+      "operationId": "artifact.rd.math.multiply.vector4.float32",
+      "sourceSha256": "21BE34BAD0CDEBEFC962E551490200BDDD98892D97BB8B8FF8260D2571811FD5",
+      "includedNodeIds": [
+        "input_a",
+        "input_b",
+        "math"
+      ],
+      "document": {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": [
+          {
+            "nodeId": "input_a",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.25,
+                -2.0,
+                3.0,
+                0.5
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          {
+            "nodeId": "input_b",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.5,
+                1.0,
+                -4.0,
+                0.25
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 120.0
+            }
+          },
+          {
+            "nodeId": "math",
+            "operationId": "artifact.rd.math.multiply.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 220.0,
+              "y": 0.0
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "nodeId": "input_a",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "a"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "input_b",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "b"
+            }
+          }
+        ],
+        "output": {
+          "nodeId": "math",
+          "socketId": "result"
+        }
+      },
+      "candidateHlslBodySha256": "7E9234600CD836A3E33922D87D790B701563FEAEA366881E111C917C0EC80671",
+      "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value * n_input_b_value);\nreturn n_math_result;\n",
+      "cpuVector4Golden": [
+        0.125,
+        -2.0,
+        -12.0,
+        0.125
+      ]
+    },
+    "dividePositiveFloor": {
+      "legacyOperation": 3,
+      "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+      "sourceSha256": "E2F8EDE41036B34AEBA87AEE9428EC8D8C1FF7305D823AE212B7F7EFC49C0045",
+      "includedNodeIds": [
+        "input_a",
+        "input_b",
+        "math"
+      ],
+      "document": {
+        "schemaVersion": 1,
+        "kind": "artifact-shader-graph-rd-document",
+        "nodes": [
+          {
+            "nodeId": "input_a",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.25,
+                -2.0,
+                3.0,
+                0.5
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          {
+            "nodeId": "input_b",
+            "operationId": "artifact.rd.constant.vector4.float32",
+            "semanticVersion": 1,
+            "parameters": {
+              "value": [
+                0.5,
+                1.0,
+                -4.0,
+                0.25
+              ]
+            },
+            "layout": {
+              "x": 0.0,
+              "y": 120.0
+            }
+          },
+          {
+            "nodeId": "math",
+            "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+            "semanticVersion": 1,
+            "parameters": {},
+            "layout": {
+              "x": 220.0,
+              "y": 0.0
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": {
+              "nodeId": "input_a",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "a"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "input_b",
+              "socketId": "value"
+            },
+            "to": {
+              "nodeId": "math",
+              "socketId": "b"
+            }
+          }
+        ],
+        "output": {
+          "nodeId": "math",
+          "socketId": "result"
+        }
+      },
+      "candidateHlslBodySha256": "FC34FC359B986EA2E0877BD21E066E381EBE4480120351B6B4D097A6834E2EAF",
+      "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value / max(n_input_b_value, float4(1e-5f,1e-5f,1e-5f,1e-5f)));\nreturn n_math_result;\n",
+      "cpuVector4Golden": [
+        0.5,
+        -2.0,
+        300000.0,
+        2.0
+      ]
+    }
+  },
+  "candidateHlslBodySha256": "ACAD1F397E52F402B4893CFE827EEA9E3B11C0FE35BC7C927009BE5F23DCA950",
+  "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_math_result = (n_input_a_value + n_input_b_value);\nreturn n_math_result;\n",
+  "cpuVector4AddGolden": [
+    0.75,
+    -1.0,
+    -1.0,
+    0.75
+  ],
+  "negativeProbe": {
+    "unsupportedMathOperation": "legacy.node.operation.unsupported",
+    "opaqueExtensionPreservedVerbatim": true,
+    "nestedAddIncludedNodeIds": [
+      "input_a",
+      "input_b",
+      "math",
+      "input_c",
+      "math_outer"
+    ],
+    "generatedConversionNodeCollision": "legacy.projection.generated_id.collision",
+    "generatedDefaultNodeCollision": "legacy.projection.generated_id.collision",
+    "unsupportedRoughnessMathOperation": "legacy.node.operation.unsupported",
+    "clampedRoughnessMath": "legacy.node.operation.unsupported",
+    "duplicateRoughnessMathWriter": "legacy.link.cardinality.invalid",
+    "roughnessMathCycle": "legacy.graph.cycle",
+    "roughnessNodeLinkOrderInvariant": true
+  },
+  "nestedAddProjection": {
+    "sourceSha256": "151BFC32B1F3862613EB455198E295F62A3BF593285F771EE1BCB7A402657226",
+    "includedNodeIds": [
+      "input_a",
+      "input_b",
+      "math",
+      "input_c",
+      "math_outer"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "input_a",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.25,
+              -2.0,
+              3.0,
+              0.5
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "input_b",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.5,
+              1.0,
+              -4.0,
+              0.25
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 120.0
+          }
+        },
+        {
+          "nodeId": "math",
+          "operationId": "artifact.rd.math.add.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "input_c",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              -0.125,
+              0.25,
+              0.5,
+              -0.25
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 240.0
+          }
+        },
+        {
+          "nodeId": "math_outer",
+          "operationId": "artifact.rd.math.add.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 440.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "input_a",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "input_b",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math",
+            "socketId": "b"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "math",
+            "socketId": "result"
+          },
+          "to": {
+            "nodeId": "math_outer",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "input_c",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "math_outer",
+            "socketId": "b"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "math_outer",
+        "socketId": "result"
+      }
+    },
+    "candidateHlslBodySha256": "B1DFD13B61FC5302BA9CF71F6D00808AAD8A6D00168FEBCCB25AB50627174FB5",
+    "candidateHlslBody": "float4 n_input_a_value = float4(0.25f, -2.0f, 3.0f, 0.5f);\nfloat4 n_input_b_value = float4(0.5f, 1.0f, -4.0f, 0.25f);\nfloat4 n_input_c_value = float4(-0.125f, 0.25f, 0.5f, -0.25f);\nfloat4 n_math_result = (n_input_a_value + n_input_b_value);\nfloat4 n_math_outer_result = (n_math_result + n_input_c_value);\nreturn n_math_outer_result;\n",
+    "cpuVector4AddGolden": [
+      0.625,
+      -0.75,
+      -0.5,
+      0.5
+    ]
+  },
+  "scalarBaseColorConversionProbe": {
+    "sourceSha256": "2BC43180F9417104FEAF07ABD4DCDBFACB2026464F9182BBA219970586CF85E2",
+    "includedNodeIds": [
+      "scalar"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "scalar",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.375
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "legacy_BaseColor_replicate",
+          "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "scalar",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "legacy_BaseColor_replicate",
+            "socketId": "value"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "legacy_BaseColor_replicate",
+        "socketId": "vector"
+      }
+    },
+    "candidateHlslBodySha256": "5B3EDB56E5C2C5F12CEC0B3FD84D9BABE31991CD325F2F69B0607B0BA50C5CDD",
+    "candidateHlslBody": "float n_scalar_value = 0.375f;\nfloat4 n_legacy_BaseColor_replicate_vector = float4(n_scalar_value, n_scalar_value, n_scalar_value, 1.0f);\nreturn n_legacy_BaseColor_replicate_vector;\n",
+    "cpuVector4Golden": [
+      0.375,
+      0.375,
+      0.375,
+      1.0
+    ],
+    "conversionOperationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one"
+  },
+  "unconnectedBaseColorDefaultProbe": {
+    "sourceSha256": "A0BE0F2D36F5C7333CDB9A63A5478C0535366BECF7B8B076350773D1F59CB673",
+    "includedNodeIds": [],
+    "excludedNodeIds": [
+      "surface",
+      "output"
+    ],
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "legacy_BaseColor_default",
+          "operationId": "artifact.rd.constant.vector4.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": [
+              0.8,
+              0.8,
+              0.8,
+              1.0
+            ]
+          },
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [],
+      "output": {
+        "nodeId": "legacy_BaseColor_default",
+        "socketId": "value"
+      }
+    },
+    "candidateHlslBodySha256": "B1ACF82CE86A2578E449FB8C9E784FEA5E0B487BB428F0653141FAD629401342",
+    "candidateHlslBody": "float4 n_legacy_BaseColor_default_value = float4(0.800000012f, 0.800000012f, 0.800000012f, 1.0f);\nreturn n_legacy_BaseColor_default_value;\n",
+    "cpuVector4Golden": [
+      0.8,
+      0.8,
+      0.8,
+      1.0
+    ]
+  },
+  "dynamicRoughnessUvProjection": {
+    "sourceFixture": "tests/fixtures/shader-graph-rd/texcoord_math_roughness.json",
+    "sourceSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437",
+    "selectedLegacyInput": {
+      "nodeId": "surface",
+      "socketId": "Roughness"
+    },
+    "includedNodeIds": [
+      "uv",
+      "gain",
+      "scale",
+      "bias",
+      "roughness"
+    ],
+    "excludedNodeIds": [
+      "surface",
+      "output"
+    ],
+    "layoutProvenance": {
+      "uv": "deterministic-rd-canvas-projection",
+      "gain": "deterministic-rd-canvas-projection",
+      "scale": "deterministic-rd-canvas-projection",
+      "bias": "deterministic-rd-canvas-projection",
+      "roughness": "deterministic-rd-canvas-projection"
+    },
+    "document": {
+      "schemaVersion": 1,
+      "kind": "artifact-shader-graph-rd-document",
+      "nodes": [
+        {
+          "nodeId": "uv",
+          "operationId": "artifact.input.texcoord.uv0.x",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "gain",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.5
+          },
+          "layout": {
+            "x": 220.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "scale",
+          "operationId": "artifact.rd.math.multiply.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 440.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "bias",
+          "operationId": "artifact.rd.constant.float32",
+          "semanticVersion": 1,
+          "parameters": {
+            "value": 0.125
+          },
+          "layout": {
+            "x": 660.0,
+            "y": 0.0
+          }
+        },
+        {
+          "nodeId": "roughness",
+          "operationId": "artifact.rd.math.add.float32",
+          "semanticVersion": 1,
+          "parameters": {},
+          "layout": {
+            "x": 880.0,
+            "y": 0.0
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": {
+            "nodeId": "uv",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "scale",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "gain",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "scale",
+            "socketId": "b"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "scale",
+            "socketId": "result"
+          },
+          "to": {
+            "nodeId": "roughness",
+            "socketId": "a"
+          }
+        },
+        {
+          "from": {
+            "nodeId": "bias",
+            "socketId": "value"
+          },
+          "to": {
+            "nodeId": "roughness",
+            "socketId": "b"
+          }
+        }
+      ],
+      "output": {
+        "nodeId": "roughness",
+        "socketId": "result"
+      }
+    },
+    "mathOperationVariants": {
+      "subtract": {
+        "legacyOperation": 1,
+        "operationId": "artifact.rd.math.subtract.float32",
+        "sourceSha256": "7B28FCADAE2D290A40479DAD0D9117D64EDDE235935D694000F7E81F60513BAF",
+        "includedNodeIds": [
+          "uv",
+          "gain",
+          "scale",
+          "bias",
+          "roughness"
+        ],
+        "document": {
+          "schemaVersion": 1,
+          "kind": "artifact-shader-graph-rd-document",
+          "nodes": [
+            {
+              "nodeId": "uv",
+              "operationId": "artifact.input.texcoord.uv0.x",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "gain",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.5
+              },
+              "layout": {
+                "x": 220.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "scale",
+              "operationId": "artifact.rd.math.subtract.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 440.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "bias",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.125
+              },
+              "layout": {
+                "x": 660.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "roughness",
+              "operationId": "artifact.rd.math.add.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 880.0,
+                "y": 0.0
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": {
+                "nodeId": "uv",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "gain",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "b"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "scale",
+                "socketId": "result"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "bias",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "b"
+              }
+            }
+          ],
+          "output": {
+            "nodeId": "roughness",
+            "socketId": "result"
+          }
+        },
+        "candidateHlslBodySha256": "0F27A5E0852E6E6028E288276A242BD0C3EF9ED10B9A3774CF1F55566C63F866",
+        "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = 0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value - n_gain_value);\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
+        "gain": 0.5,
+        "numericCases": [
+          {
+            "uv0X": -0.25,
+            "expectedBinary32": -0.625
+          },
+          {
+            "uv0X": 0.0,
+            "expectedBinary32": -0.375
+          },
+          {
+            "uv0X": 0.125,
+            "expectedBinary32": -0.25
+          },
+          {
+            "uv0X": 0.5,
+            "expectedBinary32": 0.125
+          },
+          {
+            "uv0X": 1.0,
+            "expectedBinary32": 0.625
+          },
+          {
+            "uv0X": 1.75,
+            "expectedBinary32": 1.375
+          }
+        ]
+      },
+      "dividePositiveFloor": {
+        "legacyOperation": 3,
+        "operationId": "artifact.rd.math.divide.positive_floor.float32",
+        "sourceSha256": "25F7EAF432E965DDD9474608B7D9BE5D66E14BB19E9ED3ECA0F89DD2EEEE7476",
+        "includedNodeIds": [
+          "uv",
+          "gain",
+          "scale",
+          "bias",
+          "roughness"
+        ],
+        "document": {
+          "schemaVersion": 1,
+          "kind": "artifact-shader-graph-rd-document",
+          "nodes": [
+            {
+              "nodeId": "uv",
+              "operationId": "artifact.input.texcoord.uv0.x",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "gain",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": -0.5
+              },
+              "layout": {
+                "x": 220.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "scale",
+              "operationId": "artifact.rd.math.divide.positive_floor.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 440.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "bias",
+              "operationId": "artifact.rd.constant.float32",
+              "semanticVersion": 1,
+              "parameters": {
+                "value": 0.125
+              },
+              "layout": {
+                "x": 660.0,
+                "y": 0.0
+              }
+            },
+            {
+              "nodeId": "roughness",
+              "operationId": "artifact.rd.math.add.float32",
+              "semanticVersion": 1,
+              "parameters": {},
+              "layout": {
+                "x": 880.0,
+                "y": 0.0
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": {
+                "nodeId": "uv",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "gain",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "scale",
+                "socketId": "b"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "scale",
+                "socketId": "result"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "a"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "bias",
+                "socketId": "value"
+              },
+              "to": {
+                "nodeId": "roughness",
+                "socketId": "b"
+              }
+            }
+          ],
+          "output": {
+            "nodeId": "roughness",
+            "socketId": "result"
+          }
+        },
+        "candidateHlslBodySha256": "63DBBD36507FB1FDD98037AC305512B86E3969287671B75210474254D4DCDD07",
+        "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = -0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value / max(n_gain_value, 1e-5f));\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
+        "gain": -0.5,
+        "numericCases": [
+          {
+            "uv0X": -0.25,
+            "expectedBinary32": -24999.875
+          },
+          {
+            "uv0X": 0.0,
+            "expectedBinary32": 0.125
+          },
+          {
+            "uv0X": 0.125,
+            "expectedBinary32": 12500.125
+          },
+          {
+            "uv0X": 0.5,
+            "expectedBinary32": 50000.125
+          },
+          {
+            "uv0X": 1.0,
+            "expectedBinary32": 100000.125
+          },
+          {
+            "uv0X": 1.75,
+            "expectedBinary32": 175000.125
+          }
+        ]
+      }
+    },
+    "candidateHlslBodySha256": "264EC4FCB9E23EC87526DB2FC6E1CE70FE9545627787158DA7F2184A26073C5B",
+    "candidateHlslBody": "float n_bias_value = 0.125f;\nfloat n_gain_value = 0.5f;\nfloat n_uv_value = In.UV.x;\nfloat n_scale_result = (n_uv_value * n_gain_value);\nfloat n_roughness_result = (n_scale_result + n_bias_value);\nreturn n_roughness_result;\n",
+    "outputType": "Float",
+    "contextBindings": [
+      {
+        "contextId": "artifact.material.surface.uv0",
+        "component": "x",
+        "valueType": "Float",
+        "hlslExpression": "In.UV.x",
+        "nodeIds": [
+          "uv"
+        ]
+      }
+    ],
+    "coreSourceAdapter": "Core Math is componentwise float4; Vector2/Value conversion preserves x for Roughness",
+    "graphFormula": "f32(f32(uv0.x * 0.5) + 0.125)",
+    "numericCases": [
+      {
+        "uv0X": -0.25,
+        "expectedBinary32": 0.0
+      },
+      {
+        "uv0X": 0.0,
+        "expectedBinary32": 0.125
+      },
+      {
+        "uv0X": 0.125,
+        "expectedBinary32": 0.1875
+      },
+      {
+        "uv0X": 0.5,
+        "expectedBinary32": 0.375
+      },
+      {
+        "uv0X": 1.0,
+        "expectedBinary32": 0.625
+      },
+      {
+        "uv0X": 1.75,
+        "expectedBinary32": 1.0
+      }
+    ]
+  },
+  "limitations": [
+    "read-only projection of the explicitly selected Principled BaseColor input or bounded UV-driven Roughness scalar subgraph only",
+    "supports linked RGB constants, nested unclamped Math Add nodes, direct scalar Value-to-BaseColor conversion, and selected BaseColor/Roughness arithmetic projection lanes",
+    "does not infer or perform any other legacy implicit numeric conversion",
+    "unconnected Principled BaseColor is represented as an explicit candidate constant matching the Core source default",
+    "selected BaseColor and Roughness Math nodes map Add/Subtract/Multiply/Divide into the matching typed operation; Divide preserves the Core positive denominator floor max(b, 1e-5); clamped Math is rejected",
+    "Principled/MaterialOutput remain outside the projected document",
+    "source JSON text is retained by the adapter result and is never rewritten",
+    "no Core API, project persistence, shader compiler, renderer, or GPU path is invoked"
+  ]
+}

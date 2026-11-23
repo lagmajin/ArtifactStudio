@@ -1,0 +1,42 @@
+{
+  "intent": "Transfer the stronger synthetic point-rays candidate to the same low-light portrait with no strong baked-in beams. Preserve the existing portrait Glow foundation and practical source point; inspect role visibility against face and shopfront spill.",
+  "input": "assets/flash-photo-plate.png",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 2.5,
+      "layerCount": 4,
+      "baseSigma": 10.0
+    }
+  },
+  "recipes": {
+    "portrait-point-rays-strong-transfer": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.74,
+          "sourceY": 0.19,
+          "rayLength": 0.85,
+          "intensity": 4.0,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.45,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 1.0,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ]
+  }
+}

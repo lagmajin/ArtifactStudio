@@ -1,0 +1,16 @@
+{
+  "intent": "Isolated retry of Chromatic Glow dispersion 2.5 after the first capture was invalid/black.",
+  "profiles": {
+    "chromatic-dispersion-2p5-retry": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 2.5,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    }
+  }
+}

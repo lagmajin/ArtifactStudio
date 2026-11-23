@@ -1,0 +1,609 @@
+{
+  "rd": "rd27-middlebury-natural-scene-actual-core-lamp-rois",
+  "status": "actual Core descriptive diagnostic; no acceptance gate",
+  "pair": {
+    "dataset": "Middlebury registered EOS 5D natural-scene RAW/JPEG",
+    "source_page": "https://vision.middlebury.edu/color/data/",
+    "permission": "dataset page grants use and publication with citation; not designated CC0",
+    "source": "captures\\rd7_natural_scene_pair\\source_srgb_from_linear_raw.npy",
+    "source_sha256": "9926d6f9bdeb490c1ad3f00dcd7065ec6ca17156d3c982fd53681ee6ab2b5aca",
+    "reference": "captures\\rd7_natural_scene_pair\\reference_camera_jpeg_srgb.npy",
+    "reference_sha256": "cb389b8f1fbcda5d3f088a2605871183620936f3a4a4e4261e4aa0c14ba18a97",
+    "reference_role": "camera rendition, not colorimetric ground truth",
+    "dimensions": [
+      1000,
+      667
+    ],
+    "transfer_assumption": "source derived from linear RGB using sRGB OETF; reference treated as encoded sRGB"
+  },
+  "roi": {
+    "review": "source-only analyst review; not independent and does not establish neutral material",
+    "review_sha256": "0f4890340d52b2ac7bb2661b33b839a9f2eb695b68c7c9b728b7c78723989c80",
+    "regions": {
+      "left_lampshade": {
+        "pixels": 1222,
+        "mask": "captures\\rd18_lamp_white_roi\\left_lampshade_mask.png",
+        "mask_sha256": "2a2a87deb7179d5d6d070c960060a480fd41347cc8439a34383623e68397f3b8"
+      },
+      "right_lampshade": {
+        "pixels": 1141,
+        "mask": "captures\\rd18_lamp_white_roi\\right_lampshade_mask.png",
+        "mask_sha256": "7e9695504b5b479a9a5133f30e2feba6bbb4b1438da012292b233cea6b5ee913"
+      },
+      "whole_frame": {
+        "pixels": 667000,
+        "mask": null
+      }
+    }
+  },
+  "conditions": {
+    "methods": [
+      "Reinhard",
+      "MeanStddev",
+      "Histogram"
+    ],
+    "intensities": [
+      0.25,
+      0.5,
+      1.0
+    ],
+    "metrics_csv": "core_roi_metrics.csv",
+    "mirror_differential_csv": "mirror_differential.csv",
+    "metrics_sha256": "fa6f8bc82cf383966a5bba89c4b72f28e9103eb85d35fd18813e7600912d188b",
+    "mirror_differential_sha256": "9453e19537ea7bde1ea4feda56d62209796b604299e7f3b26230a682fc4de62e",
+    "comparison": "Lab D65/2-degree DeltaE76 source-relative/reference-relative mean/p95/max, encoded RGB MAE, mean Lab-vector C*ab; full-frame RGB absolute difference to existing equation-mirror float arrays",
+    "mirror_roi_mean_reference_delta_comparison": [
+      {
+        "method": "Reinhard",
+        "region": "whole_frame",
+        "core_reference_delta_e76_mean": 4.60503725,
+        "rd18_mirror_reference_delta_e76_mean": 4.605037741744937,
+        "absolute_difference": 4.917449372143778e-07
+      },
+      {
+        "method": "Reinhard",
+        "region": "left_lampshade",
+        "core_reference_delta_e76_mean": 4.811345964,
+        "rd18_mirror_reference_delta_e76_mean": 4.811347456410655,
+        "absolute_difference": 1.492410654613252e-06
+      },
+      {
+        "method": "Reinhard",
+        "region": "right_lampshade",
+        "core_reference_delta_e76_mean": 5.181217521,
+        "rd18_mirror_reference_delta_e76_mean": 5.181217381413007,
+        "absolute_difference": 1.3958699263127983e-07
+      },
+      {
+        "method": "MeanStddev",
+        "region": "whole_frame",
+        "core_reference_delta_e76_mean": 4.444930625,
+        "rd18_mirror_reference_delta_e76_mean": 4.444930228795097,
+        "absolute_difference": 3.962049026640102e-07
+      },
+      {
+        "method": "MeanStddev",
+        "region": "left_lampshade",
+        "core_reference_delta_e76_mean": 5.495141622,
+        "rd18_mirror_reference_delta_e76_mean": 5.49514131557022,
+        "absolute_difference": 3.0642978021688805e-07
+      },
+      {
+        "method": "MeanStddev",
+        "region": "right_lampshade",
+        "core_reference_delta_e76_mean": 5.496749904,
+        "rd18_mirror_reference_delta_e76_mean": 5.496749354599772,
+        "absolute_difference": 5.494002275341359e-07
+      },
+      {
+        "method": "Histogram",
+        "region": "whole_frame",
+        "core_reference_delta_e76_mean": 3.123158018,
+        "rd18_mirror_reference_delta_e76_mean": 3.123158693835202,
+        "absolute_difference": 6.758352020241887e-07
+      },
+      {
+        "method": "Histogram",
+        "region": "left_lampshade",
+        "core_reference_delta_e76_mean": 1.622259856,
+        "rd18_mirror_reference_delta_e76_mean": 1.6222598559714867,
+        "absolute_difference": 2.851319180763312e-11
+      },
+      {
+        "method": "Histogram",
+        "region": "right_lampshade",
+        "core_reference_delta_e76_mean": 1.308858564,
+        "rd18_mirror_reference_delta_e76_mean": 1.3088585641814612,
+        "absolute_difference": 1.814612904382784e-10
+      }
+    ]
+  },
+  "implementation": {
+    "test": "AutoColorMatcherContractTest.CoreImageOverloadMatchesMiddleburyNaturalSceneRawBuffer",
+    "test_source_sha256": "63d3527d63f09be07aba8ada956cc76f25eeb914cc3a0c455da8de9fa4afc965",
+    "core_source_sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "record_script_sha256": "18a5900ddb6c99a2e1dc0fb57c198ac6af9293796f4172720790334181c40417",
+    "visual_sheet_script_sha256": "5c0da1668ae602c17e48103699cfc9b8a2afe2df6d87c2d5fbe852db84894ff3",
+    "test_log": "temp\\rd28_core_test.log",
+    "test_log_sha256": "a219c819749deb4caab7f4fc276d998451a31bc91bfd779e8349009177a3090c",
+    "configuration": "Visual Studio Debug; CTest target only"
+  },
+  "outputs": {
+    "source.png": "c4a894c3f3486cd21f688447ec82dd27e27b9636cc8c9932ce39fb5841401d98",
+    "reference.png": "73d8589d0d464a682e083ff3958cb866d1ce46e6e4ee582e0fe036ac917e8d90",
+    "Reinhard_i1.0.png": "dc5a476421e1ac1f85f0c9415b18282295f65820588bff8350c4d8c72b17a609",
+    "MeanStddev_i1.0.png": "3e6adb5f9cf1a0c80544cb92ef48c7cd15c4139fb1b0cd9aa8f99dc33b454c78",
+    "Histogram_i1.0.png": "2ca2ec5e8e51a471cbafa14fd6fbfa387ba565334deb982d37c6150dac4d9ccf",
+    "core_comparison_sheet.png": "ee4c116fd9fb9adc605e6a09a0c7b96d3f4679104aa480ab997b88df84c429f4"
+  },
+  "visual_review": {
+    "sheet": "core_comparison_sheet.png",
+    "sheet_sha256": "ee4c116fd9fb9adc605e6a09a0c7b96d3f4679104aa480ab997b88df84c429f4",
+    "review": "one unblinded R&D inspection of fixed full-frame and source-reviewed ROI crops; no acceptance review",
+    "observations": [
+      "All three strength-1 Core outputs visibly change the lamp shade appearance from the source toward the camera JPEG in this scene.",
+      "Histogram appears closest to the camera JPEG in these two crops; this is a one-scene descriptive observation and not a method acceptance or ranking."
+    ]
+  },
+  "limits": [
+    "one warm-lit kitchen scene and one camera",
+    "lamp shades are visually selected but not measured for neutrality",
+    "camera JPEG is processed rendition, not a WB/colorimetric target",
+    "ROI review is source-only but performed by one analyst",
+    "no human skin, user-supplied pair, blind review, product caller, GPU parity, or acceptance threshold"
+  ],
+  "results": [
+    {
+      "method": "Reinhard",
+      "intensity": "0.25",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "3.379506557",
+      "source_delta_e76_p95": "6.098597053",
+      "source_delta_e76_max": "20.23657893",
+      "reference_delta_e76_mean": "11.24887473",
+      "reference_delta_e76_p95": "18.42552824",
+      "reference_delta_e76_max": "31.91906447",
+      "rgb_mae": "0.07786325295",
+      "output_mean_Cstar": "11.43056465"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.25",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "6.932853735",
+      "source_delta_e76_p95": "9.135487718",
+      "source_delta_e76_max": "10.92181426",
+      "reference_delta_e76_mean": "15.82362467",
+      "reference_delta_e76_p95": "18.09889328",
+      "reference_delta_e76_max": "18.47356765",
+      "rgb_mae": "0.1661339252",
+      "output_mean_Cstar": "0.4107361999"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.25",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "6.977561364",
+      "source_delta_e76_p95": "8.727608087",
+      "source_delta_e76_max": "11.08695472",
+      "reference_delta_e76_mean": "16.14949214",
+      "reference_delta_e76_p95": "18.01233038",
+      "reference_delta_e76_max": "18.52940686",
+      "rgb_mae": "0.1686862731",
+      "output_mean_Cstar": "2.674353352"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.5",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "6.698189988",
+      "source_delta_e76_p95": "12.18767809",
+      "source_delta_e76_max": "34.7450605",
+      "reference_delta_e76_mean": "8.543859526",
+      "reference_delta_e76_p95": "13.39383357",
+      "reference_delta_e76_max": "32.76713784",
+      "rgb_mae": "0.0567618281",
+      "output_mean_Cstar": "12.76217497"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.5",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "13.74258611",
+      "source_delta_e76_p95": "17.6562031",
+      "source_delta_e76_max": "19.81489833",
+      "reference_delta_e76_mean": "9.585995373",
+      "reference_delta_e76_p95": "12.23070894",
+      "reference_delta_e76_max": "12.79558449",
+      "rgb_mae": "0.09785624153",
+      "output_mean_Cstar": "0.4916308352"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.5",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "13.85480909",
+      "source_delta_e76_p95": "17.23144446",
+      "source_delta_e76_max": "20.79586459",
+      "reference_delta_e76_mean": "9.853425676",
+      "reference_delta_e76_p95": "12.18975051",
+      "reference_delta_e76_max": "12.77376476",
+      "rgb_mae": "0.09873399045",
+      "output_mean_Cstar": "2.615229933"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "1",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "13.18001594",
+      "source_delta_e76_p95": "24.32237967",
+      "source_delta_e76_max": "42.795529",
+      "reference_delta_e76_mean": "4.60503725",
+      "reference_delta_e76_p95": "8.772147511",
+      "reference_delta_e76_max": "35.96231327",
+      "rgb_mae": "0.02496278755",
+      "output_mean_Cstar": "15.32843265"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "1",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "25.94441654",
+      "source_delta_e76_p95": "30.83734336",
+      "source_delta_e76_max": "31.65178789",
+      "reference_delta_e76_mean": "4.811345964",
+      "reference_delta_e76_p95": "9.02197203",
+      "reference_delta_e76_max": "10.48029937",
+      "rgb_mae": "0.04039123209",
+      "output_mean_Cstar": "1.991220077"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "1",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "26.69081324",
+      "source_delta_e76_p95": "30.94712164",
+      "source_delta_e76_max": "31.96739885",
+      "reference_delta_e76_mean": "5.181217521",
+      "reference_delta_e76_p95": "9.53886006",
+      "reference_delta_e76_max": "10.65719817",
+      "rgb_mae": "0.04197320308",
+      "output_mean_Cstar": "1.937656907"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.25",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "3.535693632",
+      "source_delta_e76_p95": "6.206109118",
+      "source_delta_e76_max": "19.81253501",
+      "reference_delta_e76_mean": "10.98790622",
+      "reference_delta_e76_p95": "18.37137167",
+      "reference_delta_e76_max": "31.65287304",
+      "rgb_mae": "0.07742870494",
+      "output_mean_Cstar": "11.45111154"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.25",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "6.994791845",
+      "source_delta_e76_p95": "9.04038313",
+      "source_delta_e76_max": "10.9954526",
+      "reference_delta_e76_mean": "15.80217053",
+      "reference_delta_e76_p95": "18.06842246",
+      "reference_delta_e76_max": "18.42148184",
+      "rgb_mae": "0.1673864207",
+      "output_mean_Cstar": "0.5206813022"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.25",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "7.011935567",
+      "source_delta_e76_p95": "8.621737269",
+      "source_delta_e76_max": "10.96685107",
+      "reference_delta_e76_mean": "16.10278599",
+      "reference_delta_e76_p95": "17.99469944",
+      "reference_delta_e76_max": "18.49179512",
+      "rgb_mae": "0.1704636354",
+      "output_mean_Cstar": "2.208573751"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.5",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "6.996071171",
+      "source_delta_e76_p95": "12.28654616",
+      "source_delta_e76_max": "34.02041526",
+      "reference_delta_e76_mean": "8.131279597",
+      "reference_delta_e76_p95": "13.30874708",
+      "reference_delta_e76_max": "31.27269963",
+      "rgb_mae": "0.05629119335",
+      "output_mean_Cstar": "12.80963823"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.5",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "13.73390416",
+      "source_delta_e76_p95": "17.37877929",
+      "source_delta_e76_max": "19.50293882",
+      "reference_delta_e76_mean": "9.627933415",
+      "reference_delta_e76_p95": "12.32337656",
+      "reference_delta_e76_max": "12.87777923",
+      "rgb_mae": "0.1021201307",
+      "output_mean_Cstar": "1.456188609"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.5",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "13.78578932",
+      "source_delta_e76_p95": "16.86282651",
+      "source_delta_e76_max": "20.1720603",
+      "reference_delta_e76_mean": "9.845567572",
+      "reference_delta_e76_p95": "12.34229347",
+      "reference_delta_e76_max": "12.79717121",
+      "rgb_mae": "0.1043666222",
+      "output_mean_Cstar": "1.988141355"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "1",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "13.62120437",
+      "source_delta_e76_p95": "24.05749464",
+      "source_delta_e76_max": "43.4229558",
+      "reference_delta_e76_mean": "4.444930625",
+      "reference_delta_e76_p95": "7.933098624",
+      "reference_delta_e76_max": "38.09331736",
+      "rgb_mae": "0.02829226576",
+      "output_mean_Cstar": "15.4655475"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "1",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "25.66186019",
+      "source_delta_e76_p95": "30.23922852",
+      "source_delta_e76_max": "31.08907538",
+      "reference_delta_e76_mean": "5.495141622",
+      "reference_delta_e76_p95": "8.968819959",
+      "reference_delta_e76_max": "12.67618101",
+      "rgb_mae": "0.05573632561",
+      "output_mean_Cstar": "3.578037722"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "1",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "26.26222121",
+      "source_delta_e76_p95": "30.4715765",
+      "source_delta_e76_max": "31.23900902",
+      "reference_delta_e76_mean": "5.496749904",
+      "reference_delta_e76_p95": "9.276469929",
+      "reference_delta_e76_max": "10.89700247",
+      "rgb_mae": "0.05359960736",
+      "output_mean_Cstar": "2.605431318"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.25",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "3.712697395",
+      "source_delta_e76_p95": "6.2038394",
+      "source_delta_e76_max": "9.477840491",
+      "reference_delta_e76_mean": "10.58957216",
+      "reference_delta_e76_p95": "18.14853386",
+      "reference_delta_e76_max": "28.31395628",
+      "rgb_mae": "0.07554639802",
+      "output_mean_Cstar": "11.48486836"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.25",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "5.928129191",
+      "source_delta_e76_p95": "6.316380391",
+      "source_delta_e76_max": "6.33625242",
+      "reference_delta_e76_mean": "16.6971789",
+      "reference_delta_e76_p95": "17.94603148",
+      "reference_delta_e76_max": "18.21289509",
+      "rgb_mae": "0.1768200109",
+      "output_mean_Cstar": "0.09352688208"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.25",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "5.964018722",
+      "source_delta_e76_p95": "6.308589558",
+      "source_delta_e76_max": "6.339578015",
+      "reference_delta_e76_mean": "16.97434519",
+      "reference_delta_e76_p95": "17.94970191",
+      "reference_delta_e76_max": "18.25989464",
+      "rgb_mae": "0.1796289467",
+      "output_mean_Cstar": "1.973008007"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.5",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "7.370424126",
+      "source_delta_e76_p95": "12.286871",
+      "source_delta_e76_max": "18.49407496",
+      "reference_delta_e76_mean": "7.213649353",
+      "reference_delta_e76_p95": "12.424645",
+      "reference_delta_e76_max": "23.57687322",
+      "rgb_mae": "0.05123711687",
+      "output_mean_Cstar": "12.87750394"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.5",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "11.75147663",
+      "source_delta_e76_p95": "12.5093422",
+      "source_delta_e76_max": "12.54852566",
+      "reference_delta_e76_mean": "10.91740833",
+      "reference_delta_e76_p95": "11.83512603",
+      "reference_delta_e76_max": "12.11773089",
+      "rgb_mae": "0.1166366444",
+      "output_mean_Cstar": "0.67041111"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.5",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "11.82329251",
+      "source_delta_e76_p95": "12.49471462",
+      "source_delta_e76_max": "12.55515159",
+      "reference_delta_e76_mean": "11.14584264",
+      "reference_delta_e76_p95": "11.89253234",
+      "reference_delta_e76_max": "12.11897674",
+      "rgb_mae": "0.1191904991",
+      "output_mean_Cstar": "1.257584601"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "1",
+      "region": "whole_frame",
+      "pixels": "667000",
+      "source_delta_e76_mean": "14.52137967",
+      "source_delta_e76_p95": "24.13930968",
+      "source_delta_e76_max": "35.5496171",
+      "reference_delta_e76_mean": "3.123158018",
+      "reference_delta_e76_p95": "7.093271855",
+      "reference_delta_e76_max": "36.07823156",
+      "rgb_mae": "0.01577126566",
+      "output_mean_Cstar": "15.59773759"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "1",
+      "region": "left_lampshade",
+      "pixels": "1222",
+      "source_delta_e76_mean": "23.12325568",
+      "source_delta_e76_p95": "24.5754235",
+      "source_delta_e76_max": "24.65178114",
+      "reference_delta_e76_mean": "1.622259856",
+      "reference_delta_e76_p95": "3.144784914",
+      "reference_delta_e76_max": "4.343145426",
+      "rgb_mae": "0.007133916972",
+      "output_mean_Cstar": "1.929161014"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "1",
+      "region": "right_lampshade",
+      "pixels": "1141",
+      "source_delta_e76_mean": "23.26648829",
+      "source_delta_e76_p95": "24.54923207",
+      "source_delta_e76_max": "24.6649797",
+      "reference_delta_e76_mean": "1.308858564",
+      "reference_delta_e76_p95": "2.5624479",
+      "reference_delta_e76_max": "3.685555588",
+      "rgb_mae": "0.005421227473",
+      "output_mean_Cstar": "0.4466365931"
+    }
+  ],
+  "mirror_differentials": [
+    {
+      "method": "Reinhard",
+      "intensity": "0.25",
+      "channels": "2001000",
+      "mae": "5.256693055e-08",
+      "p95": "1.490116119e-07",
+      "max": "2.222135663e-06"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "0.5",
+      "channels": "2001000",
+      "mae": "5.893195526e-08",
+      "p95": "1.788139343e-07",
+      "max": "2.201646566e-06"
+    },
+    {
+      "method": "Reinhard",
+      "intensity": "1",
+      "channels": "2001000",
+      "mae": "7.231437533e-08",
+      "p95": "2.384185791e-07",
+      "max": "1.579523087e-06"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.25",
+      "channels": "2001000",
+      "mae": "7.692889228e-09",
+      "p95": "2.980232239e-08",
+      "max": "1.192092896e-07"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "0.5",
+      "channels": "2001000",
+      "mae": "1.029764371e-08",
+      "p95": "5.960464478e-08",
+      "max": "1.192092896e-07"
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": "1",
+      "channels": "2001000",
+      "mae": "1.443441808e-08",
+      "p95": "5.960464478e-08",
+      "max": "1.192092896e-07"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.25",
+      "channels": "2001000",
+      "mae": "0",
+      "p95": "0",
+      "max": "0"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "0.5",
+      "channels": "2001000",
+      "mae": "0",
+      "p95": "0",
+      "max": "0"
+    },
+    {
+      "method": "Histogram",
+      "intensity": "1",
+      "channels": "2001000",
+      "mae": "0",
+      "p95": "0",
+      "max": "0"
+    }
+  ]
+}

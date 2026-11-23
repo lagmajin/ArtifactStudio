@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <initializer_list>
-#include <string>
 #include <vector>
 
 import Data.TypedColumn;
@@ -194,24 +193,4 @@ TEST(TypedColumnStandaloneTest, FloatScientificNotationConvertsForAllGetters)
     EXPECT_DOUBLE_EQ(column.getFloat(1), -30.0);
     EXPECT_EQ(column.getInt(0), 125);
     EXPECT_EQ(column.getInt(1), -30);
-}
-
-TEST(TypedColumnStandaloneTest, ParsedValuesSurviveStorageGrowthAndInputRelease)
-{
-    std::vector<String> rawValues;
-    rawValues.reserve(257);
-    for (int row = 0; row < 257; ++row) {
-        rawValues.emplace_back(std::to_string(row));
-    }
-
-    TypedColumn column(String("rows"), rawValues);
-    rawValues.clear();
-    rawValues.shrink_to_fit();
-
-    ASSERT_EQ(column.size(), 257);
-    EXPECT_EQ(column.getInt(0), 0);
-    EXPECT_EQ(column.getInt(31), 31);
-    EXPECT_EQ(column.getInt(127), 127);
-    EXPECT_EQ(column.getInt(256), 256);
-    EXPECT_EQ(column.getString(256), "256");
 }

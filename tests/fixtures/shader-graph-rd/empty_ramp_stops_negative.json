@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "ramp", "type": "ColorRamp", "params": {"interp": 0, "stops": []}}
+  ],
+  "links": []
+}

@@ -1,0 +1,16 @@
+{
+  "intent": "Check a restrained Chromatic Glow intensity on the same textured emissive material: Dispersion 2, Tint Mix 0, threshold .8 and radius 8 held fixed. Exploratory only.",
+  "profiles": {
+    "chromatic-dispersion2-tint0-intensity050": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.5,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    }
+  }
+}

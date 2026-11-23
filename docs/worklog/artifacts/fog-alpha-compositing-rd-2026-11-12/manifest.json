@@ -1,0 +1,1766 @@
+{
+  "schema": "fog-alpha-compositing-rd-v1",
+  "input": {
+    "representation": "scene-linear straight RGBA source; converted to premultiplied before policy evaluation",
+    "source_straight_rgb": [
+      1.25,
+      0.35,
+      0.08
+    ],
+    "fog_rgb": [
+      0.18,
+      0.42,
+      0.72
+    ],
+    "alpha_values": [
+      0.0,
+      0.02,
+      0.1,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "transmittance_values": [
+      0.9,
+      0.5,
+      0.1
+    ],
+    "backgrounds": {
+      "black": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "white": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "magenta": [
+        0.8,
+        0.1,
+        0.7
+      ]
+    }
+  },
+  "policies": {
+    "coverage_preserved": "Fog the straight source color, keep coverage alpha, then premultiply. Fog contribution is limited by source coverage.",
+    "medium_alpha_included": "Attenuate premultiplied source and add fog radiance; alpha becomes source_alpha*T + (1-T). This treats the medium as an occluding layer.",
+    "naive_rgb_blend_alpha_preserved_on_premultiplied_input": "Blend fog into premultiplied RGB and retain source alpha, mirroring the shader's channel operation under a premultiplied-input assumption."
+  },
+  "summary": {
+    "naive_premultiplied_rgb_residual_at_zero_alpha_max": 0.648,
+    "interpretation": "The two valid policies encode different layer semantics; this fixture cannot select the product contract. The naive policy leaks fog RGB with zero alpha when its input is premultiplied. Shader input alpha convention and downstream compositing are not confirmed.",
+    "not_exercised": [
+      "ArtifactStudio runtime",
+      "GPU shader execution",
+      "actual alpha-bearing renderer input",
+      "color management",
+      "temporal filtering"
+    ]
+  },
+  "cases": [
+    {
+      "input_alpha": 0.0,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "white": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "magenta": [
+              0.8,
+              0.1,
+              0.7
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.017999999999999995,
+            0.04199999999999999,
+            0.07199999999999998
+          ],
+          "alpha": 0.09999999999999998,
+          "composite_over_backgrounds": {
+            "black": [
+              0.017999999999999995,
+              0.04199999999999999,
+              0.07199999999999998
+            ],
+            "white": [
+              0.918,
+              0.9420000000000001,
+              0.972
+            ],
+            "magenta": [
+              0.7380000000000001,
+              0.132,
+              0.702
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.017999999999999995,
+            0.04199999999999999,
+            0.07199999999999998
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.017999999999999995,
+              0.04199999999999999,
+              0.07199999999999998
+            ],
+            "white": [
+              1.018,
+              1.042,
+              1.072
+            ],
+            "magenta": [
+              0.8180000000000001,
+              0.142,
+              0.7719999999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.02,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.022860000000000002,
+            0.00714,
+            0.0028799999999999997
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.022860000000000002,
+              0.00714,
+              0.0028799999999999997
+            ],
+            "white": [
+              1.00286,
+              0.98714,
+              0.98288
+            ],
+            "magenta": [
+              0.80686,
+              0.10514,
+              0.6888799999999999
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.040499999999999994,
+            0.04829999999999999,
+            0.07343999999999998
+          ],
+          "alpha": 0.11799999999999998,
+          "composite_over_backgrounds": {
+            "black": [
+              0.040499999999999994,
+              0.04829999999999999,
+              0.07343999999999998
+            ],
+            "white": [
+              0.9225,
+              0.9303,
+              0.95544
+            ],
+            "magenta": [
+              0.7461,
+              0.13649999999999998,
+              0.6908399999999999
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.040499999999999994,
+            0.04829999999999999,
+            0.07343999999999998
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.040499999999999994,
+              0.04829999999999999,
+              0.07343999999999998
+            ],
+            "white": [
+              1.0205,
+              1.0283,
+              1.05344
+            ],
+            "magenta": [
+              0.8245,
+              0.14629999999999999,
+              0.7594399999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.1,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.11430000000000001,
+            0.0357,
+            0.0144
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.11430000000000001,
+              0.0357,
+              0.0144
+            ],
+            "white": [
+              1.0143,
+              0.9357,
+              0.9144
+            ],
+            "magenta": [
+              0.8343,
+              0.1257,
+              0.6444
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.1305,
+            0.07349999999999998,
+            0.07919999999999998
+          ],
+          "alpha": 0.19,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1305,
+              0.07349999999999998,
+              0.07919999999999998
+            ],
+            "white": [
+              0.9405000000000001,
+              0.8835000000000001,
+              0.8892
+            ],
+            "magenta": [
+              0.7785000000000002,
+              0.1545,
+              0.6461999999999999
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.1305,
+            0.07349999999999998,
+            0.07919999999999998
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1305,
+              0.07349999999999998,
+              0.07919999999999998
+            ],
+            "white": [
+              1.0305,
+              0.9735,
+              0.9792
+            ],
+            "magenta": [
+              0.8505,
+              0.16349999999999998,
+              0.7091999999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.25,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.28575,
+            0.08925,
+            0.036
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.28575,
+              0.08925,
+              0.036
+            ],
+            "white": [
+              1.03575,
+              0.83925,
+              0.786
+            ],
+            "magenta": [
+              0.88575,
+              0.16425,
+              0.5609999999999999
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.29925,
+            0.12075,
+            0.08999999999999998
+          ],
+          "alpha": 0.32499999999999996,
+          "composite_over_backgrounds": {
+            "black": [
+              0.29925,
+              0.12075,
+              0.08999999999999998
+            ],
+            "white": [
+              0.9742500000000001,
+              0.7957500000000001,
+              0.765
+            ],
+            "magenta": [
+              0.83925,
+              0.18825,
+              0.5625
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.29925,
+            0.12075,
+            0.08999999999999998
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.29925,
+              0.12075,
+              0.08999999999999998
+            ],
+            "white": [
+              1.04925,
+              0.87075,
+              0.84
+            ],
+            "magenta": [
+              0.8992500000000001,
+              0.19575,
+              0.6149999999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.5,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.5715,
+            0.1785,
+            0.072
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.5715,
+              0.1785,
+              0.072
+            ],
+            "white": [
+              1.0715,
+              0.6785,
+              0.572
+            ],
+            "magenta": [
+              0.9715,
+              0.22849999999999998,
+              0.422
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.5805,
+            0.19949999999999998,
+            0.10799999999999998
+          ],
+          "alpha": 0.55,
+          "composite_over_backgrounds": {
+            "black": [
+              0.5805,
+              0.19949999999999998,
+              0.10799999999999998
+            ],
+            "white": [
+              1.0305,
+              0.6495,
+              0.5579999999999999
+            ],
+            "magenta": [
+              0.9405,
+              0.2445,
+              0.42299999999999993
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.5805,
+            0.19949999999999998,
+            0.10799999999999998
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.5805,
+              0.19949999999999998,
+              0.10799999999999998
+            ],
+            "white": [
+              1.0805,
+              0.6995,
+              0.608
+            ],
+            "magenta": [
+              0.9805,
+              0.2495,
+              0.45799999999999996
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.75,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.8572500000000001,
+            0.26775,
+            0.10799999999999998
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.8572500000000001,
+              0.26775,
+              0.10799999999999998
+            ],
+            "white": [
+              1.10725,
+              0.5177499999999999,
+              0.358
+            ],
+            "magenta": [
+              1.05725,
+              0.29275,
+              0.283
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.86175,
+            0.27824999999999994,
+            0.12599999999999997
+          ],
+          "alpha": 0.775,
+          "composite_over_backgrounds": {
+            "black": [
+              0.86175,
+              0.27824999999999994,
+              0.12599999999999997
+            ],
+            "white": [
+              1.0867499999999999,
+              0.50325,
+              0.351
+            ],
+            "magenta": [
+              1.04175,
+              0.30074999999999996,
+              0.2835
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.86175,
+            0.27824999999999994,
+            0.12599999999999997
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.86175,
+              0.27824999999999994,
+              0.12599999999999997
+            ],
+            "white": [
+              1.11175,
+              0.5282499999999999,
+              0.376
+            ],
+            "magenta": [
+              1.06175,
+              0.30324999999999996,
+              0.30099999999999993
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 1.0,
+      "transmittance": 0.9,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            1.143,
+            0.357,
+            0.144
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "white": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "magenta": [
+              1.143,
+              0.357,
+              0.144
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            1.143,
+            0.357,
+            0.144
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "white": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "magenta": [
+              1.143,
+              0.357,
+              0.144
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            1.143,
+            0.357,
+            0.144
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "white": [
+              1.143,
+              0.357,
+              0.144
+            ],
+            "magenta": [
+              1.143,
+              0.357,
+              0.144
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.0,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "white": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "magenta": [
+              0.8,
+              0.1,
+              0.7
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.09,
+            0.21,
+            0.36
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.09,
+              0.21,
+              0.36
+            ],
+            "white": [
+              0.59,
+              0.71,
+              0.86
+            ],
+            "magenta": [
+              0.49,
+              0.26,
+              0.71
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.09,
+            0.21,
+            0.36
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.09,
+              0.21,
+              0.36
+            ],
+            "white": [
+              1.09,
+              1.21,
+              1.3599999999999999
+            ],
+            "magenta": [
+              0.89,
+              0.31,
+              1.06
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.02,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.0143,
+            0.0077,
+            0.008
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.0143,
+              0.0077,
+              0.008
+            ],
+            "white": [
+              0.9943,
+              0.9877,
+              0.988
+            ],
+            "magenta": [
+              0.7983,
+              0.1057,
+              0.694
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.1025,
+            0.2135,
+            0.3608
+          ],
+          "alpha": 0.51,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1025,
+              0.2135,
+              0.3608
+            ],
+            "white": [
+              0.5925,
+              0.7035,
+              0.8508
+            ],
+            "magenta": [
+              0.4945,
+              0.2625,
+              0.7038
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.1025,
+            0.2135,
+            0.3608
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1025,
+              0.2135,
+              0.3608
+            ],
+            "white": [
+              1.0825,
+              1.1935,
+              1.3408
+            ],
+            "magenta": [
+              0.8865000000000001,
+              0.3115,
+              1.0468
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.1,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.0715,
+            0.038500000000000006,
+            0.04
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.0715,
+              0.038500000000000006,
+              0.04
+            ],
+            "white": [
+              0.9715,
+              0.9385,
+              0.9400000000000001
+            ],
+            "magenta": [
+              0.7915000000000001,
+              0.1285,
+              0.67
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.1525,
+            0.22749999999999998,
+            0.364
+          ],
+          "alpha": 0.55,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1525,
+              0.22749999999999998,
+              0.364
+            ],
+            "white": [
+              0.6024999999999999,
+              0.6775,
+              0.814
+            ],
+            "magenta": [
+              0.5125,
+              0.27249999999999996,
+              0.6789999999999999
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.1525,
+            0.22749999999999998,
+            0.364
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1525,
+              0.22749999999999998,
+              0.364
+            ],
+            "white": [
+              1.0525,
+              1.1275,
+              1.264
+            ],
+            "magenta": [
+              0.8725,
+              0.3175,
+              0.994
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.25,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.17875,
+            0.09625,
+            0.09999999999999999
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.17875,
+              0.09625,
+              0.09999999999999999
+            ],
+            "white": [
+              0.92875,
+              0.84625,
+              0.85
+            ],
+            "magenta": [
+              0.77875,
+              0.17125,
+              0.6249999999999999
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.24625,
+            0.25375,
+            0.37
+          ],
+          "alpha": 0.625,
+          "composite_over_backgrounds": {
+            "black": [
+              0.24625,
+              0.25375,
+              0.37
+            ],
+            "white": [
+              0.62125,
+              0.6287499999999999,
+              0.745
+            ],
+            "magenta": [
+              0.54625,
+              0.29125,
+              0.6325
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.24625,
+            0.25375,
+            0.37
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.24625,
+              0.25375,
+              0.37
+            ],
+            "white": [
+              0.99625,
+              1.00375,
+              1.12
+            ],
+            "magenta": [
+              0.8462500000000001,
+              0.32875,
+              0.8949999999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.5,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.3575,
+            0.1925,
+            0.19999999999999998
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.3575,
+              0.1925,
+              0.19999999999999998
+            ],
+            "white": [
+              0.8574999999999999,
+              0.6925,
+              0.7
+            ],
+            "magenta": [
+              0.7575000000000001,
+              0.2425,
+              0.5499999999999999
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.40249999999999997,
+            0.2975,
+            0.38
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.40249999999999997,
+              0.2975,
+              0.38
+            ],
+            "white": [
+              0.6525,
+              0.5475,
+              0.63
+            ],
+            "magenta": [
+              0.6025,
+              0.3225,
+              0.5549999999999999
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.40249999999999997,
+            0.2975,
+            0.38
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.40249999999999997,
+              0.2975,
+              0.38
+            ],
+            "white": [
+              0.9025,
+              0.7975,
+              0.88
+            ],
+            "magenta": [
+              0.8025,
+              0.3475,
+              0.73
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.75,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.53625,
+            0.28875,
+            0.3
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.53625,
+              0.28875,
+              0.3
+            ],
+            "white": [
+              0.78625,
+              0.5387500000000001,
+              0.55
+            ],
+            "magenta": [
+              0.7362500000000001,
+              0.31375000000000003,
+              0.475
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.55875,
+            0.34124999999999994,
+            0.39
+          ],
+          "alpha": 0.875,
+          "composite_over_backgrounds": {
+            "black": [
+              0.55875,
+              0.34124999999999994,
+              0.39
+            ],
+            "white": [
+              0.68375,
+              0.46624999999999994,
+              0.515
+            ],
+            "magenta": [
+              0.65875,
+              0.35374999999999995,
+              0.47750000000000004
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.55875,
+            0.34124999999999994,
+            0.39
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.55875,
+              0.34124999999999994,
+              0.39
+            ],
+            "white": [
+              0.80875,
+              0.5912499999999999,
+              0.64
+            ],
+            "magenta": [
+              0.75875,
+              0.36624999999999996,
+              0.565
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 1.0,
+      "transmittance": 0.5,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.715,
+            0.385,
+            0.39999999999999997
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "white": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "magenta": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.715,
+            0.385,
+            0.39999999999999997
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "white": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "magenta": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.715,
+            0.385,
+            0.39999999999999997
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "white": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ],
+            "magenta": [
+              0.715,
+              0.385,
+              0.39999999999999997
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.0,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "white": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "magenta": [
+              0.8,
+              0.1,
+              0.7
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.162,
+            0.378,
+            0.648
+          ],
+          "alpha": 0.9,
+          "composite_over_backgrounds": {
+            "black": [
+              0.162,
+              0.378,
+              0.648
+            ],
+            "white": [
+              0.262,
+              0.478,
+              0.748
+            ],
+            "magenta": [
+              0.242,
+              0.388,
+              0.718
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.162,
+            0.378,
+            0.648
+          ],
+          "alpha": 0.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.162,
+              0.378,
+              0.648
+            ],
+            "white": [
+              1.162,
+              1.3780000000000001,
+              1.6480000000000001
+            ],
+            "magenta": [
+              0.9620000000000001,
+              0.478,
+              1.3479999999999999
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.02,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.005740000000000001,
+            0.00826,
+            0.013120000000000001
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.005740000000000001,
+              0.00826,
+              0.013120000000000001
+            ],
+            "white": [
+              0.98574,
+              0.98826,
+              0.99312
+            ],
+            "magenta": [
+              0.78974,
+              0.10626000000000001,
+              0.69912
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.1645,
+            0.3787,
+            0.6481600000000001
+          ],
+          "alpha": 0.902,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1645,
+              0.3787,
+              0.6481600000000001
+            ],
+            "white": [
+              0.26249999999999996,
+              0.47669999999999996,
+              0.74616
+            ],
+            "magenta": [
+              0.2429,
+              0.38849999999999996,
+              0.7167600000000001
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.1645,
+            0.3787,
+            0.6481600000000001
+          ],
+          "alpha": 0.02,
+          "composite_over_backgrounds": {
+            "black": [
+              0.1645,
+              0.3787,
+              0.6481600000000001
+            ],
+            "white": [
+              1.1445,
+              1.3587,
+              1.62816
+            ],
+            "magenta": [
+              0.9485,
+              0.4767,
+              1.33416
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.1,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.028700000000000003,
+            0.0413,
+            0.0656
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.028700000000000003,
+              0.0413,
+              0.0656
+            ],
+            "white": [
+              0.9287000000000001,
+              0.9413,
+              0.9656
+            ],
+            "magenta": [
+              0.7487000000000001,
+              0.13130000000000003,
+              0.6956
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.17450000000000002,
+            0.3815,
+            0.6488
+          ],
+          "alpha": 0.91,
+          "composite_over_backgrounds": {
+            "black": [
+              0.17450000000000002,
+              0.3815,
+              0.6488
+            ],
+            "white": [
+              0.26449999999999996,
+              0.4715,
+              0.7388
+            ],
+            "magenta": [
+              0.2465,
+              0.3905,
+              0.7118
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.17450000000000002,
+            0.3815,
+            0.6488
+          ],
+          "alpha": 0.1,
+          "composite_over_backgrounds": {
+            "black": [
+              0.17450000000000002,
+              0.3815,
+              0.6488
+            ],
+            "white": [
+              1.0745,
+              1.2815,
+              1.5488
+            ],
+            "magenta": [
+              0.8945000000000001,
+              0.47150000000000003,
+              1.2788
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.25,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.07175000000000001,
+            0.10325,
+            0.164
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.07175000000000001,
+              0.10325,
+              0.164
+            ],
+            "white": [
+              0.82175,
+              0.85325,
+              0.914
+            ],
+            "magenta": [
+              0.6717500000000001,
+              0.17825000000000002,
+              0.689
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.19325,
+            0.38675,
+            0.65
+          ],
+          "alpha": 0.925,
+          "composite_over_backgrounds": {
+            "black": [
+              0.19325,
+              0.38675,
+              0.65
+            ],
+            "white": [
+              0.26825,
+              0.46174999999999994,
+              0.725
+            ],
+            "magenta": [
+              0.25325,
+              0.39425,
+              0.7025
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.19325,
+            0.38675,
+            0.65
+          ],
+          "alpha": 0.25,
+          "composite_over_backgrounds": {
+            "black": [
+              0.19325,
+              0.38675,
+              0.65
+            ],
+            "white": [
+              0.94325,
+              1.13675,
+              1.4
+            ],
+            "magenta": [
+              0.7932500000000001,
+              0.46175,
+              1.1749999999999998
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.5,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.14350000000000002,
+            0.2065,
+            0.328
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.14350000000000002,
+              0.2065,
+              0.328
+            ],
+            "white": [
+              0.6435,
+              0.7065,
+              0.8280000000000001
+            ],
+            "magenta": [
+              0.5435000000000001,
+              0.2565,
+              0.6779999999999999
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.2245,
+            0.3955,
+            0.652
+          ],
+          "alpha": 0.9500000000000001,
+          "composite_over_backgrounds": {
+            "black": [
+              0.2245,
+              0.3955,
+              0.652
+            ],
+            "white": [
+              0.27449999999999997,
+              0.44549999999999995,
+              0.702
+            ],
+            "magenta": [
+              0.26449999999999996,
+              0.4005,
+              0.6869999999999999
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.2245,
+            0.3955,
+            0.652
+          ],
+          "alpha": 0.5,
+          "composite_over_backgrounds": {
+            "black": [
+              0.2245,
+              0.3955,
+              0.652
+            ],
+            "white": [
+              0.7245,
+              0.8955,
+              1.1520000000000001
+            ],
+            "magenta": [
+              0.6245,
+              0.4455,
+              1.002
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 0.75,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.21525000000000002,
+            0.30974999999999997,
+            0.492
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.21525000000000002,
+              0.30974999999999997,
+              0.492
+            ],
+            "white": [
+              0.46525000000000005,
+              0.55975,
+              0.742
+            ],
+            "magenta": [
+              0.41525,
+              0.33475,
+              0.667
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.25575000000000003,
+            0.40425,
+            0.654
+          ],
+          "alpha": 0.9750000000000001,
+          "composite_over_backgrounds": {
+            "black": [
+              0.25575000000000003,
+              0.40425,
+              0.654
+            ],
+            "white": [
+              0.28074999999999994,
+              0.4292499999999999,
+              0.6789999999999999
+            ],
+            "magenta": [
+              0.27574999999999994,
+              0.40675,
+              0.6715
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.25575000000000003,
+            0.40425,
+            0.654
+          ],
+          "alpha": 0.75,
+          "composite_over_backgrounds": {
+            "black": [
+              0.25575000000000003,
+              0.40425,
+              0.654
+            ],
+            "white": [
+              0.50575,
+              0.65425,
+              0.904
+            ],
+            "magenta": [
+              0.45575000000000004,
+              0.42925,
+              0.829
+            ]
+          }
+        }
+      }
+    },
+    {
+      "input_alpha": 1.0,
+      "transmittance": 0.1,
+      "policies": {
+        "coverage_preserved": {
+          "premultiplied_rgb": [
+            0.28700000000000003,
+            0.413,
+            0.656
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "white": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "magenta": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ]
+          }
+        },
+        "medium_alpha_included": {
+          "premultiplied_rgb": [
+            0.28700000000000003,
+            0.413,
+            0.656
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "white": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "magenta": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ]
+          }
+        },
+        "naive_rgb_blend_alpha_preserved_on_premultiplied_input": {
+          "premultiplied_rgb": [
+            0.28700000000000003,
+            0.413,
+            0.656
+          ],
+          "alpha": 1.0,
+          "composite_over_backgrounds": {
+            "black": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "white": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ],
+            "magenta": [
+              0.28700000000000003,
+              0.413,
+              0.656
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

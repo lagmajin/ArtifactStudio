@@ -1,0 +1,16 @@
+{
+  "intent": "Matched zero-dispersion baseline for the Chromatic Glow intensity .50 candidate; all other controls identical.",
+  "profiles": {
+    "chromatic-dispersion0-tint0-intensity050": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.5,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    }
+  }
+}

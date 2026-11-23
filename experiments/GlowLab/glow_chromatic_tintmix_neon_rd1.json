@@ -1,0 +1,49 @@
+{
+  "intent": "Exploratory registered Chromatic Glow Tint Mix sweep at fixed Dispersion 2.0 on 960x540 synthetic neon; not an accepted preset.",
+  "profiles": {
+    "chromatic-tintmix-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.0,
+        "Dispersion": 2.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-tintmix-0p25": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.25,
+        "Dispersion": 2.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-tintmix-0p5": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 0.5,
+        "Dispersion": 2.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    },
+    "chromatic-tintmix-1p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Tint Mix": 1.0,
+        "Dispersion": 2.0,
+        "Threshold": 0.6,
+        "Angle": 0.0,
+        "Radius": 7.0,
+        "Intensity": 0.65
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "captured_at": "2026-11-20",
+  "study": "Particle2DShapeTarget v31 sand flow diagnostic evaluation",
+  "status": "diagnostic-only; not product validation",
+  "conditions": {
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "frames": 150,
+    "gpu": "NVIDIA GeForce RTX 4070 Ti",
+    "render_target": "RGBA8_UNORM_SRGB",
+    "display_view_transform_applied": false,
+    "emission_fade_start_frame": 60,
+    "emission_stop_frame": 100,
+    "gravity_px_per_second_squared": {
+      "fine": 135,
+      "coarse": 195
+    }
+  },
+  "source_refs": {
+    "ArtifactStudio": "9c3ce440df2542e0af6520748ce2136ad6059045",
+    "Artifact": "c9cf30046f81b8cdd4b6b1861f4d0653eeace089",
+    "ArtifactWidgets": "5145b4fe6ab783fd7b50fdf3b86a9b0d1061cc06",
+    "ArtifactCore": "5b7148123b66c2b8f9959dfe199776af42b63fa6"
+  },
+  "sha256": {
+    "playground_source": "63ab64502587a9742f70280e4f95f893feac03452444847222460bd9b324c590",
+    "diagnostic_executable": "97bd77441c65b38aadd54b41c0e9a9ac5123be104a8f2f04b9b73a96c1d9cf59"
+  },
+  "build_provenance": {
+    "compiler": "MSVC 19.44.35229 (VS 2022 v143)",
+    "link_mode": "isolated diagnostic link with /FORCE:UNRESOLVED after normal link stopped on ArtifactWidgets::FloatColorPicker::staticMetaObject",
+    "copy_only_source_adjustment": "ArtifactAbstractLayerImpl module partition/class marked export to compile ArtifactAbstractLayerLayoutRouting; no submodule working tree was edited",
+    "runtime_dll_path": "C:/vcpkg/installed/x64-windows/debug/bin plus isolated build bin/Debug",
+    "normal_product_link_verified": false,
+    "gui_verified": false,
+    "gui_review_attempt": {
+      "executable": "pre-existing out/build/x64-Debug-Agent/bin/Debug/Artifact.exe (not the v31 diagnostic executable)",
+      "composition_view_observed": true,
+      "composition_state": "temporary unsaved Comp1, 1920x1080 at 30 fps; added and selected 2D Particle 1 (Form Particle Layer); Composition View showed the grid and transform handles, with no particle image observed",
+      "particle_inspector_shape_target_observed": false,
+      "reason": "The old executable exposed Layer/Template inspector tabs and layer info, but no Shape Target control was found. Whether the control is absent from this build or hosted on a different editing surface remains undetermined. This limited observation does not validate the v31 UI.",
+      "project_saved": false
+    }
+  },
+  "backend_runs": {
+    "vulkan": {
+      "output_path": "out/particle-v31-isolated/output/vulkan/sand-v31",
+      "frame_count": 150,
+      "capture_measurements_sha256": "d00cc996e0521f79ea3adeb8f028c832d641beaf24b9b32a9e78d93ee329b483",
+      "sequence_report_sha256": "538de597acd071d7075dc89bf09dbbbc66eb03f50ca4c533b82c3599ce23137b",
+      "representative_frame_sha256": {
+        "sand_0059.png": "0fa883950468b0c30cc06cdcbb5ae7c52594cee18226384339ed28967b4e4981",
+        "sand_0149.png": "6f38d4cc72448386c3f01ed7b0da5f259db7a488875cb852b660daa8abf39309"
+      }
+    },
+    "d3d12": {
+      "output_path": "out/particle-v31-isolated/output/d3d12/sand-v31",
+      "frame_count": 150,
+      "capture_measurements_sha256": "e8daf501c3ffdca568e7f584fbb106d82a1d77da42ee12e0ef4095ad65185ce9",
+      "sequence_report_sha256": "c46cdb0c9ec6149610e4e52671f0b9831c67e8fc3733d0b357c9110608d7a75d",
+      "representative_frame_sha256": {
+        "sand_0059.png": "1786ac3c17172bed7dafb398d9c7d0d68fe27eadec727940d8dda2cae3db4fa9",
+        "sand_0149.png": "d6eb1695695f46825721527a65cdb30e024d9cdc1acc47e1b4f27b1f372eef96"
+      }
+    }
+  },
+  "generated_captures_git_tracked": false
+}

@@ -1,0 +1,62 @@
+# 新規画像処理 R&D 候補メモ
+
+**最終更新:** 2026-11-16
+**ステータス:** Not Started
+
+## 目的
+
+既存の途中案件から独立した、新規画像処理・静止画制作支援 R&D の候補を記録する。ここにある案は提案段階であり、コード上で未実装と確定したものではない。各テーマの開始前に既存実装・関連文書を確認し、重複があれば統合または候補から外す。
+
+画像出力の品質を評価するテーマは、開始時に [`../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md`](../technical/IMAGE_EFFECT_RND_EVALUATION_RULES.md) に沿った評価計画を作成する。候補メモ自体は実装・採用決定を承認しない。
+
+## 優先して順番に検討する候補
+
+以下は元の20案からユーザーが指定した順序。番号は元リストの番号を維持する。
+
+初期段階では各候補の重複監査・評価計画・決定論的 fixture または既存ラボへの明確な導線を用意する。ここに書いた順序は着手順であり、製品実装の優先判断ではない。
+
+1. **画像の不要物除去** — 塗った領域を周囲の模様で埋め、小さなゴミ、電線、文字で結果を比べる。規模目安: 大。
+   - 初期R&D: [ObjectRemovalLab](../../experiments/ObjectRemovalLab/README.md) に4ケースのtruth fixture・mask・baseline metricsを作成済み。候補比較とgateは未実施。
+2. **画像の自動修復** — 傷・ほこり・小さな欠損を検出し、元の質感を保つ補修方法を評価する。規模目安: 大。
+   - 初期R&D: [ImageCorrectionSuite](../../experiments/ImageCorrectionSuite/README.md) のscratch/dust fixtureとmedian reference。実写・独立視覚評価は未実施。
+3. **モアレ除去** — 服や網戸に出る縞を抑えつつ、本来の模様や細部を残す方法を比較する。規模目安: 中〜大。
+   - 初期R&D: 同suiteの周期干渉chartと周波数低域reference。実写模様での品質は未確認。
+4. **色収差補正** — 写真の周辺に現れる色チャンネルのずれを補正し、輪郭と色の副作用を評価する。規模目安: 中。
+   - 既存基盤: `ArtifactCore::ChromaSpread`（`ArtifactCore/include/ImageProcessing/ChromaSpread.ixx`）と RetroImageLab の chromatic fixture/study。radial CA model と製品経路の一致は別途確認。
+   - 初期R&D: 共通suiteにradial channel-shift fixtureを追加。詳細studyは [`RetroImageLab README`](../../experiments/RetroImageLab/README.md) を参照。
+5. **レンズ歪曲補正** — 樽型・糸巻き型の歪みを補正し、直線の保持と画像端の画質を確認する。規模目安: 中。
+   - 既存基盤: `ArtifactCore::makeOpticsCompensation`（`ArtifactCore/include/ImageProcessing/Distortion.ixx`）。新規実装候補ではなく、補正品質・端の crop/alpha・逆変換の検証候補。
+   - 初期R&D: 同suiteにbarrel/pincushion fixtureとknown-coefficient inverse referenceを追加。製品式との同値性は未検証。
+6. **遠近補正** — 斜め撮影した紙面・看板を正面に近づけ、補間品質と透明端を評価する。規模目安: 中。
+7. **照明の変更** — 静止画の人物や物体に光を加え、影・質感・色の整合を調べる。規模目安: 大。
+8. **影の除去・軽減** — 紙面や壁の影を薄くし、元の色と模様を保てる条件を調べる。規模目安: 大。
+9. **反射・映り込みの軽減** — ガラス越しの写真で反射を抑え、対象物まで失われないか評価する。規模目安: 大。
+10. **画像間の色合わせ** — 参照画像の色調を別画像へ移し、肌色や白の保持を比較する。規模目安: 中〜大。
+   - 既存基盤: `AutoColorMatcher` の Reinhard / MeanStddev / Histogram（`ArtifactCore/include/Color/AutoColorMatch.ixx`）。色空間・alpha・肌/白保護の同条件評価が不足候補。
+   - 初期R&D: 同suiteにsource/reference chartとmean/std referenceを追加。Core matcherとは未比較。
+11. **画像から配色を抽出** — 代表色を抽出し、色数や面積配分を編集可能にする方法を調べる。規模目安: 小〜中。
+   - 既存基盤: `SmartPaletteAnalyzer::extractPalette` と RetroImageLab の alpha-weighted median-cut 実験。cluster stability・coverage・UI向け編集契約を比較する候補。
+   - 初期R&D: 共通suiteに既知色面積のcoverage chart。詳細比較はRetroImageLabのadaptive palette studiesを参照。
+12. **限定色への減色** — 指定パレットへ変換し、グラデーション・細線・色のまとまりを比較する。規模目安: 中。
+13. **ディザリング** — 減色時の階調を点の配置で表現し、模様の規則性と粒状感を評価する。規模目安: 中。
+   - 既存基盤: RetroImageLab に Bayer ordered dithering、Floyd–Steinberg、時間/alpha/位相 study が存在。候補は仕上げ比較・製品式との契約監査。
+   - 初期R&D: 既存fixture・studyを再利用。[`RetroImageLab README`](../../experiments/RetroImageLab/README.md) と `RESEARCH_NOTES.md`。新規重複コードは作らない。
+14. **ドット絵化** — 低解像度・少色数への変換で、輪郭と重要な細部がどこまで保たれるか調べる。規模目安: 中。
+   - 既存基盤: RetroImageLab の pixelation / palette / alpha resize studies。候補は一連の操作を合わせた品質 preset・fixture評価であり、新規pixelation式とは限らない。
+   - 初期R&D: 既存pixel-art crop/resize studiesを再利用。suite導線は [`ImageCorrectionSuite`](../../experiments/ImageCorrectionSuite/README.md)。
+
+## その他の候補
+
+15. **水彩画風変換** — 色のにじみ、紙の凹凸、輪郭の溶け方を分けて調整する。規模目安: 大。
+16. **鉛筆画・版画風変換** — 輪郭と濃淡から線を作り、細部が黒く潰れない条件を探る。規模目安: 中〜大。
+17. **継ぎ目のないテクスチャ生成** — 写真の上下左右を自然につなぎ、反復時の境界を目立たなくする。規模目安: 中〜大。
+18. **素材の質感分離** — 大まかな色と細かな質感を分け、それぞれを独立して調整する。規模目安: 中。
+19. **画像からベクター形状への変換** — ロゴやイラストを輪郭と色面に分解し、拡大可能な形にする。規模目安: 大。
+20. **複数枚のピント合成** — 異なる位置にピントが合った写真を合成し、全体を鮮明にする。規模目安: 大。
+
+## 選定時の確認
+
+- 各テーマの着手前に、`docs/INDEX_GENERATED.md` と関連する現行ソース・マイルストンを調べ、既存実装との重複を確認する。
+- 画像品質を扱う場合、比較素材・条件・評価領域・合否方法・性能条件を先に定める。目標画像がない応答統計だけで品質を合格としない。
+- 学習済みモデルや外部素材を使う場合、ライセンス・取得元・再現条件を記録する。
+- 優先候補は上から順に検討する。前段の結論や依存関係により順序を変える場合は、その理由を記録する。

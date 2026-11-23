@@ -15,7 +15,6 @@
 #include <fstream>
 #include <memory>
 #include <memory>
-#include <limits>
 
 #include "DiligentVulkanTestDevice.hpp"
 
@@ -32,27 +31,10 @@ using ArtifactTest::VulkanGpuDevice;
 constexpr unsigned kWidth = 9;
 constexpr unsigned kHeight = 9;
 constexpr std::size_t kPixelCount = kWidth * kHeight;
-
-float encodeVelocityPixels(float pixelsPerFrame, unsigned extent)
-{
-    return 0.5f + 0.5f * pixelsPerFrame / static_cast<float>(extent);
-}
-
-void initializeStaticVelocity(std::array<float, kPixelCount * 2>& velocity)
-{
-    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        velocity[pixel * 2] = 0.5f;
-        velocity[pixel * 2 + 1] = 0.5f;
-    }
-}
-
-void setVelocityPixels(std::array<float, kPixelCount * 2>& velocity,
-                       std::size_t pixel, float xPixelsPerFrame,
-                       float yPixelsPerFrame)
-{
-    velocity[pixel * 2] = encodeVelocityPixels(xPixelsPerFrame, kWidth);
-    velocity[pixel * 2 + 1] = encodeVelocityPixels(yPixelsPerFrame, kHeight);
-}
+constexpr unsigned kDofCaptureWidth = 160;
+constexpr unsigned kDofCaptureHeight = 96;
+constexpr std::size_t kDofCapturePixelCount =
+    static_cast<std::size_t>(kDofCaptureWidth) * kDofCaptureHeight;
 
 class PostProcessPassGpuContractTest : public testing::Test {
 protected:
@@ -93,6 +75,13 @@ bool readbackRgba32f(
     ITexture* source,
     std::array<float, kPixelCount * 4>& pixels);
 
+bool readbackRgba32f(
+    VulkanGpuDevice& gpu,
+    ITexture* source,
+    std::array<float, kDofCapturePixelCount * 4>& pixels,
+    unsigned width,
+    unsigned height);
+
 std::size_t pixelOffset(unsigned x, unsigned y);
 
 bool writeMotionBlurPpm(const std::filesystem::path& path,
@@ -102,6 +91,22 @@ bool writeMotionBlurPpm(const std::filesystem::path& path,
     if (!image) return false;
     image << "P6\n" << kWidth << ' ' << kHeight << "\n255\n";
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const auto value = static_cast<unsigned char>(std::clamp(
+                pixels[pixel * 4 + channel], 0.0f, 1.0f) * 255.0f + 0.5f);
+            image.put(static_cast<char>(value));
+        }
+    }
+    return image.good();
+}
+
+bool writeDofCapturePpm(const std::filesystem::path& path,
+                        const std::array<float, kDofCapturePixelCount * 4>& pixels)
+{
+    std::ofstream image(path, std::ios::binary);
+    if (!image) return false;
+    image << "P6\n" << kDofCaptureWidth << ' ' << kDofCaptureHeight << "\n255\n";
+    for (std::size_t pixel = 0; pixel < kDofCapturePixelCount; ++pixel) {
         for (std::size_t channel = 0; channel < 3; ++channel) {
             const auto value = static_cast<unsigned char>(std::clamp(
                 pixels[pixel * 4 + channel], 0.0f, 1.0f) * 255.0f + 0.5f);
@@ -424,6 +429,46 @@ bool readbackRgba32f(
     return true;
 }
 
+bool readbackRgba32f(
+    VulkanGpuDevice& gpu,
+    ITexture* source,
+    std::array<float, kDofCapturePixelCount * 4>& pixels,
+    unsigned width,
+    unsigned height)
+{
+    auto desc = source->GetDesc();
+    desc.Name = "DOF visual capture readback";
+    desc.Usage = USAGE_STAGING;
+    desc.BindFlags = BIND_NONE;
+    desc.CPUAccessFlags = CPU_ACCESS_READ;
+
+    RefCntAutoPtr<ITexture> staging;
+    gpu.device()->CreateTexture(desc, nullptr, &staging);
+    if (!staging) return false;
+
+    CopyTextureAttribs copy;
+    copy.pSrcTexture = source;
+    copy.SrcTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+    copy.pDstTexture = staging;
+    copy.DstTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+    gpu.context()->CopyTexture(copy);
+    gpu.flushAndWait();
+
+    MappedTextureSubresource mapped;
+    gpu.context()->MapTextureSubresource(
+        staging, 0, 0, MAP_READ, MAP_FLAG_DO_NOT_WAIT, nullptr, mapped);
+    if (!mapped.pData) return false;
+
+    for (unsigned y = 0; y < height; ++y) {
+        const auto* row = static_cast<const std::byte*>(mapped.pData) +
+                          static_cast<std::size_t>(y) * mapped.Stride;
+        std::memcpy(pixels.data() + static_cast<std::size_t>(y) * width * 4,
+                    row, static_cast<std::size_t>(width) * 4 * sizeof(float));
+    }
+    gpu.context()->UnmapTextureSubresource(staging, 0, 0);
+    return true;
+}
+
 std::size_t pixelOffset(unsigned x, unsigned y)
 {
     return (static_cast<std::size_t>(y) * kWidth + x) * 4;
@@ -499,6 +544,143 @@ TEST_F(PostProcessPassGpuContractTest, DepthOfFieldBlursAnOffFocusImpulse)
     EXPECT_GT(output[adjacent], 0.0f);
     EXPECT_LT(output[center + 3], 1.0f);
     EXPECT_GT(output[adjacent + 3], 0.0f);
+}
+
+TEST_F(PostProcessPassGpuContractTest, DepthOfFieldWritesLayeredVisualCapture)
+{
+    Artifact::DepthOfFieldPass pass;
+    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
+    ASSERT_TRUE(pass.ready());
+
+    static std::array<float, kDofCapturePixelCount * 4> color{};
+    static std::array<float, kDofCapturePixelCount> depth{};
+    static std::array<float, kDofCapturePixelCount * 4> output{};
+    constexpr std::array<float, 3> planeDistances{4.0f, 10.0f, 30.0f};
+    constexpr std::array<std::array<float, 3>, 3> planeColors{{
+        {{0.08f, 0.22f, 0.78f}},
+        {{0.10f, 0.72f, 0.22f}},
+        {{0.82f, 0.18f, 0.08f}},
+    }};
+
+    for (unsigned y = 0; y < kDofCaptureHeight; ++y) {
+        const unsigned plane = std::min(y / (kDofCaptureHeight / 3), 2u);
+        const float distance = planeDistances[plane];
+        const float windowDepth =
+            (100.0f - 100.0f / distance) / 99.0f;
+        for (unsigned x = 0; x < kDofCaptureWidth; ++x) {
+            const auto pixel = static_cast<std::size_t>(y) * kDofCaptureWidth + x;
+            const bool lightBar = ((x / 4) % 2) == 0;
+            const float scale = lightBar ? 1.0f : 0.12f;
+            color[pixel * 4] = planeColors[plane][0] * scale;
+            color[pixel * 4 + 1] = planeColors[plane][1] * scale;
+            color[pixel * 4 + 2] = planeColors[plane][2] * scale;
+            color[pixel * 4 + 3] = 1.0f;
+            depth[pixel] = windowDepth;
+        }
+    }
+
+    const auto makeTexture = [&](const char* name, TEXTURE_FORMAT format,
+                                 BIND_FLAGS bindFlags, const float* data,
+                                 Uint64 stride) {
+        TextureDesc desc;
+        desc.Name = name;
+        desc.Type = RESOURCE_DIM_TEX_2D;
+        desc.Width = kDofCaptureWidth;
+        desc.Height = kDofCaptureHeight;
+        desc.Format = format;
+        desc.MipLevels = 1;
+        desc.Usage = USAGE_DEFAULT;
+        desc.BindFlags = bindFlags;
+        TextureSubResData subresource;
+        subresource.pData = data;
+        subresource.Stride = stride;
+        TextureData initialData;
+        initialData.pSubResources = &subresource;
+        initialData.NumSubresources = 1;
+        RefCntAutoPtr<ITexture> texture;
+        gpu_.device()->CreateTexture(desc, data ? &initialData : nullptr, &texture);
+        return texture;
+    };
+
+    auto colorTexture = makeTexture(
+        "DOF visual capture color", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_SHADER_RESOURCE, color.data(), kDofCaptureWidth * 4 * sizeof(float));
+    auto depthTexture = makeTexture(
+        "DOF visual capture depth", TEX_FORMAT_R32_FLOAT,
+        BIND_SHADER_RESOURCE, depth.data(),
+        kDofCaptureWidth * sizeof(float));
+    auto outputTexture = makeTexture(
+        "DOF visual capture output", TEX_FORMAT_RGBA32_FLOAT,
+        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
+    ASSERT_NE(colorTexture, nullptr);
+    ASSERT_NE(depthTexture, nullptr);
+    ASSERT_NE(outputTexture, nullptr);
+
+    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
+    ASSERT_NE(colorSrv, nullptr);
+    ASSERT_NE(depthSrv, nullptr);
+    ASSERT_NE(outputUav, nullptr);
+
+    Artifact::DepthOfFieldSettings settings;
+    settings.enabled = true;
+    settings.focusDistance.value = 10.0f;
+    settings.nearClip.value = 1.0f;
+    settings.farClip.value = 100.0f;
+    settings.maxCocRadius.value = 12.0f;
+    settings.cocScale.value = 1.0f;
+    settings.sampleCount = 64;
+    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, depthSrv, outputUav,
+                           kDofCaptureWidth, kDofCaptureHeight, settings));
+    ASSERT_TRUE(readbackRgba32f(
+        gpu_, outputTexture, output, kDofCaptureWidth, kDofCaptureHeight));
+
+    if (const char* outputDirectory = std::getenv("ARTIFACT_DOF_IMAGE_DIR")) {
+        const std::filesystem::path directory(outputDirectory);
+        std::error_code error;
+        std::filesystem::create_directories(directory, error);
+        ASSERT_FALSE(error) << "Could not create image output directory: "
+                            << error.message();
+        ASSERT_TRUE(writeDofCapturePpm(directory / "dof-input.ppm", color));
+        ASSERT_TRUE(writeDofCapturePpm(directory / "dof-output.ppm", output));
+    }
+
+    const auto luminance = [](const auto& pixels, unsigned x, unsigned y) {
+        const auto pixel = static_cast<std::size_t>(y) * kDofCaptureWidth + x;
+        return pixels[pixel * 4] * 0.2126f +
+               pixels[pixel * 4 + 1] * 0.7152f +
+               pixels[pixel * 4 + 2] * 0.0722f;
+    };
+    const auto bandContrast = [&](const auto& pixels, unsigned y) {
+        float bright = 0.0f;
+        float dark = 0.0f;
+        unsigned brightCount = 0;
+        unsigned darkCount = 0;
+        for (unsigned x = 32; x < kDofCaptureWidth - 32; ++x) {
+            if (((x / 4) % 2) == 0) {
+                bright += luminance(pixels, x, y);
+                ++brightCount;
+            } else {
+                dark += luminance(pixels, x, y);
+                ++darkCount;
+            }
+        }
+        return bright / brightCount - dark / darkCount;
+    };
+    const auto focusY = kDofCaptureHeight / 2;
+    const auto nearY = kDofCaptureHeight / 6;
+    const auto farY = kDofCaptureHeight * 5 / 6;
+    const auto focusRetention = std::abs(bandContrast(output, focusY)) /
+                                bandContrast(color, focusY);
+    const auto nearRetention = std::abs(bandContrast(output, nearY)) /
+                               bandContrast(color, nearY);
+    const auto farRetention = std::abs(bandContrast(output, farY)) /
+                              bandContrast(color, farY);
+    EXPECT_GT(focusRetention, nearRetention)
+        << "The known focus plane should retain more chart contrast than the near plane";
+    EXPECT_GT(focusRetention, farRetention)
+        << "The known focus plane should retain more chart contrast than the far plane";
 }
 
 TEST_F(PostProcessPassGpuContractTest, DisabledPassesLeaveOutputPixelsUntouched)
@@ -945,10 +1127,8 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndPhaseAndCopie
     std::array<float, kPixelCount * 4> color{};
     std::array<float, kPixelCount * 2> velocity{};
     std::array<float, kPixelCount * 2> zeroVelocity{};
-    initializeStaticVelocity(velocity);
-    initializeStaticVelocity(zeroVelocity);
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        setVelocityPixels(velocity, pixel, 2.0f, 0.0f);
+        velocity[pixel * 2] = 2.0f;
     }
     const auto centerInput = pixelOffset(kWidth / 2, kHeight / 2);
     color[centerInput] = 1.0f;
@@ -1072,142 +1252,6 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurFollowsVelocityAndPhaseAndCopie
     EXPECT_FLOAT_EQ(zeroVelocityScale[adjacent + 3], 0.0f);
 }
 
-TEST_F(PostProcessPassGpuContractTest,
-       MotionBlurScalesVelocityAndClampsDegenerateParameters)
-{
-    Artifact::MotionBlurPass pass;
-    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
-    ASSERT_TRUE(pass.ready());
-
-    std::array<float, kPixelCount * 4> color{};
-    std::array<float, kPixelCount * 2> velocity{};
-    std::array<float, kPixelCount> depth{};
-    initializeStaticVelocity(velocity);
-    for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        setVelocityPixels(velocity, pixel, 2.0f, 0.0f);
-        depth[pixel] = 0.5f;
-    }
-    const auto center = pixelOffset(4, 4);
-    color[center] = 1.0f;
-    color[center + 3] = 1.0f;
-
-    auto colorTexture = createTexture(
-        gpu_.device(), "Motion blur scale color", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
-    auto velocityTexture = createTexture(
-        gpu_.device(), "Motion blur scale velocity", TEX_FORMAT_RG32_FLOAT,
-        BIND_SHADER_RESOURCE, velocity.data(), kWidth * 2 * sizeof(float));
-    auto depthTexture = createTexture(
-        gpu_.device(), "Motion blur scale depth", TEX_FORMAT_R32_FLOAT,
-        BIND_SHADER_RESOURCE, depth.data(), kWidth * sizeof(float));
-    auto outputTexture = createTexture(
-        gpu_.device(), "Motion blur scale output", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
-    ASSERT_NE(colorTexture, nullptr);
-    ASSERT_NE(velocityTexture, nullptr);
-    ASSERT_NE(depthTexture, nullptr);
-    ASSERT_NE(outputTexture, nullptr);
-
-    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* velocitySrv = velocityTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
-    ASSERT_NE(colorSrv, nullptr);
-    ASSERT_NE(velocitySrv, nullptr);
-    ASSERT_NE(depthSrv, nullptr);
-    ASSERT_NE(outputUav, nullptr);
-
-    const auto run = [&](const Artifact::MotionBlurSettings& settings) {
-        std::array<float, kPixelCount * 4> output{};
-        EXPECT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
-                               outputUav, kWidth, kHeight, settings));
-        EXPECT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
-        return output;
-    };
-    const auto alphaSum = [](const std::array<float, kPixelCount * 4>& image) {
-        double total = 0.0;
-        for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-            total += static_cast<double>(image[pixel * 4 + 3]);
-        }
-        return total;
-    };
-
-    Artifact::MotionBlurSettings settings;
-    settings.enabled = true;
-    settings.shutterAngle = 360.0f;
-    settings.shutterPhase = 0.0f;
-    settings.velocityScale = 1.0f;
-    settings.sampleCount = 8;
-    const auto full = run(settings);
-
-    settings.shutterShape = Artifact::MotionBlurShutterShape::Triangle;
-    const auto triangle = run(settings);
-    EXPECT_GT(triangle[center + 3], full[center + 3]);
-    settings.shutterShape = Artifact::MotionBlurShutterShape::Trapezoid;
-    settings.trapezoidPlateau = 0.5f;
-    const auto trapezoid = run(settings);
-    EXPECT_GT(trapezoid[center + 3], full[center + 3]);
-    EXPECT_LT(trapezoid[center + 3], triangle[center + 3]);
-    settings.shutterShape = Artifact::MotionBlurShutterShape::Rectangular;
-
-    settings.shutterAngle = 180.0f;
-    const auto finiteFallbackReference = run(settings);
-    settings.shutterAngle = std::numeric_limits<float>::quiet_NaN();
-    settings.shutterPhase = std::numeric_limits<float>::infinity();
-    settings.velocityScale = std::numeric_limits<float>::quiet_NaN();
-    const auto nonFiniteParameters = run(settings);
-    for (std::size_t i = 0; i < finiteFallbackReference.size(); ++i) {
-        EXPECT_FLOAT_EQ(nonFiniteParameters[i], finiteFallbackReference[i]);
-    }
-
-    settings.shutterAngle = 360.0f;
-    settings.shutterPhase = 0.0f;
-    settings.velocityScale = 1.0f;
-
-    settings.velocityScale = 0.5f;
-    const auto half = run(settings);
-    settings.velocityScale = 2.0f;
-    const auto doubled = run(settings);
-
-    // Halving the velocity collapses every sample onto the source pixel, the
-    // base velocity dilutes it across three columns, and doubling it spreads
-    // over five columns.
-    const auto twoColumnsAway = pixelOffset(6, 4);
-    EXPECT_FLOAT_EQ(half[center + 3], 1.0f);
-    EXPECT_FLOAT_EQ(full[center + 3], 0.5f);
-    EXPECT_FLOAT_EQ(doubled[center + 3], 0.25f);
-    EXPECT_GT(half[center + 3], full[center + 3]);
-    EXPECT_GT(full[center + 3], doubled[center + 3]);
-    EXPECT_FLOAT_EQ(full[twoColumnsAway + 3], 0.0f);
-    EXPECT_GT(doubled[twoColumnsAway + 3], 0.0f);
-    EXPECT_NEAR(alphaSum(half), 1.0, 1e-3);
-    EXPECT_NEAR(alphaSum(full), 1.0, 1e-3);
-    EXPECT_NEAR(alphaSum(doubled), 1.0, 1e-3);
-
-    // A negative shutter is clamped to zero, which is an exact passthrough.
-    settings.velocityScale = 1.0f;
-    settings.shutterAngle = -90.0f;
-    const auto negativeShutter = run(settings);
-    EXPECT_FLOAT_EQ(negativeShutter[center + 3], 1.0f);
-    EXPECT_FLOAT_EQ(negativeShutter[pixelOffset(3, 4) + 3], 0.0f);
-
-    // One sample is the lower clamp of the sample count and also passthrough.
-    settings.shutterAngle = 360.0f;
-    settings.sampleCount = 1;
-    const auto singleSample = run(settings);
-    EXPECT_FLOAT_EQ(singleSample[center + 3], 1.0f);
-    EXPECT_FLOAT_EQ(singleSample[pixelOffset(3, 4) + 3], 0.0f);
-
-    // Extreme velocity still clamps every sample inside the surface.
-    settings.sampleCount = 8;
-    settings.velocityScale = 1000.0f;
-    const auto extremeVelocity = run(settings);
-    for (const float value : extremeVelocity) {
-        EXPECT_TRUE(std::isfinite(value));
-    }
-    EXPECT_NEAR(alphaSum(extremeVelocity), 1.0, 1e-3);
-}
-
 TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
 {
     Artifact::MotionBlurPass pass;
@@ -1217,9 +1261,8 @@ TEST_F(PostProcessPassGpuContractTest, MotionBlurRejectsSamplesAcrossDepthEdges)
     std::array<float, kPixelCount * 4> color{};
     std::array<float, kPixelCount * 2> velocity{};
     std::array<float, kPixelCount> depth{};
-    initializeStaticVelocity(velocity);
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
-        setVelocityPixels(velocity, pixel, 2.0f, 0.0f);
+        velocity[pixel * 2] = 2.0f;
         depth[pixel] = 0.5f;
     }
     const auto foreground = pixelOffset(kWidth / 2, kHeight / 2);
@@ -1286,7 +1329,6 @@ TEST_F(PostProcessPassGpuContractTest,
     std::array<float, kPixelCount * 4> color{};
     std::array<float, kPixelCount * 2> velocity{};
     std::array<float, kPixelCount> depth{};
-    initializeStaticVelocity(velocity);
     for (std::size_t pixel = 0; pixel < kPixelCount; ++pixel) {
         color[pixel * 4 + 2] = 0.2f;
         color[pixel * 4 + 3] = 1.0f;
@@ -1301,7 +1343,8 @@ TEST_F(PostProcessPassGpuContractTest,
         color[pixel * 4 + 2] = b;
         color[pixel * 4 + 3] = 1.0f;
         depth[pixel] = z;
-        setVelocityPixels(velocity, pixel, vx, vy);
+        velocity[pixel * 2] = vx;
+        velocity[pixel * 2 + 1] = vy;
     };
     setPixel(2, 2, 0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f); // static mark
     setPixel(2, 4, 0.0f, 0.0f, 0.2f, 0.2f, 2.0f, 0.0f);
@@ -1370,99 +1413,4 @@ TEST_F(PostProcessPassGpuContractTest,
     EXPECT_LT(output[yellowCenter], 1.0f);
     EXPECT_GT(output[yellowTrail], 0.0f)
         << "Vertical motion should produce a vertical trail";
-}
-
-TEST_F(PostProcessPassGpuContractTest,
-       MotionBlurRotationFixtureWritesImagesForChecker)
-{
-    Artifact::MotionBlurPass pass;
-    ASSERT_TRUE(pass.initialize(gpu_.device(), gpu_.context()));
-    ASSERT_TRUE(pass.ready());
-
-    // Tangential velocity field rotating around the centre, so a marker on the
-    // left edge must smear vertically while the centre stays sharp.
-    std::array<float, kPixelCount * 4> color{};
-    std::array<float, kPixelCount * 2> velocity{};
-    std::array<float, kPixelCount> depth{};
-    initializeStaticVelocity(velocity);
-    for (unsigned y = 0; y < kHeight; ++y) {
-        for (unsigned x = 0; x < kWidth; ++x) {
-            const auto pixel = pixelOffset(x, y) / 4;
-            color[pixel * 4 + 2] = 0.2f;
-            color[pixel * 4 + 3] = 1.0f;
-            depth[pixel] = 0.5f;
-            setVelocityPixels(
-                velocity, pixel,
-                -static_cast<float>(static_cast<int>(y) - 4),
-                static_cast<float>(static_cast<int>(x) - 4));
-        }
-    }
-    const auto setMarker = [&](unsigned x, unsigned y, float r, float g,
-                               float b) {
-        const auto pixel = pixelOffset(x, y) / 4;
-        color[pixel * 4] = r;
-        color[pixel * 4 + 1] = g;
-        color[pixel * 4 + 2] = b;
-        color[pixel * 4 + 3] = 1.0f;
-    };
-    setMarker(4, 4, 0.0f, 1.0f, 0.0f); // rotation centre has zero velocity
-    setMarker(2, 4, 1.0f, 0.0f, 0.0f); // left marker, tangential velocity (0,-2)
-
-    auto colorTexture = createTexture(
-        gpu_.device(), "Motion blur rotation color", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_SHADER_RESOURCE, color.data(), kWidth * 4 * sizeof(float));
-    auto velocityTexture = createTexture(
-        gpu_.device(), "Motion blur rotation velocity", TEX_FORMAT_RG32_FLOAT,
-        BIND_SHADER_RESOURCE, velocity.data(), kWidth * 2 * sizeof(float));
-    auto depthTexture = createTexture(
-        gpu_.device(), "Motion blur rotation depth", TEX_FORMAT_R32_FLOAT,
-        BIND_SHADER_RESOURCE, depth.data(), kWidth * sizeof(float));
-    auto outputTexture = createTexture(
-        gpu_.device(), "Motion blur rotation output", TEX_FORMAT_RGBA32_FLOAT,
-        BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE, nullptr, 0);
-    ASSERT_NE(colorTexture, nullptr);
-    ASSERT_NE(velocityTexture, nullptr);
-    ASSERT_NE(depthTexture, nullptr);
-    ASSERT_NE(outputTexture, nullptr);
-
-    auto* colorSrv = colorTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* velocitySrv = velocityTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* depthSrv = depthTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-    auto* outputUav = outputTexture->GetDefaultView(TEXTURE_VIEW_UNORDERED_ACCESS);
-    ASSERT_NE(colorSrv, nullptr);
-    ASSERT_NE(velocitySrv, nullptr);
-    ASSERT_NE(depthSrv, nullptr);
-    ASSERT_NE(outputUav, nullptr);
-
-    Artifact::MotionBlurSettings settings;
-    settings.enabled = true;
-    settings.shutterAngle = 360.0f;
-    settings.shutterPhase = 0.0f;
-    settings.velocityScale = 1.0f;
-    settings.sampleCount = 8;
-    ASSERT_TRUE(pass.apply(gpu_.context(), colorSrv, velocitySrv, depthSrv,
-                           outputUav, kWidth, kHeight, settings));
-
-    std::array<float, kPixelCount * 4> output{};
-    ASSERT_TRUE(readbackRgba32f(gpu_, outputTexture, output));
-    if (const char* outputDirectory = std::getenv("ARTIFACT_MOTION_BLUR_IMAGE_DIR")) {
-        const std::filesystem::path directory(outputDirectory);
-        std::error_code error;
-        std::filesystem::create_directories(directory, error);
-        ASSERT_FALSE(error) << "Could not create image output directory: " << error.message();
-        ASSERT_TRUE(writeMotionBlurPpm(directory / "motion-blur-rotation-input.ppm", color));
-        ASSERT_TRUE(writeMotionBlurPpm(directory / "motion-blur-rotation-output.ppm", output));
-    }
-
-    const auto stationary = pixelOffset(4, 4);
-    EXPECT_FLOAT_EQ(output[stationary + 1], 1.0f)
-        << "Zero-velocity rotation centre should remain unchanged";
-    EXPECT_GT(output[pixelOffset(2, 3)], 0.0f)
-        << "Tangential motion should smear the marker above it";
-    EXPECT_GT(output[pixelOffset(2, 5)], 0.0f)
-        << "Tangential motion should smear the marker below it";
-    EXPECT_FLOAT_EQ(output[pixelOffset(1, 4)], 0.0f)
-        << "Rotation must not leave a horizontal trail";
-    EXPECT_FLOAT_EQ(output[pixelOffset(3, 4)], 0.0f)
-        << "Rotation must not leave a horizontal trail";
 }

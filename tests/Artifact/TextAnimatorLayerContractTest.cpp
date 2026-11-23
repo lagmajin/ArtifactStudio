@@ -9,6 +9,7 @@
 #include <QVariant>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 
 import Artifact.Layer.Text;
@@ -69,6 +70,11 @@ QJsonObject propertiesAt(const QJsonArray& stack, const int index)
 struct AlphaSummary {
     double alpha = 0.0;
     double weightedX = 0.0;
+    double maxAlpha = 0.0;
+    int minX = std::numeric_limits<int>::max();
+    int minY = std::numeric_limits<int>::max();
+    int maxX = -1;
+    int maxY = -1;
 };
 
 AlphaSummary summarizeAlpha(const Artifact::ArtifactTextLayer& layer)
@@ -79,8 +85,14 @@ AlphaSummary summarizeAlpha(const Artifact::ArtifactTextLayer& layer)
         for (int x = 0; x < image.width(); ++x) {
             const double alpha = std::clamp(
                 static_cast<double>(image.getPixel(x, y).a()), 0.0, 1.0);
+            if (alpha <= 0.0) continue;
             summary.alpha += alpha;
             summary.weightedX += alpha * x;
+            summary.maxAlpha = std::max(summary.maxAlpha, alpha);
+            summary.minX = std::min(summary.minX, x);
+            summary.minY = std::min(summary.minY, y);
+            summary.maxX = std::max(summary.maxX, x);
+            summary.maxY = std::max(summary.maxY, y);
         }
     }
     return summary;
@@ -390,4 +402,59 @@ TEST(TextAnimatorLayerContractTest, LayerRenderReflectsAnimatorStack)
     layer.updateImage();
     const AlphaSummary faded = summarizeAlpha(layer);
     EXPECT_LT(faded.alpha, moved.alpha - 0.1);
+}
+
+TEST(TextAnimatorLayerContractTest,
+     IntenseTransformStackProducesExpandedVisibleGlyphs)
+{
+    Artifact::ArtifactTextLayer layer;
+    configureText(layer, QStringLiteral("INTENSE MOTION"));
+    layer.updateImage();
+    if (!layer.hasCurrentFrameBuffer()) {
+        GTEST_SKIP() << "text layer produced no frame buffer";
+    }
+    const AlphaSummary baseline = summarizeAlpha(layer);
+    if (baseline.alpha <= 0.0) {
+        GTEST_SKIP() << "host font produced no rasterized glyphs";
+    }
+
+    ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("position")));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("units"), QVariant(1)));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("positionX"),
+                            QVariant(96.0)));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("positionY"),
+                            QVariant(-72.0)));
+    ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("rotation")));
+    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("units"), QVariant(1)));
+    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("rotation"), QVariant(65.0)));
+    ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("scale")));
+    ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("units"), QVariant(1)));
+    ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("scale"), QVariant(2.0)));
+    ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("tracking")));
+    ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("units"), QVariant(1)));
+    ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("tracking"),
+                            QVariant(12.0)));
+    ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("opacity")));
+    ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("units"), QVariant(1)));
+    ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("opacity"), QVariant(0.65)));
+
+    layer.updateImage();
+    ASSERT_TRUE(layer.hasCurrentFrameBuffer());
+    const AlphaSummary intense = summarizeAlpha(layer);
+    ASSERT_GT(intense.alpha, 0.0);
+    ASSERT_GE(intense.maxX, intense.minX);
+    ASSERT_GE(intense.maxY, intense.minY);
+
+    const int baselineWidth = baseline.maxX - baseline.minX + 1;
+    const int baselineHeight = baseline.maxY - baseline.minY + 1;
+    const int intenseWidth = intense.maxX - intense.minX + 1;
+    const int intenseHeight = intense.maxY - intense.minY + 1;
+    EXPECT_GT(intenseWidth, baselineWidth);
+    EXPECT_GT(intenseHeight, baselineHeight);
+    EXPECT_LT(intense.maxAlpha, baseline.maxAlpha);
 }

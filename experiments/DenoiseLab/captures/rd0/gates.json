@@ -1,0 +1,1880 @@
+{
+ "gates": {
+  "flat_noise_sigma_ratio_max": 0.4,
+  "psnr_gain_min_db": 2.0,
+  "line_contrast_retention_min": 0.85,
+  "edge_shift_max_px": 0.25,
+  "delta_e_improvement_min": 0.5,
+  "ramp_level_retention_min": 0.85,
+  "ramp_max_adjacent_step_codes": 2.0,
+  "chroma_noise_ratio_max": 0.6,
+  "temporal_flat_std_ratio_max": 1.25
+ },
+ "determined": "2026-11-15 (pre-registered in EVALUATION_PLAN.md before rd0)",
+ "gate_revision": null,
+ "gate_review": {
+  "status": "proposed, not approved",
+  "date": "2026-11-15",
+  "items": [
+   {
+    "gate": "ramp_max_adjacent_step_codes",
+    "registered": 2.0,
+    "measured_control": "3.6 / 5.8 / 11.3 code (fine / strong / lowlight baseline_raw)",
+    "problem": "The control itself violates the gate: the metric is the max over ~279 adjacent column-mean differences, so it is dominated by residual noise rather than by posterization.",
+    "proposed_change": "Replace the absolute max with a control-relative bound (<= control value) or a robust statistic (median adjacent step, or a contiguous-flat run length)."
+   },
+   {
+    "gate": "delta_e_improvement_min",
+    "registered": 0.5,
+    "measured_control": "OKLab dE mean vs clean is 0.017 / 0.052 / 0.109 for the noisy control (fine / strong / lowlight)",
+    "problem": "The absolute 0.5 threshold was written in a 0-100 dE scale; in this OKLab metric every candidate and control sits between 0.005 and 0.11, so no candidate can pass.",
+    "proposed_change": "Scale the gate to this metric (e.g. >= 40% relative reduction of dE mean against baseline_raw) and record the before/after."
+   }
+  ]
+ },
+ "control_measured": {
+  "fine": {
+   "chart": {
+    "ramp_max_adjacent_step": 3.634765625,
+    "ramp_max_adjacent_step_clean": 1.000030517578125,
+    "delta_e_vs_clean_mean": 0.017316561192274094,
+    "psnr_vs_clean": 33.34815721078735
+   },
+   "photo_neon_streets": {
+    "ramp_max_adjacent_step": 8.121986389160156,
+    "ramp_max_adjacent_step_clean": 7.284191131591797,
+    "delta_e_vs_clean_mean": 0.024680860340595245,
+    "psnr_vs_clean": 33.672349399077845
+   }
+  },
+  "strong": {
+   "chart": {
+    "ramp_max_adjacent_step": 5.751922607421875,
+    "ramp_max_adjacent_step_clean": 1.000030517578125,
+    "delta_e_vs_clean_mean": 0.0521206259727478,
+    "psnr_vs_clean": 24.63491470245087
+   },
+   "photo_neon_streets": {
+    "ramp_max_adjacent_step": 8.405563354492188,
+    "ramp_max_adjacent_step_clean": 7.284191131591797,
+    "delta_e_vs_clean_mean": 0.06381107121706009,
+    "psnr_vs_clean": 25.505258617922287
+   }
+  },
+  "lowlight": {
+   "chart": {
+    "ramp_max_adjacent_step": 11.300804138183594,
+    "ramp_max_adjacent_step_clean": 1.000030517578125,
+    "delta_e_vs_clean_mean": 0.10944119840860367,
+    "psnr_vs_clean": 18.694733094758117
+   },
+   "photo_neon_streets": {
+    "ramp_max_adjacent_step": 10.596988677978516,
+    "ramp_max_adjacent_step_clean": 7.284191131591797,
+    "delta_e_vs_clean_mean": 0.11603831499814987,
+    "psnr_vs_clean": 20.00150203043271
+   }
+  }
+ },
+ "baseline_reference": "candidate baseline_raw (no denoising) of the same case and noise model",
+ "notes": [
+  "Gates are relative to the noisy input so they measure removal and destruction together.",
+  "Sequence gate uses baseline_raw of the same noise model as the reference."
+ ],
+ "verdicts": {
+  "fine": {
+   "chart": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 0.5321988655091623,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.40886538542836093,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.25994779503616405,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 7.182589830279085e-05,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.94140625,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.197961330413818,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.5203683258795243,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.007133010774850845,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "line_contrast_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 0.5423905949619154,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.7342636642464585,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.2860906511432648,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 0.001667758658967955,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.93359375,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 30.04492950439453,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.62270896737769,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": 0.008385779336094856,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "line_contrast_retention",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 2.787211625644481,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.3121486245014728,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.9999715674724492,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.0003676822839224769,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.9609375,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 1.9034576416015625,
+       "gate": "<= 2.0",
+       "pass": true
+      },
+      "chroma_noise_ratio": {
+       "value": 0.16353526829101808,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.00594197167083621,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 7.81028734023905,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9984940172264767,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 1.0046939970546744,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.000865237821741971,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.8984375,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 3.1833343505859375,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.209921860732368,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.010500879026949406,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 8.03542777280915,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.16703646061314933,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.9942589040369498,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.0006507723885533778,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.828125,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.4250030517578125,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.5589862914749739,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.012650210876017809,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   },
+   "photo_neon_streets": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 1.3161789597431905,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.6906482364211164,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9787878979631666,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.0833059470309756,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 0.9782608695652174,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 5.307884216308594,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.7459010988640755,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": 0.008888332173228264,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": 0.7771739626275576,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.4992522951374103,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9794618967149159,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 4.5383674096701245,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.629611968994141,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.46600497058192647,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.011001968756318092,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": -0.13505398673957814,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9740267560943311,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9962494196700062,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 4.425644805806904,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 7.83332633972168,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.674762673243198,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": 0.006189619190990925,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": -10.222288330732752,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9976796725913543,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.996448580264717,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.07640028695276868,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 1.0217391304347827,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 8.012928009033203,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.5288841475143962,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.016387960873544216,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "fine",
+     "checks": {
+      "psnr_gain": {
+       "value": -0.003105240184297031,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9527431010388548,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9737880678158477,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 4.537253462526115,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 7.5959930419921875,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.2786411493977369,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.0016953684389591217,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   }
+  },
+  "strong": {
+   "chart": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": 2.7365936902850017,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.3763679077785283,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.26425262186998744,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 0.0010849624685391746,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.7421875,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 8.961935043334961,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.42459168775380485,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.024341845884919167,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "line_contrast_retention",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": 2.7845593152457475,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.3459572591981179,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.2846993054075682,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 0.004277703878472039,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.76953125,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 29.19849967956543,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.26093312182363093,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.027018677443265915,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "line_contrast_retention",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": -8.06726921135682,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.7407996238354237,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 1.0077166590585962,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.0011072785679431263,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.69921875,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.432342529296875,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.4937860481742297,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.014791853725910187,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": -14.643580999373683,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9985219405244692,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 1.0070955504942498,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.00011020243793780082,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.7109375,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 5.700962066650391,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.4242246535564695,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.01679239235818386,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": 9.871429400266337,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9938120705159653,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9989292310124382,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.00040550836165209603,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.84765625,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 5.567714691162109,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.15638467592089314,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.03921149391680956,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   },
+   "photo_neon_streets": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": 3.920341933092761,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.5991065112431719,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.97019776513837,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.459818471709851,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 5.413425445556641,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.531507594896868,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.026806138455867767,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": 3.009488516276093,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.4104729426917068,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9509512915797698,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.5845751494825517,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 0.9565217391304348,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.60723876953125,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.2931873349039766,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.03144526295363903,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": -7.720518197934414,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9544483451566216,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9795529011170978,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.5466385419871012,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 7.917182922363281,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.6282019512517167,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.008996512740850449,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": -23.18933834229679,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 1.000045505755099,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9758932419281676,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.844098013169985,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 0.9782608695652174,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 8.437797546386719,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.8274104115377028,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.05821504630148411,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "strong",
+     "checks": {
+      "psnr_gain": {
+       "value": -6.739959739336157,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9835366177020366,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9620010410970219,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.8252485693222136,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 8.192623138427734,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.1818862266255505,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.031151559203863144,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   }
+  },
+  "lowlight": {
+   "chart": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": 5.13090004802541,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.4260445482476054,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.26685434030352007,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 0.002960616948172401,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.69921875,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 21.502939224243164,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.4028919155942063,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.053412873297929764,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "line_contrast_retention",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": 5.598462495542719,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.26346327250516577,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.2728551674057465,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "edge_shift_px": {
+       "value": 0.006354107959168687,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.671875,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 27.498685836791992,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.23194921048776893,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.05887914076447487,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "line_contrast_retention",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -20.270793930654136,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9605354772251362,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9860128313153583,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 1.841913997679967e-05,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.6328125,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 11.3052978515625,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.9315920912287763,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.09142649173736572,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -33.15493945388175,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 1.0018773656380013,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9892222239439697,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.0011295162104829615,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.6328125,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 11.278900146484375,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 1.0000081058330312,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.10658339411020279,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -7.211042305362074,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9972108914744898,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.990755803398739,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 0.0011161478969370364,
+       "gate": "<= 0.25",
+       "pass": true
+      },
+      "ramp_level_retention": {
+       "value": 0.671875,
+       "gate": ">= 0.85",
+       "pass": false
+      },
+      "ramp_max_adjacent_step": {
+       "value": 11.560577392578125,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.3581358041440785,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": -0.0003397539258003235,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "ramp_level_retention",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   },
+   "photo_neon_streets": {
+    "baseline_raw": {
+     "status": "control",
+     "failed": [],
+     "unmeasured": []
+    },
+    "median3": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": 5.3984054658003835,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.5080771558224177,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9675786201434622,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 2.6025855077262046,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 6.3669586181640625,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.4490411487882844,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.04943406581878662,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "gaussian_s1": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": 4.3806400843138995,
+       "gate": ">= 2.0 dB",
+       "pass": true
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.3506815432397507,
+       "gate": "<= 0.4",
+       "pass": true
+      },
+      "line_contrast_retention": {
+       "value": 0.8962795435425674,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 7.060988541214033,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 0.9347826086956522,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 4.961261749267578,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.24651165717584286,
+       "gate": "<= 0.6",
+       "pass": true
+      },
+      "delta_e_improvement": {
+       "value": 0.051084376871585846,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "bilateral": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -16.581300587321955,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9766474871242028,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9257223401569705,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 7.159286899760743,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0217391304347827,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 10.423685073852539,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.931942291701326,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.07236073724925518,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_light": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -33.884484231328,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 1.000030506707915,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9147539367521903,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 7.162434291900233,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 10.623655319213867,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.9977667326084265,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.11354396026581526,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    },
+    "nlm_strong": {
+     "status": "fail",
+     "noise_model": "lowlight",
+     "checks": {
+      "psnr_gain": {
+       "value": -16.445922275696997,
+       "gate": ">= 2.0 dB",
+       "pass": false
+      },
+      "flat_noise_sigma_ratio": {
+       "value": 0.9976508332022622,
+       "gate": "<= 0.4",
+       "pass": false
+      },
+      "line_contrast_retention": {
+       "value": 0.9074667571659514,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "edge_shift_px": {
+       "value": 7.162434291900233,
+       "gate": "<= 0.25",
+       "pass": false
+      },
+      "ramp_level_retention": {
+       "value": 1.0,
+       "gate": ">= 0.85",
+       "pass": true
+      },
+      "ramp_max_adjacent_step": {
+       "value": 10.623655319213867,
+       "gate": "<= 2.0",
+       "pass": false
+      },
+      "chroma_noise_ratio": {
+       "value": 0.7177844830920186,
+       "gate": "<= 0.6",
+       "pass": false
+      },
+      "delta_e_improvement": {
+       "value": -0.1004745801910758,
+       "gate": ">= 0.5",
+       "pass": false
+      }
+     },
+     "failed": [
+      "psnr_gain",
+      "flat_noise_sigma_ratio",
+      "edge_shift_px",
+      "ramp_max_adjacent_step",
+      "chroma_noise_ratio",
+      "delta_e_improvement"
+     ],
+     "unmeasured": []
+    }
+   }
+  }
+ },
+ "sequence": {
+  "fine": {
+   "baseline_raw": {
+    "flat_mean_std": 0.03164555561242763,
+    "flat_hf_std": 51.46745386411401,
+    "zone_hf_std": 136.50647091634997,
+    "zone_frame_diff_mean": 8.397107601165771,
+    "frames": 5
+   },
+   "median3": {
+    "flat_mean_std": 0.032342619930902705,
+    "flat_hf_std": 4.697423064089212,
+    "zone_hf_std": 86.84313455677042,
+    "zone_frame_diff_mean": 6.102351188659668,
+    "frames": 5
+   },
+   "gaussian_s1": {
+    "flat_mean_std": 0.03236115699016928,
+    "flat_hf_std": 0.3446005009674648,
+    "zone_hf_std": 39.41900562703534,
+    "zone_frame_diff_mean": 3.8775243163108826,
+    "frames": 5
+   },
+   "bilateral": {
+    "flat_mean_std": 0.03461921359647692,
+    "flat_hf_std": 9.673253815449002,
+    "zone_hf_std": 128.72040018079502,
+    "zone_frame_diff_mean": 7.32363486289978,
+    "frames": 5
+   },
+   "nlm_light": {
+    "flat_mean_std": 0.06023103501717782,
+    "flat_hf_std": 1.068304341780311,
+    "zone_hf_std": 128.41280372060626,
+    "zone_frame_diff_mean": 6.036357879638672,
+    "frames": 5
+   },
+   "nlm_strong": {
+    "flat_mean_std": 0.09082107100118744,
+    "flat_hf_std": 1.5312482199536146,
+    "zone_hf_std": 163.2052870933814,
+    "zone_frame_diff_mean": 5.064588308334351,
+    "frames": 5
+   }
+  },
+  "strong": {
+   "baseline_raw": {
+    "flat_mean_std": 0.08216800889974692,
+    "flat_hf_std": 353.66812291129355,
+    "zone_hf_std": 276.1342891834434,
+    "zone_frame_diff_mean": 17.850948810577393,
+    "frames": 5
+   },
+   "median3": {
+    "flat_mean_std": 0.09012346761822827,
+    "flat_hf_std": 28.37465449298969,
+    "zone_hf_std": 105.64441284707455,
+    "zone_frame_diff_mean": 8.956530332565308,
+    "frames": 5
+   },
+   "gaussian_s1": {
+    "flat_mean_std": 0.08158886648539698,
+    "flat_hf_std": 2.4202478587593137,
+    "zone_hf_std": 46.443196346271456,
+    "zone_frame_diff_mean": 5.952411413192749,
+    "frames": 5
+   },
+   "bilateral": {
+    "flat_mean_std": 0.0812239935408982,
+    "flat_hf_std": 284.76618678683263,
+    "zone_hf_std": 247.76749476591525,
+    "zone_frame_diff_mean": 16.06240153312683,
+    "frames": 5
+   },
+   "nlm_light": {
+    "flat_mean_std": 0.0797300324871707,
+    "flat_hf_std": 377.9535339417488,
+    "zone_hf_std": 274.4097569263615,
+    "zone_frame_diff_mean": 17.833988666534424,
+    "frames": 5
+   },
+   "nlm_strong": {
+    "flat_mean_std": 0.10946147021024547,
+    "flat_hf_std": 2.5085053524467207,
+    "zone_hf_std": 212.3835147180758,
+    "zone_frame_diff_mean": 6.21161413192749,
+    "frames": 5
+   }
+  },
+  "lowlight": {
+   "baseline_raw": {
+    "flat_mean_std": 0.15705526521769372,
+    "flat_hf_std": 1167.293265506532,
+    "zone_hf_std": 874.0798185342567,
+    "zone_frame_diff_mean": 34.34147834777832,
+    "frames": 5
+   },
+   "median3": {
+    "flat_mean_std": 0.1432771155860397,
+    "flat_hf_std": 138.73533534153225,
+    "zone_hf_std": 140.38155122943988,
+    "zone_frame_diff_mean": 14.655781984329224,
+    "frames": 5
+   },
+   "gaussian_s1": {
+    "flat_mean_std": 0.15660332856451556,
+    "flat_hf_std": 11.84935857837515,
+    "zone_hf_std": 57.482921962204856,
+    "zone_frame_diff_mean": 10.240515947341919,
+    "frames": 5
+   },
+   "bilateral": {
+    "flat_mean_std": 0.1551280330065638,
+    "flat_hf_std": 1187.2994325888208,
+    "zone_hf_std": 818.2805874579172,
+    "zone_frame_diff_mean": 33.49661922454834,
+    "frames": 5
+   },
+   "nlm_light": {
+    "flat_mean_std": 0.15768754892690096,
+    "flat_hf_std": 1159.290505274514,
+    "zone_hf_std": 889.4652946991752,
+    "zone_frame_diff_mean": 34.41233158111572,
+    "frames": 5
+   },
+   "nlm_strong": {
+    "flat_mean_std": 0.13926346278866067,
+    "flat_hf_std": 2334.109165570071,
+    "zone_hf_std": 1118.4118019279615,
+    "zone_frame_diff_mean": 32.7606086730957,
+    "frames": 5
+   }
+  }
+ }
+}

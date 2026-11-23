@@ -1,0 +1,58 @@
+{
+  "plan_version": 1,
+  "plan_id": "add-noise-grain-field-characterization-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Characterize Add Noise's deterministic hash field as grain-like texture: pixel/block scale, spatial-frequency distribution, channel correlation by mode, seed variation, tone-dependent clipping, and resolution response.",
+  "scope": {
+    "effect": "Artifact::AddNoiseEffect CPU source equation and the numerically equivalent resident generic shader equation",
+    "method": "Independent NumPy mirror of the exact uint32 hash and Add Noise mode equations using locally generated opaque synthetic plates.",
+    "excluded": ["dedicated GPU wrapper's known float-bitcast seed variant", "compiled shader/GPU precision", "actual Composition dispatch", "alpha association/edges", "temporal movement/flicker beyond source frame-invariance", "performance/allocation", "aesthetic approval", "physical film emulation"]
+  },
+  "comparison": {
+    "baseline": "Opaque synthetic grayscale flat panels at values .02, .10, .50, .90, .98 and amount=0; source baseline is not a film-grain quality target.",
+    "candidates": ["Modes color, monochrome, luminance-only", "sizes .5, 1, 1.5, 3, 8 pixels", "amounts .1 and .4", "seeds 0, 73, 1977, 4099", "matched 512x256 and 1024x512 fixtures"],
+    "ground_truth": "None. The hash equation is the mathematical source authority for this model; no perceptual reference image exists.",
+    "acceptance": "Descriptive characterization only; no effect-quality pass/fail threshold or assertion that a control range is aesthetically suitable."
+  },
+  "materials": {
+    "statistics_fixture": "Synthetic opaque constant-value panels, each at least 64x64; no source/alpha ambiguity.",
+    "visual_fixture": "Synthetic chart with shadow/midtone/highlight patches, saturated color patches, fine lines and checker detail.",
+    "rights": "Generated locally by the study script.",
+    "regions": {"shadow": "input gray .02 and .10 panels", "midtone": "input gray .50 panel", "highlight": "input gray .90 and .98 panels", "whole": "all panels excluding 8px gutters"},
+    "identity": "Record SHA-256 for plan, script, imported hash-equation runner, source files, metrics and preview PNGs."
+  },
+  "conditions": {
+    "format": "Float32 BGRA storage, logically opaque RGB, direct linear numeric values in [0,1]; no transfer conversion or display transform in metrics.",
+    "dimensions": ["512x256", "1024x512"],
+    "alpha": "Opaque alpha=1 throughout; alpha-edge evaluation is covered by a separate study.",
+    "metrics": ["per-region RGB mean/std/quantiles, exact 0/1 endpoints, and within-1e-6-of-endpoint fractions", "luma intermediate exact clamp fractions in luma-only mode", "noise residual mean/variance and channel cross-correlation", "horizontal/vertical lag autocorrelation at 1,2,4,8,16px", "2D power spectrum low/high frequency energy and anisotropy", "cell-run lengths and unique hash-cell counts", "same-seed repeatability and cross-seed residual correlation"],
+    "display": "Direct clipped RGB8 diagnostics and same-scale contact sheets; raw float statistics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_model_only", "method": "Verify seed uint32 conversion, floor(coord/size), channel salts, uint32 hash overflow, mode precedence, RGB clamp and alpha pass-through against source markers.", "acceptance_criteria": "Deterministic outputs and exact hash-field agreement with helper equations; no compiled/runtime parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect same-scale chart plates and fixed flat/line/checker crops at 1:1 and enlarged view; report block pattern, tonal clipping, chromatic texture and detail visibility.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; do not infer film realism."},
+    "color_and_alpha": {"status": "partial_bounded_domain", "method": "Measure RGB channel response and tone-dependent clipping on opaque bounded values.", "unverified": "HDR/negative input behavior beyond prior route audit, alpha-edge output, transfer/display behavior."},
+    "temporal_stability": {"status": "source_equation_invariant_only", "method": "The hash receives x,y,channel,seed and no frame/time input; a stable seed/control therefore repeats the field by equation.", "unverified": "Application parameter automation, live output sequence, seek/reverse, rendered temporal perceptual behavior."},
+    "render_paths_and_resolution": {"status": "equation_and_dimension_model_only", "method": "Compare the same parameter values on 512x256 and 1024x512 plates; document pixel-cell scale and exact crop/correspondence behavior.", "unverified": "Actual resolution scaling, LOD, preview/final route and GPU/backend output."},
+    "performance": {"status": "unverified", "reason": "No product timing, GPU memory, or allocation profiling."}
+  },
+  "execution": {
+    "backend": "Python 3, NumPy, OpenCV, Pillow; local synthetic generation only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/add-noise-grain-field-characterization-r1/",
+    "threshold_policy": "No perceptual threshold; report descriptive statistics and limitations.",
+    "reproducibility": "Fixed sizes, amounts, modes and seeds; record library versions, source/runner/plan/script hashes, output hashes and metrics checksum."
+  },
+  "amendments": [
+    {
+      "reason": "Initial characterization reports within-field correlation and cell run lengths but does not directly tell whether changing Size below one pixel changes spatial frequency or merely selects a new independent hash pattern. Resolution behavior is also explicit in scope and merits a direct coordinate-overlap check.",
+      "change": "Add same-seed pairwise field correlation/RMSE between every Size value at matched resolution, emphasizing .5 versus 1.0; add exact equality/RMSE of corresponding top-left noise fields between 512x256 and 1024x512 for each Size, Seed and channel. Rerun all metrics and previews after the amendment.",
+      "scope_effect": "This remains a source-equation model. It characterizes pixel-coordinate hashing and control response, not perceptual scaling under app LOD, image resampling, or actual renderer output."
+    },
+    {
+      "reason": "Initial exact-endpoint clip metrics show zero output RGB channels at exactly 1.0 for the luma-mode .98 highlight panel even though the luma intermediate saturates. Float32 channel reconstruction can leave values just below 1, making exact endpoint counts insufficient to describe near-clipping.",
+      "change": "For every tonal region, add channel fractions within 1e-6 of 0 and 1, plus the luma intermediate's exact lower/upper clamp fractions when luma-only mode is selected. Keep exact endpoint counts and rerun all outputs.",
+      "scope_effect": "Adds a precision-aware descriptive metric; no thresholds or quality conclusions change."
+    }
+  ]
+}

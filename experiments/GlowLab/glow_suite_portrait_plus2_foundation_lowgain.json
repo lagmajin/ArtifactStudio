@@ -1,0 +1,12 @@
+{
+  "intent": "Calibrate a low-gain Glow foundation on the deterministic +2 stop portrait stress plate; exploratory only.",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 10.0
+    }
+  },
+  "recipes": {}
+}

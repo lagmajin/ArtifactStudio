@@ -1,0 +1,122 @@
+{
+  "fixture": "source_crop_coordinate_grid",
+  "dimensions_px": [
+    512,
+    384
+  ],
+  "cell_spacing_px": 16,
+  "coordinate_contract": "cropRect and pan are source pixels; zoom=1 is neutral",
+  "quadrants": {
+    "TL": "#e63946",
+    "TR": "#2a9d8f",
+    "BL": "#457b9d",
+    "BR": "#f4a261"
+  },
+  "scenarios": [
+    {
+      "id": "neutral",
+      "cropRect": [
+        0,
+        0,
+        512,
+        384
+      ],
+      "pan": [
+        0,
+        0
+      ],
+      "zoom": 1,
+      "expected_effectiveRect": [
+        0,
+        0,
+        512,
+        384
+      ]
+    },
+    {
+      "id": "center_half",
+      "cropRect": [
+        0,
+        0,
+        512,
+        384
+      ],
+      "pan": [
+        0,
+        0
+      ],
+      "zoom": 2,
+      "expected_effectiveRect": [
+        128.0,
+        96.0,
+        256.0,
+        192.0
+      ]
+    },
+    {
+      "id": "pan_right_down",
+      "cropRect": [
+        0,
+        0,
+        512,
+        384
+      ],
+      "pan": [
+        32,
+        24
+      ],
+      "zoom": 2,
+      "expected_effectiveRect": [
+        160.0,
+        120.0,
+        256.0,
+        192.0
+      ]
+    },
+    {
+      "id": "pan_left_up",
+      "cropRect": [
+        0,
+        0,
+        512,
+        384
+      ],
+      "pan": [
+        -32,
+        -24
+      ],
+      "zoom": 2,
+      "expected_effectiveRect": [
+        96.0,
+        72.0,
+        256.0,
+        192.0
+      ]
+    },
+    {
+      "id": "explicit_crop",
+      "cropRect": [
+        64,
+        48,
+        256.0,
+        192.0
+      ],
+      "pan": [
+        0,
+        0
+      ],
+      "zoom": 1,
+      "expected_effectiveRect": [
+        64,
+        48,
+        256.0,
+        192.0
+      ]
+    }
+  ],
+  "notes": [
+    "Expected rectangles are source pixel coordinates [x,y,width,height].",
+    "With preserveAspect=true and matching source/output aspect, expected output fills the original layer bounds.",
+    "The application output still must be captured and measured; generated fixture alone does not prove runtime behavior."
+  ]
+}

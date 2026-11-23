@@ -1,0 +1,295 @@
+{
+  "schema": "fog-local-froxel-temporal-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "camera_x_offsets": [
+      -0.4,
+      -0.2,
+      0.0,
+      0.2,
+      0.4
+    ],
+    "camera_motion": "world-space horizontal translation; no rotation; fixed scene and lighting",
+    "tile_size": 4,
+    "depth_slices": 32,
+    "light_count": 3,
+    "reference_steps": 512,
+    "validation_steps": 256,
+    "candidate_modes": [
+      "rebuild current-frame froxel grid",
+      "reuse first-frame grid without reprojection"
+    ]
+  },
+  "frames": [
+    {
+      "frame_index": 0,
+      "camera_position": [
+        -0.4,
+        4.0,
+        0.0
+      ],
+      "validation_direct_256_vs_512": {
+        "rgb_rmse": 0.0002334162368597003,
+        "max_absolute_channel_error": 0.00536217167582187,
+        "relative_rgb_l2": 0.0005633807508367699,
+        "pixel_count": 5184
+      },
+      "candidate_metrics_vs_direct_512": {
+        "rebuilt": {
+          "rgb_rmse": 0.004702573910139007,
+          "max_absolute_channel_error": 0.061273285109795905,
+          "relative_rgb_l2": 0.011350279894847073,
+          "pixel_count": 5184
+        },
+        "stale_grid": {
+          "rgb_rmse": 0.004702573910139007,
+          "max_absolute_channel_error": 0.061273285109795905,
+          "relative_rgb_l2": 0.011350279894847073,
+          "pixel_count": 5184
+        }
+      },
+      "same_pixel_frame_delta": null,
+      "candidate_minus_reference_residual_frame_delta": null
+    },
+    {
+      "frame_index": 1,
+      "camera_position": [
+        -0.2,
+        4.0,
+        0.0
+      ],
+      "validation_direct_256_vs_512": {
+        "rgb_rmse": 0.000292662479387963,
+        "max_absolute_channel_error": 0.006097477030566734,
+        "relative_rgb_l2": 0.0007068969045465189,
+        "pixel_count": 5184
+      },
+      "candidate_metrics_vs_direct_512": {
+        "rebuilt": {
+          "rgb_rmse": 0.004592327989181033,
+          "max_absolute_channel_error": 0.05789485826662111,
+          "relative_rgb_l2": 0.01109230826925035,
+          "pixel_count": 5184
+        },
+        "stale_grid": {
+          "rgb_rmse": 0.0039692265657951895,
+          "max_absolute_channel_error": 0.04720705441235329,
+          "relative_rgb_l2": 0.009587269193755866,
+          "pixel_count": 5184
+        }
+      },
+      "same_pixel_frame_delta": {
+        "reference": {
+          "rgb_temporal_rmse": 0.028318644414051786,
+          "max_absolute_channel_delta": 0.1543326145877867,
+          "p95_absolute_channel_delta": 0.007748970866976124
+        },
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.028352219001333646,
+          "max_absolute_channel_delta": 0.15436007016098885,
+          "p95_absolute_channel_delta": 0.006420857974443361
+        },
+        "stale_grid": {
+          "rgb_temporal_rmse": 0.02831631228181931,
+          "max_absolute_channel_delta": 0.15431497450811316,
+          "p95_absolute_channel_delta": 0.0
+        }
+      },
+      "candidate_minus_reference_residual_frame_delta": {
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.0006360778141074598,
+          "max_absolute_channel_delta": 0.01349130213907479,
+          "p95_absolute_channel_delta": 0.0009485623658161413
+        },
+        "stale": {
+          "rgb_temporal_rmse": 0.0015066164817672829,
+          "max_absolute_channel_delta": 0.021627510252924975,
+          "p95_absolute_channel_delta": 0.0028571940951471753
+        }
+      }
+    },
+    {
+      "frame_index": 2,
+      "camera_position": [
+        0.0,
+        4.0,
+        0.0
+      ],
+      "validation_direct_256_vs_512": {
+        "rgb_rmse": 3.4058851074602684e-05,
+        "max_absolute_channel_error": 0.0005819613650519528,
+        "relative_rgb_l2": 7.10995467185364e-05,
+        "pixel_count": 5184
+      },
+      "candidate_metrics_vs_direct_512": {
+        "rebuilt": {
+          "rgb_rmse": 0.001437912770205884,
+          "max_absolute_channel_error": 0.031475673905859036,
+          "relative_rgb_l2": 0.0030017144723554355,
+          "pixel_count": 5184
+        },
+        "stale_grid": {
+          "rgb_rmse": 0.0016602409966831179,
+          "max_absolute_channel_error": 0.028316596195512078,
+          "relative_rgb_l2": 0.0034658357103456053,
+          "pixel_count": 5184
+        }
+      },
+      "same_pixel_frame_delta": {
+        "reference": {
+          "rgb_temporal_rmse": 0.25196437819425566,
+          "max_absolute_channel_delta": 4.622140847168695,
+          "p95_absolute_channel_delta": 0.5547119644519299
+        },
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.2528079587271707,
+          "max_absolute_channel_delta": 4.6383084342616145,
+          "p95_absolute_channel_delta": 0.5577774463596481
+        },
+        "stale_grid": {
+          "rgb_temporal_rmse": 0.25201486724418487,
+          "max_absolute_channel_delta": 4.615002745836601,
+          "p95_absolute_channel_delta": 0.5554104692857549
+        }
+      },
+      "candidate_minus_reference_residual_frame_delta": {
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.004476175085983267,
+          "max_absolute_channel_delta": 0.0581284353887945,
+          "p95_absolute_channel_delta": 0.006715536342591255
+        },
+        "stale": {
+          "rgb_temporal_rmse": 0.003918648530008113,
+          "max_absolute_channel_delta": 0.04689181842408727,
+          "p95_absolute_channel_delta": 0.006303832743063231
+        }
+      }
+    },
+    {
+      "frame_index": 3,
+      "camera_position": [
+        0.2,
+        4.0,
+        0.0
+      ],
+      "validation_direct_256_vs_512": {
+        "rgb_rmse": 0.0002734694259754016,
+        "max_absolute_channel_error": 0.005257854433700637,
+        "relative_rgb_l2": 0.0006611075862389069,
+        "pixel_count": 5184
+      },
+      "candidate_metrics_vs_direct_512": {
+        "rebuilt": {
+          "rgb_rmse": 0.004462666324086446,
+          "max_absolute_channel_error": 0.052329211559589806,
+          "relative_rgb_l2": 0.010788418307397272,
+          "pixel_count": 5184
+        },
+        "stale_grid": {
+          "rgb_rmse": 0.003938563851994191,
+          "max_absolute_channel_error": 0.051559705329591754,
+          "relative_rgb_l2": 0.009521409686485035,
+          "pixel_count": 5184
+        }
+      },
+      "same_pixel_frame_delta": {
+        "reference": {
+          "rgb_temporal_rmse": 0.2521988165335289,
+          "max_absolute_channel_delta": 4.625737062697454,
+          "p95_absolute_channel_delta": 0.5544944146184245
+        },
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.25293674236362124,
+          "max_absolute_channel_delta": 4.6419477711014085,
+          "p95_absolute_channel_delta": 0.5582123796923838
+        },
+        "stale_grid": {
+          "rgb_temporal_rmse": 0.2518994294662142,
+          "max_absolute_channel_delta": 4.615002745836601,
+          "p95_absolute_channel_delta": 0.5568831389224775
+        }
+      },
+      "candidate_minus_reference_residual_frame_delta": {
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.004345453108902613,
+          "max_absolute_channel_delta": 0.05273665241899263,
+          "p95_absolute_channel_delta": 0.006522970520940641
+        },
+        "stale": {
+          "rgb_temporal_rmse": 0.003643361058250309,
+          "max_absolute_channel_delta": 0.05189365883124869,
+          "p95_absolute_channel_delta": 0.006949778630154578
+        }
+      }
+    },
+    {
+      "frame_index": 4,
+      "camera_position": [
+        0.4,
+        4.0,
+        0.0
+      ],
+      "validation_direct_256_vs_512": {
+        "rgb_rmse": 0.00028562249553900346,
+        "max_absolute_channel_error": 0.005234821264493039,
+        "relative_rgb_l2": 0.0006909687618232558,
+        "pixel_count": 5184
+      },
+      "candidate_metrics_vs_direct_512": {
+        "rebuilt": {
+          "rgb_rmse": 0.004335859336829851,
+          "max_absolute_channel_error": 0.04981495915326284,
+          "relative_rgb_l2": 0.010489171561068485,
+          "pixel_count": 5184
+        },
+        "stale_grid": {
+          "rgb_rmse": 0.004615645368224223,
+          "max_absolute_channel_error": 0.05580070276020854,
+          "relative_rgb_l2": 0.01116602093640633,
+          "pixel_count": 5184
+        }
+      },
+      "same_pixel_frame_delta": {
+        "reference": {
+          "rgb_temporal_rmse": 0.028595211677245987,
+          "max_absolute_channel_delta": 0.15448455161299623,
+          "p95_absolute_channel_delta": 0.008233331305846914
+        },
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.02865649734509336,
+          "max_absolute_channel_delta": 0.15448850134865785,
+          "p95_absolute_channel_delta": 0.007940081130995535
+        },
+        "stale_grid": {
+          "rgb_temporal_rmse": 0.028595724306717616,
+          "max_absolute_channel_delta": 0.15433489203993173,
+          "p95_absolute_channel_delta": 0.0
+        }
+      },
+      "candidate_minus_reference_residual_frame_delta": {
+        "rebuilt": {
+          "rgb_temporal_rmse": 0.0010108963517603128,
+          "max_absolute_channel_delta": 0.01186793672371822,
+          "p95_absolute_channel_delta": 0.0019467094290855913
+        },
+        "stale": {
+          "rgb_temporal_rmse": 0.0015150648000721273,
+          "max_absolute_channel_delta": 0.01778664651599904,
+          "p95_absolute_channel_delta": 0.00298967193362365
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Stale-grid mode intentionally has no reprojection and is a negative control, not a production temporal filter.",
+    "No motion vectors, jitter, temporal accumulation, disocclusion rejection, or history clamping.",
+    "The proxy uses analytic Gaussian media and hard AABB visibility, not production depth/shadow inputs.",
+    "Same-pixel image deltas include real scene motion; candidate-minus-reference residual deltas isolate approximation drift more closely."
+  ],
+  "source_script_sha256": "8eb01d605708de2b27eb8080eff0815e13223bb28c57e6814bbea9452b2add1e",
+  "proxy_script_sha256": "c37c3cf19544e5a62c56bea8533250ca1a84f1f9592df0bac911e72db3a7b12f"
+}

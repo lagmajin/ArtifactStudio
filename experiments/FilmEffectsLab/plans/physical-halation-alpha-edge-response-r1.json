@@ -1,0 +1,48 @@
+{
+  "plan_version": 1,
+  "plan_id": "physical-halation-alpha-edge-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Measure Physical Halation's diffusion spill and threshold response near a transparent source edge, distinguishing RGB additions from the unchanged source-alpha plane under straight and premultiplied storage assumptions.",
+  "scope": {
+    "effect": "PhysicalHalation CPU source equation: highlight extraction, red/green/blue box diffusion and additive composite. The wrapper copies source alpha back to output.",
+    "method": "Offline Float32 NumPy model of the inspected source with edge-replicated horizontal/vertical box diffusion and a local synthetic alpha-edge light stripe. This is an equation model, not a compiled or app capture.",
+    "excluded": ["C++ or app execution", "GPU/preview/final parity", "actual Composition alpha descriptor selection", "physical scattering validation or aesthetic acceptance", "frame sequence/temporal stability", "working transfer/display transform", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "The same encoded numeric fixture with Physical Halation disabled; arithmetic source-over reference only, not a visual target.",
+    "candidates": ["default controls threshold=.8, softness=.5, spread=15, intensity=.5, redDiffusion=2", "intensity stress value 1.5 with all other controls fixed", "highlight stripe normalized x=.82 interior and x=.89 alpha transition", "256x128 and 512x256", "straight and corresponding premultiplied storage"],
+    "ground_truth": "None. Synthetic source-off pairing isolates the model response; no approved halation scan or alpha-edge target is available.",
+    "acceptance": "Descriptive response only. Report red/green/blue residuals, support beyond alpha, and association-dependent compositing. Do not judge model output as accepted halation or a product defect."
+  },
+  "materials": {
+    "fixture": "Generated local smooth elliptical alpha matte over zero-RGB exterior with an opaque neutral base and a 3-pixel highlight stripe near/intersecting the right alpha transition. Source stripe RGB has white and warm-highlight segments to straddle the default luminance threshold.",
+    "rights": "Generated locally by the study script.",
+    "identity": "Record source, plan, runner, straight/premult fixture, output arrays, metrics and preview SHA-256.",
+    "regions": {"all": "whole fixture", "transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1", "source_highlight": "stripe pixels with source luminance>.8", "diffusion_spill": "alpha==0 and any output RGB differs from source"}
+  },
+  "conditions": {
+    "sizes_wh": [[256, 128], [512, 256]],
+    "numeric_domain": "Float32 BGRA as accepted by the source implementation, direct numeric channel values with no transfer conversion. No output clamp; source-over backgrounds are numeric black, gray .18 and white.",
+    "source_channel_map": "Halation source reads x/y/z as B/G/R respectively for Rec.601 luma and writes its red diffusion to z; script represents the same channel ordering explicitly.",
+    "alpha": "Generate one logical straight foreground and zero RGB outside alpha, then premultiply RGB by alpha for the paired premultiplied input. Composite with matching equations: straight storedRGB*alpha+background*(1-alpha); premultiplied storedRGB+background*(1-alpha). Model preserves source alpha exactly.",
+    "equation": "lum=B*.114+G*.587+R*.299; softness soft-knee contribution as source; highlight extraction uses contribution=max(max(lum-threshold,0),softContribution), then bounded weight. Wide red diffusion radius=int(spread*redDiffusion); narrow GB diffusion radius=int(spread). Add diffusion*intensity to source RGB, retain alpha.",
+    "regions_and_rois": "Record complete alpha-region masks and a 64x64 pixel crop centered at each stripe x position / normalized y=.5; fixed ROIs are clipped to image bounds.",
+    "metrics": ["alpha identity", "per-channel source-to-output RGB min/max and below-zero/above-one rates", "per-region and per-background RGB composite MAE/RMSE/p95/max vs disabled baseline", "transparent RGB leak/support area and max/mean per channel", "highlight contribution and support bbox", "red-to-green/blue response ratio", "diffusion extent in pixels vs normalized image size", "fixture/source/runner/output hashes"],
+    "display": "Direct-clipped RGB8 contact sheets plus fixed 64x64 crops enlarged 4x nearest-neighbor; raw Float32 metrics remain authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_equation_model_only", "method": "Check source markers, no-effect identity at intensity=0, exact alpha preservation, finite outputs and edge-replicated box diffusion bounds.", "acceptance_criteria": "Model follows declared equations within float32 tolerance; alpha remains identical. No C++ parity or appearance gate."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect full contact sheets and fixed light-source/edge crops at 1:1 and 4x enlargement; measure source-off residual and spill support separately.", "judge": "Research author", "acceptance_criteria": "No aesthetic pass/fail; describe per-channel halo support and local edge response."},
+    "color_and_alpha": {"status": "conditional_association_model", "method": "Compare correctly represented straight and premultiplied fixtures over three backgrounds, retaining raw RGB separately from composite output.", "unverified": "Actual layer descriptor along each product path and downstream handling of Unknown alpha."},
+    "temporal_stability": {"status": "not_measured", "reason": "One static source and fixed settings; random-free diffusion equation has no frame sequence in this study."},
+    "render_paths_and_resolution": {"status": "CPU_equation_and_resolution_model_only", "method": "Run two dimensions while holding spread in source pixels fixed; report both pixel and normalized spill extent.", "unverified": "Compiled CPU result, actual app route, GPU path, preview/final and Viewer transform."},
+    "performance": {"status": "unverified", "reason": "No product timing, allocation or memory profiling."}
+  },
+  "execution": {
+    "backend": "Python 3 and NumPy/Pillow; local synthetic fixture only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/physical-halation-alpha-edge-response-r1/",
+    "threshold_policy": "Descriptive only; no unsupported perceptual threshold is invented.",
+    "reproducibility": "Fixed fixture geometry, source stripes, parameter grid and edge replication; record package versions and all input/output hashes."
+  }
+}

@@ -1,0 +1,558 @@
+{
+  "schema": "fog-local-froxel-gaussian-optical-depth-rd-v1",
+  "method": "Closed-form Gaussian density line integral along each sampled froxel ray segment; convert integral to average density per froxel depth slice, then compare accumulated optical depth and Beer-Lambert transmittance against closed-form full-ray integral.",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "tile_width": 4,
+    "depth_slices": [
+      32,
+      64
+    ],
+    "depth_distribution": "logarithmic view-Z",
+    "xy_rays_per_axis": [
+      1,
+      2,
+      4
+    ],
+    "far_distance": 120.0,
+    "scenarios": [
+      "single_baseline",
+      "thin_depth",
+      "two_overlapping"
+    ]
+  },
+  "results": {
+    "single_baseline": {
+      "volume_count": 1,
+      "volumes": [
+        {
+          "center": [
+            0.0,
+            3.0,
+            18.0
+          ],
+          "sigma": [
+            2.5,
+            2.5,
+            2.0
+          ],
+          "amplitude": 0.035
+        }
+      ],
+      "affected_pixel_count": 5084,
+      "configs": {
+        "z32_center_sample": {
+          "froxel_cell_count": 10752,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0024457004134073286,
+            "max_absolute_optical_depth_error": 0.017383749747714644,
+            "transmittance_rmse": 0.002243903509050562,
+            "max_absolute_transmittance_error": 0.014948793046932973
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0024696362001797806,
+            "max_absolute_optical_depth_error": 0.017383749747714644,
+            "transmittance_rmse": 0.0022658643328849646,
+            "max_absolute_transmittance_error": 0.014948793046932973
+          }
+        },
+        "z32_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 10752,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.001252988883909566,
+            "max_absolute_optical_depth_error": 0.013293655873186178,
+            "transmittance_rmse": 0.0011088224762974318,
+            "max_absolute_transmittance_error": 0.011264774827516644
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0012652517410399928,
+            "max_absolute_optical_depth_error": 0.013293655873186178,
+            "transmittance_rmse": 0.0011196743934887448,
+            "max_absolute_transmittance_error": 0.011264774827516644
+          }
+        },
+        "z32_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 43008,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0016393482175120556,
+            "max_absolute_optical_depth_error": 0.01641689225796006,
+            "transmittance_rmse": 0.0014505675000993565,
+            "max_absolute_transmittance_error": 0.013933137149821029
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0016553923287061277,
+            "max_absolute_optical_depth_error": 0.01641689225796006,
+            "transmittance_rmse": 0.0014647640362699282,
+            "max_absolute_transmittance_error": 0.013933137149821029
+          }
+        },
+        "z32_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 172032,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017349303676573165,
+            "max_absolute_optical_depth_error": 0.017171883314181707,
+            "transmittance_rmse": 0.0015353092510160741,
+            "max_absolute_transmittance_error": 0.014579421636651158
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0017519099302879529,
+            "max_absolute_optical_depth_error": 0.017171883314181707,
+            "transmittance_rmse": 0.0015503351448911068,
+            "max_absolute_transmittance_error": 0.014579421636651158
+          }
+        },
+        "z64_center_sample": {
+          "froxel_cell_count": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.002453255439360485,
+            "max_absolute_optical_depth_error": 0.01753163167180813,
+            "transmittance_rmse": 0.0022498786654688873,
+            "max_absolute_transmittance_error": 0.015053654581490883
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0024772651662971885,
+            "max_absolute_optical_depth_error": 0.01753163167180813,
+            "transmittance_rmse": 0.0022718979674673278,
+            "max_absolute_transmittance_error": 0.015053654581490883
+          }
+        },
+        "z64_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0012529888839095651,
+            "max_absolute_optical_depth_error": 0.013293655873186205,
+            "transmittance_rmse": 0.0011088224762974322,
+            "max_absolute_transmittance_error": 0.011264774827516755
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0012652517410399922,
+            "max_absolute_optical_depth_error": 0.013293655873186205,
+            "transmittance_rmse": 0.0011196743934887452,
+            "max_absolute_transmittance_error": 0.011264774827516755
+          }
+        },
+        "z64_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 86016,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.001639348217512056,
+            "max_absolute_optical_depth_error": 0.01641689225796006,
+            "transmittance_rmse": 0.001450567500099357,
+            "max_absolute_transmittance_error": 0.013933137149821029
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0016553923287061282,
+            "max_absolute_optical_depth_error": 0.01641689225796006,
+            "transmittance_rmse": 0.0014647640362699288,
+            "max_absolute_transmittance_error": 0.013933137149821029
+          }
+        },
+        "z64_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 344064,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017349303676573171,
+            "max_absolute_optical_depth_error": 0.017171883314181735,
+            "transmittance_rmse": 0.0015353092510160748,
+            "max_absolute_transmittance_error": 0.014579421636651269
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5084,
+            "optical_depth_rmse": 0.0017519099302879537,
+            "max_absolute_optical_depth_error": 0.017171883314181735,
+            "transmittance_rmse": 0.0015503351448911077,
+            "max_absolute_transmittance_error": 0.014579421636651269
+          }
+        }
+      }
+    },
+    "thin_depth": {
+      "volume_count": 1,
+      "volumes": [
+        {
+          "center": [
+            0.0,
+            3.0,
+            18.0
+          ],
+          "sigma": [
+            2.5,
+            2.5,
+            0.35
+          ],
+          "amplitude": 0.035
+        }
+      ],
+      "affected_pixel_count": 3644,
+      "configs": {
+        "z32_center_sample": {
+          "froxel_cell_count": 10752,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.005144222263283606,
+            "max_absolute_optical_depth_error": 0.030501849845071437,
+            "transmittance_rmse": 0.0050916446950063955,
+            "max_absolute_transmittance_error": 0.030036932351879653
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.006135684740553368,
+            "max_absolute_optical_depth_error": 0.030501849845071437,
+            "transmittance_rmse": 0.006072973728691301,
+            "max_absolute_transmittance_error": 0.030036932351879653
+          }
+        },
+        "z32_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 10752,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.00022353295281621463,
+            "max_absolute_optical_depth_error": 0.0023015573696268804,
+            "transmittance_rmse": 0.0002188086071427771,
+            "max_absolute_transmittance_error": 0.002235761254657187
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.0002666151766721526,
+            "max_absolute_optical_depth_error": 0.0023015573696268804,
+            "transmittance_rmse": 0.000260980292684859,
+            "max_absolute_transmittance_error": 0.002235761254657187
+          }
+        },
+        "z32_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 43008,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.00029251918353766904,
+            "max_absolute_optical_depth_error": 0.002846726198953365,
+            "transmittance_rmse": 0.0002863313387129504,
+            "max_absolute_transmittance_error": 0.0027660992048434974
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.00034889734518184256,
+            "max_absolute_optical_depth_error": 0.002846726198953365,
+            "transmittance_rmse": 0.0003415168971517574,
+            "max_absolute_transmittance_error": 0.0027660992048434974
+          }
+        },
+        "z32_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 172032,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0003095877133152707,
+            "max_absolute_optical_depth_error": 0.002978694607007743,
+            "transmittance_rmse": 0.00030304437366811564,
+            "max_absolute_transmittance_error": 0.002894520989321414
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.0003692555475165925,
+            "max_absolute_optical_depth_error": 0.002978694607007743,
+            "transmittance_rmse": 0.0003614510890052466,
+            "max_absolute_transmittance_error": 0.002894520989321414
+          }
+        },
+        "z64_center_sample": {
+          "froxel_cell_count": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.00223089685097844,
+            "max_absolute_optical_depth_error": 0.01418836098924121,
+            "transmittance_rmse": 0.0021941641615972236,
+            "max_absolute_transmittance_error": 0.01387147943344691
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.002660864765503213,
+            "max_absolute_optical_depth_error": 0.01418836098924121,
+            "transmittance_rmse": 0.0026170524669319405,
+            "max_absolute_transmittance_error": 0.01387147943344691
+          }
+        },
+        "z64_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.00022353295281621436,
+            "max_absolute_optical_depth_error": 0.0023015573696268804,
+            "transmittance_rmse": 0.00021880860714277632,
+            "max_absolute_transmittance_error": 0.002235761254657187
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.00026661517667215227,
+            "max_absolute_optical_depth_error": 0.0023015573696268804,
+            "transmittance_rmse": 0.00026098029268485813,
+            "max_absolute_transmittance_error": 0.002235761254657187
+          }
+        },
+        "z64_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 86016,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0002925191835376697,
+            "max_absolute_optical_depth_error": 0.002846726198953372,
+            "transmittance_rmse": 0.0002863313387129509,
+            "max_absolute_transmittance_error": 0.0027660992048434974
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.00034889734518184326,
+            "max_absolute_optical_depth_error": 0.002846726198953372,
+            "transmittance_rmse": 0.00034151689715175804,
+            "max_absolute_transmittance_error": 0.0027660992048434974
+          }
+        },
+        "z64_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 344064,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.00030958771331527095,
+            "max_absolute_optical_depth_error": 0.0029786946070077466,
+            "transmittance_rmse": 0.0003030443736681161,
+            "max_absolute_transmittance_error": 0.002894520989321414
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 3644,
+            "optical_depth_rmse": 0.00036925554751659286,
+            "max_absolute_optical_depth_error": 0.0029786946070077466,
+            "transmittance_rmse": 0.0003614510890052471,
+            "max_absolute_transmittance_error": 0.002894520989321414
+          }
+        }
+      }
+    },
+    "two_overlapping": {
+      "volume_count": 2,
+      "volumes": [
+        {
+          "center": [
+            -1.0,
+            3.0,
+            19.0
+          ],
+          "sigma": [
+            3.0,
+            2.5,
+            2.5
+          ],
+          "amplitude": 0.025
+        },
+        {
+          "center": [
+            1.0,
+            4.0,
+            21.0
+          ],
+          "sigma": [
+            2.5,
+            2.0,
+            2.0
+          ],
+          "amplitude": 0.02
+        }
+      ],
+      "affected_pixel_count": 5184,
+      "configs": {
+        "z32_center_sample": {
+          "froxel_cell_count": 10752,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0034428916902584997,
+            "max_absolute_optical_depth_error": 0.02652912823622447,
+            "transmittance_rmse": 0.0030632598099985886,
+            "max_absolute_transmittance_error": 0.021959918708806092
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0034428916902584997,
+            "max_absolute_optical_depth_error": 0.02652912823622447,
+            "transmittance_rmse": 0.0030632598099985886,
+            "max_absolute_transmittance_error": 0.021959918708806092
+          }
+        },
+        "z32_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017895026639538575,
+            "max_absolute_optical_depth_error": 0.02121635684414086,
+            "transmittance_rmse": 0.001522738451418563,
+            "max_absolute_transmittance_error": 0.0169979848678814
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017895026639538575,
+            "max_absolute_optical_depth_error": 0.02121635684414086,
+            "transmittance_rmse": 0.001522738451418563,
+            "max_absolute_transmittance_error": 0.0169979848678814
+          }
+        },
+        "z32_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 86016,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.002328563357565086,
+            "max_absolute_optical_depth_error": 0.025916734102816807,
+            "transmittance_rmse": 0.0019816121596877424,
+            "max_absolute_transmittance_error": 0.0208128513722301
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.002328563357565086,
+            "max_absolute_optical_depth_error": 0.025916734102816807,
+            "transmittance_rmse": 0.0019816121596877424,
+            "max_absolute_transmittance_error": 0.0208128513722301
+          }
+        },
+        "z32_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 10752,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 344064,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0024614389328666557,
+            "max_absolute_optical_depth_error": 0.02704279440689436,
+            "transmittance_rmse": 0.002095083845703613,
+            "max_absolute_transmittance_error": 0.021729437110759697
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0024614389328666557,
+            "max_absolute_optical_depth_error": 0.02704279440689436,
+            "transmittance_rmse": 0.002095083845703613,
+            "max_absolute_transmittance_error": 0.021729437110759697
+          }
+        },
+        "z64_center_sample": {
+          "froxel_cell_count": 21504,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.003414147610671889,
+            "max_absolute_optical_depth_error": 0.02601718761876784,
+            "transmittance_rmse": 0.003040729461187129,
+            "max_absolute_transmittance_error": 0.02155067771939978
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.003414147610671889,
+            "max_absolute_optical_depth_error": 0.02601718761876784,
+            "transmittance_rmse": 0.003040729461187129,
+            "max_absolute_transmittance_error": 0.02155067771939978
+          }
+        },
+        "z64_analytic_line_integral_xy1x1": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 1,
+          "analytic_gaussian_line_integrals": 43008,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017895026639538581,
+            "max_absolute_optical_depth_error": 0.021216356844140805,
+            "transmittance_rmse": 0.0015227384514185645,
+            "max_absolute_transmittance_error": 0.0169979848678814
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0017895026639538581,
+            "max_absolute_optical_depth_error": 0.021216356844140805,
+            "transmittance_rmse": 0.0015227384514185645,
+            "max_absolute_transmittance_error": 0.0169979848678814
+          }
+        },
+        "z64_analytic_line_integral_xy2x2": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 2,
+          "analytic_gaussian_line_integrals": 172032,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0023285633575650883,
+            "max_absolute_optical_depth_error": 0.02591673410281678,
+            "transmittance_rmse": 0.001981612159687744,
+            "max_absolute_transmittance_error": 0.0208128513722301
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.0023285633575650883,
+            "max_absolute_optical_depth_error": 0.02591673410281678,
+            "transmittance_rmse": 0.001981612159687744,
+            "max_absolute_transmittance_error": 0.0208128513722301
+          }
+        },
+        "z64_analytic_line_integral_xy4x4": {
+          "froxel_cell_count": 21504,
+          "xy_rays_per_axis": 4,
+          "analytic_gaussian_line_integrals": 688128,
+          "all_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.002461438932866656,
+            "max_absolute_optical_depth_error": 0.027042794406894416,
+            "transmittance_rmse": 0.002095083845703612,
+            "max_absolute_transmittance_error": 0.021729437110759697
+          },
+          "volume_affected_pixels": {
+            "pixel_count": 5184,
+            "optical_depth_rmse": 0.002461438932866656,
+            "max_absolute_optical_depth_error": 0.027042794406894416,
+            "transmittance_rmse": 0.002095083845703612,
+            "max_absolute_transmittance_error": 0.021729437110759697
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU runtime or performance measurement.",
+    "Optical depth is assessed independently; source lighting/scattering integration is not validated here.",
+    "Gaussian line integral is exact in ray parameter, but XY froxel averages use finite stratified rays.",
+    "This tests smooth analytic density, not hard volume boundaries or production density textures.",
+    "No temporal reprojection, shadows, or backend parity."
+  ],
+  "source_script_sha256": "4f9233bfb794a1c7242a0160629bed12b6861e9dbe703e660bffc5ccc3a3c9d4",
+  "proxy_script_sha256": "b6a13ee9e2d63e4b402f56f92c43abd2ebe5ebbf583a2f9b9a8beceae706bc58"
+}

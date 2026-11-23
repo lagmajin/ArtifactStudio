@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "base_slot", "type": "ImageTexture", "params": {"slot": 0}},
+    {"id": "opacity_slot", "type": "ImageTexture", "params": {"slot": 1}},
+    {"id": "emission_slot", "type": "ImageTexture", "params": {"slot": 2}},
+    {"id": "metallic_roughness_slot", "type": "ImageTexture", "params": {"slot": 3}},
+    {"id": "normal_slot", "type": "ImageTexture", "params": {"slot": 4}},
+    {"id": "occlusion_slot", "type": "ImageTexture", "params": {"slot": 5}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "base_slot", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "opacity_slot", "out": "Alpha", "to": "surface", "in": "Alpha"},
+    {"from": "emission_slot", "out": "Color", "to": "surface", "in": "EmissionColor"},
+    {"from": "metallic_roughness_slot", "out": "Color", "to": "surface", "in": "Metallic"},
+    {"from": "normal_slot", "out": "Color", "to": "surface", "in": "Normal"},
+    {"from": "occlusion_slot", "out": "Alpha", "to": "surface", "in": "Occlusion"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

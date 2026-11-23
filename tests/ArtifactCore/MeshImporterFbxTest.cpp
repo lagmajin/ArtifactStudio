@@ -331,6 +331,40 @@ TEST(MeshImporterFbxTest, PreservesSeparateMetallicAndRoughnessMaps)
     EXPECT_TRUE(reference.roughnessTexture.toQString().isEmpty());
 }
 
+TEST(MeshImporterFbxTest, PreservesMultiMaterialTriangleSlotsInRenderData)
+{
+    const QString path = QFileInfo(QString::fromUtf8(__FILE__)).dir().filePath(
+        QStringLiteral("../fixtures/fbx-materials/multi-material-pbr.fbx"));
+    ASSERT_TRUE(QFileInfo(path).isFile());
+    MeshImporter importer;
+    auto mesh = importer.importMeshFromFile(UniString(path));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.lastBackend(), MeshImporter::Backend::Ufbx);
+    ASSERT_EQ(importer.importedPbrMaterials().size(), 2u);
+    ASSERT_EQ(mesh->materialSlotCount(), 2);
+    for (const Mesh::MaterialSlot& slot : mesh->materialSlots()) {
+        EXPECT_GE(slot.indexCount, 3);
+        EXPECT_EQ(slot.indexCount % 3, 0);
+        EXPECT_GE(slot.materialIndex, 0);
+        EXPECT_LT(slot.materialIndex, 2);
+    }
+
+    const Mesh::RenderData renderData = mesh->generateRenderData();
+    const size_t triangleCount = static_cast<size_t>(renderData.indices.size() / 3);
+    ASSERT_EQ(renderData.triangleMaterialIndices.size(),
+              static_cast<qsizetype>(triangleCount));
+    ASSERT_EQ(triangleCount, 12u);
+    size_t slotCounts[2]{};
+    for (const unsigned int materialIndex : renderData.triangleMaterialIndices) {
+        ASSERT_LT(materialIndex, 2u);
+        ++slotCounts[materialIndex];
+    }
+    EXPECT_EQ(slotCounts[0], 6u);
+    EXPECT_EQ(slotCounts[1], 6u);
+    EXPECT_NE(importer.importedPbrMaterials()[0].baseColor[2],
+              importer.importedPbrMaterials()[1].baseColor[2]);
+}
+
 TEST(MeshImporterFbxTest, FindsExternalTextureBesideFbxTextureFolder)
 {
     const QString path = qEnvironmentVariable(

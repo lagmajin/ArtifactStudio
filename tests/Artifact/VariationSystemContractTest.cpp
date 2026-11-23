@@ -5,9 +5,11 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QSize>
+#include <QVector>
 #include <QString>
 #include <QVariant>
 
+#include <memory>
 #include <utility>
 
 import Artifact.Composition.Abstract;
@@ -15,6 +17,9 @@ import Artifact.Composition.InitParams;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.Factory;
 import Artifact.Layer.InitParams;
+import Memory.SharedPtr;
+import Menu.Composition;
+import Undo.UndoManager;
 import Utils.Id;
 
 namespace {
@@ -446,4 +451,135 @@ TEST(ArtifactCompositionStateVariantContractTest, CompositionJsonClearsUnknownAc
     EXPECT_TRUE(restored->activeStateVariantId().isEmpty());
     EXPECT_EQ(restored->stateComparisonAId(), QStringLiteral("known"));
     EXPECT_TRUE(restored->stateComparisonBId().isEmpty());
+}
+
+TEST(ArtifactCompositionStateUndoContractTest, UniqueStateIdNormalizesAndAvoidsCollisions)
+{
+    QVector<Artifact::CompositionStateVariant> states;
+    EXPECT_EQ(Artifact::uniqueCompositionStateId(
+                  states, QString{}), QStringLiteral("state"));
+    EXPECT_EQ(Artifact::uniqueCompositionStateId(
+                  states, QStringLiteral(" Client View ")),
+              QStringLiteral("client_view"));
+
+    Artifact::CompositionStateVariant first;
+    first.stateId = QStringLiteral("client_view");
+    Artifact::CompositionStateVariant second;
+    second.stateId = QStringLiteral("client_view_2");
+    states.append(first);
+    states.append(second);
+
+    EXPECT_EQ(Artifact::uniqueCompositionStateId(
+                  states, QStringLiteral("Client View")),
+              QStringLiteral("client_view_3"));
+}
+
+TEST(ArtifactCompositionStateUndoContractTest, UndoRedoRestoresVariantsActiveStateAndComparisonPair)
+{
+    ensureApplication();
+    Artifact::ArtifactCompositionInitParams params;
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactAbstractComposition>(
+        ArtifactCore::CompositionID{}, params);
+    ASSERT_TRUE(composition);
+    auto layer = makeSolidLayer();
+    ASSERT_TRUE(layer);
+    ASSERT_TRUE(composition->appendLayerTop(layer).success);
+    layer->setOpacity(0.8f);
+
+    const auto first = opacityState(QStringLiteral("first"), layer->id(), 0.25, 0.8);
+    const auto second = opacityState(QStringLiteral("second"), layer->id(), 0.6, 0.8);
+    const QVector<Artifact::CompositionStateVariant> beforeStates{first, second};
+    QVector<Artifact::CompositionStateVariant> afterStates = beforeStates;
+    afterStates[0] = opacityState(QStringLiteral("first"), layer->id(), 0.35, 0.8);
+
+    Artifact::UndoManager manager;
+    ASSERT_TRUE(manager.push(std::make_unique<Artifact::ChangeCompositionStatesCommand>(
+        composition, beforeStates, QStringLiteral("first"), afterStates,
+        QStringLiteral("second"), QStringLiteral("first"), QStringLiteral("second"),
+        QString{}, QStringLiteral("first"),
+        QStringLiteral("Edit Composition State"))));
+
+    EXPECT_EQ(composition->activeStateVariantId(), QStringLiteral("second"));
+    EXPECT_FLOAT_EQ(layer->opacity(), 0.6f);
+    EXPECT_TRUE(composition->stateComparisonAId().isEmpty());
+    EXPECT_EQ(composition->stateComparisonBId(), QStringLiteral("first"));
+    ASSERT_EQ(composition->stateVariants().size(), 2);
+    EXPECT_TRUE(composition->stateVariants().at(0).toJson() == afterStates.at(0).toJson());
+
+    manager.undo();
+    EXPECT_EQ(composition->activeStateVariantId(), QStringLiteral("first"));
+    EXPECT_FLOAT_EQ(layer->opacity(), 0.25f);
+    EXPECT_EQ(composition->stateComparisonAId(), QStringLiteral("first"));
+    EXPECT_EQ(composition->stateComparisonBId(), QStringLiteral("second"));
+    ASSERT_EQ(composition->stateVariants().size(), 2);
+    EXPECT_TRUE(composition->stateVariants().at(0).toJson() == beforeStates.at(0).toJson());
+
+    manager.redo();
+    EXPECT_EQ(composition->activeStateVariantId(), QStringLiteral("second"));
+    EXPECT_FLOAT_EQ(layer->opacity(), 0.6f);
+    EXPECT_TRUE(composition->stateComparisonAId().isEmpty());
+    EXPECT_EQ(composition->stateComparisonBId(), QStringLiteral("first"));
+    EXPECT_TRUE(composition->stateVariants().at(0).toJson() == afterStates.at(0).toJson());
+}
+
+TEST(ArtifactCompositionStateUndoContractTest, UndoRestoresDeletedStateAndClearedComparisonPair)
+{
+    ensureApplication();
+    Artifact::ArtifactCompositionInitParams params;
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactAbstractComposition>(
+        ArtifactCore::CompositionID{}, params);
+    ASSERT_TRUE(composition);
+    auto layer = makeSolidLayer();
+    ASSERT_TRUE(layer);
+    ASSERT_TRUE(composition->appendLayerTop(layer).success);
+
+    const auto first = opacityState(QStringLiteral("first"), layer->id(), 0.25, 1.0);
+    const auto second = opacityState(QStringLiteral("second"), layer->id(), 0.6, 1.0);
+    const QVector<Artifact::CompositionStateVariant> beforeStates{first, second};
+    const QVector<Artifact::CompositionStateVariant> afterStates{second};
+
+    Artifact::UndoManager manager;
+    ASSERT_TRUE(manager.push(std::make_unique<Artifact::ChangeCompositionStatesCommand>(
+        composition, beforeStates, QStringLiteral("first"), afterStates, QString{},
+        QStringLiteral("first"), QStringLiteral("second"), QString{}, QString{},
+        QStringLiteral("Delete Composition State"))));
+
+    EXPECT_EQ(composition->stateVariants().size(), 1);
+    EXPECT_TRUE(composition->activeStateVariantId().isEmpty());
+    EXPECT_TRUE(composition->stateComparisonAId().isEmpty());
+    EXPECT_TRUE(composition->stateComparisonBId().isEmpty());
+
+    manager.undo();
+    EXPECT_EQ(composition->stateVariants().size(), 2);
+    EXPECT_EQ(composition->activeStateVariantId(), QStringLiteral("first"));
+    EXPECT_EQ(composition->stateComparisonAId(), QStringLiteral("first"));
+    EXPECT_EQ(composition->stateComparisonBId(), QStringLiteral("second"));
+    EXPECT_FLOAT_EQ(layer->opacity(), 0.25f);
+
+    manager.redo();
+    EXPECT_EQ(composition->stateVariants().size(), 1);
+    EXPECT_TRUE(composition->activeStateVariantId().isEmpty());
+}
+
+TEST(ArtifactCompositionStateUndoContractTest, ExpiredCompositionReportsFailedApply)
+{
+    ensureApplication();
+    Artifact::ArtifactCompositionInitParams params;
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactAbstractComposition>(
+        ArtifactCore::CompositionID{}, params);
+    ASSERT_TRUE(composition);
+    Artifact::ArtifactCompositionWeakPtr weak = composition;
+
+    Artifact::CompositionStateVariant state;
+    state.stateId = QStringLiteral("orphan");
+    const QVector<Artifact::CompositionStateVariant> states{state};
+
+    Artifact::ChangeCompositionStatesCommand command(
+        weak, QVector<Artifact::CompositionStateVariant>{}, QString{}, states,
+        QStringLiteral("orphan"), QString{}, QString{}, QString{}, QString{},
+        QStringLiteral("Orphaned edit"));
+    composition.reset();
+
+    command.redo();
+    EXPECT_FALSE(command.lastOperationSucceeded());
 }

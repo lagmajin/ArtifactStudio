@@ -1,0 +1,53 @@
+{
+  "intent": "Reduce central-intersection clipping in four standalone Glow specialists while retaining family geometry; only family amplitude changes from city singleton rd1. Exploratory transfer candidates, not accepted presets.",
+  "profiles": {
+    "edge-contour-restrained": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.2,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "chromatic-fringe-restrained": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.8,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "directional-streak-restrained": {
+      "effect_id": "directional_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Intensity": 0.15,
+        "Length 1 (Inner)": 18.0,
+        "Length 2 (Outer)": 60.0,
+        "Weight 1": 0.7,
+        "Weight 2": 0.25,
+        "Pattern": 0,
+        "Angle Offset": 0.0
+      }
+    },
+    "four-ray-glint-restrained": {
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.45,
+        "intensity": 0.25,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      }
+    }
+  }
+}

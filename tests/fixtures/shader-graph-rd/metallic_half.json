@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {
+      "id": "parameter_value",
+      "type": "Value",
+      "params": {
+        "value": 0.5
+      }
+    },
+    {
+      "id": "surface",
+      "type": "Principled",
+      "params": {}
+    },
+    {
+      "id": "output",
+      "type": "MaterialOutput",
+      "params": {}
+    }
+  ],
+  "links": [
+    {
+      "from": "parameter_value",
+      "out": "Value",
+      "to": "surface",
+      "in": "Metallic"
+    },
+    {
+      "from": "surface",
+      "out": "BSDF",
+      "to": "output",
+      "in": "Surface"
+    }
+  ]
+}

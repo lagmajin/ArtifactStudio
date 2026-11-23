@@ -1,0 +1,721 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-operation-registry",
+  "operations": [
+    {
+      "operationId": "artifact.input.texcoord.uv0.x",
+      "semanticVersion": 1,
+      "displayName": "UV 0 X",
+      "category": "Input",
+      "implementationId": "float.uv0.x",
+      "inputs": [],
+      "outputs": [{"socketId": "value", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.input.texcoord.uv0.vector2",
+      "semanticVersion": 1,
+      "displayName": "UV 0",
+      "category": "Input",
+      "implementationId": "vector2.uv0",
+      "inputs": [],
+      "outputs": [{"socketId": "value", "valueType": "Vector2"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.mapping.vector2.scale_offset",
+      "semanticVersion": 1,
+      "displayName": "Vector2 Mapping",
+      "category": "Vector",
+      "implementationId": "vector2.mapping.scale_offset",
+      "inputs": [{"socketId": "vector", "valueType": "Vector2", "required": true}],
+      "outputs": [{"socketId": "vector", "valueType": "Vector2"}],
+      "parameters": [
+        {"parameterId": "scaleX", "valueType": "Float32", "default": 1.0},
+        {"parameterId": "scaleY", "valueType": "Float32", "default": 1.0},
+        {"parameterId": "offsetX", "valueType": "Float32", "default": 0.0},
+        {"parameterId": "offsetY", "valueType": "Float32", "default": 0.0}
+      ]
+    },
+    {
+      "operationId": "artifact.texture.sample.base_color",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Base Color",
+      "category": "Texture",
+      "implementationId": "texture.sample.base_color",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.opacity",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Opacity",
+      "category": "Texture",
+      "implementationId": "texture.sample.opacity",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.emission",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Emission",
+      "category": "Texture",
+      "implementationId": "texture.sample.emission",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.metallic_roughness",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Metallic Roughness",
+      "category": "Texture",
+      "implementationId": "texture.sample.metallic_roughness",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.normal",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Normal",
+      "category": "Texture",
+      "implementationId": "texture.sample.normal",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.occlusion",
+      "semanticVersion": 1,
+      "displayName": "Image Texture Occlusion",
+      "category": "Texture",
+      "implementationId": "texture.sample.occlusion",
+      "inputs": [
+        {
+          "socketId": "uv",
+          "valueType": "Vector2",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "color",
+          "valueType": "Vector4"
+        },
+        {
+          "socketId": "alpha",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.texture.sample.image2d",
+      "semanticVersion": 1,
+      "displayName": "Image Texture",
+      "category": "Texture",
+      "implementationId": "texture.sample.image2d",
+      "inputs": [
+        {"socketId": "uv", "valueType": "Vector2", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "color", "valueType": "Vector4"},
+        {"socketId": "alpha", "valueType": "Float"}
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "displayName": "Float",
+      "category": "Input",
+      "implementationId": "float.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Float32",
+          "default": 0.0
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.constant.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3",
+      "category": "Input",
+      "implementationId": "vector3.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Vector3"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Vector3F32",
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.math.add.vector3.float32.default_b",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Add (zero default)",
+      "category": "Math",
+      "implementationId": "vector3.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": false, "default": [0.0, 0.0, 0.0]}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.subtract.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Subtract",
+      "category": "Math",
+      "implementationId": "vector3.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Multiply",
+      "category": "Math",
+      "implementationId": "vector3.multiply",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector3"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.scale.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Scale",
+      "category": "Math",
+      "implementationId": "vector3.scale",
+      "inputs": [
+        {"socketId": "vector", "valueType": "Vector3", "required": true},
+        {"socketId": "scale", "valueType": "Float", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "result", "valueType": "Vector3"}
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.dot.vector3.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector3 Dot Product",
+      "category": "Math",
+      "implementationId": "vector3.dot",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector3", "required": true},
+        {"socketId": "b", "valueType": "Vector3", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "value", "valueType": "Float"}
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.constant.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4",
+      "category": "Input",
+      "implementationId": "vector4.constant",
+      "inputs": [],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Vector4"
+        }
+      ],
+      "parameters": [
+        {
+          "parameterId": "value",
+          "valueType": "Vector4F32",
+          "default": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "artifact.rd.math.add.float32",
+      "semanticVersion": 1,
+      "displayName": "Add",
+      "category": "Math",
+      "implementationId": "float.add",
+      "inputs": [
+        {
+          "socketId": "a",
+          "valueType": "Float",
+          "required": true
+        },
+        {
+          "socketId": "b",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "result",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.add.float32.default_b",
+      "semanticVersion": 1,
+      "displayName": "Add (zero default)",
+      "category": "Math",
+      "implementationId": "float.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": false, "default": 0.0}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.float32",
+      "semanticVersion": 1,
+      "displayName": "Multiply",
+      "category": "Math",
+      "implementationId": "float.multiply",
+      "inputs": [
+        {
+          "socketId": "a",
+          "valueType": "Float",
+          "required": true
+        },
+        {
+          "socketId": "b",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "result",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.subtract.float32",
+      "semanticVersion": 1,
+      "displayName": "Subtract",
+      "category": "Math",
+      "implementationId": "float.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.add.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Add",
+      "category": "Math",
+      "implementationId": "vector4.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.add.vector4.default_b",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Add (default B)",
+      "category": "Math",
+      "implementationId": "vector4.add",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": false, "default": [0.0, 0.0, 0.0, 0.0]}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.multiply.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Multiply",
+      "category": "Math",
+      "implementationId": "vector4.multiply",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.subtract.vector4.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Subtract",
+      "category": "Math",
+      "implementationId": "vector4.subtract",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.vector4.invert.linear_factor",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Invert",
+      "category": "Color",
+      "implementationId": "vector4.invert.linear_factor",
+      "inputs": [
+        {"socketId": "color", "valueType": "Vector4", "required": true},
+        {"socketId": "factor", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.math.clamp.sorted_bounds",
+      "semanticVersion": 1,
+      "displayName": "Clamp",
+      "category": "Math",
+      "implementationId": "float.clamp.sorted_bounds",
+      "inputs": [
+        {"socketId": "value", "valueType": "Float", "required": true},
+        {"socketId": "minimum", "valueType": "Float", "required": true},
+        {"socketId": "maximum", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mix.saturated_factor.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix",
+      "category": "Color",
+      "implementationId": "vector4.mix.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.add.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Add)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.add.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.multiply.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Multiply)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.multiply.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.screen.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Screen)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.screen.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.overlay.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Overlay)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.overlay.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.darken.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Darken)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.darken.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.lighten.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Lighten)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.lighten.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.mixrgb.difference.vector4",
+      "semanticVersion": 1,
+      "displayName": "Mix (Difference)",
+      "category": "Color",
+      "implementationId": "vector4.mixrgb.difference.saturated_factor",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true},
+        {"socketId": "color1", "valueType": "Vector4", "required": true},
+        {"socketId": "color2", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.scalar.replicate.vector4.rgb_alpha_one",
+      "semanticVersion": 1,
+      "displayName": "Replicate to Vector4",
+      "category": "Convert",
+      "implementationId": "float.replicate.rgb_alpha_one",
+      "inputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "vector",
+          "valueType": "Vector4"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.vector4.extract_x.scalar",
+      "semanticVersion": 1,
+      "displayName": "Extract X",
+      "category": "Convert",
+      "implementationId": "vector4.extract_x",
+      "inputs": [
+        {
+          "socketId": "vector",
+          "valueType": "Vector4",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "socketId": "value",
+          "valueType": "Float"
+        }
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.divide.positive_floor.float32",
+      "semanticVersion": 1,
+      "displayName": "Divide (Positive Floor)",
+      "category": "Math",
+      "implementationId": "float.divide.positive_floor_1e5",
+      "inputs": [
+        {"socketId": "a", "valueType": "Float", "required": true},
+        {"socketId": "b", "valueType": "Float", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Float"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.rd.math.divide.vector4.positive_floor.float32",
+      "semanticVersion": 1,
+      "displayName": "Vector4 Divide (Positive Floor)",
+      "category": "Math",
+      "implementationId": "vector4.divide.positive_floor_1e5",
+      "inputs": [
+        {"socketId": "a", "valueType": "Vector4", "required": true},
+        {"socketId": "b", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [{"socketId": "result", "valueType": "Vector4"}],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.convert.vector4.separate_channels",
+      "semanticVersion": 1,
+      "displayName": "Separate Vector4 Channels",
+      "category": "Convert",
+      "implementationId": "vector4.separate_channels",
+      "inputs": [
+        {"socketId": "vector", "valueType": "Vector4", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "x", "valueType": "Float"},
+        {"socketId": "y", "valueType": "Float"},
+        {"socketId": "z", "valueType": "Float"},
+        {"socketId": "w", "valueType": "Float"}
+      ],
+      "parameters": []
+    },
+    {
+      "operationId": "artifact.color.ramp.linear_stops",
+      "semanticVersion": 1,
+      "displayName": "Color Ramp (Linear)",
+      "category": "Color",
+      "implementationId": "vector4.ramp.linear_stops",
+      "inputs": [
+        {"socketId": "factor", "valueType": "Float", "required": true}
+      ],
+      "outputs": [
+        {"socketId": "color", "valueType": "Vector4"},
+        {"socketId": "alpha", "valueType": "Float"}
+      ],
+      "parameters": [
+        {"parameterId": "stops", "valueType": "RampStops", "default": [
+          {"position": 0.0, "color": [0.0, 0.0, 0.0, 1.0]},
+          {"position": 1.0, "color": [1.0, 1.0, 1.0, 1.0]}
+        ]}
+      ]
+    }
+  ]
+}

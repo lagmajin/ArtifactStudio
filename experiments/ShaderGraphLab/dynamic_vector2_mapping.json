@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "uv",
+      "operationId": "artifact.input.texcoord.uv0.vector2",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 48, "y": 80}
+    },
+    {
+      "nodeId": "mapping",
+      "operationId": "artifact.mapping.vector2.scale_offset",
+      "semanticVersion": 1,
+      "parameters": {"scaleX": 2.0, "scaleY": 0.5, "offsetX": 0.25, "offsetY": -0.125},
+      "layout": {"x": 280, "y": 80}
+    }
+  ],
+  "links": [
+    {"from": {"nodeId": "uv", "socketId": "value"}, "to": {"nodeId": "mapping", "socketId": "vector"}}
+  ],
+  "output": {"nodeId": "mapping", "socketId": "vector"}
+}

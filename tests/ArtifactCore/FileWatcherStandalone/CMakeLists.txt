@@ -16,9 +16,7 @@ artifact_add_standalone_module_interface(FileWatcherModuleInterfaces
         "${artifact_core_root}/src/Core/ArtifactOptional.cppm"
         "${artifact_core_include}/Core/ArtifactArray.ixx"
         "${artifact_core_include}/Core/ArtifactString.ixx"
-        "${artifact_core_root}/src/Core/ArtifactHashMap.cppm"
         "${artifact_core_include}/Container/NamedVector.ixx"
-        "${artifact_core_include}/Container/NameMap.ixx"
         "${artifact_core_include}/Data/FileWatcher.ixx"
 )
 

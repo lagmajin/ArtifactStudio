@@ -1,0 +1,618 @@
+{
+  "schema": "fog-atmosphere-rd-fixture-v1",
+  "size": [
+    256,
+    144
+  ],
+  "projection": {
+    "type": "perspective",
+    "vertical_fov_degrees": 58.0,
+    "camera_position": [
+      0.0,
+      4.0,
+      0.0
+    ],
+    "view_direction": [
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  "depth": {
+    "encoding": "euclidean_ray_distance / ray_limit",
+    "ray_limit": 120.0,
+    "file": "depth_normalized_ray_distance.pfm",
+    "sha256": "dea50cf08416cf1bf5760eea6009133d75f2c87af69ca13303fac1f988dd61c0",
+    "note": "Synthetic normalized linear distance; not hardware perspective depth."
+  },
+  "color": {
+    "format": "PFM RGB float32 little-endian",
+    "transfer": "linear scene-referred",
+    "range": "unclamped; HDR markers exceed 1",
+    "alpha": "opaque; not represented",
+    "cpu_reference_io": "ArtifactCore ImageBuffer is RGB8; alpha is absent"
+  },
+  "scene": {
+    "geometry": "sloped near/far color charts, checker ground, finite sky",
+    "seed": null
+  },
+  "medium": {
+    "ground": 0.0,
+    "density_at_ground": 0.008,
+    "height_falloff": 0.08,
+    "absorption": 0.7,
+    "scattering": 0.65,
+    "fog_color": [
+      0.46,
+      0.59,
+      0.72
+    ],
+    "sun_tint": [
+      1.0,
+      0.82,
+      0.58
+    ],
+    "sun_intensity": 38.0,
+    "sun_elevation_degrees": 32.0,
+    "atmosphere_top": 120.0
+  },
+  "candidates": {
+    "f0_no_fog": {
+      "pfm": "f0_no_fog.pfm",
+      "pfm_sha256": "d8157357d205f2fb518e7817df188e41b6eee528c17f216197a02de8545aac12",
+      "preview_png": "f0_no_fog_preview.png",
+      "preview_sha256": "b4f2975be232086f7f52b7a4cdcfb0d5047d5f4621bf910e8436ca87ec6c6575"
+    },
+    "f1_uniform": {
+      "pfm": "f1_uniform.pfm",
+      "pfm_sha256": "d4de340294f94ef775c9f34f3fe949995659e4dfbacd04a50aadf47f7dd9cff5",
+      "preview_png": "f1_uniform_preview.png",
+      "preview_sha256": "7e6f703404f8001e1086923c06f186e571a9a1bb08897326870666ed58b89adf"
+    },
+    "f2_height_analytic": {
+      "pfm": "f2_height_analytic.pfm",
+      "pfm_sha256": "8183689279f088162b3be5bf0e972bf366f8bcdda7663d43afc0c9ef9e2b4f53",
+      "preview_png": "f2_height_analytic_preview.png",
+      "preview_sha256": "5fab065de735b16fead5ee21056d6c68b8e7eda6e715620431d5d636b5cdca86"
+    },
+    "f3_height_midpoint_16": {
+      "pfm": "f3_height_midpoint_16.pfm",
+      "pfm_sha256": "5f54bc4e41ea7e36ca2dc1da9fa5b46dfa40e0c76c258cc5ffe5a031b3eef281",
+      "preview_png": "f3_height_midpoint_16_preview.png",
+      "preview_sha256": "272401931a436202b0d03558b4e01f7c40ef66c75436eb4f5d0de6807a7abd03"
+    },
+    "f3_height_midpoint_64": {
+      "pfm": "f3_height_midpoint_64.pfm",
+      "pfm_sha256": "2f31ed28cd84bfc0e5edd606874320ccbb2c9ca5a78f8c2b1225f8f7b764330d",
+      "preview_png": "f3_height_midpoint_64_preview.png",
+      "preview_sha256": "91c7a84fc8f61903d69658141c8a1628f729f0b1f4fa40405947f00544e491c4"
+    },
+    "f4_single_scattering_64": {
+      "pfm": "f4_single_scattering_64.pfm",
+      "pfm_sha256": "dcee1e1fa2cd6e46b52d6d3b65e2343b6a10950a11d9020c9e4251fb5065fcb9",
+      "preview_png": "f4_single_scattering_64_preview.png",
+      "preview_sha256": "266f72813248fc017b223ac6fa92573225bbeb2edd1140f24896972b02a9b183"
+    },
+    "gpu_height_camera_approximation_mirror": {
+      "pfm": "gpu_height_camera_approximation_mirror.pfm",
+      "pfm_sha256": "c934d0a8aa70abb01c9aacff82d643912b4f2239be94fde87497697299538c02",
+      "preview_png": "gpu_height_camera_approximation_mirror_preview.png",
+      "preview_sha256": "65c7169d4d5c0e573be4916046472bd6487be6190b08dad6a919eabf19ac6900"
+    },
+    "cpu_applytopixel_source_mirror": {
+      "pfm": "cpu_applytopixel_source_mirror.pfm",
+      "pfm_sha256": "ed01043914c066fc9316287846e040abc5dda5f46530de61a27f44eae67034d3",
+      "preview_png": "cpu_applytopixel_source_mirror_preview.png",
+      "preview_sha256": "abbdb06bd1e3def85a18573d8bcb1daafa527e0dd5a316dc77710224bf23ba1e"
+    },
+    "cpu_settings_height_analytic_rgb8": {
+      "pfm": "cpu_settings_height_analytic_rgb8.pfm",
+      "pfm_sha256": "873aa0aad97c1879185bbb8c808d8d12401df5871dd28845eb3bd51c3c0560b9",
+      "preview_png": "cpu_settings_height_analytic_rgb8_preview.png",
+      "preview_sha256": "bbae2191fe48a3d6a7fdc39fdb36409b16afd0a526334350a221f7b6b9d6aec4"
+    }
+  },
+  "linear_rgb_comparison_to_f2_height_analytic": {
+    "f0_no_fog": {
+      "mean_absolute_rgb": [
+        0.031368174847872195,
+        0.033735441485478204,
+        0.03327534425756735
+      ],
+      "max_absolute_rgb": [
+        0.24979453000770757,
+        0.2251687959192616,
+        0.2732631018437641
+      ],
+      "rgb_rmse": 0.045072044586232166,
+      "pixels_max_channel_delta_over_1e-3": 36864,
+      "pixel_count": 36864
+    },
+    "f1_uniform": {
+      "mean_absolute_rgb": [
+        0.02144246178869511,
+        0.0205806791678752,
+        0.013694220434633676
+      ],
+      "max_absolute_rgb": [
+        0.1156880580677706,
+        0.10793576551683737,
+        0.10018347296590457
+      ],
+      "rgb_rmse": 0.02494190113992152,
+      "pixels_max_channel_delta_over_1e-3": 36864,
+      "pixel_count": 36864
+    },
+    "f3_height_midpoint_16": {
+      "mean_absolute_rgb": [
+        8.067696013716197e-06,
+        7.208888444517295e-06,
+        3.4025501641850444e-06
+      ],
+      "max_absolute_rgb": [
+        2.6118102441852198e-05,
+        2.2761579404950716e-05,
+        2.6666283349352504e-05
+      ],
+      "rgb_rmse": 1.0765815176939403e-05,
+      "pixels_max_channel_delta_over_1e-3": 0,
+      "pixel_count": 36864
+    },
+    "f3_height_midpoint_64": {
+      "mean_absolute_rgb": [
+        5.046835779505119e-07,
+        4.5092752341824437e-07,
+        2.128213706869203e-07
+      ],
+      "max_absolute_rgb": [
+        1.6344349538788272e-06,
+        1.4238388449383521e-06,
+        1.6701738146940315e-06
+      ],
+      "rgb_rmse": 6.73505581418853e-07,
+      "pixels_max_channel_delta_over_1e-3": 0,
+      "pixel_count": 36864
+    },
+    "f4_single_scattering_64": {
+      "mean_absolute_rgb": [
+        0.23972533522161266,
+        0.16923946047626648,
+        0.08082497497304617
+      ],
+      "max_absolute_rgb": [
+        0.9242621321379874,
+        0.665911226217772,
+        0.3401743852399166
+      ],
+      "rgb_rmse": 0.22353504606793773,
+      "pixels_max_channel_delta_over_1e-3": 36864,
+      "pixel_count": 36864
+    },
+    "gpu_height_camera_approximation_mirror": {
+      "mean_absolute_rgb": [
+        0.030378925673556115,
+        0.030422653836943456,
+        0.024987723800951604
+      ],
+      "max_absolute_rgb": [
+        0.21612723588559835,
+        0.12424935807520088,
+        0.08903571293317425
+      ],
+      "rgb_rmse": 0.03257477061925601,
+      "pixels_max_channel_delta_over_1e-3": 36857,
+      "pixel_count": 36864
+    },
+    "cpu_settings_height_analytic_rgb8": {
+      "mean_absolute_rgb": [
+        0.030733967956498378,
+        0.027687332969011526,
+        0.0247788376910343
+      ],
+      "max_absolute_rgb": [
+        3.767325385394222,
+        2.07288916127272,
+        1.3289117873547291
+      ],
+      "rgb_rmse": 0.11777335887249639,
+      "pixels_max_channel_delta_over_1e-3": 36864,
+      "pixel_count": 36864
+    }
+  },
+  "gpu_height_shader_equation_mirror": {
+    "source_file": "Artifact/shaders/heightFogCS.hlsl",
+    "status": "Equation-level Python mirror only; shader was not compiled or dispatched.",
+    "contract": {
+      "depth": "normalized linear ray distance / 120",
+      "near": 0.0,
+      "far": 120.0,
+      "start_distance": 0.0,
+      "source_equation_distance_factor": "distance / far when start_distance=0; the shader multiplies this by distance again in opticalDepth",
+      "camera_height": "constant for all pixels",
+      "world_position_reconstruction": false
+    },
+    "camera_height_sweep": {
+      "0": {
+        "shader_mirror_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.03707557519553736,
+            0.03751707874388811,
+            0.03476508694872807
+          ],
+          "max_absolute_rgb": [
+            0.3824464065540507,
+            0.219864564120281,
+            0.20049745436489141
+          ],
+          "rgb_rmse": 0.04307554601530002,
+          "pixels_max_channel_delta_over_1e-3": 36118,
+          "pixel_count": 36864
+        },
+        "camera_height_only_linear_path_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.016403006515785693,
+            0.015061277631178609,
+            0.0076401876954364034
+          ],
+          "max_absolute_rgb": [
+            0.07376174029228233,
+            0.06881894326238713,
+            0.06387614623249194
+          ],
+          "rgb_rmse": 0.021776946320640065,
+          "pixels_max_channel_delta_over_1e-3": 17745,
+          "pixel_count": 36864
+        },
+        "shader_mirror_vs_current_height_analytic": {
+          "mean_absolute_rgb": [
+            0.03667662622295013,
+            0.036423969449292465,
+            0.02786570868445383
+          ],
+          "max_absolute_rgb": [
+            0.20349529722698367,
+            0.11698738452916979,
+            0.11225398534100922
+          ],
+          "rgb_rmse": 0.04011231489494194,
+          "pixels_max_channel_delta_over_1e-3": 36847,
+          "pixel_count": 36864
+        }
+      },
+      "4": {
+        "shader_mirror_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.03232410482361138,
+            0.0330570949209373,
+            0.030708758756641544
+          ],
+          "max_absolute_rgb": [
+            0.31892964374004507,
+            0.18334942074042226,
+            0.150451951798936
+          ],
+          "rgb_rmse": 0.03813455280506358,
+          "pixels_max_channel_delta_over_1e-3": 36864,
+          "pixel_count": 36864
+        },
+        "camera_height_only_linear_path_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.01687793925018745,
+            0.016246961788507902,
+            0.010409874401188506
+          ],
+          "max_absolute_rgb": [
+            0.05666479916145395,
+            0.05286767344444909,
+            0.04907054772744468
+          ],
+          "rgb_rmse": 0.019801433359765145,
+          "pixels_max_channel_delta_over_1e-3": 35014,
+          "pixel_count": 36864
+        },
+        "shader_mirror_vs_current_height_analytic": {
+          "mean_absolute_rgb": [
+            0.030378925673556115,
+            0.030422653836943456,
+            0.024987723800951604
+          ],
+          "max_absolute_rgb": [
+            0.21612723588559835,
+            0.12424935807520088,
+            0.08903571293317425
+          ],
+          "rgb_rmse": 0.03257477061925601,
+          "pixels_max_channel_delta_over_1e-3": 36857,
+          "pixel_count": 36864
+        }
+      },
+      "20": {
+        "shader_mirror_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.010955302500576388,
+            0.011128204113877884,
+            0.009847961017089428
+          ],
+          "max_absolute_rgb": [
+            0.09152702561802428,
+            0.052617959661463765,
+            0.04455978788742554
+          ],
+          "rgb_rmse": 0.012538337714834865,
+          "pixels_max_channel_delta_over_1e-3": 36588,
+          "pixel_count": 36864
+        },
+        "camera_height_only_linear_path_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            0.006407153739028154,
+            0.006158712651256965,
+            0.0038505752074307273
+          ],
+          "max_absolute_rgb": [
+            0.017548970126114227,
+            0.016373008210446738,
+            0.017505708088707106
+          ],
+          "rgb_rmse": 0.007687381410017502,
+          "pixels_max_channel_delta_over_1e-3": 31350,
+          "pixel_count": 36864
+        },
+        "shader_mirror_vs_current_height_analytic": {
+          "mean_absolute_rgb": [
+            0.02040465356542834,
+            0.02232155962075559,
+            0.024713540918580062
+          ],
+          "max_absolute_rgb": [
+            0.2404086011196238,
+            0.14581514475541546,
+            0.16321755773011593
+          ],
+          "rgb_rmse": 0.033023415251465425,
+          "pixels_max_channel_delta_over_1e-3": 35806,
+          "pixel_count": 36864
+        }
+      },
+      "100": {
+        "shader_mirror_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            1.9784529236954214e-05,
+            2.0044001336673685e-05,
+            1.7394933730057493e-05
+          ],
+          "max_absolute_rgb": [
+            0.0001539496686753239,
+            8.850410467875491e-05,
+            7.586775009293945e-05
+          ],
+          "rgb_rmse": 2.247043495271047e-05,
+          "pixels_max_channel_delta_over_1e-3": 0,
+          "pixel_count": 36864
+        },
+        "camera_height_only_linear_path_vs_world_height_analytic": {
+          "mean_absolute_rgb": [
+            1.2050887477766269e-05,
+            1.1579749708443898e-05,
+            7.182041211950346e-06
+          ],
+          "max_absolute_rgb": [
+            3.0393422846941576e-05,
+            3.0509872057771226e-05,
+            3.590666558188349e-05
+          ],
+          "rgb_rmse": 1.4582726923800204e-05,
+          "pixels_max_channel_delta_over_1e-3": 0,
+          "pixel_count": 36864
+        },
+        "shader_mirror_vs_current_height_analytic": {
+          "mean_absolute_rgb": [
+            0.031344340240085734,
+            0.033711537250081886,
+            0.033258761978825796
+          ],
+          "max_absolute_rgb": [
+            0.2497789186331829,
+            0.22500309604811058,
+            0.27306200976712447
+          ],
+          "rgb_rmse": 0.04504653350838553,
+          "pixels_max_channel_delta_over_1e-3": 36864,
+          "pixel_count": 36864
+        }
+      }
+    },
+    "density_falloff_sweep_at_camera_height_4": {
+      "density=0.002,falloff=0.02": {
+        "mean_absolute_rgb": [
+          0.00798295216398115,
+          0.008263049460656533,
+          0.008396013630654111
+        ],
+        "max_absolute_rgb": [
+          0.09495763670786772,
+          0.06595574074321986,
+          0.06121858809315439
+        ],
+        "rgb_rmse": 0.010605478082443054,
+        "pixels_max_channel_delta_over_1e-3": 36056,
+        "pixel_count": 36864
+      },
+      "density=0.002,falloff=0.08": {
+        "mean_absolute_rgb": [
+          0.009931988576617545,
+          0.01008605965738221,
+          0.008908274493238688
+        ],
+        "max_absolute_rgb": [
+          0.08239908289147646,
+          0.04737039787373387,
+          0.04016515159246614
+        ],
+        "rgb_rmse": 0.011357084044741454,
+        "pixels_max_channel_delta_over_1e-3": 36588,
+        "pixel_count": 36864
+      },
+      "density=0.002,falloff=0.2": {
+        "mean_absolute_rgb": [
+          0.00851378422407237,
+          0.008776514187341074,
+          0.007670236734476437
+        ],
+        "max_absolute_rgb": [
+          0.06236484551998345,
+          0.03762928359393869,
+          0.03610844430569052
+        ],
+        "rgb_rmse": 0.010030845645161266,
+        "pixels_max_channel_delta_over_1e-3": 36682,
+        "pixel_count": 36864
+      },
+      "density=0.008,falloff=0.02": {
+        "mean_absolute_rgb": [
+          0.026021700398990773,
+          0.027230160001302628,
+          0.02933511067646564
+        ],
+        "max_absolute_rgb": [
+          0.3654489980143305,
+          0.24043284291821054,
+          0.22316418569204055
+        ],
+        "rgb_rmse": 0.03730817893461716,
+        "pixels_max_channel_delta_over_1e-3": 36540,
+        "pixel_count": 36864
+      },
+      "density=0.008,falloff=0.08": {
+        "mean_absolute_rgb": [
+          0.03232410482361138,
+          0.0330570949209373,
+          0.030708758756641544
+        ],
+        "max_absolute_rgb": [
+          0.31892964374004507,
+          0.18334942074042226,
+          0.150451951798936
+        ],
+        "rgb_rmse": 0.03813455280506358,
+        "pixels_max_channel_delta_over_1e-3": 36864,
+        "pixel_count": 36864
+      },
+      "density=0.008,falloff=0.2": {
+        "mean_absolute_rgb": [
+          0.029855741429536137,
+          0.030838008762040434,
+          0.02753315313795697
+        ],
+        "max_absolute_rgb": [
+          0.24353077396326217,
+          0.14000337445905542,
+          0.11467998903580232
+        ],
+        "rgb_rmse": 0.035133428249131245,
+        "pixels_max_channel_delta_over_1e-3": 36864,
+        "pixel_count": 36864
+      },
+      "density=0.02,falloff=0.02": {
+        "mean_absolute_rgb": [
+          0.0490321806316449,
+          0.05193181858526402,
+          0.059997835784889895
+        ],
+        "max_absolute_rgb": [
+          0.8466013656968983,
+          0.5008116668331384,
+          0.4648417681103163
+        ],
+        "rgb_rmse": 0.07793932863800389,
+        "pixels_max_channel_delta_over_1e-3": 36312,
+        "pixel_count": 36864
+      },
+      "density=0.02,falloff=0.08": {
+        "mean_absolute_rgb": [
+          0.05794468837729941,
+          0.0600108803627027,
+          0.06072280180565589
+        ],
+        "max_absolute_rgb": [
+          0.7471173712564729,
+          0.42951020682365515,
+          0.33029182323321793
+        ],
+        "rgb_rmse": 0.07472423399040597,
+        "pixels_max_channel_delta_over_1e-3": 36864,
+        "pixel_count": 36864
+      },
+      "density=0.02,falloff=0.2": {
+        "mean_absolute_rgb": [
+          0.05910058576252572,
+          0.06129593787629823,
+          0.05703352064127539
+        ],
+        "max_absolute_rgb": [
+          0.5804825935121807,
+          0.33371356146845654,
+          0.20521217661187713
+        ],
+        "rgb_rmse": 0.070589072500965,
+        "pixels_max_channel_delta_over_1e-3": 36864,
+        "pixel_count": 36864
+      }
+    },
+    "interpretation": "Compares the source shader equation (including its distanceFactor * distance term) and an isolated camera-height-only linear path against analytic world-height extinction on the same fixed depth/color fixture; the sweep holds scene depth/color fixed."
+  },
+  "cpu_source_formula_mirror": {
+    "source_files": [
+      "ArtifactCore/src/Render/AtmosphereFog.cpp::applyToImage",
+      "ArtifactCore/src/Render/AtmosphereFog.cpp::applyToPixel"
+    ],
+    "status": "Equation-level Python mirror only; C++ implementation was not built or called.",
+    "io": {
+      "color": "RGB8",
+      "depth": "RGB8 normalized linear distance",
+      "near": 0.0,
+      "far": 120.0,
+      "max_distance": 120.0,
+      "alpha": "not represented"
+    },
+    "settings": {
+      "density": 0.1,
+      "height_falloff": 0.5,
+      "absorption": 0.1,
+      "max_distance": 120.0,
+      "fog_color": [
+        0.5,
+        0.6,
+        0.7
+      ],
+      "horizon_color": [
+        0.67,
+        0.53,
+        0.36
+      ]
+    },
+    "hdr_source_pixels_clipped_by_rgb8_input": 524,
+    "source_formula_vs_height_analytic_same_io": {
+      "mean_absolute_rgb": [
+        0.05534832856754522,
+        0.026673134531590155,
+        0.029265386710231694
+      ],
+      "max_absolute_rgb": [
+        0.1411764705882353,
+        0.09019607843137256,
+        0.1215686274509804
+      ],
+      "rgb_rmse": 0.0559963574403701,
+      "pixels_max_channel_delta_over_1e-3": 36863,
+      "pixel_count": 36864
+    },
+    "interpretation": "applyToPixel uses uniform density * heightFalloff, while the paired Beer-Lambert height reference uses density * exp(-heightFalloff * height). Same authoring settings and RGB8 IO; the reference does not reproduce evaluateFog in-scattering. ImageBuffer has no alpha channel."
+  },
+  "preview_transform": "Reinhard channel mapping followed by gamma 1/2.2; PFM remains linear unclamped.",
+  "limitations": [
+    "Synthetic scene and arbitrary world units.",
+    "F4 is single scattering with exact sun-path extinction in an unoccluded exponential medium.",
+    "F4 omits scene shadowing, multiple scattering, polarization, wavelength sampling, and planetary curvature.",
+    "No product renderer, GPU backend, alpha path, or display color-management path is exercised."
+  ]
+}

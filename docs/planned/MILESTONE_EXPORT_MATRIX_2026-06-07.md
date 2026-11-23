@@ -1,12 +1,25 @@
 # Export Matrix And Alpha Clarity Milestone
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-11-19
 
 > 2026-06-07 作成
 
 > 2026-07-25 実装監査: `ExportMatrix`／variant／preset／cell rule の JSON schema、cell 解決、WorkspaceAutomation の resolve／job生成／現行 composition への queue 入口は実装を確認した。一方、本書の alpha clarity 要件（用途プリセットのUI、straight／premultiplied の比較、alpha edge check、export 前の警告集約）は別の出力基盤と部分的な警告に留まり、専用の一貫した preview／preflight workflow は未確認である。Matrix のデータ／automation 基盤は実装済み、UI と alpha 契約・検査は継続とする。
 
-**ステータス:** Export Matrix／preset／automation と出力設定ガイドは実装済み、alpha preflight／比較 workflow と runtime 検証が未完了
+**ステータス:** Export Matrix／preset／automation と出力設定ガイドは実装済み。AlphaState 契約（Phase 2/4 の配線）と alpha edge／fringe 検査（Phase 3 の检测方法）は実装済み。straight／premultiplied の比較 UI と runtime 検証は未完了
+
+## Update 2026-11-19 (AlphaState contract wiring)
+
+`ArtifactRenderJob` に `AlphaState`（`auto` / `opaque` / `straight` / `premultiplied` / `alpha-only`）を追加し、
+render queue → 出力設定ダイアログ → ジョブ永続化 → エンコーダ → preflight まで接続した。
+
+- エンコーダ側の pix_fmt 選択を `ffmpegPixelFormatForJob()` に一元化した。`auto` は従来の形式／コーデック依存の動作を維持し、明示的な `straight` / `premultiplied` はコーデックが対応する場合に alpha 対応 pix_fmt（H.264/H.265/VP9 は `yuva420p`、ProRes 4444 は `yuva444p10le`、PNG/APNG/WebP は `rgba`）を選ぶ。連番→動画のフォールバック経路も同じ関数を使う。
+- `preflightRenderQueueAt()` が、alpha を保持できないコンテナ／コーデックの組み合わせ、Premultiplied の境界変換必要性、`alpha-only`（現行エンコーダ未対応）を警告／エラーで通知する。
+- 出力設定ダイアログに Alpha state 選択を追加し、Render Queue Manager のジョブ設定と双方向に同期する。
+- 明示的な `opaque` は ProRes 4444／PNG／APNG／WebP の alpha 対応形式も非 alpha 形式へ上書きする（`auto` は従来どおり）。
+- `preflightRenderQueueAt()` に alpha edge check を追加した。代表フレームをコンポジションの detached snapshot で 1 枚レンダリングし、 fully transparent なのに RGB が残るピクセル（resample 時のフリンジ原因）と、partial coverage ピクセルの RGB／alpha 比から straight／premultiplied の不一致をサンプリング検出する。
+- ネイティブ FFmpeg バックエンドも alpha を保持できるようにした。`FFmpegEncoderSettings::pixelFormat` を追加し、`FFmpegEncoder` がソフトウェアエンコーダーに対してのみ指定形式を適用する。明示ジョブで `native` を選ぶとこの経路を使い、hardware/GPU/auto は従来どおり software pipe へ切り替わる。
+- 未実装・未検証: straight／premultiplied を並べて見る比較 UI、内部 premultiplied バッファから straight への明示変換、実ファイルでの alpha 保持、HW エンコーダーの capability、ビルド／テスト／実機確認。
 
 ## Update 2026-08-15
 

@@ -1,0 +1,27 @@
+{
+  "intent": "Maximum-Intensity sensitivity control for Chromatic Glow Dispersion on the synthetic probe; diagnostic only, not an accepted preset.",
+  "profiles": {
+    "probe-intensity4-dispersion0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 4.0,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "probe-intensity4-dispersion2": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 4.0,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

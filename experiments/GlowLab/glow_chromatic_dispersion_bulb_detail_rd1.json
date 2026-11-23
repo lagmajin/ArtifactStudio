@@ -1,0 +1,27 @@
+{
+  "intent": "Bulb-fringe detail profile: high threshold isolates bright practical cores, Tint Mix 0 retains shifted samples; exploratory, not accepted.",
+  "profiles": {
+    "bulb-detail-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.9,
+        "Radius": 24.0,
+        "Intensity": 0.8,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    },
+    "bulb-detail-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.9,
+        "Radius": 24.0,
+        "Intensity": 0.8,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 0.0
+      }
+    }
+  }
+}

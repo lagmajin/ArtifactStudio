@@ -1,0 +1,155 @@
+{
+  "intent": "Standalone Glow-family gallery on a deterministic textured emissive fixture. Each registered non-temporal specialist, including the classic Glow effect, branches directly from identical input pixels with its existing role-candidate settings. Residual Glow is omitted because a still does not exercise history. Point Rays is aligned to the fixture ring emitter. Exploratory, not preset acceptance.",
+  "input": "captures/glow-suite-material-fixture-rd1/source.png",
+  "foundation": null,
+  "recipes": {
+    "glow": [
+      {
+        "effect_id": "glow",
+        "properties": {
+          "glowGain": 2.5,
+          "layerCount": 4,
+          "baseSigma": 10.0
+        }
+      }
+    ],
+    "edge_bloom": [
+      {
+        "effect_id": "edge_bloom",
+        "properties": {
+          "Threshold": 0.8,
+          "Threshold Softness": 0.15,
+          "Radius": 8.0,
+          "Amount": 0.55,
+          "Edge Boost": 0.75,
+          "Tint Mix": 0.2
+        }
+      }
+    ],
+    "reactive_glow": [
+      {
+        "effect_id": "reactive_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.55,
+          "Reaction": 0.8,
+          "Saturation Weight": 0.6,
+          "Tint Mix": 0.18
+        }
+      }
+    ],
+    "chromatic_glow": [
+      {
+        "effect_id": "chromatic_glow",
+        "properties": {
+          "Threshold": 0.6,
+          "Radius": 7.0,
+          "Intensity": 0.65,
+          "Dispersion": 1.5,
+          "Angle": 0.0,
+          "Tint Mix": 0.25
+        }
+      }
+    ],
+    "liquid_glow": [
+      {
+        "effect_id": "liquid_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.6,
+          "Flow Scale": 30.0,
+          "Distortion": 3.0,
+          "Phase": 0.0
+        }
+      }
+    ],
+    "directional_glow": [
+      {
+        "effect_id": "directional_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Intensity": 0.45,
+          "Length 1 (Inner)": 18.0,
+          "Length 2 (Outer)": 60.0,
+          "Weight 1": 0.7,
+          "Weight 2": 0.25,
+          "Pattern": 0,
+          "Angle Offset": 0.0
+        }
+      }
+    ],
+    "physical_halation": [
+      {
+        "effect_id": "physical_halation",
+        "properties": {
+          "Threshold": 0.65,
+          "Spread": 18.0,
+          "Intensity": 0.5,
+          "Red Diffusion": 2.0,
+          "Softness": 0.5
+        }
+      }
+    ],
+    "luminescence_caustics": [
+      {
+        "effect_id": "luminescence_caustics",
+        "properties": {
+          "Threshold": 0.45,
+          "Edge Weight": 0.8,
+          "Scale": 22.0,
+          "Intensity": 0.55,
+          "Evolution": 0.0,
+          "Color Shift": 0.25
+        }
+      }
+    ],
+    "builtin-optical_glow": [
+      {
+        "effect_id": "builtin.optical_glow",
+        "properties": {
+          "threshold": 0.4,
+          "softKnee": 0.3,
+          "radius": 8.0,
+          "intensity": 0.7,
+          "afterglowRadius": 20.0,
+          "afterglowIntensity": 0.25,
+          "streakStrength": 0.2,
+          "atmosphere": 0.1,
+          "warmth": 0.2
+        }
+      }
+    ],
+    "builtin-volumetric_shine": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.271,
+          "sourceY": 0.38,
+          "rayLength": 0.45,
+          "intensity": 0.45,
+          "decay": 0.8,
+          "samples": 32,
+          "threshold": 0.35,
+          "warmth": 0.1
+        }
+      }
+    ],
+    "builtin-glint_star_filter": [
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.7,
+          "length": 24.0,
+          "width": 0.8,
+          "rays": 6,
+          "rotation": 0.0,
+          "chromatic": 0.15,
+          "softness": 0.7
+        }
+      }
+    ]
+  }
+}

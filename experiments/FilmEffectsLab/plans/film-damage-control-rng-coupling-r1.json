@@ -1,0 +1,44 @@
+{
+  "plan_version": 1,
+  "plan_id": "film-damage-control-rng-coupling-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Determine which Film Damage controls and raster dimensions change the shared random-call schedule before later scratch, flicker and film-burn-center decisions, and quantify the source-level call-count coupling without claiming rendered RNG parity.",
+  "scope": {
+    "effect": "FilmDamageCPUImpl shared mt19937 / uniform_real_distribution / normal_distribution call order, excluding per-row grain RNG.",
+    "method": "Static source markers plus a high-level distribution-call ledger using the exact source integer count formulas and fixed control/dimension matrix. No random engine is executed or emulated.",
+    "excluded": ["C++ compilation or invocation", "MSVC STL distribution raw-engine consumption", "actual random values or mark placements", "rendered pixel/image quality", "compiled/runtime app output", "GPU/backend parity", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "Default Dust=.08, Scratches=.10, Seed=1977, Evolution=0 at 512x512. Baseline is a call-ledger reference, not a preferred quality state.",
+    "candidates": ["Dust values 0, .01, .08, .16, 1 with Scratches fixed .10", "Scratch values 0, .05, .0555556, .10, .25, 1 with Dust fixed .08", "dimensions 256x256, 512x256, 512x512, 1024x512, 1024x1024", "combined default, zero-damage, and maximum Dust/Scratches cases"],
+    "ground_truth": "None. This is a source call-graph/count analysis, not visual output comparison.",
+    "acceptance": "Descriptive source-contract result. Exact integer counts and explicit distribution invocation counts must match source formulas. Do not infer exact engine positions, random values, placements or visible differences."
+  },
+  "materials": {
+    "fixture": "No pixel fixture. Conditions are source defaults and selected in-range control/dimension values.",
+    "rights": "Not applicable; no external or image material.",
+    "identity": "Record SHA-256 of source, plan and runner; output metrics include every evaluated condition and source marker."
+  },
+  "conditions": {
+    "numeric_domain": "Controls are nonnegative Float values in the source clamp ranges. Count model uses truncation toward zero; input products are evaluated as IEEE float32 to reflect source float expressions before integer conversion.",
+    "frame_and_seed": "Seed=1977 and Evolution=0 as fixed labels; frameKey affects the base engine seed but not call counts. No engine sequence is generated.",
+    "source_call_schedule": "Gate weave requests 2 normal variates; each dust mark requests 5 uniform variates; each scratch requests 5 uniform plus 1 normal variate; Flicker requests 1 normal variate; burn center requests 2 uniform variates. Distribution-internal engine draw counts are implementation-dependent and excluded.",
+    "metrics": ["dustCount=int(dust*width*height/180)", "scratchCount=int(scratches*18)", "uniform and normal distribution invocation totals", "position in the declared high-level call ledger at Flicker and Burn center", "delta from baseline and zero-damage cases", "per-row grain RNG independence marker", "dimension/control source markers"],
+    "image_output": "No image is generated: no random values are emulated, and synthetic placements would not answer the static call-schedule question."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_contract_only", "method": "Verify formulas and loop call sites in FilmDamageEffect.cpp against the ledger; cross-check control clamps and separate rowRng construction.", "acceptance_criteria": "Source markers all resolve; formula counts match exact truncating float32 computations for every condition. No output parity claim."},
+    "image_quality_and_detail": {"status": "not_applicable_to_this_audit", "reason": "This audit measures random-call coupling, not image appearance; no positions or pixels are generated."},
+    "color_and_alpha": {"status": "not_applicable_to_this_audit", "reason": "No pixel values or alpha are generated."},
+    "temporal_stability": {"status": "source_schedule_only", "method": "Compare control/dimension call counts at a fixed seed/frame key. Prior Evolution key audit covers frame quantization separately.", "unverified": "Actual per-frame draws, visible flicker and seek/reverse output."},
+    "render_paths_and_resolution": {"status": "static_source_only", "method": "Compare source count formulas across five raster sizes.", "unverified": "Application dispatch, raster dimensions received, preview/final behavior and actual output."},
+    "performance": {"status": "unverified", "reason": "Call counts are not runtime timings or allocation measurements."}
+  },
+  "execution": {
+    "backend": "Python 3 static source analysis; no C++/app execution.",
+    "artifacts": "experiments/FilmEffectsLab/captures/film-damage-control-rng-coupling-r1/metrics.json and checksums.json",
+    "threshold_policy": "Source counts are exact under the stated float32/truncation model; quality thresholds are not applicable.",
+    "reproducibility": "Record Python version, input hashes, source markers, condition matrix and generated artifact hashes."
+  }
+}

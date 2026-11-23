@@ -9,7 +9,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../StandaloneTestHelpers.cmake")
 set(ARTIFACT_CORE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../ArtifactCore")
 
 artifact_add_standalone_module_interface(TypedColumnModuleInterfaces
-    BASE_DIRS "${ARTIFACT_CORE_ROOT}"
+    BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
     MODULES
         "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cppm"
         "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactArray.ixx"

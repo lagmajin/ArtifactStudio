@@ -1,0 +1,1583 @@
+{
+  "schema": "planetary-atmosphere-scattering-rd-v1",
+  "image_size": [
+    96,
+    54
+  ],
+  "camera": {
+    "planet_center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "planet_radius_m": 6360000.0,
+    "altitude_m": 2000.0,
+    "view_direction": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "vertical_fov_degrees": 70.0
+  },
+  "atmosphere": {
+    "top_height_m": 100000.0,
+    "rayleigh_scale_height_m": 8000.0,
+    "mie_scale_height_m": 1200.0,
+    "beta_rayleigh_rgb_per_m": [
+      5.8e-06,
+      1.35e-05,
+      3.31e-05
+    ],
+    "beta_mie_scattering_rgb_per_m": [
+      2.1e-05,
+      2.1e-05,
+      2.1e-05
+    ],
+    "beta_mie_extinction_rgb_per_m": [
+      2.3333333333333332e-05,
+      2.3333333333333332e-05,
+      2.3333333333333332e-05
+    ],
+    "mie_g": 0.76,
+    "sun_elevation_degrees": 18.0,
+    "sun_azimuth_degrees_from_view_forward": 25.0,
+    "sun_radiance": 18.0
+  },
+  "output": {
+    "format": "PFM RGB float32 little-endian",
+    "space": "linear scene-referred radiance",
+    "preview_transform": "Reinhard channel mapping followed by gamma 1/2.2",
+    "mean_luminance_metric": "Rec.709 weighted RGB proxy; not photometrically calibrated"
+  },
+  "variants": {
+    "rayleigh_32x16": {
+      "pfm": "rayleigh_32x16.pfm",
+      "pfm_sha256": "d6b663bc48b7d57a2bbff5205bbbcf9df508742d596f0494c30bd262faadfe81",
+      "preview_png": "rayleigh_32x16_preview.png",
+      "preview_sha256": "2f413300964686b4d531ec7bf6221a5884af0dd6653536b1bc378d91066078fc"
+    },
+    "rayleigh_mie_g076_32x16": {
+      "pfm": "rayleigh_mie_g076_32x16.pfm",
+      "pfm_sha256": "ecce24bc0b356b3e2e63c8a6c1f345a2559d4b9dd6e881bdfcb5e89de9d331fb",
+      "preview_png": "rayleigh_mie_g076_32x16_preview.png",
+      "preview_sha256": "f3976342e1b1d18efd47f335a6fc2b71c871b6cbb25fdc8647dfb4059ff9af6b"
+    },
+    "rayleigh_mie_g076_altitude_biased_32x16": {
+      "pfm": "rayleigh_mie_g076_altitude_biased_32x16.pfm",
+      "pfm_sha256": "f65d22fc47c7b43caedf71f84f990cd1889243dace6188c6589e34347f749832",
+      "preview_png": "rayleigh_mie_g076_altitude_biased_32x16_preview.png",
+      "preview_sha256": "96d591d709798f7efa7f077065b613bc91d824cf682ee088970ec2ceb583f619"
+    },
+    "rayleigh_mie_isotropic_32x16": {
+      "pfm": "rayleigh_mie_isotropic_32x16.pfm",
+      "pfm_sha256": "1b2875ceca059c34f7aee70a93b1d42d08eb9d2ddaa21079f6aa4638d4d9cc79",
+      "preview_png": "rayleigh_mie_isotropic_32x16_preview.png",
+      "preview_sha256": "4627fb0bc0ce38d776a24ca4a55d23476efa7ebe23ebbfec05bac79eed668b96"
+    },
+    "mie_g_050_32x16": {
+      "pfm": "mie_g_050_32x16.pfm",
+      "pfm_sha256": "9d214bed6e3fd5bc8943f840771f74f81ec5b63f39bd566c101d66a33b6db011",
+      "preview_png": "mie_g_050_32x16_preview.png",
+      "preview_sha256": "72dccbc1cce46134816c3f9316f99478c41c42680066ea6cf43a16cae0371f62"
+    },
+    "rayleigh_mie_g076_64x24": {
+      "pfm": "rayleigh_mie_g076_64x24.pfm",
+      "pfm_sha256": "89e519c999fe726e96b39b06886eba8780a32dd909088a7b3fef327096e2566d",
+      "preview_png": "rayleigh_mie_g076_64x24_preview.png",
+      "preview_sha256": "d2662994b2a9a58ee30739d2a63eb414b20f006ced4f0bef9ca7c91205a33c89"
+    },
+    "mie_g_090_32x16": {
+      "pfm": "mie_g_090_32x16.pfm",
+      "pfm_sha256": "f261bea5d9be7e42d9fa09d313bb1af426f5b95e1ca726a1fe3e2ac978e7bef0",
+      "preview_png": "mie_g_090_32x16_preview.png",
+      "preview_sha256": "94db9a284984b4ed211b3ad8e0ec15f3486bc81b850e5579b67b45fa42eeb319"
+    },
+    "rayleigh_mie_g076_128x48": {
+      "pfm": "rayleigh_mie_g076_128x48.pfm",
+      "pfm_sha256": "b6959a195c229aa2899061ddb7cf07dbb63cf043220b6b409d06d0d94218482f",
+      "preview_png": "rayleigh_mie_g076_128x48_preview.png",
+      "preview_sha256": "c3b567ae67aa02fd3c043deca607211b2624e16e4fb7eb274951b2896da337fd"
+    },
+    "sun_elevation_0_32x16": {
+      "pfm": "sun_elevation_0_32x16.pfm",
+      "pfm_sha256": "e754bc2945907e635de5c8490bf7055bf73c2b1c96372fcdd7f060b704ef47a3",
+      "preview_png": "sun_elevation_0_32x16_preview.png",
+      "preview_sha256": "0f9d0a9b19375e9541b3554ffb6325fee807ef510f2fb681e9d201bb90a95038"
+    },
+    "sun_elevation_5_32x16": {
+      "pfm": "sun_elevation_5_32x16.pfm",
+      "pfm_sha256": "9a3cb02642ae441a118155548006225ae3d9a436edf73aae47ade9dad8a334ed",
+      "preview_png": "sun_elevation_5_32x16_preview.png",
+      "preview_sha256": "437dc05925e4ba4f471e52bba0fbde1b393c4fb4501fed05b79341bfdc065080"
+    },
+    "sun_elevation_45_32x16": {
+      "pfm": "sun_elevation_45_32x16.pfm",
+      "pfm_sha256": "f60a714fc998259377b07e9e7e1e59d1a3992766de917fea24b9164dd180b1d9",
+      "preview_png": "sun_elevation_45_32x16_preview.png",
+      "preview_sha256": "56e855e23c1eaf09e4ee5569180c7168de61313e09e452a3706d044ce1376f43"
+    },
+    "sun_elevation_75_32x16": {
+      "pfm": "sun_elevation_75_32x16.pfm",
+      "pfm_sha256": "ca68f698ac346cc32734b7839ff09cd077e3a47e6ebffeffff2c2189c8a5ceee",
+      "preview_png": "sun_elevation_75_32x16_preview.png",
+      "preview_sha256": "66ce893ce66e20fe0212da9f4f0aaeaba0a06ff1d1e396aa769839b6e8bcb51c"
+    },
+    "camera_altitude_0_5km_32x16": {
+      "pfm": "camera_altitude_0_5km_32x16.pfm",
+      "pfm_sha256": "35083442a3a8777af41263c1d58f7259cfa22dbb13b9dc8fd5b33ce60823ffae",
+      "preview_png": "camera_altitude_0_5km_32x16_preview.png",
+      "preview_sha256": "65ccb7ad8f6b28acdb28437686b1a3d9c6c2cc143d0614e9ae1dc308247aea88"
+    },
+    "camera_altitude_10km_32x16": {
+      "pfm": "camera_altitude_10km_32x16.pfm",
+      "pfm_sha256": "60a4001b7dea9ac4f19882c377e6614b65e5a861cfc265782e00e128bad198c7",
+      "preview_png": "camera_altitude_10km_32x16_preview.png",
+      "preview_sha256": "8a9860634a1d2d25f6972ea5d6c8239d22e2a521309544f8fe12c70f8e5a63e6"
+    },
+    "camera_altitude_50km_32x16": {
+      "pfm": "camera_altitude_50km_32x16.pfm",
+      "pfm_sha256": "fac30036c4c6a0b48a5dec2f2c564d99b95b5978e9a91abc654188a18b8ebebc",
+      "preview_png": "camera_altitude_50km_32x16_preview.png",
+      "preview_sha256": "94f4f7d05010b9ce69fc3cf2b5cf160a8b2d65fa506c98701f96ce1b98486a5d"
+    }
+  },
+  "radiance_summary": {
+    "rayleigh_32x16": {
+      "mean_rgb": [
+        0.18716453227005622,
+        0.32517909002099155,
+        0.43653367102736146
+      ],
+      "max_rgb": [
+        0.9848027062527843,
+        1.2669151206929035,
+        1.1568629735878249
+      ],
+      "mean_luminance": 0.30387699579180255
+    },
+    "rayleigh_mie_g076_32x16": {
+      "mean_rgb": [
+        0.4337792548757997,
+        0.5101658325974765,
+        0.5347571589604928
+      ],
+      "max_rgb": [
+        5.7525117859683945,
+        3.8891825082108955,
+        1.7937102821431106
+      ],
+      "mean_luminance": 0.4957015399372578
+    },
+    "rayleigh_mie_g076_altitude_biased_32x16": {
+      "mean_rgb": [
+        0.4484605581060406,
+        0.5223593741062217,
+        0.5417472704449784
+      ],
+      "max_rgb": [
+        5.750967416244249,
+        3.8858500804669434,
+        1.7937178745330633
+      ],
+      "mean_luminance": 0.5080482919402415
+    },
+    "rayleigh_mie_isotropic_32x16": {
+      "mean_rgb": [
+        0.28826928689164727,
+        0.400992781661916,
+        0.4762626690839718
+      ],
+      "max_rgb": [
+        1.6116705995881697,
+        1.4965030180082308,
+        1.2100564914605971
+      ],
+      "mean_luminance": 0.38246225254562927
+    },
+    "mie_g_050_32x16": {
+      "mean_rgb": [
+        0.41648137286763176,
+        0.4959857280396553,
+        0.5252612060336874
+      ],
+      "max_rgb": [
+        3.910245016474786,
+        2.8133723294174455,
+        1.4506272582517616
+      ],
+      "mean_luminance": 0.4811967916412521
+    },
+    "rayleigh_mie_g076_64x24": {
+      "mean_rgb": [
+        0.44179769410801356,
+        0.5160320330569184,
+        0.5365449906884346
+      ],
+      "max_rgb": [
+        5.735251824756403,
+        3.893802123672828,
+        1.8386023309097748
+      ],
+      "mean_luminance": 0.5017308481373767
+    },
+    "mie_g_090_32x16": {
+      "mean_rgb": [
+        0.3612297525466158,
+        0.4609871942203341,
+        0.5148570109283324
+      ],
+      "max_rgb": [
+        3.892554866291919,
+        3.1662151219362844,
+        2.601804417839945
+      ],
+      "mean_luminance": 0.443668162886819
+    },
+    "rayleigh_mie_g076_128x48": {
+      "mean_rgb": [
+        0.4423021053893123,
+        0.5157256012261402,
+        0.534782122567106
+      ],
+      "max_rgb": [
+        5.708775055470726,
+        3.876950630886896,
+        1.8395635926506848
+      ],
+      "mean_luminance": 0.5014916468520483
+    },
+    "sun_elevation_0_32x16": {
+      "mean_rgb": [
+        0.1878635902722805,
+        0.0986998482625523,
+        0.04300305274637603
+      ],
+      "max_rgb": [
+        5.645091473652249,
+        0.9204622279699433,
+        0.14829599984826713
+      ],
+      "mean_luminance": 0.11363475117755258
+    },
+    "sun_elevation_5_32x16": {
+      "mean_rgb": [
+        0.5196795976120263,
+        0.41184983882266446,
+        0.22596281243928007
+      ],
+      "max_rgb": [
+        12.901436682336245,
+        5.800543703398336,
+        0.9710818904409245
+      ],
+      "mean_luminance": 0.4213534022364025
+    },
+    "sun_elevation_45_32x16": {
+      "mean_rgb": [
+        0.22817759309372077,
+        0.3650276573500706,
+        0.5335071039672289
+      ],
+      "max_rgb": [
+        1.2743711463253506,
+        1.3234147467473014,
+        1.2655742730949946
+      ],
+      "mean_luminance": 0.3480975497349294
+    },
+    "sun_elevation_75_32x16": {
+      "mean_rgb": [
+        0.15625466290840329,
+        0.2767334496279123,
+        0.44032100905054444
+      ],
+      "max_rgb": [
+        0.6381774536609554,
+        0.8577343425476471,
+        0.9063130943394885
+      ],
+      "mean_luminance": 0.2629306813616587
+    },
+    "camera_altitude_0_5km_32x16": {
+      "mean_rgb": [
+        0.5643046960833362,
+        0.5871258668822248,
+        0.5253946885706073
+      ],
+      "max_rgb": [
+        7.734681736459482,
+        5.148235647192626,
+        2.2456584479304613
+      ],
+      "mean_luminance": 0.5778170948962822
+    },
+    "camera_altitude_10km_32x16": {
+      "mean_rgb": [
+        0.29131858202728994,
+        0.4074991772266314,
+        0.548048437967429
+      ],
+      "max_rgb": [
+        4.147827894305195,
+        2.4283560055440856,
+        1.578495675906897
+      ],
+      "mean_luminance": 0.392946839312737
+    },
+    "camera_altitude_50km_32x16": {
+      "mean_rgb": [
+        0.17290487135100605,
+        0.2480543834245645,
+        0.3380949066358922
+      ],
+      "max_rgb": [
+        2.932817023694537,
+        2.050149676533512,
+        1.7701836916466989
+      ],
+      "mean_luminance": 0.23857852293358384
+    }
+  },
+  "sun_elevation_sweep_degrees": {
+    "0": "sun_elevation_0_32x16",
+    "5": "sun_elevation_5_32x16",
+    "18": "rayleigh_mie_g076_32x16",
+    "45": "sun_elevation_45_32x16",
+    "75": "sun_elevation_75_32x16"
+  },
+  "camera_altitude_sweep_m": {
+    "500": "camera_altitude_0_5km_32x16",
+    "2000": "rayleigh_mie_g076_32x16",
+    "10000": "camera_altitude_10km_32x16",
+    "50000": "camera_altitude_50km_32x16"
+  },
+  "phase_function_sphere_integral_diagnostic": {
+    "method": "midpoint integration over cosine in [-1,1], multiplied by 2*pi",
+    "samples_over_cosine_interval": 262144,
+    "rayleigh": 0.99999999999634,
+    "cornette_shanks_mie_g076": 0.9999999982497876,
+    "cornette_shanks_mie_by_g": {
+      "0.00": 0.99999999999634,
+      "0.50": 0.9999999999319761,
+      "0.76": 0.9999999982497876,
+      "0.90": 0.9999999333382698
+    }
+  },
+  "ray_convergence_diagnostics": {
+    "center_horizon": {
+      "pixel": [
+        48,
+        27
+      ],
+      "direction": [
+        0.01296462659914421,
+        -0.012964626599144175,
+        0.9998319043290675
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            2.505963049977796,
+            1.8965165884393242,
+            0.9495471821301872
+          ],
+          "max_relative_rgb_error_to_512x192": 0.15318501489915226
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            2.5097565302207796,
+            1.9373204313170456,
+            1.0838047573978655
+          ],
+          "max_relative_rgb_error_to_512x192": 0.033452863891212783
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            2.5039359907971823,
+            1.943007330609798,
+            1.1193967714360407
+          ],
+          "max_relative_rgb_error_to_512x192": 0.006539957162212621
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            2.4923943624489104,
+            1.935112756978456,
+            1.121248527305678
+          ],
+          "max_relative_rgb_error_to_512x192": 0.001900417594927916
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            2.488665419794811,
+            1.9324645174649397,
+            1.1213267210284912
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0004014456590987567
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            2.48766675677402,
+            1.931749419629729,
+            1.121315988541588
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "center_zenith": {
+      "pixel": [
+        48,
+        0
+      ],
+      "direction": [
+        0.010685875133537975,
+        0.5663513820775087,
+        0.8240946087018931
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            0.12853139429735153,
+            0.2464893956960516,
+            0.44187061701440744
+          ],
+          "max_relative_rgb_error_to_512x192": 0.16889964279603273
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            0.145446392348783,
+            0.26007935692159684,
+            0.44213370144971953
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0595251121648125
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            0.15227063103208816,
+            0.26549664096391146,
+            0.4433438858305298
+          ],
+          "max_relative_rgb_error_to_512x192": 0.01539871613257943
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            0.15408279983453022,
+            0.2667468123551628,
+            0.4429702637685216
+          ],
+          "max_relative_rgb_error_to_512x192": 0.003681001972105906
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            0.15453833087260582,
+            0.26705315180929445,
+            0.44285767526864434
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0007354802921163789
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            0.15465207442548068,
+            0.26712899503614945,
+            0.44282791988106385
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "center_groundward": {
+      "pixel": [
+        48,
+        36
+      ],
+      "direction": [
+        0.012589334151237388,
+        -0.23919734887350866,
+        0.9708893536121989
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            0.21064940902602308,
+            0.24084137429922717,
+            0.25502628876821765
+          ],
+          "max_relative_rgb_error_to_512x192": 0.10890822861237928
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            0.2052538626130925,
+            0.23230624767831184,
+            0.23964520103031933
+          ],
+          "max_relative_rgb_error_to_512x192": 0.04202800681271194
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            0.20252329669029698,
+            0.22884904787370644,
+            0.2350090070375107
+          ],
+          "max_relative_rgb_error_to_512x192": 0.021868855013497626
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            0.2000078206032335,
+            0.22583326909879783,
+            0.23134156273803094
+          ],
+          "max_relative_rgb_error_to_512x192": 0.005922031722009945
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            0.19921787372616614,
+            0.22490645160945344,
+            0.23026219489186595
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0012287120956563874
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            0.19900774883108824,
+            0.22466118941414556,
+            0.22997961615574097
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "left_horizon": {
+      "pixel": [
+        0,
+        27
+      ],
+      "direction": [
+        -0.7763580135028035,
+        -0.00817218961581902,
+        0.6302392007697265
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            0.5898911421261462,
+            0.6404318417553359,
+            0.4322359234472525
+          ],
+          "max_relative_rgb_error_to_512x192": 0.13707906817594728
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            0.5913961436331545,
+            0.6525404496063895,
+            0.4853414080785947
+          ],
+          "max_relative_rgb_error_to_512x192": 0.031058647851864546
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            0.5907275418193084,
+            0.654626357714136,
+            0.5000497896714018
+          ],
+          "max_relative_rgb_error_to_512x192": 0.004505546369464587
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            0.588847701650853,
+            0.6525758709538638,
+            0.5008475851225772
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0013428202548456173
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            0.588240513351032,
+            0.6518868595568247,
+            0.5008978431265322
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0002855690658146301
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            0.5880779294393607,
+            0.6517007539813195,
+            0.5008986426295013
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "right_horizon": {
+      "pixel": [
+        95,
+        27
+      ],
+      "direction": [
+        0.7763580135028035,
+        -0.00817218961581902,
+        0.6302392007697265
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            2.1610335240640084,
+            1.7655206409411381,
+            0.9466366243247876
+          ],
+          "max_relative_rgb_error_to_512x192": 0.12779390666662507
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            2.158753986918444,
+            1.7912491263268457,
+            1.0550446844055015
+          ],
+          "max_relative_rgb_error_to_512x192": 0.02790957075653663
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            2.1539130661838244,
+            1.7947035230979378,
+            1.0843646969445113
+          ],
+          "max_relative_rgb_error_to_512x192": 0.005234265721378779
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            2.1459243886407187,
+            1.7883962460208633,
+            1.085433862992468
+          ],
+          "max_relative_rgb_error_to_512x192": 0.001505938645320549
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            2.143377573048698,
+            1.7863239816880383,
+            1.0853760051592531
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0003173362166679162
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            2.1426976174932992,
+            1.7857669870011517,
+            1.0853359447501174
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "sunward_upper": {
+      "pixel": [
+        72,
+        13
+      ],
+      "direction": [
+        0.5142959607013625,
+        0.2833875701823834,
+        0.809438786982924
+      ],
+      "levels": [
+        {
+          "view_steps": 16,
+          "sun_steps": 8,
+          "rgb": [
+            0.48751342790812957,
+            0.6889109336505695,
+            0.9413117241032346
+          ],
+          "max_relative_rgb_error_to_512x192": 0.3811085897498212
+        },
+        {
+          "view_steps": 32,
+          "sun_steps": 16,
+          "rgb": [
+            0.6827737955866406,
+            0.8510963562742899,
+            1.02738743313102
+          ],
+          "max_relative_rgb_error_to_512x192": 0.13322831117563796
+        },
+        {
+          "view_steps": 64,
+          "sun_steps": 24,
+          "rgb": [
+            0.7602597030107889,
+            0.9153501435404551,
+            1.0637557164475906
+          ],
+          "max_relative_rgb_error_to_512x192": 0.03486104624507489
+        },
+        {
+          "view_steps": 128,
+          "sun_steps": 48,
+          "rgb": [
+            0.78113625400292,
+            0.9320328654663499,
+            1.0716345810527104
+          ],
+          "max_relative_rgb_error_to_512x192": 0.008358559656921793
+        },
+        {
+          "view_steps": 256,
+          "sun_steps": 96,
+          "rgb": [
+            0.7864033885062006,
+            0.9362197713969183,
+            1.0735725233548654
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0016720068070851502
+        },
+        {
+          "view_steps": 512,
+          "sun_steps": 192,
+          "rgb": [
+            0.78772046248155,
+            0.9372649641679986,
+            1.0740529287774379
+          ],
+          "max_relative_rgb_error_to_512x192": 0.0
+        }
+      ]
+    },
+    "independent_axis_sweeps": {
+      "center_horizon": {
+        "pixel": [
+          48,
+          27
+        ],
+        "view_step_sweep": [
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.05868233936914327
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.014804276133523543
+          },
+          {
+            "view_steps": 128,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.0035431973023465797
+          },
+          {
+            "view_steps": 256,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.0007095596797001359
+          }
+        ],
+        "sun_step_sweep": [
+          {
+            "sun_steps": 8,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.07775114220905172
+          },
+          {
+            "sun_steps": 16,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.0265829222632654
+          },
+          {
+            "sun_steps": 32,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.007899163860457583
+          },
+          {
+            "sun_steps": 64,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.002002577570334222
+          },
+          {
+            "sun_steps": 128,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.00040743591576504956
+          }
+        ]
+      },
+      "sunward_upper": {
+        "pixel": [
+          72,
+          13
+        ],
+        "view_step_sweep": [
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.1364156024951633
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.037336432872564246
+          },
+          {
+            "view_steps": 128,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.00912588256938165
+          },
+          {
+            "view_steps": 256,
+            "sun_steps_fixed": 192,
+            "max_relative_rgb_error_to_512x192": 0.0018372115611599205
+          }
+        ],
+        "sun_step_sweep": [
+          {
+            "sun_steps": 8,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.03596128241803657
+          },
+          {
+            "sun_steps": 16,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.010453289938548672
+          },
+          {
+            "sun_steps": 32,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.0028376461137310013
+          },
+          {
+            "sun_steps": 64,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.0006985579024529537
+          },
+          {
+            "sun_steps": 128,
+            "view_steps_fixed": 128,
+            "max_relative_rgb_error_to_128x256": 0.00014100812379325866
+          }
+        ]
+      }
+    },
+    "view_sampling_comparison": {
+      "center_horizon": {
+        "pixel": [
+          48,
+          27
+        ],
+        "direction": [
+          0.01296462659914421,
+          -0.012964626599144175,
+          0.9998319043290675
+        ],
+        "levels": [
+          {
+            "view_steps": 16,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.2160991046916279,
+                "rgb": [
+                  2.434271081688154,
+                  1.8168515896385995,
+                  0.8790006073413431
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.2326318317674542,
+                "rgb": [
+                  2.4298135571102817,
+                  1.8071487383985658,
+                  0.8604621961370247
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.05868233936914327,
+                "rgb": [
+                  2.474451435604718,
+                  1.902974202638377,
+                  1.0555145431619442
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.06375362404782771,
+                "rgb": [
+                  2.4733654774286844,
+                  1.900530073506438,
+                  1.0498280305692893
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.014804276133523543,
+                "rgb": [
+                  2.4844060568001525,
+                  1.9246295590950264,
+                  1.1047157170142834
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.016133866407177788,
+                "rgb": [
+                  2.484135582257068,
+                  1.9240165351470762,
+                  1.1032248261822255
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "center_zenith": {
+        "pixel": [
+          48,
+          0
+        ],
+        "direction": [
+          0.010685875133537975,
+          0.5663513820775087,
+          0.8240946087018931
+        ],
+        "levels": [
+          {
+            "view_steps": 16,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.17309417546000574,
+                "rgb": [
+                  0.12788270111962266,
+                  0.24396665322016664,
+                  0.43172801818117285
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.010226967545795895,
+                "rgb": [
+                  0.15623369617152008,
+                  0.2688003586487961,
+                  0.4441965758965335
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.06190789068548952,
+                "rgb": [
+                  0.14507789070766383,
+                  0.2590950991999332,
+                  0.4389834777438499
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.0026867675666549648,
+                "rgb": [
+                  0.15506758860316297,
+                  0.2675636880461067,
+                  0.4431782107934526
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.01704272696618827,
+                "rgb": [
+                  0.15201638134629258,
+                  0.2649387804363081,
+                  0.44178813180872994
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.0008776057944744211,
+                "rgb": [
+                  0.15478779798212397,
+                  0.2672640444661874,
+                  0.44292796895807945
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "center_groundward": {
+        "pixel": [
+          48,
+          36
+        ],
+        "direction": [
+          0.012589334151237388,
+          -0.23919734887350866,
+          0.9708893536121989
+        ],
+        "levels": [
+          {
+            "view_steps": 16,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.00024121847502274308,
+                "rgb": [
+                  0.1989597444853975,
+                  0.22462533640367693,
+                  0.22995827762915028
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.0006565333255102262,
+                "rgb": [
+                  0.19913840405023062,
+                  0.22476564884910022,
+                  0.23001591947503502
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 6.0134624832097585e-05,
+                "rgb": [
+                  0.1989957815747736,
+                  0.2246522512642599,
+                  0.22997429616172463
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.00016419830959063243,
+                "rgb": [
+                  0.19904042556704174,
+                  0.22468731435766306,
+                  0.22998870082637196
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 1.4857213070157804e-05,
+                "rgb": [
+                  0.19900479213056124,
+                  0.22465898109227228,
+                  0.2299783017420745
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 4.121946467470429e-05,
+                "rgb": [
+                  0.19901595182396117,
+                  0.2246677459281375,
+                  0.22998190254655687
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "sunward_upper": {
+        "pixel": [
+          72,
+          13
+        ],
+        "direction": [
+          0.5142959607013625,
+          0.2833875701823834,
+          0.809438786982924
+        ],
+        "levels": [
+          {
+            "view_steps": 16,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.3850093432614871,
+                "rgb": [
+                  0.48444072454789355,
+                  0.6805989292041769,
+                  0.9166524213075067
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.018713127532099704,
+                "rgb": [
+                  0.8024611759556118,
+                  0.9496805223756375,
+                  1.0810578504779744
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 32,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.1364156024951633,
+                "rgb": [
+                  0.6802631009943607,
+                  0.8467167459100873,
+                  1.018182047001484
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.004965563180958903,
+                "rgb": [
+                  0.7916319382069363,
+                  0.9405627856722221,
+                  1.0759292070306887
+                ]
+              }
+            }
+          },
+          {
+            "view_steps": 64,
+            "sun_steps_fixed": 192,
+            "variants": {
+              "uniform": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.037336432872564246,
+                "rgb": [
+                  0.7583097903117624,
+                  0.9125143439363113,
+                  1.0587693954243809
+                ]
+              },
+              "altitude_biased": {
+                "max_relative_rgb_error_to_uniform_512x192": 0.0016916712153951037,
+                "rgb": [
+                  0.7890530265137078,
+                  0.9383879801088075,
+                  1.0747066894353168
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "camera_motion_stability_diagnostics": {
+    "method": "Rotate a fixed pixel ray around camera-right; compare coarse quadrature frame deltas against high-step CPU reference.",
+    "note": "Angular ray sweep is a deterministic camera-pitch proxy, not a rendered sequence or temporal-reprojection test.",
+    "rays": {
+      "center_horizon": {
+        "base_pixel": [
+          48,
+          27
+        ],
+        "pitch_offsets_degrees": [
+          -1.0,
+          -0.5,
+          0.0,
+          0.5,
+          1.0
+        ],
+        "reference": "uniform 512x192 at each angular sample",
+        "candidates": {
+          "uniform_32x16": {
+            "max_relative_rgb_error_per_frame_to_reference": [
+              0.01656914517468665,
+              0.023667784737381424,
+              0.033452863891212783,
+              0.04758207141343479,
+              0.03393570315796269
+            ],
+            "max_relative_rgb_error_over_sweep": 0.04758207141343479,
+            "temporal_delta_rgb_rmse_vs_reference": 0.03189378687784392,
+            "temporal_delta_max_absolute_rgb_error_vs_reference": 0.08863009835917302
+          },
+          "altitude_biased_32x16": {
+            "max_relative_rgb_error_per_frame_to_reference": [
+              0.016172003474097495,
+              0.02411862564102623,
+              0.038629554601458525,
+              0.06589565944711909,
+              0.03387806463787229
+            ],
+            "max_relative_rgb_error_over_sweep": 0.06589565944711909,
+            "temporal_delta_rgb_rmse_vs_reference": 0.04001868013953621,
+            "temporal_delta_max_absolute_rgb_error_vs_reference": 0.1088504475060077
+          }
+        }
+      },
+      "sunward_upper": {
+        "base_pixel": [
+          72,
+          13
+        ],
+        "pitch_offsets_degrees": [
+          -1.0,
+          -0.5,
+          0.0,
+          0.5,
+          1.0
+        ],
+        "reference": "uniform 512x192 at each angular sample",
+        "candidates": {
+          "uniform_32x16": {
+            "max_relative_rgb_error_per_frame_to_reference": [
+              0.13467554771220003,
+              0.13401446766405384,
+              0.13322831117563796,
+              0.132314866366865,
+              0.13127188580628557
+            ],
+            "max_relative_rgb_error_over_sweep": 0.13467554771220003,
+            "temporal_delta_rgb_rmse_vs_reference": 0.0013133582143122892,
+            "temporal_delta_max_absolute_rgb_error_vs_reference": 0.0019129951448252358
+          },
+          "altitude_biased_32x16": {
+            "max_relative_rgb_error_per_frame_to_reference": [
+              0.012294631774939738,
+              0.012320133195864605,
+              0.01234077161535442,
+              0.012356650102665744,
+              0.012367919604649755
+            ],
+            "max_relative_rgb_error_over_sweep": 0.012367919604649755,
+            "temporal_delta_rgb_rmse_vs_reference": 0.0002031239724730297,
+            "temporal_delta_max_absolute_rgb_error_vs_reference": 0.00024836459901078634
+          }
+        }
+      }
+    }
+  },
+  "linear_rgb_comparison_to_rayleigh_mie_g076_128x48": {
+    "rayleigh_32x16": {
+      "mean_absolute_rgb": [
+        0.2551375731192555,
+        0.1905465112051478,
+        0.09857269061861265
+      ],
+      "max_absolute_rgb": [
+        4.862279973468382,
+        2.850394057528474,
+        1.02323675459927
+      ],
+      "rgb_rmse": 0.4142157053433989,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "rayleigh_mie_g076_32x16": {
+      "mean_absolute_rgb": [
+        0.016710333322553263,
+        0.014216166931715075,
+        0.010913177950871175
+      ],
+      "max_absolute_rgb": [
+        0.1336376149624693,
+        0.11026314094829837,
+        0.062449109436406136
+      ],
+      "rgb_rmse": 0.02486952772245868,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "rayleigh_mie_g076_altitude_biased_32x16": {
+      "mean_absolute_rgb": [
+        0.00628518043562239,
+        0.006773555419729141,
+        0.008933536292560221
+      ],
+      "max_absolute_rgb": [
+        0.10838236343681995,
+        0.08730620161694569,
+        0.08627041231297938
+      ],
+      "rgb_rmse": 0.012041438493388663,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "rayleigh_mie_isotropic_32x16": {
+      "mean_absolute_rgb": [
+        0.19612894726681318,
+        0.14810773018109197,
+        0.0796238936108465
+      ],
+      "max_absolute_rgb": [
+        4.097260107763504,
+        2.4040103942862023,
+        0.8678645668215382
+      ],
+      "rgb_rmse": 0.326387478650466,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "mie_g_050_32x16": {
+      "mean_absolute_rgb": [
+        0.10863984694732237,
+        0.0856650187996569,
+        0.050425260595288374
+      ],
+      "max_absolute_rgb": [
+        1.8000049345233902,
+        1.0635783014694504,
+        0.41447552053646164
+      ],
+      "rgb_rmse": 0.15155171360681222,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "rayleigh_mie_g076_64x24": {
+      "mean_absolute_rgb": [
+        0.004612024584698504,
+        0.0040654760458546544,
+        0.00309671029142586
+      ],
+      "max_absolute_rgb": [
+        0.05185538209728335,
+        0.04055660998590005,
+        0.023654220827742822
+      ],
+      "rgb_rmse": 0.0066483658375608495,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "mie_g_090_32x16": {
+      "mean_absolute_rgb": [
+        0.13451442867051433,
+        0.10104101265118737,
+        0.053181246504528365
+      ],
+      "max_absolute_rgb": [
+        2.467014133991409,
+        2.12878315275832,
+        1.4674926419963812
+      ],
+      "rgb_rmse": 0.23415612154249277,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "sun_elevation_0_32x16": {
+      "mean_absolute_rgb": [
+        0.25443851511703164,
+        0.4170257529635875,
+        0.4917790698207289
+      ],
+      "max_absolute_rgb": [
+        2.3494605714218686,
+        2.957189378737362,
+        1.8303749345995124
+      ],
+      "rgb_rmse": 0.5525478762147717,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "sun_elevation_5_32x16": {
+      "mean_absolute_rgb": [
+        0.18063204261839436,
+        0.145928659275571,
+        0.30881931012782593
+      ],
+      "max_absolute_rgb": [
+        7.192661626865519,
+        1.9235930725114403,
+        0.9409190899810174
+      ],
+      "rgb_rmse": 0.410752904129469,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "sun_elevation_45_32x16": {
+      "mean_absolute_rgb": [
+        0.21693244132418327,
+        0.16608157385409036,
+        0.09204202979530551
+      ],
+      "max_absolute_rgb": [
+        4.4344039091453755,
+        2.582571091223106,
+        0.7571908877377556
+      ],
+      "rgb_rmse": 0.36545189437751835,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "sun_elevation_75_32x16": {
+      "mean_absolute_rgb": [
+        0.28661426979299265,
+        0.24654003272367409,
+        0.15667022258488766
+      ],
+      "max_absolute_rgb": [
+        5.08292470222266,
+        3.115147297654716,
+        1.089036104259597
+      ],
+      "rgb_rmse": 0.47095391660407865,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "camera_altitude_0_5km_32x16": {
+      "mean_absolute_rgb": [
+        0.2924063364338972,
+        0.2473771769195479,
+        0.15475948026287564
+      ],
+      "max_absolute_rgb": [
+        3.158253586513691,
+        1.8516063047513343,
+        0.6579818664447523
+      ],
+      "rgb_rmse": 0.39949798852957136,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "camera_altitude_10km_32x16": {
+      "mean_absolute_rgb": [
+        0.3214501506228292,
+        0.34497609798441037,
+        0.31950914974151295
+      ],
+      "max_absolute_rgb": [
+        4.777775385428978,
+        2.428500572773946,
+        0.786600045676455
+      ],
+      "rgb_rmse": 0.46001318972485283,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "camera_altitude_50km_32x16": {
+      "mean_absolute_rgb": [
+        0.47202268883315346,
+        0.5878748998299675,
+        0.6757572697973186
+      ],
+      "max_absolute_rgb": [
+        5.700151411254255,
+        3.8569404143917807,
+        1.7908861932053328
+      ],
+      "rgb_rmse": 0.7690558403956348,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    }
+  },
+  "phase_function": "Rayleigh plus Cornette-Shanks Mie phase (g parameter)",
+  "view_sampling_candidate": {
+    "variant": "rayleigh_mie_g076_altitude_biased_32x16",
+    "status": "CPU diagnostic only; not a GPU implementation.",
+    "mapping": "Blend linear u with outward u^2 or inward 1-(1-u)^2 using smoothstep(abs(radial_direction_y)/0.1); this avoids a discrete tangent-angle branch. Each uniform-u cell uses its mapped world-distance width as the quadrature weight.",
+    "comparison": "Same view sample count as uniform; sun integration remains unchanged."
+  },
+  "mie_anisotropy_sweep": {
+    "0.0": "rayleigh_mie_isotropic_32x16",
+    "0.5": "mie_g_050_32x16",
+    "0.76": "rayleigh_mie_g076_32x16",
+    "0.9": "mie_g_090_32x16"
+  },
+  "mie_anisotropy_comparison_to_g076_32x16": {
+    "rayleigh_mie_isotropic_32x16": {
+      "mean_absolute_rgb": [
+        0.1863411175095392,
+        0.1400680333741116,
+        0.07490876363839621
+      ],
+      "max_absolute_rgb": [
+        4.140996838261173,
+        2.416242271610202,
+        0.887287462457588
+      ],
+      "rgb_rmse": 0.32301296983059,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "mie_g_050_32x16": {
+      "mean_absolute_rgb": [
+        0.09615836771192818,
+        0.07443091878389925,
+        0.042011571401647
+      ],
+      "max_absolute_rgb": [
+        1.8437416650210587,
+        1.07581017879345,
+        0.36388307439131173
+      ],
+      "rgb_rmse": 0.13845706823308354,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    },
+    "mie_g_090_32x16": {
+      "mean_absolute_rgb": [
+        0.13664521711309813,
+        0.10427748179626795,
+        0.05740410264858097
+      ],
+      "max_absolute_rgb": [
+        2.593239245791381,
+        2.2332933629064167,
+        1.526909730596711
+      ],
+      "rgb_rmse": 0.24717724881499667,
+      "pixels_max_channel_delta_over_1e-5": 5184
+    }
+  },
+  "limitations": [
+    "Single scattering only; no multiple-scattering LUT.",
+    "No ground albedo, clouds, local lights, or solar disk.",
+    "Homogeneous spherical planet and fixed RGB coefficients; arbitrary sun radiance.",
+    "Midpoint integration; CPU reference only, not GPU performance or production color management."
+  ]
+}

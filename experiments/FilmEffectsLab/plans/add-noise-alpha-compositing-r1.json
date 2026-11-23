@@ -1,0 +1,53 @@
+{
+  "plan_version": 1,
+  "plan_id": "add-noise-alpha-compositing-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Measure how the registered Add Noise source equation changes transparent and semi-transparent RGB samples, and how those changes appear when interpreted as straight-alpha or premultiplied-alpha output over several backgrounds.",
+  "scope": {
+    "effect": "Artifact::AddNoiseEffect CPU equation; resident route is included only as a matching source-equation model",
+    "method": "Offline NumPy source-equation model using a synthetic smooth alpha edge; no app, GPU, C++ execution, or test executable.",
+    "excluded": ["actual input alpha descriptor", "compiled/runtime route selection", "GPU precision", "Viewer color transform", "product-quality verdict", "temporal behavior", "performance", "source changes"]
+  },
+  "comparison": {
+    "baseline": "Same stored-color source with amount=0, with RGB values constrained to [0,1] so the comparison isolates additive noise rather than HDR clamp behavior.",
+    "candidates": ["amount=.2 and .4, seed=73, size=1.5, color mode", "straight-alpha stored RGB", "premultiplied-alpha stored RGB"],
+    "backgrounds": {"black": [0, 0, 0], "gray": [0.18, 0.18, 0.18], "white": [1, 1, 1]},
+    "ground_truth": "None. Effect-off paired input is an arithmetic baseline, not a quality target.",
+    "acceptance": "Descriptive conditional response only. No aesthetic threshold or declaration of product defect. State explicitly that correct interpretation depends on the real alpha descriptor and downstream compositor."
+  },
+  "materials": {
+    "fixture": "Script-generated 256x128 opaque RGB plate with a smooth ellipse alpha ramp, and a premultiplied variant derived by multiplying RGB by alpha.",
+    "rights": "Synthetic diagnostic generated locally.",
+    "regions": {"transparent": "alpha==0", "low_alpha": "0<alpha<=.1", "edge": ".1<alpha<.9", "near_opaque": ".9<=alpha<1", "opaque": "alpha==1"},
+    "identity": "Record fixture, source, prior equation runner, plan, script, PNG, and metrics SHA-256 hashes."
+  },
+  "conditions": {
+    "format": "Float32 logical RGB(A); source noise equation maps into BGRA channel storage.",
+    "parameters": {"seed": 73, "size": 1.5, "amounts": [0, 0.2, 0.4], "mode": "color"},
+    "alpha": "Alpha is copied unchanged by the modeled effect. Straight composite = RGB*alpha+background*(1-alpha). Premultiplied composite = storedRGB+background*(1-alpha). Do not mix conventions.",
+    "metrics": ["stored RGB effect delta by alpha region", "RGB-alpha premultiplication bound violation rate", "composited MAE/RMSE/p99/max delta per background and alpha region", "transparent-pixel RGB delta", "alpha identity"],
+    "display": "Diagnostic PNGs are sRGB-like direct clipped previews only; raw float metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_model_only", "method": "Verify numeric seed, floor(x/size) block mapping, RGB clamp, and alpha passthrough against source markers.", "acceptance_criteria": "Deterministic formula outputs; no compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect full alpha edge and transparent/low-alpha/detail crops over black, gray, and white.", "acceptance_criteria": "Report visible noise/edge response; no product aesthetic pass/fail."},
+    "color_and_alpha": {"status": "conditional_model_only", "method": "Evaluate both alpha storage conventions and matching compositing equations; check premultiplied RGB<=alpha bound for bounded fixture.", "unverified": "Actual descriptor, stored association, and downstream compositor."},
+    "temporal_stability": {"status": "not_applicable_for_single_frame", "reason": "Fixed seed and one frame; temporal schedule is audited separately."},
+    "render_paths_and_resolution": {"status": "unverified", "reason": "No product path or resolution sweep."},
+    "performance": {"status": "unverified", "reason": "No runtime timing or allocation measurement."}
+  },
+  "execution": {
+    "backend": "Python 3, NumPy and OpenCV; local synthetic fixture only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/add-noise-alpha-compositing-r1/",
+    "threshold_policy": "No perceptual pass/fail threshold; report model deltas descriptively.",
+    "reproducibility": "Record environment/package versions, all hashes, fixed parameters, region counts, and metrics checksum."
+  },
+  "amendments": [
+    {
+      "reason": "Static render-path tracing after the initial alpha study identified distinct source representations: the eligible GPU Composition pass converts premultiplied layer pixels to straight RGB before the resident effect, while the CPU rasterizer QImage path can preserve a Premultiplied descriptor into the CPU effect. The initial study reported each branch separately but did not directly quantify their predicted route-to-route output gap.",
+      "change": "Add a matched-content source-equation comparison of CPU-on-premultiplied and resident-GPU-on-straight inputs. Compare their paired effect-off baselines and amount=.2/.4 outputs after each route's corresponding source-over equation over black, gray, and white, per alpha region. Emit actual-output preview pairs and an amplified absolute-difference plate; rerun the entire study and regenerate hashes.",
+      "scope_effect": "This is a source-path-informed equation prediction only. It does not establish that both routes execute, their compiled output, runtime route selection, visual acceptance, or performance."
+    }
+  ]
+}

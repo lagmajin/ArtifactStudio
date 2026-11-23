@@ -1,0 +1,27 @@
+{
+  "intent": "Scale stress check for Chromatic Glow on an isolated synthetic probe: wide radius increases the current normalized dispersion shift; exploratory only.",
+  "profiles": {
+    "probe-radius48-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 48.0,
+        "Intensity": 1.0,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "probe-radius48-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 48.0,
+        "Intensity": 1.0,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "intent": "Cross-plate Chromatic Glow test on paired CC0 street lights; same wide-radius chromatic profile as city rd3, not an accepted preset.",
+  "profiles": {
+    "streetlight-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "streetlight-dispersion-1p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "streetlight-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

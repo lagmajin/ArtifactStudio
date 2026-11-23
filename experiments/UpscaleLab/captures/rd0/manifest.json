@@ -1,0 +1,52 @@
+{
+  "rd": "rd0",
+  "seed": 20261115,
+  "created": "2026-11-15T18:08:44",
+  "factors": [
+    2,
+    4
+  ],
+  "cases": [
+    "chart",
+    "chart",
+    "photo_neon_streets",
+    "photo_neon_streets",
+    "photo_street_light",
+    "photo_street_light",
+    "alpha_straight",
+    "alpha_straight",
+    "alpha_hidden_rgb",
+    "alpha_hidden_rgb",
+    "sequence"
+  ],
+  "candidates": [
+    "baseline_bicubic",
+    "baseline_bilinear",
+    "baseline_lanczos4",
+    "bicubic_then_unsharp"
+  ],
+  "onnx_models": {},
+  "fixtures": {
+    "alpha_hidden_rgb_hr.png": "cf3f9376d7da8aeb347c2c54e88ddde9a621c8fc0745cfcd37d1bc02ebe05454",
+    "alpha_straight_hr.png": "228e97f2befcdec97701764036023fdcd514461be36e1fd2afe1ca61fb0e6e1b",
+    "chart_hr.png": "ed3ef5c4e543ce0c12d3c81eac81c26520463030861a25c4da823a37e63cc649",
+    "photo_neon_streets_hr.png": "9c51bcb513e914faefa5c17870439cab273175f0eee988ef88eae6b80b7adee7",
+    "photo_street_light_hr.png": "d11a63b4dfd3b1b036e9281cf6d7d5a871b368a29b43cd3bcf1e50fc2e567fea"
+  },
+  "sequence_frames": [
+    "frame_00.png",
+    "frame_01.png",
+    "frame_02.png",
+    "frame_03.png",
+    "frame_04.png"
+  ],
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "pillow": "12.2.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "reviewer": "AI agent; independent human visual review not performed",
+  "elapsed_s": 24.124876022338867
+}

@@ -1,0 +1,38 @@
+{
+  "intent": "Reactive-spectrum recipe follow-up after cross-plate Chromatic Glow research: maximize shifted-channel visibility while retaining the Reactive specialist; exploratory CPU PNG-chain profile, not accepted.",
+  "input": "assets/cc0-neon-streets-1536.jpg",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "reactive-spectrum-chromatic-rd4": [
+      {
+        "effect_id": "reactive_glow",
+        "properties": {
+          "Threshold": 0.45,
+          "Radius": 10.0,
+          "Intensity": 0.1,
+          "Reaction": 0.8,
+          "Saturation Weight": 0.6,
+          "Tint Mix": 0.12
+        }
+      },
+      {
+        "effect_id": "chromatic_glow",
+        "properties": {
+          "Threshold": 0.6,
+          "Radius": 12.0,
+          "Intensity": 0.2,
+          "Dispersion": 2.0,
+          "Angle": 0.0,
+          "Tint Mix": 0.0
+        }
+      }
+    ]
+  }
+}

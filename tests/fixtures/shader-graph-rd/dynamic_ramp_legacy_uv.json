@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "uv", "type": "TexCoord", "params": {}},
+    {"id": "ramp", "type": "ColorRamp", "params": {"interp": 0, "stops": [
+      {"pos": 0.0, "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0},
+      {"pos": 0.5, "r": 1.0, "g": 0.0, "b": 0.0, "a": 0.2},
+      {"pos": 0.5, "r": 0.0, "g": 1.0, "b": 0.0, "a": 0.8},
+      {"pos": 1.0, "r": 1.0, "g": 0.5, "b": 0.25, "a": 1.0}
+    ]}},
+    {"id": "emission_strength", "type": "Value", "params": {"value": 1.0}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "uv", "out": "UV", "to": "ramp", "in": "Fac"},
+    {"from": "ramp", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "ramp", "out": "Color", "to": "surface", "in": "EmissionColor"},
+    {"from": "emission_strength", "out": "Value", "to": "surface", "in": "EmissionStrength"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

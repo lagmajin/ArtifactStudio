@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-dynamic-ramp-binary32-formula-golden",
+  "algorithm": "artifact.vector4.ramp.linear_stops.1",
+  "evidence": "independent-cpu-binary32-formula-only-no-hlsl-compiler-or-gpu-capture",
+  "sourceDocument": "experiments/ShaderGraphLab/dynamic_vector4_ramp.json",
+  "sourceDocumentSha256": "145AE3772A00D9D2D3C4067E8505C175FFA861EC733518168550B834115C27BC",
+  "stopCount": 4,
+  "stopPositionPolicy": "clamp-to-0..1-then-stable-sort-by-position-and-authored-index",
+  "exactDuplicatePositionPolicy": "last-authored-stop-is-the-left-endpoint-at-the-exact-boundary",
+  "segmentFormula": "binary32-lerp-with-half-open-segment-and-positive-1e-5-span-floor",
+  "factors": [
+    0.0,
+    0.4999,
+    0.5,
+    0.5001,
+    1.0
+  ],
+  "cases": [
+    {
+      "factor": 0.0,
+      "color": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "alpha": 1.0,
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 0,
+        "rightAuthoredIndex": 1
+      }
+    },
+    {
+      "factor": 0.4999000132083893,
+      "color": [
+        0.9998000264167786,
+        0.0,
+        0.0,
+        0.2001599669456482
+      ],
+      "alpha": 0.2001599669456482,
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 0,
+        "rightAuthoredIndex": 1
+      }
+    },
+    {
+      "factor": 0.5,
+      "color": [
+        0.0,
+        1.0,
+        0.0,
+        0.800000011920929
+      ],
+      "alpha": 0.800000011920929,
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 2,
+        "rightAuthoredIndex": 3
+      }
+    },
+    {
+      "factor": 0.5001000165939331,
+      "color": [
+        0.00020003318786621094,
+        0.9998999834060669,
+        5.0008296966552734e-05,
+        0.8000400066375732
+      ],
+      "alpha": 0.8000400066375732,
+      "selection": {
+        "kind": "segment",
+        "leftAuthoredIndex": 2,
+        "rightAuthoredIndex": 3
+      }
+    },
+    {
+      "factor": 1.0,
+      "color": [
+        1.0,
+        0.5,
+        0.25,
+        1.0
+      ],
+      "alpha": 1.0,
+      "selection": {
+        "kind": "at-or-after-last",
+        "authoredIndex": 3
+      }
+    }
+  ],
+  "limitations": [
+    "binary32 CPU rounding does not model compiler reassociation or GPU execution",
+    "does not establish rendered color-space, alpha-association, backend, or Blender parity"
+  ]
+}

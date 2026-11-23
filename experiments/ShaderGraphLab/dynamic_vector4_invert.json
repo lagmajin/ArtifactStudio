@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {
+      "nodeId": "source_color",
+      "operationId": "artifact.rd.constant.vector4.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": [0.2, 0.4, 0.6, 0.8]},
+      "layout": {"x": 0.0, "y": 0.0}
+    },
+    {
+      "nodeId": "source_factor",
+      "operationId": "artifact.rd.constant.float32",
+      "semanticVersion": 1,
+      "parameters": {"value": 0.5},
+      "layout": {"x": 0.0, "y": 120.0}
+    },
+    {
+      "nodeId": "inverted",
+      "operationId": "artifact.vector4.invert.linear_factor",
+      "semanticVersion": 1,
+      "parameters": {},
+      "layout": {"x": 240.0, "y": 60.0}
+    }
+  ],
+  "links": [
+    {"from": {"nodeId": "source_color", "socketId": "value"}, "to": {"nodeId": "inverted", "socketId": "color"}},
+    {"from": {"nodeId": "source_factor", "socketId": "value"}, "to": {"nodeId": "inverted", "socketId": "factor"}}
+  ],
+  "output": {"nodeId": "inverted", "socketId": "result"}
+}

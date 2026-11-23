@@ -1,0 +1,56 @@
+{
+  "rd": "rd31-portrait-skin-candidate-color-response",
+  "status": "exploratory descriptive equation-mirror response; no acceptance gate",
+  "date": "2026-11-17",
+  "evaluation_plan": "EVALUATION_PLAN.md#rd31-cc0-portrait-candidate-skin-color-response-distribution-predeclared-2026-11-17",
+  "input": {
+    "source_file": "source.png",
+    "source_sha256": "755b899038455696ad2093d014d91a43ccc2806541d0a29a976a80b37aae492c",
+    "dimensions": [
+      1280,
+      851
+    ],
+    "assumption": "encoded sRGB; no ICC profile in retrieved source"
+  },
+  "regions": {
+    "face_skin_candidate": {
+      "file": "roi_face_skin_reviewed.png",
+      "sha256": "ca03ad00ab751aef5f846c342a6f584d1cf7134dcbe3f26dbfa6b6835bbd27c6",
+      "pixels": 30913
+    },
+    "arm_skin_candidate": {
+      "file": "roi_arm_skin_reviewed.png",
+      "sha256": "2f419b9a3e39f56ff4db9c34ac2bff66e640a629c7196d321e1754ef08802822",
+      "pixels": 32661
+    }
+  },
+  "conditions": {
+    "methods": [
+      "unchanged_source",
+      "Reinhard",
+      "MeanStddev",
+      "Histogram"
+    ],
+    "strengths": [
+      0.25,
+      0.5,
+      1.0
+    ]
+  },
+  "metrics": {
+    "lab": "pinned RD9 rgb_to_lab mirror; D65/2 degree; clipped encoded sRGB inputs",
+    "hue_eligibility": "C*ab >= 5 in both source and output; numerical stability convention only",
+    "source_role": "numeric baseline only, not a desired skin appearance",
+    "reference": "excluded"
+  },
+  "script_sha256": "16fb2dcdeb6012935db17fb7646e33345aeac9084d2a06200588eac7b5c189ac",
+  "mirror_script_sha256": "acaee59e2952164ed16c32d68262fcbef5865919a3117a475dbee66ce75526e3",
+  "limitations": [
+    "single portrait and hand-reviewed, not independently annotated mask candidates",
+    "equation mirrors, not current compiled Core output",
+    "no measured colorimetry or paired photographic reference",
+    "not perceptual skin-tone validation; no method ranking or acceptance gate"
+  ],
+  "row_count": 20,
+  "csv_sha256": "02632b3919bb98086a9e299e5b52dd2cd2091e00a7646d622961fc319c88738a"
+}

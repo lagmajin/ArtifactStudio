@@ -1,0 +1,541 @@
+# Shader Graph Lab
+
+This source-only prototype tests the boundary between **dynamic graph data** and
+**trusted shader implementations**. It is independent of `ArtifactCore` and is
+not wired into the application.
+
+Run the example from the repository root:
+
+`````powershell
+python -B experiments/ShaderGraphLab/dynamic_graph_prototype.py
+```
+
+The prototype reads `registry.json` and `dynamic_add.json`, validates their
+stable operation/socket IDs and types, checks single-writer inputs and cycles,
+topologically orders the active graph, then emits a deterministic HLSL body and
+layout-free semantic SHA-256 over active node IDs, operation/version/implementation
+identity, parameters, links, and output. A change in the selected trusted
+implementation changes the semantic hash even when the document graph is
+otherwise identical. The example computes `(0.25 + 0.5) * 2` as a
+shader candidate. `dynamic_subtract.json` is a focused `0.75 - 0.25` graph for
+the closed scalar Subtract operation. `dynamic_divide.json` exercises the
+legacy positive denominator floor with a negative divisor, which distinguishes
+it from ordinary signed division. `dynamic_vector4_divide.json` exercises the
+same source rule across zero, negative epsilon, positive epsilon, and a negative
+large denominator. The candidate generator writes the saved lowering outputs,
+including Vector4 Subtract, Vector4 Invert, Clamp, and optional Float/Vector4
+input-default examples, and updates their input, registry, and candidate digests
+in the manifest. The manifest source contract
+pins each document/candidate/hash field tuple so a persisted graph cannot be
+silently dropped from regeneration. JSON results record the actual HLSL strings
+and semantic hashes.
+
+Successful lowering also returns a versioned `artifact.shadergraph.typed-ir`
+record and a canonical SHA-256 identity. It stores typed producer references,
+operation/version identity, parameter values or shared-parameter references,
+shared parameter values and bindings, typed outputs, and source-context
+identities. The IR contains no HLSL adapter expressions; changing the alternate
+UV host binding changes emitted HLSL without changing this typed record. This
+is an R&D sidecar, not a complete backend-neutral Core contract: resource
+operands, diagnostics, provenance separation, and runtime consumers remain
+open. The prototype now passes this record, parameter-block layout, and explicit
+host context bindings to `emit_hlsl_from_typed_ir`; that function does not accept
+the editable Document, registry, node map, or writer map. Direct candidate
+differential checks found byte-identical HLSL for all 21 persisted fixtures.
+The old inline HLSL lowering has been removed from `compile_document_from_data`,
+leaving typed IR as the only source-generation input in this prototype path. A
+direct mutation probe clears and invalidates the source Document after
+compilation, then re-emits from the saved typed IR, parameter block, and host
+bindings; output remains byte-identical. A separate Vulkan GLSL 4.5 verbatim fragment emitter
+also consumes the same typed IR directly; it generated source for all 21
+persisted candidate graphs without calling the HLSL emitter. All 21 fragments
+compiled with Vulkan 1.2 using `glslangValidator`, and all resulting SPIR-V
+modules passed `spirv-val`. Reproduce the run with
+`python tools/shader_graph_rd/compile_glsl_vulkan_candidates.py`. The compile
+harness injected a host UV input declaration. It also wraps the HLSL body and
+compiles it through DXC to Vulkan SPIR-V. All 21 HLSL/GLSL pairs compiled and
+passed `spirv-val`; disassembled descriptor bindings, parameter offsets, and
+stage interface locations/types match across every pair. This is interface
+agreement, not arithmetic or image parity. Per-file hashes and interface
+details are in `temp/shader-graph-glsl450-compile/summary.json`. Its
+descriptor/register map is still a candidate proposal. Diligent integration
+and GPU validation remain open; the full manifest validator has not been
+executed.
+
+Measure five fixed Ramp samples through both compiler frontends and compare
+their constant-folded SPIR-V outputs with the independent CPU binary32 formula
+golden:
+
+```powershell
+python -B tools/shader_graph_rd/probe_vulkan_ramp_numeric_parity.py --keep-artifacts
+```
+
+The current evidence has exact GLSL/DXC agreement for 5/5 samples. At factor
+`0.4999`, both compiled outputs differ from the CPU formula golden by one ULP
+in alpha, so strict golden parity reports `failed` and exits nonzero. The tool
+does not relax the comparison threshold. It validates SPIR-V but does not run
+a GPU, Diligent, or the application; generated evidence is kept under `temp/`.
+
+Optional typed input defaults are declared by operation versions, while
+document schema v3 stores an editable Float or Vector4 default per node. Adding
+an operation with optional inputs or editing a socket default upgrades the
+document and snapshots every known optional input value. A connected producer
+still drives the shader; its dormant default remains saved but is excluded from
+active semantic and typed-IR identity. The local graph editor exposes numeric
+controls on optional sockets. Persisted Float and Vector4 candidates exercise
+the lowering paths. Source contracts cover Vector4 lane edits, malformed lane
+count and binary32 overflow rejection, connected-default semantic/source
+stability, and the local session action. Core integration, browser interaction,
+and validator execution remain unverified.
+
+Generate the CPU-only Ramp image oracle with:
+
+```powershell
+python -B tools/shader_graph_rd/generate_dynamic_ramp_image_oracle.py
+```
+
+It writes a 256×256 UV0.x gradient and five-factor swatch atlas as raw
+little-endian RGBA32F, black/white composite display PNGs, and a statistics
+report under `tests/fixtures/shader-graph-rd/dynamic-ramp-image-oracle/`. These
+are independent CPU formula references; they do not capture candidate HLSL,
+Core ColorRamp, a renderer, a GPU backend, or Blender.
+
+`tests/ArtifactCore/RayTracingAcceptanceTest.cpp` also contains a Vulkan capture
+case that pairs the legacy Core ColorRamp path with the generated Ramp HLSL in
+RGBA32F. The candidate uses a test-only adapter into `MeshRenderer`'s graph
+splice; it is not production integration. The acceptance case has not been
+built or run, so no GPU or parity result is claimed.
+
+After an authorized capture run, analyze the five complete legacy baseline
+images and candidate raw image with `tools/shader_graph_rd/analyze_shader_graph_rgba32f.py`.
+The tool reports repeat-to-repeat noise, per-channel RGBA distributions, and
+candidate error against the baseline mean; named top-left-origin ROIs can be
+added with repeated `--roi NAME:X,Y,W,H` options. It does not choose a quality
+threshold or claim Blender parity. The generated capture report supplies and
+hash-verifies all inputs:
+
+```powershell
+python -B tools/shader_graph_rd/analyze_shader_graph_rgba32f.py `
+  --capture-report path/to/shader-graph-ramp-vulkan-capture.json `
+  --output path/to/shader-graph-ramp-analysis.json
+```
+
+Run the dependency-free local graph editor against an existing document:
+
+```powershell
+python -B experiments/ShaderGraphLab/local_graph_lab.py --document path/to/graph.json
+```
+
+To open the generated generic Image Texture + Mapping example:
+
+```powershell
+python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json
+```
+
+To populate its Image Texture selector from a saved `AssetDatabase::toJson()`
+snapshot, pass the snapshot on startup. An optional host-exported source-version
+snapshot enables the prototype's binding projection:
+
+```powershell
+python -B experiments/ShaderGraphLab/local_graph_lab.py --document experiments/ShaderGraphLab/dynamic_generic_image_mapping.json --asset-catalog tests/fixtures/shader-graph-rd/generic_image_asset_database_snapshot.json --asset-source-states tests/fixtures/shader-graph-rd/generic_image_source_states.json
+```
+
+The checked-in catalog and revision files are synthetic snapshots for this graph's
+fixture UUIDs; they make the resolver projection reproducible without claiming
+to represent a live project. Replace them with host snapshots for project assets.
+The adapter accepts the AssetDatabase JSON array, normalizes Qt UUID braces,
+and lists only `AssetType::Image` records. It drops paths and metadata before
+serving choices to the local page and displays the snapshot hash. The optional
+source-state file is a JSON object keyed by Asset UUID, with each value shaped
+as `{"sourceRevision": 3}`; its revision must be exported by a host that reads
+`AssetManager::sourceVersion()`. Both files are static startup snapshots and do
+not refresh. The editor projects a resolver candidate only when the selected
+asset is an Image, its source revision is present, and the sample's UV link
+traces through supported Mapping nodes to UV0. Missing data stays unresolved.
+This candidate projection does not load project files or images, create a GPU
+binding, or establish a live AssetManager connection. Without an AssetDatabase
+snapshot, the editor offers a manual UUID reference field; source states require
+the catalog snapshot.
+
+This schema-v1 document is emitted by the schema-v4 adapter candidate. It
+demonstrates graph construction, typed parameter editing, and a synthetic host
+binding projection, not image sampling.
+
+Then open `http://127.0.0.1:8765/` in a browser. The server binds to loopback
+only. The editor exposes a registry palette searchable by label, category, or
+operation ID. Palette entries show their input/output socket IDs and value types
+on hover and in the accessible name, with required inputs marked. It also offers
+typed socket connections, parameter edits, node movement,
+graph-output selection, deletion, undo/redo, and explicit save through the
+prototype's document APIs. Vector4 parameters
+use four separate numeric controls for component-level editing, including when
+the value is exposed at graph scope. Parameter editors retain focus after a
+commit so Vector4 lanes can be tabbed through without losing the editing
+position. Newly added nodes are selected and placed into a free workspace slot;
+the selection outline and inspector identify the active node. Socket linking can
+start from either an input or output. The opposite-side candidates are highlighted
+when types match and the edge would not form a cycle; an input with one writer is
+shown as a valid rewire candidate, while multi-writer inputs remain blocked.
+Rejected candidates remain visible but dimmed. SVG links are drawn from
+the socket button bounds using per-draw node/socket indexes; malformed endpoints are skipped while the validator
+reports them. Socket hint updates build one adjacency map and per-input link
+index plus node/operation indexes, then cache repeated node-pair cycle queries
+for that render pass. Rewire cycle checks ignore the single edge being replaced. Input
+rows label required/optional state and highlight required
+inputs without a writer. Adjacent edits to the same graph parameter within 0.8 seconds share
+one Undo step; another parameter or structural action starts a separate step.
+Connecting to an input with one existing writer atomically replaces that edge
+after validating types and cycles, as one undoable graph edit. Multi-writer
+inputs must first be repaired by disconnecting their individual links.
+Each connected input link has a Disconnect action, including inputs with multiple
+writers or a malformed source endpoint. It removes one indexed edge only when
+the document hash still matches the displayed revision, and the edit is undoable.
+Nodes whose operation/version is unavailable remain visible at their saved
+position with the original identity. A uniquely identified unknown node can be
+selected, moved, or deleted; deletion removes its incident links and parameter
+bindings. Operation replacement stays disabled until an explicit migration
+contract exists, so unknown pin semantics are never guessed.
+Portable copy rejects a selection containing unavailable operations before it
+reports success; the clipboard format requires a complete registry contract.
+Invalid or duplicate node IDs remain visible as read-only cards and are excluded
+from selection; malformed layout values keep the node visible but disable drag
+so a failed layout edit cannot strand a multi-node move.
+Node-scoped and link-scoped validation diagnostics are buttons that select and
+focus a uniquely identified endpoint node from their JSON Pointer path; graph-wide
+and ambiguous diagnostics remain readable but non-actionable. Identical action, validation, and lowering
+diagnostics are shown once.
+Deleting the active graph-output node opens an explicit output picker populated
+only from surviving nodes with unique IDs. The selection is applied together
+with deletion as one undoable action; cancel leaves the document unchanged.
+The Graph Parameters inspector lists every
+node binding with a direct Detach action. Expose opens a type-filtered chooser to
+share an existing graph parameter or create one with a generated stable ID and
+editable label. Without `--document`,
+the example graph opens as an unsaved session and the Save button is disabled.
+The editor tracks dirty state across edits and undo/redo, warns before leaving a
+modified page, and offers `Download JSON` as an explicit recovery/export path;
+starting the server with `--document` enables atomic Save to that path.
+This UI is an R&D workbench; it is not integrated with Artifact or ArtifactCore.
+Repairable documents with malformed graph collections keep rendering the
+workbench: invalid nodes/links roots fall back to an empty canvas, and malformed
+graph-parameter collections, records, values, and bindings are shown as inert
+diagnostics instead of crashing the inspector. These repair states still need
+dedicated runtime interaction coverage.
+Action failures now keep the last valid editor state when the server cannot
+return a complete state envelope, and show the action diagnostic message in the
+inspector and an `aria-live` status region.
+The manifest validator also exercises the UI session action path in-process:
+it builds a graph, checks validation/lowering, rejects a bad socket without
+changing graph/history, and verifies undo/redo plus save. An ephemeral loopback
+HTTP smoke covers the page route, state route, failed socket action, layout edit,
+and undo response. Browser rendering and real pointer/keyboard interaction
+remain unverified.
+The canvas supports 40–200% zoom from the header, middle-button pan, and
+Space+left-drag pan. Node movement and wire endpoints are scaled back into
+document coordinates. `Focus` centers the selected node (or graph output), and
+`Frame All` fits the current node bounds to the viewport. These interactions are
+source-reviewed but not browser-tested. The Graph Nodes index filters by node ID
+or operation label and selects/focuses a result without changing the document.
+Shift-clicking node titles toggles multi-selection; dragging a selected title
+moves the group through one atomic layout-batch command and one Undo step.
+Delete Selected removes the selected nodes, their links, and graph-parameter
+bindings in one command. Deleting the active graph output requires choosing an
+output from a surviving node first.
+`Arrange` places the selection (or all nodes when nothing is selected) into
+left-to-right data-flow columns. Nodes in each column retain a stable order
+based on their prior y/x position and ID; nodes left in a cycle by topological
+ordering share a final column so malformed graphs can still be visually
+reorganized. When a feasible horizontal placement exists, existing links that
+cross the selection boundary also constrain the block so incoming nodes remain
+to the left and outgoing nodes remain to the right. The operation changes only
+layout and is one undoable batch.
+For fine cleanup, `Align left` / `Align top` use the minimum selected x/y
+coordinate, while horizontal/vertical distribution preserves the first and last
+positions and spaces intermediate nodes evenly. Distribution requires three
+selected nodes; all four layout actions are single undoable batches. Repeated
+node-drag, canvas-scroll, and window-resize events coalesce to at most one
+scheduled wire redraw per animation frame; node positions still track every
+pointer event.
+With the canvas focused, Ctrl/Cmd+D duplicates, Delete removes, Ctrl/Cmd+A
+selects all, Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z or Ctrl/Cmd+Y redoes, F focuses
+the selection, and Escape cancels a pending socket connection. Text controls
+keep their normal editing shortcuts.
+Ctrl/Cmd+C writes a version-2 subgraph JSON envelope to the system clipboard;
+Ctrl/Cmd+V reads that envelope and pastes it with fresh node and graph-parameter
+IDs. Copied layouts are normalized around their top-left node position; paste
+places their bounds near the visible canvas center while preserving all relative
+node positions. Version-1 clipboard envelopes remain readable. The same-session clipboard is the fallback when browser clipboard access is
+unavailable. The payload contains selected nodes, only internal links, exposed
+parameter values/bindings for those nodes, and relevant registry contract locks.
+Paste validates each internal link against the registered socket types, existing
+writers, and cycles in an isolated copy of the incoming subgraph; malformed links
+already present in the target document are left untouched. Clipboard parameter
+records must have unique IDs and unique node-parameter bindings, and each binding
+must match the cloned node's registered parameter type and shared value before it
+is remapped to the fresh node and graph-parameter IDs.
+Duplicate creates fresh node IDs with a 32-unit layout offset, copies selected
+node values and internal links, and adds copied nodes to the same exposed graph
+parameter bindings when their records and types are valid. Malformed graph
+parameter records and bindings remain available for repair and are skipped when
+creating duplicate bindings. Copy likewise exports only valid exposed parameter
+records bound to the selection; unrelated malformed records do not block a copy,
+and a malformed record bound to the selection is rejected. Deleting nodes removes their matching bindings;
+valid graph parameters with no bindings are removed, while malformed parameter
+records are retained. Expose and Detach skip unrelated malformed records while
+still rejecting duplicate IDs, already-exposed values, and malformed target
+bindings; joining an existing parameter also validates every current binding's
+node, registered parameter type, and value consistency. Detach removes a valid graph parameter when its last binding is
+removed, while retaining a malformed parameter record for repair. Links crossing
+the selection boundary are not copied; the original output remains selected. The
+group is one undoable edit.
+Session edits now prepare the post-edit document and a detached next-history
+list before committing either; failed command composition cannot truncate redo
+history. Undo/redo cursors and the parameter-merge key advance only after the
+snapshot operation succeeds, and save clears the merge key only after writing.
+HTTP actions have per-operation required/allowed field sets, reject unknown or
+missing fields, validate JSON depth/value constraints at ingress, and require
+`delete.replacementOutput` to be a two-string pair.
+The browser queues action requests in invocation order and applies each response
+before sending the next action, preventing an older state snapshot from
+overwriting a later edit in the editor. If an action response is lost or cannot
+be decoded, the editor reloads `/api/state` before releasing the queue. State
+responses are checked for the document, validation diagnostics, compilation
+warnings or rejection diagnostics, history, and dirty/save metadata before they
+replace the current UI state.
+Action responses additionally require a boolean result; diagnostic arrays are
+shape-checked before they are formatted into the status line.
+
+## Contract under evaluation
+
+- A version-1 graph document stores node instances, operation ID/version, typed
+  links, parameters, layout, and a selected output. Exposing the first graph
+  parameter upgrades the editing document to schema version 2, which stores
+  typed graph-level values and one or more node-parameter bindings. Existing v1
+  documents remain valid without migration.
+- Persistence uses strict JSON parsing: duplicate object keys and NaN/Infinity
+  tokens are rejected. Canonical serialization sorts object keys but preserves
+  array order, detects cyclic Python references, and caps nested JSON at 256
+  container levels. The same canonical text feeds command snapshot hashes.
+  `load_document` retains unknown JSON fields for repair after validating the
+  bounded JSON depth; `save_document` writes a canonical file through a
+  same-directory temporary file and atomic replace. The local editor tracks the
+  exact loaded file-byte hash and refuses Save if the file changed or vanished,
+  so it does not silently overwrite external edits or recreate a deleted file.
+  After a conflict, `Reload File` becomes available; it requires explicit
+  confirmation, first shows a read-only summary of changed sections, node IDs,
+  graph parameters, links, and output, then clears the in-memory Undo history
+  and loads the current disk version. Changed node IDs can be selected to fetch
+  and inspect the local/disk node JSON side by side. `Download JSON` remains
+  available first to preserve the local edits. If the disk bytes have reverted
+  to the originally loaded version, comparison clears the stale conflict state
+  and lets the user retry Save without discarding local changes.
+  A
+  save/load/edit/resave probe keeps unknown node and link payloads intact while
+  the graph remains repairable and non-compilable.
+  The active compiler still rejects unknown schema fields rather than guessing
+  their semantics.
+- The current typed value set is `Float` and `Vector4`. The registry includes
+  explicit `Float → Vector4` RGB replication with alpha fixed to one and
+  `Vector4 → Float` X extraction. Links require exact type equality; these
+  conversion nodes must be present in the graph, so the compiler never inserts
+  an implicit cast.
+- A declarative registry supplies UI-facing labels, categories, stable sockets,
+  parameter defaults, and a closed implementation ID. The same record can drive
+  node palette entries and socket rendering without treating display labels as
+  identity. `build_palette_model` emits deterministic palette entries keyed by
+  `operationId@semanticVersion` and carries stable socket IDs beside labels;
+  duplicate labels/categories remain separate entries.
+- `instantiate_node` creates node instance data from that operation record and
+  materializes declared parameter defaults while assigning an independent
+  stable node ID and editable layout coordinates. `add_node` appends the selected
+  registry operation to a copied document without changing existing links or
+  output; it rejects duplicate node IDs. Required inputs begin as `incomplete`
+  warnings, and the node becomes compilable after valid links and explicit output
+  selection.
+- `replace_node_operation` changes a node only when input/output socket IDs,
+  value types, requiredness, and parameter IDs/types remain compatible. Existing
+  links, node identity, layout, and parameter values stay in place; an
+  unmaterialized default cannot silently change. Incompatible replacements fail
+  atomically. On sealed documents, the old registry pin is removed only after
+  its last use and the replacement contract is added to the lock. The editor
+  uses a dedicated dialog to expose only signature-compatible palette entries,
+  also excluding candidates whose changed default would be rejected when the
+  current parameter is not materialized. Links and parameter values remain;
+  operation semantics change in one undoable command.
+- `edit_node_parameters` resolves the node's pinned operation definition,
+  merges the full update set, canonicalizes Float32 values and all four
+  Vector4F32 components as finite binary32, and replaces the parameter object
+  only after all fields pass validation. Node and parameter IDs are checked at
+  API ingress against the stable identifier grammar. The manifest covers tie-to-even
+  rounding, subnormal values, signed-zero normalization, stable hashes after
+  repeated edits, and undo/redo restoration for Vector4 constants.
+  Unknown fields or invalid values leave the caller's graph unchanged.
+- `expose_node_parameter` publishes Float32, Vector3F32, or Vector4F32 node parameters and
+  can bind additional compatible node parameters to the same stable graph ID.
+  `edit_graph_parameter` updates the shared value atomically and synchronizes the
+  stored node values; it rejects duplicate bindings to the same node parameter
+  across records before changing any values. Direct edits to exposed node
+  parameters are rejected.
+  `unexpose_node_parameter` detaches one binding while copying the current shared
+  value back to that node, and removes the graph parameter record after its final
+  binding is detached. The local editor exposes this as an undoable node action.
+  Graph parameter labels are presentation metadata; active IDs, types, values,
+  and bindings participate in semantic identity. Bindings on unreachable nodes
+  are excluded from the active semantic projection.
+- `edit_node_layout` accepts only finite binary32 `x`/`y` coordinates. Layout
+  changes stay outside semantic hashing, while extra layout keys and invalid
+  values are rejected at the editing boundary.
+- `edit_node_layout_batch` validates distinct node edits on a private copy and
+  applies all coordinates only if every edit is valid. The manifest confirms a
+  multi-node move keeps semantic hash/HLSL unchanged and a later invalid
+  coordinate leaves the input document untouched.
+- `connect_nodes` edits a detached document copy and adds an edge only after
+  checking source/output and target/input direction, exact value type, single
+  writer, existing link integrity, and cycle formation. Invalid attempts leave
+  the caller's document unchanged. Links involving unknown opaque operations
+  are retained, while the compiler still refuses to lower those graphs.
+- `connect_nodes_batch` applies several such edits against a private working
+  document created once for the full batch. Each edge uses the same
+  endpoint/type/single-writer/cycle checks; if any later edge fails, the caller's
+  original document remains unchanged. Existing node/socket indexes, writer set,
+  adjacency, and for multi-edge batches on an acyclic graph deterministic
+  topological ranks are built once and updated as edges are accepted.
+  Forward-ranked edges
+  need no reachability walk; backward-ranked edges still run cycle search and
+  refresh ranks. Cyclic existing graphs use cycle search for every edge. The
+  private JSON snapshot is not reserialized or copied per edge. `rewire_input`
+  validates directly on its already-detached copy instead of snapshotting it a
+  second time.
+- `add_node_with_connections` composes registry-backed node creation, a batch of
+  typed links, and explicit output selection into one detached document result.
+  Wrap that result in one `DocumentCommand` for a single undo/redo step; any
+  failed link or output validation leaves the input document unchanged. The
+  manifest also groups that add/connect/output command with a following parameter
+  edit and verifies exact grouped undo/redo plus semantic hash change.
+- `disconnect_nodes` removes exactly one addressed edge and preserves all
+  remaining links; a missing or ambiguous edge is rejected without mutation.
+- `disconnect_nodes_batch` preflights the entire requested edge list against the
+  original document using a one-pass exact-edge index, then removes only
+  distinct, uniquely matched links. Missing, ambiguous, or duplicated requests
+  fail before applying any removal.
+- `set_graph_output` validates an output pin and switches the active root.
+  `delete_node` removes the node and every incident link; deleting the selected
+  output requires the caller to name a valid replacement explicitly. This also
+  works for opaque operation nodes: their selected output is repairable, and an
+  explicit replacement is required before the node and incident links are
+  removed.
+- `create_document_command` captures immutable before/after payloads and hashes;
+  `apply_document_command` restores them for undo/redo only when the current
+  document matches the expected history state. The manifest also edits a known
+  node beside opaque nodes/links and confirms undo/redo restores the full payload
+  while the document remains repairable, including save/load between the edit,
+  undo, and redo. This JSON snapshot prototype checks history semantics, not the
+  application's `UndoManager` integration.
+- Undo/redo and command grouping re-parse both snapshots as canonical strict
+  document objects and verify each SHA-256 before restoring or composing them.
+  Malformed history records fail with a stable command diagnostic.
+- The local editor retains at most 100 undo commands and 32 MiB of canonical
+  before/after snapshot payloads. When the budget is reached, oldest commands
+  are pruned; an edit whose own undo record exceeds 32 MiB is rejected before
+  either the document or history is committed. Runtime object overhead is not
+  included in this payload-byte budget. Registry and graph JSON files are read
+  through a 16 MiB byte cap, and saves above the same encoded-byte limit are
+  rejected; individual undo snapshots are also capped so every retained
+  snapshot remains parseable under the same JSON text limit. HTTP action
+  requests are limited to 1 MiB and JSON state/action responses to 64 MiB; the
+  response size is checked incrementally before constructing the output body.
+- `apply_document_batch` runs multiple edits against a private working copy, so
+  a later failure discards earlier edits. `create_document_transaction` makes
+  that batch one undoable command. Adjacent commands can also be grouped, but
+  only when their before/after hashes form a contiguous history chain.
+- Registry loading is strict: unknown operation fields, duplicate `(operationId, semanticVersion)` registrations, duplicate socket IDs, non-string implementation/type tags, boolean schema versions, and inline executable fields are rejected before palette construction. Malformed type tags return structured contract diagnostics rather than leaking Python membership `TypeError`s. File loading validates JSON value depth before iterative forbidden-code-field scanning; parser recursion failures also map to a structured depth diagnostic. Editing APIs use a type-safe registry lookup for serialized node identities so malformed versions remain unavailable-operation diagnostics instead of leaking hash errors. The manifest declares cases for unknown fields, duplicate registrations/sockets, inline executable fields, non-string implementation/socket type tags, registry JSON nesting beyond the configured limit, and boolean/list/object semantic versions at the parameter-edit boundary. The validator has not been run for these newly added cases, so their results remain unverified.
+- Registry data cannot contain Python, HLSL, source, expression, or code fields.
+  Only implementation IDs present in the prototype's trusted backend table can
+  execute. A future new algorithm requires reviewed native implementation and
+  versioned semantics; registering arbitrary code is outside this boundary.
+- Compilation validates the whole known-schema document before output-rooted
+  pruning. Unknown operations/versions fail closed during compilation. The
+  persistence probe separately deep-copies JSON without interpreting or
+  dropping fields, then changes a known node's parameter/layout while keeping
+  an unknown node's extra fields and a link to its unknown socket byte-value
+  equivalent as JSON. This does not prove a production editor's visual or
+  interactive handling of unknown sockets. Unreachable valid nodes remain
+  document data and are excluded from active lowering with a warning.
+- Layout is excluded from the active semantic hash. Canonical Float,
+  Vector3F32, and Vector4F32 parameters use finite IEEE-754 binary32 and normalize signed zero.
+- `validate_document_for_editing` separates a graph that is valid and
+  compilable, an incomplete graph with unconnected required inputs (warnings),
+  structurally invalid graphs (errors), and a repairable graph containing
+  fields/schema/operation versions this prototype cannot interpret. If the exact
+  pinned operation definition becomes available again, the unchanged document
+  validates and lowers again; a new or changed semantic version still needs an
+  explicit identity migration or a domain-specific transform. Repairable
+  documents retain their opaque JSON data and can still be edited and saved;
+  compilation remains unavailable until unsupported data is handled explicitly.
+  It returns sorted diagnostics and aggregates independent node/link/root
+  issues, including graph-parameter shape, binding, type, and value mismatches,
+  in one pass, and only reports a semantic hash when compilation
+  succeeds. An unavailable operation selected as output is repairable when its
+  node exists; a truly absent output node remains a structural error.
+- The registry compatibility probe hashes operation ID/version, trusted
+  implementation ID, typed socket IDs/requiredness, and typed parameter
+  defaults. Same-version parameter-default and input-requiredness drift both
+  invalidate the saved contract lock; palette label/category changes remain
+  presentation-only. Removed operations produce diagnostics, while a new version
+  can coexist with the old one.
+  `seal_document` stores locks only for operation versions referenced by the
+  document, and lowering checks them before graph validation. A new version
+  can coexist with the old one while old graphs still resolve their pinned
+  operation; changes to unrelated registry entries do not alter the lock. This is a
+  prototype persistence shape. The migration probe permits an explicit version
+  pin change only when both versions are registered and their operation
+  semantics match exactly apart from the version and operation ID. The probe
+  rejects changes to implementation, parameter defaults, and input requiredness,
+  and does not migrate across operation IDs. Missing pinned versions are
+  rejected instead of silently upgraded; semantic changes require an operation
+  specific transform that this prototype does not implement.
+
+## Evidence limits
+
+The parameter-block reflection contract is schema v1. Its logical binding ID is stable, while the physical register is compiler-assigned. A CPU-only resolver rejects duplicate logical IDs, unsupported schema versions or resource kinds, missing reflected blocks, and collisions in the same HLSL register class; equal indices across distinct classes such as `b0` and `t0` remain valid. This is synthetic metadata validation, not actual compiler reflection.
+
+`adapt_to_resident_generic_abi` provides a second source candidate for Artifact's current `g_P0..g_P15` prelude. The target identity is `artifact.resident-generic-params.scalar16.v1`. Those are sixteen scalar `float` lanes: Float32 consumes one lane, Vector3F32 consumes three consecutive lanes and lowers to `float3(g_Pn, ..., g_Pn+2)`, and Vector4F32 consumes four lanes. Parameters receive lanes in stable parameter-ID order, the total is capped at sixteen scalar lanes, and overflow fails closed. `pack_resident_generic_parameter_values` canonicalizes the candidate's typed values as finite binary32, verifies the value hash against the compile result, requires the binding list to be in stable ID order, writes the matching lane order, and zero-fills unused lanes. It returns the explicit lane count and 64-byte parameter-array extent, separate from the larger `ResidentGenericParams` host structure. Missing/extra values and reordered bindings fail closed. The adapter emits no cbuffer or physical register declaration. A source check compares the adapter capacity against `ArtifactRenderLayerPipeline.cpp`'s HLSL prelude and C++ `p[16]` storage. Source audit also found that the existing resident apply loop copies every `node.parameters` entry into `p[i]` without a local `i < 16` guard; this prototype does not change or protect that production call site. Any integration needs a caller-side capacity check before writing. The target-specific structure hash remains stable across value edits. This is a CPU-side contract probe only; it is not connected to a renderer and does not prove compiler or GPU compatibility.
+
+The prototype supports `Float`, `Vector2`, `Vector3`, and `Vector4` sockets with forty closed implementations. Vector3 currently covers node-owned constants, component-wise addition, subtraction, and multiplication, scalar Scale with a required Float socket, and Dot Product with a typed Float output, and addition with a typed three-lane optional default, selected-root `float3` output, and a graph-parameter source candidate. The schema-v3 fixture `dynamic_optional_vector3_default.json` pins `[0.1, 0.2, 0.3]`; source checks declare edit, typed-IR/HLSL, Graph Lab action, undo, and redo coverage. Vector3 graph parameters reserve a full 16-byte cbuffer register and lower `vector3.constant` through the shared parameter symbol. The separate resident generic adapter consumes three consecutive scalar `float` lanes. The local editor renders and edits all three node-value lanes and allows parameter exposure. These are source-candidate layout contracts only; compiler reflection, upload, and GPU compatibility remain unverified. The surface-context inputs `float.uv0.x` and `vector2.uv0` expose either the X lane or the full UV pair from the current `In.UV` adapter. Six fixed material-slot Image Texture operations now consume explicit Vector2 UV inputs and emit raw Vector4 Color plus Float Alpha. Their symbolic resource requirements enter typed IR; this is still a candidate and does not resolve an asset or sample a GPU image. The remaining implementations include: `float.constant`, the surface-context input `float.uv0.x`, `vector3.constant`, `vector3.add`, `vector3.subtract`, `vector3.multiply`, `vector3.scale`, `vector3.dot`, `vector4.constant`, scalar `float.add`/`float.subtract`/`float.multiply`, scalar `float.divide.positive_floor_1e5`, component-wise `vector4.add`/`vector4.subtract`/`vector4.multiply`, `vector4.divide.positive_floor_1e5`, `vector4.invert.linear_factor`, `float.clamp.sorted_bounds`, `vector4.mix.saturated_factor` plus the seven fixed `vector4.mixrgb.*.saturated_factor` modes, explicit `float.replicate.rgb_alpha_one`, explicit `vector4.extract_x`, and multi-output `vector4.separate_channels` and `vector4.ramp.linear_stops`. Active source operations also emit typed `contextBindings` metadata; the candidate structure hash includes stable context IDs, while the HLSL expression remains an adapter mapping. The Ramp stores a node-owned ordered array of 2–32 `{position, color[4]}` stops, edited in the local prototype as one atomic parameter action; that stop bound is provisional and unprofiled. Lowering clamps positions and factor, stable-sorts by `(position, authored index)`, selects the last authored stop at an exact duplicate-position boundary, and uses the provisional `1e-5` segment floor. Scalar and Vector4 subtraction compute `a - b` without clamping. `vector4.invert.linear_factor` takes required Vector4/Float inputs and emits the source-derived `lerp(color, 1-color, saturate(factor))` expression across all four raw lanes. Both division candidates reproduce legacy `max(b, 1e-5)` behavior, including mapping negative divisors to the positive floor; they are deliberately named to distinguish them from conventional division. The Vector4 divide fixture uses four denominator cases and matches each input lane to the source-bound binary32 formula golden. The Vector4 subtract candidate uses four exactly representable lanes and an independent binary32 result-bit golden. The persisted Vector4 Invert graph uses the source-derived factor-half golden case, and the manifest validator declares lowering all seven source-golden inputs to typed candidates. `float.clamp.sorted_bounds` takes three required Float inputs and sorts reversed bounds before clamp; its manifest contract lowers all seven source-golden cases through graph constants. These formula checks remain CPU/source evidence, not shader runtime evidence. Vector4 arithmetic treats all four components as raw numeric lanes, including alpha; it does not apply color or alpha policy. Active graph parameters lower into a typed HLSL `cbuffer` with references, plus separate semantic, shader-structure, and parameter-value hashes and binding metadata. The block has a stable logical binding ID; its physical register is left unassigned until compiler reflection, avoiding a hard-coded slot that could collide with an existing shader interface. The CPU layout packs Float32 into 4-byte slots without crossing 16-byte registers and starts Vector3F32 and Vector4F32 at 16-byte boundaries; Vector3F32 reserves the full register so a later ABI revision cannot silently pack a following value into its fourth lane, following [Microsoft's HLSL packing rules](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules). A mixed fixture checks offsets `0`, `4`, and `16` and a 32-byte block. Synthetic reflection fixtures check slot resolution and duplicate-slot rejection; they do not replace real compiler reflection. Editing a parameter value keeps the HLSL candidate and structure hash stable. This remains text and metadata evidence: no HLSL compiler, GPU resource binding, renderer, backend parity, production persistence adapter, or Blender compatibility is exercised. The local UI's edit/undo/save routes use the Python prototype contracts and do not establish the production API or authorize promotion into `ArtifactCore`.
+
+The generic `texture.sample.image2d` operation is the thirty-fourth closed implementation. It is reached through the schema-v4 adapter and carries a node-scoped resource reference plus a document resource table. The local editor can author the reference and sampler/color state, and can select Image UUIDs from an optional `AssetDatabase::toJson()` snapshot. It does not connect to a live project Asset database, resolve a source revision, load an image, or create a GPU binding.
+
+The prototype now rejects graph documents above 4096 nodes or 16384 links before per-record validation/map construction and lowering. The local session also rejects edits that increase an already-over-limit collection before adding an undo command, while reductions remain available for repair. Canonical save/reload preserves the full over-limit document payload so it can be repaired and saved after reducing its size. Generic document preservation and executable-field scans still traverse the document first. These are explicit prototype safety ceilings, not measured product limits: large/deep graph allocation and compile-time profiles have not been run, so Core must select its bounds from representative runtime measurements.
+
+Rejected documents return a JSON envelope with `status: rejected` and one or more diagnostics containing `code`, `severity`, `path`, and `message`. The manifest validator checks the registry, graph, and saved example output hashes against regeneration, then exercises semantic invariance, opaque retention/editing, registry contract compatibility, and eleven rejection probes. Those cases pin stable diagnostic codes, severity, and JSON Pointer paths. Other structured errors still need broader fixture coverage before promotion. These checks validate the Python prototype contract only; they are not a C++ test or renderer verification.
+
+
+## Material-slot texture sample candidate
+
+The registry exposes fixed operations for Base Color, Opacity, Emission, Metallic-Roughness, Normal, and Occlusion. A slot is part of operation identity, so changing slots changes graph semantics without adding an open-ended resource selector. The Base Color fixture links the typed UV0 context into the sample, records a symbolic `artifact.material.texture.base_color` dependency, and generates a single raw `float4` sample reused for the Alpha output. The HLSL candidate uses the existing resource symbol and shared sampler observed in the legacy adapter.
+
+The resource record deliberately does not claim asset identity/revision, sampler filter or address mode, UV set transforms, missing-resource fallback, channel policy, or color transfer. These remain binding/runtime responsibilities and require explicit contracts before Core promotion. The existing 4×4 channel-probe image is reserved for later image evaluation: compare the candidate and current graph path using the same resource, UV ramp, raw linear RGBA capture, alpha composites over black and white, full-frame plus channel/edge regions, repeated baseline captures to set tolerance before candidate review, and each available renderer backend. No capture or shader compilation has been run for this candidate.
+
+The `Vector2 Mapping` candidate adds a closed scale/offset operation between UV0 and a Vector2 output. Its four Float32 parameters are part of typed graph semantics and lower deterministically into HLSL; changing an offset changes both semantic and source hashes. A second candidate wires that output into the fixed Base Color texture sample, so the emitted `.Sample` consumes the mapped coordinate while its symbolic resource requirement stays the same. The generic schema-v4 adapter now preserves this Mapping node and emits the directly editable schema-v1 example described above. The production material path remains unconnected, and the host binding compatibility transform field is still unresolved.
+
+
+The persisted Metallic-Roughness composition fixture now connects the sample Color output to `vector4.separate_channels` and selects G as the graph root. Its contract also lowers the same graph with B selected, proving that root/output selection changes the generated scalar expression while retaining the same symbolic resource requirement. This characterizes the graph composition needed for conventional roughness-G and metallic-B wiring; it does not connect either channel to a Principled input or verify rendered material response.
+
+
+## Runtime resource binding identity candidate
+
+The host adapter may supply resolved binding metadata separately from the graph: logical resource key, project Asset UUID, source revision, sampler key, UV set and transform, and color interpretation. The prototype validates and hashes this record as `resourceBindingKeySha256`, while keeping it outside typed-IR, shader-structure, and emitted-source hashes. A missing active binding is reported as unresolved and has no binding key. The contract uses synthetic metadata only; it does not resolve a project asset or create a Diligent texture/SRB.
+
+The source audit found a useful integration boundary: `AssetDatabase` exposes logical UUIDs and paths; project `FootageItem` persists `assetId` separately from `filePath`; `AssetManager` tracks an in-memory `sourceVersion`; current `MeshRenderer` material-slot texture reuse is keyed by normalized path. Thus graph/resource identity can be modeled independently, but a production adapter still needs to resolve asset IDs, revisions, sampler/UV/color state, and current renderer path-based slots without changing shader code identity.
+
+`generate_generic_image_resource_candidate.py` adapts the schema-v4 two-image fixture into the dynamic prototype's schema-v1 document. Each generic Image Texture node stores `resourceReference` with its stable node-scoped `resourceKey`, document `resourceId`, sampler descriptor, and color interpretation. The document also retains the resource table mapping `resourceId` to project Asset UUID. The compiler validates node references against that table and ensures external bindings still point at the table's Asset UUID. `edit_node_resource_reference` changes or clears node state atomically; `set_graph_resource_asset` creates or relinks a table entry without changing the node reference. The local editor now exposes both through one undoable Image Texture action, while project Asset lookup and host-resolved bindings remain outside the editor. `validate_document_for_editing` accepts host-resolved bindings: unresolved active assets produce stable repair warnings, preserve the document, and set `compilationAvailable` false. Asset type and source revision remain host-resolved, while each image keeps a distinct shader texture/sampler symbol. A candidate mutation points both image nodes at one `resourceId` and checks that their resource keys, shader symbols, and binding entries remain separate. Clipboard schema v4 carries the referenced table rows, imports them on paste, and rejects a conflicting same-ID mapping; node-scoped keys are remapped for pasted or duplicated nodes. The authored sampler descriptor becomes a deterministic `sampler.<sha256>` key; the fixture's explicit UV0 link maps to resolver compatibility metadata (`uvSet=0`, identity transform). Candidate generation confirms the adapter and resource bindings lower together, but persistence contracts, the HLSL compiler, AssetManager, and GPU remain unverified.
+
+The separate `generic_image_mapping_proposal.json` extends that adapter subset with a typed scale/offset Mapping node. The adapter preserves its four Float32 parameters into the dynamic registry document, and the generated generic Image Texture HLSL samples with the mapped Vector2. A direct-UV mutation retains identical resource requirements and resolved binding key while changing graph semantic and emitted-source identity. The main two-image proposal remains its own direct-UV baseline. These are source-generated candidates; schema migration, production persistence, shader compilation, image sampling, and GPU behavior remain unverified.
+
+## Generic per-node image reference proposal
+
+`generic_image_resource_prototype.py` now validates a bounded schema-v4 subset with two independent Image Texture nodes feeding a Vector4 Add node, then projects output-reachable samples into node-scoped `sampledTexture2D` requirements. The two nodes select different project assets. Typed requirements carry symbolic resource/node identity only and have their own canonical SHA-256; Asset UUID and catalog type are emitted in a separate resolution sidecar. A second projection adds host source revisions to each node's authored sampler and color-interpretation state, producing a logical `resourceBindingKeySha256`. Asset relink, source revision, sampler, and color-interpretation mutations each change that key while preserving the symbolic resource-requirement hash; missing source revision yields no key. UV stays an explicit typed graph link. This demonstrates identity separation for the candidate contract, but does not measure shader code identity because the prototype generates no shader code. The synthetic Asset catalog distinguishes a missing asset (repairable unresolved projection) from an incompatible non-Image asset (stable rejection). The binding key is logical only: it excludes GPU handles, device generation, PSO identity, and resource allocation reuse. The document remains incompatible with the main dynamic-graph prototype and is not a Core-ready schema. Bounds are provisional and unprofiled. Migration/round-trip, relinking/undo, shader compilation, and image/backend evaluation gates remain open.
+
+## Legacy Core nested Add projection probe
+
+The read-only legacy projection lane accepts a selected Principled BaseColor subgraph containing linked RGB constants and nested unclamped Math(Add) nodes. It projects a scalar Value connected to BaseColor through the explicit artifact.convert.scalar.replicate.vector4.rgb_alpha_one operation, and an unconnected BaseColor through an explicit Vector4 constant matching the Core fallback. core_math_add_projection_candidate.json records these probes with their documents, HLSL candidates, source hashes, and CPU goldens. The manifest validator reconstructs the scalar and unconnected legacy JSON, reruns the adapter, and compares projected documents and emitted HLSL. Unsupported node types, sockets, operations, clamps, collisions, and other implicit conversions still fail closed. This expands only the source-only R&D adapter; it does not migrate or rewrite Core documents, and it is not a compiler, renderer, GPU, or runtime parity result.

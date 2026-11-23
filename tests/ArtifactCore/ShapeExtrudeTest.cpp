@@ -20,6 +20,36 @@ std::vector<QPointF> rectangleContour()
     return {{0.0, 0.0}, {40.0, 0.0}, {40.0, 20.0}, {0.0, 20.0}};
 }
 
+bool frontCapCoversPoint(const Mesh::RenderData& renderData,
+                         double testX,
+                         double testY,
+                         float frontZ)
+{
+    for (qsizetype i = 0; i + 2 < renderData.indices.size(); i += 3) {
+        const QVector3D& a = renderData.positions[
+            static_cast<qsizetype>(renderData.indices[i])];
+        const QVector3D& b = renderData.positions[
+            static_cast<qsizetype>(renderData.indices[i + 1])];
+        const QVector3D& c = renderData.positions[
+            static_cast<qsizetype>(renderData.indices[i + 2])];
+        if (std::abs(a.z() - frontZ) > 1.0e-5f ||
+            std::abs(b.z() - frontZ) > 1.0e-5f ||
+            std::abs(c.z() - frontZ) > 1.0e-5f) {
+            continue;
+        }
+        const double denominator = (b.y() - c.y()) * (a.x() - c.x()) +
+                                   (c.x() - b.x()) * (a.y() - c.y());
+        if (std::abs(denominator) < 1.0e-9) continue;
+        const double u = ((b.y() - c.y()) * (testX - c.x()) +
+                          (c.x() - b.x()) * (testY - c.y())) / denominator;
+        const double v = ((c.y() - a.y()) * (testX - c.x()) +
+                          (a.x() - c.x()) * (testY - c.y())) / denominator;
+        const double w = 1.0 - u - v;
+        if (u >= 0.0 && v >= 0.0 && w >= 0.0) return true;
+    }
+    return false;
+}
+
 } // namespace
 
 TEST(ShapeExtrudeTest, BuildsRenderableMeshForClosedRectangle)
@@ -180,6 +210,55 @@ TEST(ShapeExtrudeTest, KeepsCapOpenAcrossTheEntireInnerContour)
         }
     }
     EXPECT_FALSE(coveredByFrontCap);
+}
+
+TEST(ShapeExtrudeTest, TriangulatesDShapedCapAroundItsCounter)
+{
+    const std::vector<QPointF> outerD = {
+        {0.0, -10.0}, {0.0, 10.0}, {8.0, 10.0}, {14.0, 8.0},
+        {18.0, 4.0}, {20.0, 0.0}, {18.0, -4.0}, {14.0, -8.0}, {8.0, -10.0}};
+    const std::vector<QPointF> innerCounter = {
+        {4.0, -6.0}, {10.0, -6.0}, {15.0, -4.0}, {17.0, 0.0},
+        {15.0, 4.0}, {10.0, 6.0}, {4.0, 6.0}};
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 20.0f;
+    params.bevelWidth = 0.0f;
+    ASSERT_TRUE(extrudeContourMesh({outerD, innerCounter}, params, mesh));
+
+    const Mesh::RenderData renderData = mesh.generateRenderData();
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 2.0, 0.0, 10.0f));
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 18.0, 0.0, 10.0f));
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 9.0, 8.0, 10.0f));
+    EXPECT_FALSE(frontCapCoversPoint(renderData, 10.0, 0.0, 10.0f));
+}
+
+TEST(ShapeExtrudeTest, TriangulatesComplexGlyphWithTwoCounters)
+{
+    const std::vector<QPointF> outerB = {
+        {0.0, -12.0}, {0.0, 12.0}, {8.0, 12.0}, {14.0, 10.0},
+        {17.0, 7.0}, {17.0, 4.0}, {14.0, 1.0}, {9.0, 0.0},
+        {14.0, -1.0}, {18.0, -4.0}, {18.0, -7.0}, {15.0, -10.0},
+        {9.0, -12.0}};
+    const std::vector<QPointF> upperCounter = {
+        {5.0, 2.0}, {10.0, 2.0}, {13.0, 4.0}, {13.0, 7.0},
+        {10.0, 9.0}, {5.0, 9.0}};
+    const std::vector<QPointF> lowerCounter = {
+        {5.0, -9.0}, {10.0, -9.0}, {14.0, -7.0}, {14.0, -4.0},
+        {10.0, -2.0}, {5.0, -2.0}};
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 20.0f;
+    params.bevelWidth = 0.0f;
+    ASSERT_TRUE(extrudeContourMesh(
+        {outerB, upperCounter, lowerCounter}, params, mesh));
+
+    const Mesh::RenderData renderData = mesh.generateRenderData();
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 2.0, 0.0, 10.0f));
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 15.0, 6.0, 10.0f));
+    EXPECT_TRUE(frontCapCoversPoint(renderData, 16.0, -6.0, 10.0f));
+    EXPECT_FALSE(frontCapCoversPoint(renderData, 9.0, 6.0, 10.0f));
+    EXPECT_FALSE(frontCapCoversPoint(renderData, 9.0, -6.0, 10.0f));
 }
 
 TEST(ShapeExtrudeTest, TriangulatesConcaveFrontCapToContourArea)

@@ -1,0 +1,666 @@
+{
+  "status": "unlocked",
+  "rd0_purpose": "baseline and response characterization only",
+  "candidate_quality_verdicts": "not evaluated; do not rank from response statistics",
+  "thresholds": [],
+  "open_findings": [
+    "RD0-ALPHA-ASSOCIATION-01",
+    "RD0-COMPOSITION-LUT-RESTORE-01",
+    "RD0-TRITONE-ALPHA-ASSOCIATION-01",
+    "RD0-COMPOSITION-COLOR-EFFECT-RESTORE-01",
+    "RD0-TRITONE-HDR-CLAMP-01",
+    "RD0-TRITONE-CPU-GPU-DIVERGENCE-01"
+  ],
+  "source_contract_matrix": {
+    "status": "source_and_python_mirror_evidence_only_not_product_acceptance",
+    "contracts": [
+      {
+        "id": "LUT-INTENSITY-ZERO",
+        "expected": "Finite source RGB is preserved exactly at intensity 0.",
+        "evidence": "LUTEffect::applyCPU leaves RGB unwritten at intensity <= 0.0001; float_contract_probe intensity_0 mirrors this rule. The rd0 8-bit source-mirror outputs also have max_code difference 0 for baseline and every built-in look at intensity 0 across the chart and four photographic cases (45 output/case combinations).",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-ALPHA-PRESERVATION",
+        "expected": "LUTEffect changes RGB and preserves the copied alpha channel.",
+        "evidence": "Inspected CPU loop writes only r/g/b; float_contract_probe records alpha for each probe.",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-FULL-LOOKUP-DOMAIN",
+        "expected": "For finite built-in table values, full-strength lookup output is finite and clamped to [0,1].",
+        "evidence": "ColorLUT::apply sanitizes/clamps RGB; source mirror probes out-of-range and non-finite inputs.",
+        "runtime_verified": false
+      },
+      {
+        "id": "LUT-PRESET-INDEX-RANGE",
+        "expected": "Preset index is clamped to 0..9 (Custom through Fuji3510).",
+        "evidence": "LUTEffect::setPreset clamps the integer; registry audit lists the enum values.",
+        "runtime_verified": false
+      }
+    ],
+    "excluded_from_this_matrix": [
+      "aesthetic quality",
+      "HDR working-space quality",
+      "alpha association through Composition",
+      "preview/final/backend parity",
+      "product performance"
+    ]
+  },
+  "rd0_machine_checks": {
+    "scope": "Python source-mirror image outputs and recorded metrics; not C++ differential, product runtime, aesthetic review, or quality acceptance",
+    "intensity_zero": {
+      "cases": [
+        "chart",
+        "neon_streets",
+        "street_lights",
+        "portrait",
+        "forest"
+      ],
+      "built_in_looks": 9,
+      "look_case_combinations": 45,
+      "max_code_difference": 0,
+      "result": "pass"
+    },
+    "non_finite_output_values": {
+      "candidate_case_sets": 95,
+      "count": 0,
+      "result": "pass"
+    },
+    "source_asset_hashes": {
+      "manifest_hashes_match": true,
+      "result": "pass"
+    },
+    "visual_review": "blind form remains blank; no candidate was ranked or quality gate established",
+    "product_runtime": "not run; build, test, and GUI workflow were not executed"
+  },
+  "candidate_comparisons_to_date": "Exploratory source-mirror characterizations and contact-sheet triage only; not confirmatory candidate review, ranking, quality verdict, or gate evidence.",
+  "baseline_review": {
+    "status": "not_started",
+    "form": "experiments/CinematicLooksLab/captures/rd0/review/BASELINE_REVIEW_FORM.md",
+    "scope": "Input and unprocessed baseline images only; do not open candidate sheets or blind keys.",
+    "required_before": [
+      "locking visual/technical/performance gates",
+      "scoring candidate blind-review forms",
+      "confirmatory candidate comparison"
+    ]
+  },
+  "ai_baseline_preflight": {
+    "status": "completed_descriptive_only",
+    "report": "experiments/CinematicLooksLab/captures/rd0/review/AI_BASELINE_PREFLIGHT_2026-11-17.md",
+    "candidate_images_opened": false,
+    "blind_keys_opened": false,
+    "human_review_substitute": false,
+    "quality_verdict_or_gate": false
+  },
+  "next_step": "Complete the baseline-only review form without opening candidate sheets or blind keys. Use its recorded display conditions and pre-existing image characteristics to lock justified visual/technical/performance thresholds in this file. Only then score the LUT 95-ID and effect-extension 35-ID candidate forms, inspect full-resolution candidate crops, and open their keys after the scores/notes are saved. After candidate review and gate decisions, request explicit authorization before C++ differential, build/test, or product UI/runtime work; then capture Composition preview/final plus available Render Queue CPU/GPU paths for alpha, HDR, Tritone parity and save/reload. Only then recommend adoption and map browser IDs as mapped or explicitly unmapped.",
+  "review_form": "experiments/CinematicLooksLab/captures/rd0/review/BLIND_REVIEW_FORM.md",
+  "alpha_fixture": "experiments/CinematicLooksLab/assets/alpha-association-chart.png",
+  "alpha_runtime_protocol": "experiments/CinematicLooksLab/EVALUATION_PLAN.md (Alpha runtime protocol section)",
+  "assistant_visual_triage": {
+    "status": "contact_sheet_triage_only_no_scores_no_gate",
+    "cases_opened": [
+      "chart",
+      "neon_streets",
+      "street_lights",
+      "portrait",
+      "forest"
+    ],
+    "blind_key_opened": false,
+    "observations": [
+      "Contact sheets show clearly distinct contrast, saturation, warm/cool, and monochrome responses across IDs.",
+      "Some dark and highlight regions appear strongly compressed or lifted in individual candidates at contact-sheet scale; full-resolution crops and matched display review are required before calling these defects.",
+      "No aesthetic ranking, technical-quality score, candidate-to-look mapping, or threshold was assigned."
+    ],
+    "limitation": "This is an assistant visual triage at contact-sheet scale, not the planned human blind review or product runtime evaluation."
+  },
+  "source_mirror_extension": {
+    "report": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+    "source_contract": "experiments/CinematicLooksLab/EFFECT_SOURCE_CONTRACT.json",
+    "status": "source_equation_mirror_characterization_only_no_C++_differential_or_product_runtime",
+    "cases": 5,
+    "blind_candidate_count_per_case": 7,
+    "zero_strength_observation": "ColorBalance CPU/GPU short-circuits at Strength <= 0. Tritone CPU preserves unit-range RGB but clips out-of-range values. Tritone GPU HLSL is not a no-op at Master Strength 0 for saturated colors because colorMix remains active and preserve-luma correction is applied.",
+    "alpha_association_probe_max_rgb_delta": {
+      "ColorBalance_Cinematic_CPU": 2.384185791015625e-07,
+      "ColorBalance_Cinematic_GPU_formula": 2.384185791015625e-07,
+      "Tritone_Cinematic_CPU": 0.348541796207428,
+      "Tritone_TealAndOrange_CPU": 0.5174334049224854,
+      "Tritone_Cinematic_GPU_formula": 0.6796709299087524,
+      "Tritone_TealAndOrange_GPU_formula": 0.4223021864891052
+    },
+    "quality_gates": "unlocked; no visual or runtime threshold assigned",
+    "tritone_cpu_gpu_formula_delta": {
+      "evidence": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json",
+      "per_case_metrics": {
+        "chart": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "tritone_gpu_cinematic_s0": {
+            "mae": 15.014185587565104,
+            "rmse": 32.0593376159668,
+            "p95": 89.0,
+            "max": 140,
+            "changed_pixel_rate": 0.6235402425130209,
+            "channel_mae": [
+              16.93979008992513,
+              8.500644048055014,
+              19.602122624715168
+            ]
+          },
+          "tritone_gpu_cinematic_s0.5": {
+            "mae": 15.779952791002062,
+            "rmse": 21.34244155883789,
+            "p95": 44.0,
+            "max": 84,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              9.387290318806967,
+              11.839083989461264,
+              26.113484064737957
+            ]
+          },
+          "tritone_gpu_cinematic_s1": {
+            "mae": 16.00666067335341,
+            "rmse": 20.323421478271484,
+            "p95": 41.0,
+            "max": 57,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              16.49428367614746,
+              4.540885925292969,
+              26.984812418619793
+            ]
+          },
+          "tritone_gpu_teal_orange_s1": {
+            "mae": 14.028995937771267,
+            "rmse": 19.573633193969727,
+            "p95": 45.0,
+            "max": 67,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              17.520204544067383,
+              7.029869715372722,
+              17.5369135538737
+            ]
+          }
+        },
+        "neon_streets": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "tritone_gpu_cinematic_s0": {
+            "mae": 6.822871993563686,
+            "rmse": 11.238495826721191,
+            "p95": 25.0,
+            "max": 178,
+            "changed_pixel_rate": 0.9847789634146341,
+            "channel_mae": [
+              7.422084603658536,
+              2.8581637449186994,
+              10.18836763211382
+            ]
+          },
+          "tritone_gpu_cinematic_s0.5": {
+            "mae": 12.090742081639567,
+            "rmse": 15.51123046875,
+            "p95": 29.0,
+            "max": 90,
+            "changed_pixel_rate": 0.9999955538617886,
+            "channel_mae": [
+              2.99049987296748,
+              10.904346417682927,
+              22.377379954268292
+            ]
+          },
+          "tritone_gpu_cinematic_s1": {
+            "mae": 11.70994156504065,
+            "rmse": 15.022891998291016,
+            "p95": 28.0,
+            "max": 61,
+            "changed_pixel_rate": 0.9998158028455284,
+            "channel_mae": [
+              14.12013655995935,
+              2.539770706300813,
+              18.469917428861788
+            ]
+          },
+          "tritone_gpu_teal_orange_s1": {
+            "mae": 8.338635035569105,
+            "rmse": 12.156858444213867,
+            "p95": 30.0,
+            "max": 76,
+            "changed_pixel_rate": 0.9998634400406504,
+            "channel_mae": [
+              11.516678734756098,
+              3.3302064278455283,
+              10.169019944105692
+            ]
+          }
+        },
+        "street_lights": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "tritone_gpu_cinematic_s0": {
+            "mae": 9.930023419415509,
+            "rmse": 14.712922096252441,
+            "p95": 31.0,
+            "max": 97,
+            "changed_pixel_rate": 0.9999335394965277,
+            "channel_mae": [
+              8.96741672092014,
+              6.203261990017361,
+              14.619391547309029
+            ]
+          },
+          "tritone_gpu_cinematic_s0.5": {
+            "mae": 11.966142668547453,
+            "rmse": 15.870609283447266,
+            "p95": 32.0,
+            "max": 66,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              5.226698133680555,
+              7.276603190104167,
+              23.39512668185764
+            ]
+          },
+          "tritone_gpu_cinematic_s1": {
+            "mae": 11.428606499565973,
+            "rmse": 14.16264820098877,
+            "p95": 22.0,
+            "max": 58,
+            "changed_pixel_rate": 0.9999905056423611,
+            "channel_mae": [
+              14.806380208333334,
+              1.2943589952256944,
+              18.18508029513889
+            ]
+          },
+          "tritone_gpu_teal_orange_s1": {
+            "mae": 6.8946334273726855,
+            "rmse": 9.166666030883789,
+            "p95": 16.0,
+            "max": 67,
+            "changed_pixel_rate": 0.9999986436631945,
+            "channel_mae": [
+              12.328696017795139,
+              1.7745564778645833,
+              6.580647786458333
+            ]
+          }
+        },
+        "portrait": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "tritone_gpu_cinematic_s0": {
+            "mae": 8.53325441148546,
+            "rmse": 12.124771118164062,
+            "p95": 23.0,
+            "max": 96,
+            "changed_pixel_rate": 0.9775892893473307,
+            "channel_mae": [
+              11.95645268758138,
+              4.3673044840494795,
+              9.276006062825521
+            ]
+          },
+          "tritone_gpu_cinematic_s0.5": {
+            "mae": 10.669851515028212,
+            "rmse": 13.142330169677734,
+            "p95": 23.0,
+            "max": 57,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              5.92021369934082,
+              8.86828867594401,
+              17.221052169799805
+            ]
+          },
+          "tritone_gpu_cinematic_s1": {
+            "mae": 11.449475818210178,
+            "rmse": 14.860307693481445,
+            "p95": 27.0,
+            "max": 54,
+            "changed_pixel_rate": 0.9999408721923828,
+            "channel_mae": [
+              16.11174774169922,
+              2.158636728922526,
+              16.07804298400879
+            ]
+          },
+          "tritone_gpu_teal_orange_s1": {
+            "mae": 8.307113859388563,
+            "rmse": 11.77354621887207,
+            "p95": 27.0,
+            "max": 54,
+            "changed_pixel_rate": 0.9999713897705078,
+            "channel_mae": [
+              13.509849548339844,
+              3.059858957926432,
+              8.351633071899414
+            ]
+          }
+        },
+        "forest": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "tritone_gpu_cinematic_s0": {
+            "mae": 4.674544016520183,
+            "rmse": 6.704525470733643,
+            "p95": 13.0,
+            "max": 132,
+            "changed_pixel_rate": 0.9721806844075521,
+            "channel_mae": [
+              5.892295201619466,
+              3.0861593882242837,
+              5.045177459716797
+            ]
+          },
+          "tritone_gpu_cinematic_s0.5": {
+            "mae": 10.571232689751518,
+            "rmse": 13.19462776184082,
+            "p95": 24.0,
+            "max": 82,
+            "changed_pixel_rate": 1.0,
+            "channel_mae": [
+              3.4448979695638022,
+              10.228104909261068,
+              18.040695190429688
+            ]
+          },
+          "tritone_gpu_cinematic_s1": {
+            "mae": 12.029148737589518,
+            "rmse": 15.733633995056152,
+            "p95": 30.0,
+            "max": 53,
+            "changed_pixel_rate": 0.9995937347412109,
+            "channel_mae": [
+              11.9170773824056,
+              2.7356910705566406,
+              21.434677759806316
+            ]
+          },
+          "tritone_gpu_teal_orange_s1": {
+            "mae": 10.404022852579752,
+            "rmse": 15.143014907836914,
+            "p95": 34.0,
+            "max": 67,
+            "changed_pixel_rate": 0.9999580383300781,
+            "channel_mae": [
+              12.450313568115234,
+              4.805347442626953,
+              13.95640754699707
+            ]
+          }
+        }
+      },
+      "interpretation": "source-mirror parity diagnostic only; not C++ differential or GPU runtime comparison"
+    },
+    "color_balance_cpu_gpu_formula_delta": {
+      "per_case_metrics": {
+        "chart": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "neon_streets": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "street_lights": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "portrait": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "forest": {
+          "color_balance_gpu_cinematic_s0.5": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "color_balance_gpu_cinematic_s1": {
+            "mae": 0.0,
+            "rmse": 0.0,
+            "p95": 0.0,
+            "max": 0,
+            "changed_pixel_rate": 0.0,
+            "channel_mae": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "interpretation": "all five sRGB byte images were identical after output quantization in these independently transcribed source mirrors; this is not C++ differential/runtime parity"
+    },
+    "color_balance_cpu_gpu_sdr_machine_summary": "zero code difference on chart and all four photographs at strengths 0.5 and 1.0 in the independent CPU/HLSL source mirrors"
+  },
+  "assistant_visual_triage_effect_extension": {
+    "status": "contact_sheet_triage_only_no_scores_no_gate",
+    "cases_opened": [
+      "chart",
+      "neon_streets",
+      "street_lights",
+      "portrait",
+      "forest"
+    ],
+    "blind_key_opened": false,
+    "observations": [
+      "The effects produce visibly distinct tonal/color responses across the materials; the TealAndOrange control is especially strong on some sources, while ColorBalance is more restrained.",
+      "Contact-sheet scale is insufficient to judge skin-tone fidelity, highlight detail, clipping severity, or fine foliage/branch preservation.",
+      "No aesthetic ranking, technical-quality score, candidate-to-effect mapping, or threshold was assigned."
+    ],
+    "limitation": "Assistant triage only; the planned human blind review and product runtime evaluation remain open."
+  },
+  "effect_extension_review_form": "experiments/CinematicLooksLab/captures/rd0_effect_extension/BLIND_REVIEW_FORM.md",
+  "effect_extension_review_key": "experiments/CinematicLooksLab/captures/rd0_effect_extension/blind_review_key.json",
+  "effect_extension_report": "experiments/CinematicLooksLab/captures/rd0_effect_extension/metrics.json"
+}

@@ -1,0 +1,82 @@
+{
+  "plan_version": 1,
+  "plan_id": "grain-family-matched-strength-spectrum-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Compare Add Noise and Film Grunge grain morphology and tone-dependent clipping after calibrating Add Noise Amount to the Film Grunge default grain residual standard deviation on the same mid-gray input.",
+  "scope": {
+    "effects": [
+      "Artifact::AddNoiseEffect CPU equation in monochrome and color modes",
+      "ArtifactFilmGrungeEffect grain-only equation with all other Film Grunge controls set to zero"
+    ],
+    "method": "Offline NumPy source-equation models on locally generated 28x28 opaque Float32 plates. Use a 128-seed ensemble for spatial statistics, with Film Grunge coordinates kept within signed-int multiplication bounds. Calibrate Add Noise per-size Amount to match the pooled mid-gray green-channel residual standard deviation of Film Grunge at its source default grainAmount=.075.",
+    "excluded": [
+      "Core NoiseType::FilmGrain and legacy FilmEffectProcessor; no active production call sites were found in the current repository search",
+      "compiled C++/GPU output, route selection or app capture",
+      "Film Grunge scratch, dust, flicker, weave, vignette and stain behavior",
+      "temporal/perceptual acceptance or physical-film equivalence",
+      "GPU/preview/final parity, performance/allocation",
+      "source changes"
+    ]
+  },
+  "comparison": {
+    "baseline": "Same 28x28 .5 gray plate with effect amount zero. The strength target is Film Grunge's default green residual standard deviation, measured over the preregistered seed ensemble.",
+    "candidates": [
+      "common Size values 1, 1.5, 2, 3, 5, and 8; Film Grunge grainBlock is positive round-to-nearest, Add Noise samples floor(x/size), floor(y/size)",
+      "Film Grunge Grain Amount=.075, its source default",
+      "Add Noise monochrome and color modes with per-size Amount solved to match the Film Grunge mid-gray green-channel residual standard deviation",
+      "tone response at .02, .10, .50, .90, and .98 using the matched per-size Amounts"
+    ],
+    "ground_truth": "None. Matching one patch statistic is a controlled comparison convention, not perceptual equivalence or an approved target.",
+    "acceptance": "Descriptive comparison only. Verify all source markers, zero-amount identity, alpha preservation, finite values, safe Film Grunge coordinates, and achieved green-channel standard-deviation match within 1e-6. Report residual variance, channel correlation, lag correlation, cell runs, low/mid/high spatial-frequency power, and tone-dependent clipping. No visual-quality pass/fail threshold or preferred-effect decision."
+  },
+  "materials": {
+    "statistics_fixture": "28x28 opaque grayscale plates at tones .02/.10/.50/.90/.98; each seed field is analyzed independently, then pooled across seeds 0..127.",
+    "visual_fixture": "28x28 .5 mid-gray plate, fixed seed 73, displayed with common four-times residual gain for the six common Size values.",
+    "rights": "Generated locally.",
+    "identity": "Record plan, Add Noise source, Film Grunge source, runner, each seed and size, calibration amounts, metrics and output hashes.",
+    "regions": {
+      "midgray_calibration": "all pixels of the .50 gray plate",
+      "tone_response": "each full 28x28 constant-tone plate",
+      "spatial_frequency": "each mean-centered per-seed residual field; pool power over 128 fields"
+    }
+  },
+  "conditions": {
+    "dimensions_wh": [28, 28],
+    "seeds": "0..127 for statistical ensemble; seed 73 for display sample; frame=0 for Film Grunge.",
+    "safe_coordinate_domain": "At x,y<=27 and minimum common grainBlock 1, Film Grunge hash multiplications remain signed-int32 representable: 27*73856093=1994114511 and 27*19349663=522440901.",
+    "settings": {
+      "common_sizes": [1,1.5,2,3,5,8],
+      "film_grunge_grain_amount": 0.075,
+      "film_grunge_other_controls": {"scratchAmount":0,"dustAmount":0,"flicker":0,"gateWeave":0,"vignette":0,"stain":0},
+      "add_noise_modes": ["monochrome","color"],
+      "tone_levels": [0.02,0.10,0.50,0.90,0.98]
+    },
+    "calibration": "Compute per-seed mean-centered green residual sample variance at tone=.5. Solve Add Noise Amount=target Film Grunge pooled green std / Add Noise unit-amount pooled green std separately for each common Size and mode. Apply the calibrated Amount unchanged to the tone-response plates.",
+    "metrics": [
+      "matched green residual pooled standard deviation and per-seed variance distribution",
+      "green residual mean and RGB channel standard deviations",
+      "RGB cross-channel correlation matrix",
+      "horizontal/vertical lag correlation at 1,2,4,8 pixels and identical-neighbor fraction",
+      "cell-run lengths and unique residual levels",
+      "mean-centered 2D power spectral fractions below .125, .125-.25, and above .25 cycles/pixel",
+      "tone-wise RGB below-zero/above-one fractions, exact endpoint and near-endpoint fractions",
+      "alpha identity, nonfinite counts and zero-amount identity"
+    ],
+    "display": "Common residual gain x4 on seed73 .5-gray tiles at native 28x28 upscaled with nearest-neighbor; metrics use unclipped Float32 fields."
+  },
+  "evaluation": {
+    "effect_correctness": {"status":"source_equation_model_only","method":"Check hash constants, block mapping, seed/frame key, channel gains, control isolation and zero amount.","acceptance_criteria":"All markers true; finite output; alpha identity; exact zero-amount identity; calibration tolerance met."},
+    "image_quality_and_detail": {"status":"descriptive_synthetic_only","method":"Inspect matched-gain contact sheet and compare spatial statistics.","acceptance_criteria":"No aesthetic judgment or film-realism verdict; equal RMS is not treated as equal appearance."},
+    "color_and_alpha": {"status":"opaque_gray_only","method":"Compare RGB channel correlation and clipping across tone ramps.","unverified":"Colored scene, alpha edges, color metadata and transfer function."},
+    "temporal_stability": {"status":"single_frame_seed_ensemble_only","reason":"Seed ensemble estimates spatial statistics; it is not a temporal sequence."},
+    "render_paths_and_resolution": {"status":"source_equation_safe_domain_only","unverified":"Product-sized Film Grunge signed-overflow behavior, Add Noise LOD, app dispatch and GPU parity."},
+    "performance": {"status":"not_measured","reason":"Offline equation models only."},
+    "decision":"No preferred effect, default change, quality acceptance, or implementation approval."
+  },
+  "execution": {
+    "backend":"Python 3, NumPy and Pillow; offline source-equation models only. No Windows UI, app, C++, build, CMake, or tests.",
+    "threshold_policy":"No perceptual thresholds. Calibration tolerance only verifies the chosen RMS matching procedure.",
+    "reproducibility":"Fixed seeds, dimensions, Size grid, source equations, calibration target, tone values and SHA-256 manifests."
+  }
+}

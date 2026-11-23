@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "uv", "type": "TexCoord", "params": {}},
+    {"id": "gain", "type": "Value", "params": {"value": 0.5}},
+    {"id": "scale", "type": "Math", "params": {"op": 2, "clamp": false}},
+    {"id": "bias", "type": "Value", "params": {"value": 0.125}},
+    {"id": "roughness", "type": "Math", "params": {"op": 0, "clamp": false}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "uv", "out": "UV", "to": "scale", "in": "A"},
+    {"from": "gain", "out": "Value", "to": "scale", "in": "B"},
+    {"from": "scale", "out": "Value", "to": "roughness", "in": "A"},
+    {"from": "bias", "out": "Value", "to": "roughness", "in": "B"},
+    {"from": "roughness", "out": "Value", "to": "surface", "in": "Roughness"},
+    {"from": "roughness", "out": "Value", "to": "surface", "in": "BaseColor"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

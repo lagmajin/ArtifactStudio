@@ -51,6 +51,13 @@
 #include <DebugOutput.h>
 #include <Win32Debug.hpp>
 #include <RenderDevice.h>
+#include <DeviceContext.h>
+#include <Texture.h>
+#include <fstream>
+#include <filesystem>
+#include <cstring>
+#include <cstdint>
+#include <vector>
 
 import Graphics;
 import Application.AppSettings;
@@ -87,6 +94,7 @@ import Artifact.Render.IRenderer;
 import Artifact.Render.Context;
 import Artifact.Render.DiligentDeviceManager;
 import Artifact.Render.OffscreenComposition;
+import Graphics.RayTracingManager;
 import Color.Float;
 import Core.Light;
 import Frame.Position;
@@ -471,6 +479,23 @@ void exerciseCompositionLight(Artifact::LightType type,
     model->transform3D().setCurrentScale(60.0f, 60.0f);
     ASSERT_TRUE(model->setLayerPropertyValue(
         QStringLiteral("material.base.color"), QColor(255, 255, 255)));
+    auto captureCamera = ArtifactCore::makeShared<Artifact::ArtifactCameraLayer>();
+    ASSERT_TRUE(captureCamera);
+    if (verifyRayTracingRegistration) {
+        const QVector3D modelCenter = model->getGlobalTransform4x4().map(
+            QVector3D(0.0f, 0.0f, 0.0f));
+        captureCamera->setLayerName(QStringLiteral("FBX RT capture camera"));
+        captureCamera->setActiveCamera(true);
+        captureCamera->setProjectionMode(Artifact::ProjectionMode::Perspective);
+        captureCamera->setUseManualFov(true);
+        captureCamera->setFov(ArtifactCore::Units::Degrees{52.0f});
+        captureCamera->setNearClipPlane(ArtifactCore::Units::Pixels{1.0f});
+        captureCamera->setFarClipPlane(ArtifactCore::Units::Pixels{2000.0f});
+        captureCamera->transform3D().setCurrentPosition(
+            modelCenter.x(), modelCenter.y());
+        captureCamera->transform3D().setCurrentPositionZ(modelCenter.z() + 500.0f);
+        ASSERT_TRUE(composition->appendLayerBottom(captureCamera).success);
+    }
     auto light = ArtifactCore::makeShared<Artifact::ArtifactLightLayer>();
     light->setLightType(type);
     light->setColor(ArtifactCore::FloatColor(1.0f, 0.04f, 0.02f, 1.0f));
@@ -1172,6 +1197,7 @@ void exerciseCompositionLight(Artifact::LightType type,
         EXPECT_TRUE(rayTracingState.contains(QStringLiteral("lastTrace=1x1")))
             << "The observed RT dispatch was not the known 1x1 warmup trace: "
             << rayTracingState.toStdString();
+
     }
     const QImage baselineImage = readPresentedFrame();
     QImage ramPreviewFallbackImage;
@@ -1423,6 +1449,237 @@ void exerciseCompositionLight(Artifact::LightType type,
 
     }
     controller.stop();
+    if (verifyRayTracingRegistration) {
+        ASSERT_TRUE(captureCamera->isActiveCamera());
+        const QMatrix4x4 cameraTransform =
+            captureCamera->effectiveGlobalTransform();
+        const QVector3D origin =
+            cameraTransform.map(QVector3D(0.0f, 0.0f, 0.0f));
+        const QVector3D target = origin + cameraTransform.mapVector(
+            QVector3D(0.0f, 0.0f, -1.0f));
+        const QVector3D up = cameraTransform.mapVector(
+            QVector3D(0.0f, 1.0f, 0.0f));
+        ArtifactCore::RTRayCamera camera;
+        camera.origin[0] = origin.x();
+        camera.origin[1] = origin.y();
+        camera.origin[2] = origin.z();
+        camera.target[0] = target.x();
+        camera.target[1] = target.y();
+        camera.target[2] = target.z();
+        camera.up[0] = up.x();
+        camera.up[1] = up.y();
+        camera.up[2] = up.z();
+        camera.verticalFovDegrees = captureCamera->fov().value;
+        const std::array<std::pair<ArtifactCore::RTRayOutputMode, const char*>, 8>
+            outputCaptures{{
+                {ArtifactCore::RTRayOutputMode::Beauty, "fbx-rt-beauty"},
+                {ArtifactCore::RTRayOutputMode::BaseColor, "fbx-rt-base-color"},
+                {ArtifactCore::RTRayOutputMode::WorldNormal, "fbx-rt-world-normal"},
+                {ArtifactCore::RTRayOutputMode::BaseUv, "fbx-rt-base-uv"},
+                {ArtifactCore::RTRayOutputMode::MetallicRoughness,
+                 "fbx-rt-metallic-roughness"},
+                {ArtifactCore::RTRayOutputMode::Emission, "fbx-rt-emission"},
+                {ArtifactCore::RTRayOutputMode::HitDistance, "fbx-rt-hit-distance"},
+                {ArtifactCore::RTRayOutputMode::PrimaryVisibility,
+                 "fbx-rt-primary-visibility"}}};
+        quint64 expectedCoverage = 0;
+        bool haveAovCoverage = false;
+        for (const auto& [mode, name] : outputCaptures) {
+            camera.outputMode = mode;
+            ASSERT_TRUE(controller.renderer()->rayTracingManager()->traceCamera(
+                controller.renderer()->immediateContext().RawPtr(),
+                static_cast<Diligent::Uint32>(kViewportSize.width()),
+                static_cast<Diligent::Uint32>(kViewportSize.height()), camera))
+                << "Could not dispatch FBX RT AOV " << name;
+            auto* outputView = controller.renderer()->rayTracingOutputTextureView();
+            ASSERT_NE(outputView, nullptr) << "Missing RT output view for " << name;
+            auto* outputTexture = outputView->GetTexture();
+            ASSERT_NE(outputTexture, nullptr) << "Missing RT output texture for " << name;
+            const auto& outputDesc = outputTexture->GetDesc();
+            ASSERT_EQ(outputDesc.Format, Diligent::TEX_FORMAT_RGBA32_FLOAT)
+                << "RT diagnostic contract requires RGBA32F output";
+            auto device = controller.renderer()->device();
+            auto context = controller.renderer()->immediateContext();
+            ASSERT_NE(device, nullptr);
+            ASSERT_NE(context, nullptr);
+            Diligent::TextureDesc stagingDesc;
+            stagingDesc.Name = "FbxRayTracingAovReadback";
+            stagingDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+            stagingDesc.Width = outputDesc.Width;
+            stagingDesc.Height = outputDesc.Height;
+            stagingDesc.MipLevels = 1;
+            stagingDesc.Format = outputDesc.Format;
+            stagingDesc.Usage = Diligent::USAGE_STAGING;
+            stagingDesc.CPUAccessFlags = Diligent::CPU_ACCESS_READ;
+            Diligent::RefCntAutoPtr<Diligent::ITexture> staging;
+            device->CreateTexture(stagingDesc, nullptr, &staging);
+            ASSERT_NE(staging, nullptr);
+            Diligent::CopyTextureAttribs copy(
+                outputTexture,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                staging,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            context->CopyTexture(copy);
+            context->Flush();
+            context->WaitForIdle();
+            Diligent::MappedTextureSubresource mapped{};
+            context->MapTextureSubresource(staging, 0, 0, Diligent::MAP_READ,
+                Diligent::MAP_FLAG_NONE, nullptr, mapped);
+            if (!mapped.pData) {
+                ADD_FAILURE() << "Could not map RT AOV readback for " << name;
+                continue;
+            }
+            const auto* mappedBytes =
+                static_cast<const std::uint8_t*>(mapped.pData);
+            std::vector<std::array<float, 4>> floatPixels(
+                static_cast<std::size_t>(outputDesc.Width) * outputDesc.Height);
+            std::array<double, 4> channelSums{};
+            std::array<float, 4> channelMinimum{
+                std::numeric_limits<float>::infinity(),
+                std::numeric_limits<float>::infinity(),
+                std::numeric_limits<float>::infinity(),
+                std::numeric_limits<float>::infinity()};
+            std::array<float, 4> channelMaximum{
+                -std::numeric_limits<float>::infinity(),
+                -std::numeric_limits<float>::infinity(),
+                -std::numeric_limits<float>::infinity(),
+                -std::numeric_limits<float>::infinity()};
+            std::array<std::vector<float>, 4> channelValues;
+            quint64 floatCoverage = 0;
+            quint64 nonFiniteValues = 0;
+            for (Diligent::Uint32 y = 0; y < outputDesc.Height; ++y) {
+                const auto* row = mappedBytes + y * mapped.Stride;
+                for (Diligent::Uint32 x = 0; x < outputDesc.Width; ++x) {
+                    auto& pixel = floatPixels[
+                        static_cast<std::size_t>(y) * outputDesc.Width + x];
+                    std::memcpy(pixel.data(), row + x * sizeof(float) * 4,
+                                sizeof(float) * 4);
+                    floatCoverage += pixel[3] > 0.5f ? 1u : 0u;
+                    for (size_t channel = 0; channel < 4; ++channel) {
+                        if (!std::isfinite(pixel[channel])) {
+                            ++nonFiniteValues;
+                            continue;
+                        }
+                        channelSums[channel] += pixel[channel];
+                        channelMinimum[channel] = std::min(
+                            channelMinimum[channel], pixel[channel]);
+                        channelMaximum[channel] = std::max(
+                            channelMaximum[channel], pixel[channel]);
+                        channelValues[channel].push_back(pixel[channel]);
+                    }
+                }
+            }
+            context->UnmapTextureSubresource(staging, 0, 0);
+            EXPECT_EQ(nonFiniteValues, 0u) << "Non-finite RT AOV samples in " << name;
+            EXPECT_GT(floatCoverage, 0u) << "RT float AOV has no covered pixels: " << name;
+            const QString configuredCaptureRoot = qEnvironmentVariable(
+                "ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR");
+            ASSERT_FALSE(configuredCaptureRoot.isEmpty());
+            const auto captureRoot = std::filesystem::path(
+                configuredCaptureRoot.toStdString());
+            std::error_code directoryError;
+            std::filesystem::create_directories(captureRoot, directoryError);
+            ASSERT_FALSE(directoryError)
+                << "Could not create capture directory: " << directoryError.message();
+            std::ofstream pfm(captureRoot / (std::string(name) + ".pfm"),
+                              std::ios::binary);
+            ASSERT_TRUE(pfm) << "Could not open float capture for " << name;
+            pfm << "PF\n" << outputDesc.Width << ' ' << outputDesc.Height
+                << "\n-1.0\n";
+            for (Diligent::Uint32 y = outputDesc.Height; y > 0; --y) {
+                const Diligent::Uint32 row = y - 1;
+                for (Diligent::Uint32 x = 0; x < outputDesc.Width; ++x) {
+                    const auto& pixel = floatPixels[
+                        static_cast<std::size_t>(row) * outputDesc.Width + x];
+                    pfm.write(reinterpret_cast<const char*>(pixel.data()),
+                              sizeof(float) * 3);
+                }
+            }
+            ASSERT_TRUE(pfm.good()) << "Could not write float capture for " << name;
+            QJsonArray channelStats;
+            const size_t pixelCount =
+                static_cast<size_t>(outputDesc.Width) * outputDesc.Height;
+            for (size_t channel = 0; channel < 4; ++channel) {
+                auto& values = channelValues[channel];
+                std::sort(values.begin(), values.end());
+                const auto quantile = [&values](double fraction) {
+                    if (values.empty()) return 0.0;
+                    const auto index = static_cast<size_t>(std::floor(
+                        fraction * static_cast<double>(values.size() - 1)));
+                    return static_cast<double>(values[index]);
+                };
+                QJsonObject stats;
+                stats.insert(QStringLiteral("channel"), static_cast<int>(channel));
+                stats.insert(QStringLiteral("finiteSamples"),
+                             static_cast<qint64>(values.size()));
+                stats.insert(QStringLiteral("min"),
+                             std::isfinite(channelMinimum[channel])
+                                 ? channelMinimum[channel] : 0.0);
+                stats.insert(QStringLiteral("mean"),
+                             values.size() == pixelCount
+                                 ? channelSums[channel] / pixelCount : 0.0);
+                stats.insert(QStringLiteral("p50"), quantile(0.50));
+                stats.insert(QStringLiteral("p95"), quantile(0.95));
+                stats.insert(QStringLiteral("p99"), quantile(0.99));
+                stats.insert(QStringLiteral("max"),
+                             std::isfinite(channelMaximum[channel])
+                                 ? channelMaximum[channel] : 0.0);
+                stats.insert(QStringLiteral("quantilePopulation"),
+                             QStringLiteral("all finite pixels, including background"));
+                channelStats.append(stats);
+            }
+            QJsonObject manifest;
+            manifest.insert(QStringLiteral("mode"), static_cast<int>(mode));
+            manifest.insert(QStringLiteral("width"), outputDesc.Width);
+            manifest.insert(QStringLiteral("height"), outputDesc.Height);
+            manifest.insert(QStringLiteral("format"), QStringLiteral("RGBA32F"));
+            manifest.insert(QStringLiteral("nonFiniteValues"),
+                            static_cast<qint64>(nonFiniteValues));
+            manifest.insert(QStringLiteral("coveragePixels"),
+                             static_cast<qint64>(floatCoverage));
+            manifest.insert(QStringLiteral("coverageFraction"),
+                             static_cast<double>(floatCoverage) / pixelCount);
+            manifest.insert(QStringLiteral("channels"), channelStats);
+            const auto statsPath = captureRoot /
+                (std::string(name) + ".json");
+            const QByteArray statsBytes = QJsonDocument(manifest).toJson(
+                QJsonDocument::Indented);
+            std::ofstream statsFile(statsPath, std::ios::binary);
+            ASSERT_TRUE(statsFile) << "Could not open AOV statistics for " << name;
+            statsFile.write(statsBytes.constData(), statsBytes.size());
+            ASSERT_TRUE(statsFile.good()) << "Could not write AOV statistics for " << name;
+            const QImage capture = controller.renderer()->readbackTextureViewToImage(
+                controller.renderer()->rayTracingOutputTextureView());
+            ASSERT_FALSE(capture.isNull()) << "RT AOV readback failed for " << name;
+            quint64 coverage = 0;
+            for (int y = 0; y < capture.height(); ++y) {
+                const auto* row = capture.constScanLine(y);
+                for (int x = 0; x < capture.width(); ++x) {
+                    const auto* pixel = row + x * 4;
+                    if (pixel[3] > 127) ++coverage;
+                }
+            }
+            if (mode == ArtifactCore::RTRayOutputMode::Beauty) {
+                EXPECT_GT(coverage, 0u)
+                    << "The FBX RT beauty capture contains no covered pixels";
+            } else {
+                if (!haveAovCoverage) {
+                    expectedCoverage = coverage;
+                    haveAovCoverage = true;
+                } else {
+                    EXPECT_EQ(coverage, expectedCoverage)
+                        << "AOV coverage differed between buffers for " << name;
+                }
+                EXPECT_GT(coverage, 0u)
+                    << "The FBX RT AOV contains no visible geometry: " << name;
+            }
+            EXPECT_EQ(coverage, floatCoverage)
+                << "PNG and RGBA32F coverage differed for " << name;
+            EXPECT_TRUE(capture.save(QDir(configuredCaptureRoot).filePath(
+                QString::fromLatin1(name) + QStringLiteral(".png")), "PNG"))
+                << "Could not save FBX RT AOV capture " << name;
+        }
+    }
     controller.destroy();
     if (presentedFrameCaptureFallbackCount > 0) {
         std::fprintf(stderr,

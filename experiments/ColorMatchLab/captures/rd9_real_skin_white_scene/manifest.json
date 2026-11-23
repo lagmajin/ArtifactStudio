@@ -1,0 +1,73 @@
+{
+  "rd": "rd9-real-portrait-synthetic-cast-preparation",
+  "status": "pre-candidate ROI preparation; manual visual review recorded before output scoring",
+  "preparation_script": "prepare_rd9_real_skin_white_scene.py",
+  "preparation_script_sha256": "b7dfc0b1fc9ce872d73b519d2ab772967fbb5e20584645d365e9e17945e419a1",
+  "source": {
+    "file": "Pexels-photo-707448-1280.jpg",
+    "sha256": "f559dbf09e260237cd7f2ef6660ef5496b70f0ef9d8ddb943a8a4e26368953a2",
+    "dimensions": [
+      1280,
+      851
+    ],
+    "source_page": "https://commons.wikimedia.org/wiki/File:Pexels-photo-707448.jpg",
+    "creator": "Chandrashekar Hosakere Matt",
+    "license": "CC0 1.0 per Wikimedia Commons file page",
+    "original_source": "Pexels photo 707448; 1280\u00d7851 Wikimedia Commons thumbnail derivative",
+    "icc_profile": "not present on retrieved thumbnail; treated as encoded sRGB for this diagnostic"
+  },
+  "synthetic_reference": {
+    "operation": "clip(source_sRGB * scale + offset, 0, 1)",
+    "scale": [
+      0.94,
+      1.015,
+      1.075
+    ],
+    "offset": [
+      0.012,
+      0.006,
+      -0.008
+    ],
+    "status": "constructed cast; not a second photographic capture or physical illuminant ground truth"
+  },
+  "roi": {
+    "face_skin_reviewed": {
+      "pixels": 30913,
+      "mask": "roi_face_skin_reviewed.png",
+      "sha256": "ca03ad00ab751aef5f846c342a6f584d1cf7134dcbe3f26dbfa6b6835bbd27c6"
+    },
+    "arm_skin_reviewed": {
+      "pixels": 32661,
+      "mask": "roi_arm_skin_reviewed.png",
+      "sha256": "2f419b9a3e39f56ff4db9c34ac2bff66e640a629c7196d321e1754ef08802822"
+    },
+    "skin_combined_reviewed": {
+      "pixels": 63574,
+      "mask": "roi_skin_combined_reviewed.png",
+      "sha256": "b0efe51894b38473727be4d095ede992ada924b43d35da05fd1f2a5bff58dbd4"
+    },
+    "white_blouse_light_fabric_candidate": {
+      "pixels": 24062,
+      "mask": "roi_white_blouse_light_fabric_candidate.png",
+      "sha256": "d7b19513a1d227a573544d0c653ed6eb0f10d7325d90e084a7ed90bdb377c83e"
+    }
+  },
+  "manual_review": {
+    "reviewed": true,
+    "reviewer": "R&D visual inspection",
+    "reviewed_before_candidate_scoring": true,
+    "face": "polygon follows visible facial skin; eye/brow regions and mouth are excluded; hair and background are excluded by contour",
+    "arm": "polygon follows exposed upper arm; boundary is visible against blouse/background",
+    "blouse": "hand-bounded garment region intersected with fixed source RGB thresholds R>0.48, G>0.45, B>0.38, max-min<0.20 to keep light low-chroma fabric and reject dark print/shadow; pixels overlapping face/arm masks are excluded",
+    "limitations": [
+      "single portrait",
+      "blouse is patterned and shaded, not a calibrated neutral",
+      "ROI is analyst-reviewed, not independently annotated"
+    ]
+  },
+  "artifacts": {
+    "source.png": "755b899038455696ad2093d014d91a43ccc2806541d0a29a976a80b37aae492c",
+    "synthetic_cast_reference.png": "ed808c9003c2f721a0c2195cd7adeb925ee60b61b6f0681c3cb3615e201fba49",
+    "roi_review_sheet.png": "17d203689d83824bcf62082faa4101864186ba3aead928ed15407032289879da"
+  }
+}

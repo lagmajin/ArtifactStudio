@@ -10,10 +10,15 @@ find_package(Vulkan REQUIRED)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../../ArtifactCore/StandaloneTestHelpers.cmake")
 
-set(ARTIFACT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../Artifact")
-set(ARTIFACT_CORE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../ArtifactCore")
-set(DILIGENT_ENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../libs/DiligentEngine")
-set(DILIGENT_BUILD_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../build/libs/DiligentEngine/DiligentCore")
+set(ARTIFACT_REPOSITORY_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../..")
+set(ARTIFACT_ROOT "${ARTIFACT_REPOSITORY_ROOT}/Artifact")
+set(ARTIFACT_CORE_ROOT "${ARTIFACT_REPOSITORY_ROOT}/ArtifactCore")
+set(DILIGENT_ENGINE_ROOT "${ARTIFACT_REPOSITORY_ROOT}/libs/DiligentEngine")
+set(ARTIFACT_EXISTING_BUILD_DIR
+    "${ARTIFACT_REPOSITORY_ROOT}/out/build/x64-Debug-Agent"
+    CACHE PATH "Configured repository build tree supplying shared Diligent products")
+set(DILIGENT_BUILD_ROOT
+    "${ARTIFACT_EXISTING_BUILD_DIR}/libs/DiligentEngine/DiligentCore")
 
 artifact_add_standalone_module_interface(SmokeRuntimeModuleInterfaces
     BASE_DIRS

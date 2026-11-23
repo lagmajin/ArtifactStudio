@@ -1,11 +1,18 @@
 # C# Script Engine (hostfxr + CSX) 実装マイルストーン
 
 **日付**: 2026-08-04
-**最終更新:** 2026-08-21
+**最終更新:** 2026-11-17
 **ステータス**: Phase 0〜4 実装完了（hostfxr/CSX API、Roslynブートストラップ、Script Menu、テスト基盤を追加。Unity ライクな反復セッション API も追加。ビルド・実行確認待ち）
 **ベース**: hostfxr (.NET Hosting API) + Roslyn Scripting API
 **現状**: `CSharpScriptEngine.ixx` + `CSharpScriptEngine.cppm` で Singleton+Pimpl 実装済み。実装は `ARTIFACT_HAS_DOTNET` の有無で分岐する。`Script.ixx` 登録済み、CMake の hostfxr 有効化と Roslyn bootstrap 用明示ターゲットを配線済み。`.bak` に Qt 依存の旧実装あり（hostfxr.h / nethost.h / coreclr_delegates.h 使用）。
 **狙い**: .NET アセンブリ (.dll) の hostfxr ロード実行を産線にし、さらに CSX (.csx) スクリプトの Roslyn 経由実行まで通す。
+
+## 2026-11-17 追加: 参照解決と構造化エラー（静的確認のみ）
+
+- `Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs` の `ScriptOptions` に `AddReferences` を明示追加した。従来は `AddImports`（System / System.IO / System.Linq / System.Collections.Generic 他）のみで、Roslyn はホスト側のアセンブリ参照を継承しないため、`System.Linq` / `System.IO` の型が `CS0246` / `CS1061` で解決できない可能性があった。`typeof(object)` / `typeof(Enumerable)` / `typeof(File)` / `typeof(Path)` / `typeof(Dictionary<,>)` / `typeof(Console)` / `typeof(Regex)` のアセンブリを追加。
+- 例外情報を構造化して保持する `ErrorInfo` と `GetLastErrorJson` bridge を追加。`{type,message,stack,diagnostics}` の JSON を返し、`CompilationErrorException` の場合は diagnostic ID とメッセージ（invariant culture）を格納する。従来の `exception.ToString()` を結果バッファへ書く挙動は互換のため維持した。
+- C++ 側 `CSharpScriptEngine` に `getLastErrorJson()` と `ScriptSessionSnapshot::lastErrorJson` を追加し、必要時に Roslyn host から JSON を取得できるようにした。host 未初期化時は `"{}"`。
+- 新規 signal/slot は導入していない。ビルド・hostfxr 有効環境での実行確認は未実施（AGENTS.md 制約）。
 
 ## 2026-08-15 現行コード照合
 

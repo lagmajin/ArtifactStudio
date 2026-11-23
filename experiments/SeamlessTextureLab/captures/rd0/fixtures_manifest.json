@@ -1,0 +1,176 @@
+{
+  "lab": "SeamlessTextureLab",
+  "rd": "rd0",
+  "stage": "fixtures",
+  "date": "2026-11-18",
+  "seed": 20261118,
+  "convention": "linear float RGBA, straight alpha unless suffixed _premultiplied; sRGB OETF for PNG",
+  "resolutions": {
+    "small": {
+      "h": 320,
+      "w": 512
+    },
+    "large": {
+      "h": 1024,
+      "w": 1536
+    }
+  },
+  "fixtures": {
+    "checker_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "seed": 20261129,
+      "seam_expectation": "hard square edges cross the border",
+      "npy": "checker_small.npy",
+      "npy_sha256": "79b2f65c9d51ca9c42658c5a7896e1e91226db62b83b649c9e22c60bc5400a2e",
+      "png": "checker_small.png",
+      "png_sha256": "2cfa25e267e84abae19706d42b50b07d125f3f253a706e409ac97cfa184a8204"
+    },
+    "radial_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "seed": 20261130,
+      "seam_expectation": "gradient offset across the border",
+      "npy": "radial_small.npy",
+      "npy_sha256": "e3911fd8e7208806fa2f4b3ba76a296346c0c04b3bc289e4e16372f0e2d6e700",
+      "png": "radial_small.png",
+      "png_sha256": "a1c2be2b8e2c480611a976e240668688c6189ff9459384187813df40bc10fd72"
+    },
+    "clouds_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "seed": 20261131,
+      "seam_expectation": "noise field does not match across the border",
+      "npy": "clouds_small.npy",
+      "npy_sha256": "6b69e96cb76cfdd223eec1727da3d32dd989defa31856236fc0a0d24e974e080",
+      "png": "clouds_small.png",
+      "png_sha256": "3a53f695477cf0f54fd562cf0cf9236dde165175985a8ab30898e8b21ce86fbe"
+    },
+    "blobs_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "seed": 20261132,
+      "seam_expectation": "discs cross the border",
+      "npy": "blobs_small.npy",
+      "npy_sha256": "e595b5f0ef4da9146a00991001d4145fac1925c43426a56881b8a09052f678af",
+      "png": "blobs_small.png",
+      "png_sha256": "2c112f1219926b6dfb0699340295c58e5d7e67142494ca6b20fdafba7f36f9b9"
+    },
+    "alpha_patch_small": {
+      "resolution": "small",
+      "shape": [
+        320,
+        512,
+        4
+      ],
+      "seed": 20261133,
+      "alpha_contract": "straight RGBA; transparent pixels keep hidden RGB = 0.55 linear",
+      "npy": "alpha_patch_small.npy",
+      "npy_sha256": "8947b296a16314ba193adf0eeac251024af816575a153e8a58776cc4a93e8bb6",
+      "png": "alpha_patch_small.png",
+      "png_sha256": "3d4df7dfacc9e1b675b25c95e30f1b146dbffbe390c70e50226e257cb59aa580",
+      "premultiplied": {
+        "npy": "alpha_patch_small_premultiplied.npy",
+        "npy_sha256": "8534b8da1230bac4ab2933ffd9f3af89c8d8771acd6b652261e283a843dc9f75",
+        "png": "alpha_patch_small_premultiplied.png",
+        "png_sha256": "687051dd385cfeaaac04dd51bb014d130cc7dc0722fb6c085626652c9e0e131b"
+      }
+    },
+    "checker_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "seed": 20261129,
+      "seam_expectation": "hard square edges cross the border",
+      "npy": "checker_large.npy",
+      "npy_sha256": "0d1b850880aecd23f21081a32f9a43c94f1013afaa4797dcec3a900a74d66520",
+      "png": "checker_large.png",
+      "png_sha256": "378e8d41f4f0f1213ea89b70e80bfde09955b10552fd2c48a2399f9b7c3ab235"
+    },
+    "radial_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "seed": 20261130,
+      "seam_expectation": "gradient offset across the border",
+      "npy": "radial_large.npy",
+      "npy_sha256": "d93547e3ce053c9262ee1d26e2edafbe8ebed66b737c6fe2f734427877d21bca",
+      "png": "radial_large.png",
+      "png_sha256": "7ac6d5eb1b48b48d49f7c7e2a9abeb8ea44919e2fa936457fdb4d1191015e75a"
+    },
+    "clouds_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "seed": 20261131,
+      "seam_expectation": "noise field does not match across the border",
+      "npy": "clouds_large.npy",
+      "npy_sha256": "7f614d25ac6faf4693fa6b9311f28a75d76b849b787c8961aa814b4b7c4c4847",
+      "png": "clouds_large.png",
+      "png_sha256": "b357d7ae0f043cd4611ce39a529aaeaa419d852255f433678e38e8129c1ff03a"
+    },
+    "blobs_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "seed": 20261132,
+      "seam_expectation": "discs cross the border",
+      "npy": "blobs_large.npy",
+      "npy_sha256": "69e1bea0bd2480468265428e2e59638d20f87930a75a2525a7266815610481f0",
+      "png": "blobs_large.png",
+      "png_sha256": "587a338314f9bbbdb8d6a608399c78b990f87f6568e021090b055b4fb519ec04"
+    },
+    "alpha_patch_large": {
+      "resolution": "large",
+      "shape": [
+        1024,
+        1536,
+        4
+      ],
+      "seed": 20261133,
+      "alpha_contract": "straight RGBA; transparent pixels keep hidden RGB = 0.55 linear",
+      "npy": "alpha_patch_large.npy",
+      "npy_sha256": "569b60a98b26ae44d902b9351d6f15917d4e92549cf1940f794c6b6c941c5fe6",
+      "png": "alpha_patch_large.png",
+      "png_sha256": "53e1d6b2e6451bbeb61c98037ac5ad48aefecce1e4c95c8b659947cf6146b6b7",
+      "premultiplied": {
+        "npy": "alpha_patch_large_premultiplied.npy",
+        "npy_sha256": "595100b70bdf64164c365a65a3c3e27694367156205b39732de8217b25dee739",
+        "png": "alpha_patch_large_premultiplied.png",
+        "png_sha256": "edcf53569a879d0df86d317e49aa84f6ba86deb15d3fe86ce481dbe75990d86a"
+      }
+    }
+  },
+  "notes": [
+    "Every fixture is intentionally non-tileable: the naive repeat baseline shows a seam.",
+    "The alpha fixture carries a premultiplied variant for the straight / premultiplied contract."
+  ]
+}

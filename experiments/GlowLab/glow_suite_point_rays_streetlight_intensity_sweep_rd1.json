@@ -1,0 +1,98 @@
+{
+  "intent": "Controlled Volumetric Shine intensity sweep on the same CC0 practical-light photo. Hold threshold, ray geometry, samples, shared foundation, and Glint recipe fixed; baked-in source flares remain a confound.",
+  "input": "assets/cc0-street-light-night.jpg",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "volumetric-intensity-0.5": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.28,
+          "sourceY": 0.3,
+          "rayLength": 0.6,
+          "intensity": 0.5,
+          "decay": 0.9,
+          "samples": 40,
+          "threshold": 0.45,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 32.0,
+          "width": 0.8,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.65
+        }
+      }
+    ],
+    "volumetric-intensity-1": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.28,
+          "sourceY": 0.3,
+          "rayLength": 0.6,
+          "intensity": 1.0,
+          "decay": 0.9,
+          "samples": 40,
+          "threshold": 0.45,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 32.0,
+          "width": 0.8,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.65
+        }
+      }
+    ],
+    "volumetric-intensity-2": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.28,
+          "sourceY": 0.3,
+          "rayLength": 0.6,
+          "intensity": 2.0,
+          "decay": 0.9,
+          "samples": 40,
+          "threshold": 0.45,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.5,
+          "length": 32.0,
+          "width": 0.8,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.65
+        }
+      }
+    ]
+  }
+}

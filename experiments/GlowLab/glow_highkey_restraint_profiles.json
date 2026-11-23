@@ -1,0 +1,107 @@
+{
+  "intent": "Initial high-key role-preserving restraint candidates; derived from the neon/portrait stress review, not accepted defaults.",
+  "source": "walkway-orbit-cc0.mp4 frame 20 (source frame 2.0–6.0 excerpt)",
+  "compute": "cpu",
+  "profiles": {
+    "glow": {
+      "glowGain": 0.5,
+      "layerCount": 4,
+      "baseSigma": 10.0
+    },
+    "edge_bloom": {
+      "Threshold": 0.95,
+      "Threshold Softness": 0.15,
+      "Radius": 8.0,
+      "Amount": 0.25,
+      "Edge Boost": 0.15,
+      "Tint Mix": 0.2
+    },
+    "reactive_glow": {
+      "Threshold": 0.75,
+      "Radius": 10.0,
+      "Intensity": 0.15,
+      "Reaction": 0.8,
+      "Saturation Weight": 0.6,
+      "Tint Mix": 0.18
+    },
+    "chromatic_glow": {
+      "Threshold": 0.85,
+      "Radius": 7.0,
+      "Intensity": 0.2,
+      "Dispersion": 1.5,
+      "Angle": 0.0,
+      "Tint Mix": 0.25
+    },
+    "liquid_glow": {
+      "Threshold": 0.75,
+      "Radius": 10.0,
+      "Intensity": 0.2,
+      "Flow Scale": 30.0,
+      "Distortion": 1.5,
+      "Phase": 0.0
+    },
+    "residual_glow": {
+      "Threshold": 0.75,
+      "Radius": 10.0,
+      "Intensity": 0.15,
+      "Decay": 0.82,
+      "History Mix": 0.6
+    },
+    "directional_glow": {
+      "Threshold": 0.75,
+      "Intensity": 0.15,
+      "Length 1 (Inner)": 18.0,
+      "Length 2 (Outer)": 60.0,
+      "Weight 1": 0.7,
+      "Weight 2": 0.25,
+      "Pattern": 0,
+      "Angle Offset": 0.0
+    },
+    "physical_halation": {
+      "Threshold": 0.85,
+      "Spread": 18.0,
+      "Intensity": 0.2,
+      "Red Diffusion": 2.0,
+      "Softness": 0.5
+    },
+    "luminescence_caustics": {
+      "Threshold": 0.75,
+      "Edge Weight": 0.8,
+      "Scale": 22.0,
+      "Intensity": 0.2,
+      "Evolution": 0.0,
+      "Color Shift": 0.25
+    },
+    "builtin.optical_glow": {
+      "threshold": 0.85,
+      "softKnee": 0.3,
+      "radius": 8.0,
+      "intensity": 0.15,
+      "afterglowRadius": 20.0,
+      "afterglowIntensity": 0.05,
+      "streakStrength": 0.03,
+      "atmosphere": 0.02,
+      "warmth": 0.1
+    },
+    "builtin.volumetric_shine": {
+      "sourceX": 0.5,
+      "sourceY": 0.2,
+      "rayLength": 0.45,
+      "intensity": 0.15,
+      "decay": 0.8,
+      "samples": 32,
+      "threshold": 0.75,
+      "warmth": 0.1
+    },
+    "builtin.glint_star_filter": {
+      "threshold": 0.85,
+      "intensity": 0.2,
+      "length": 24.0,
+      "width": 0.8,
+      "rays": 4,
+      "rotation": 45.0,
+      "chromatic": 0.15,
+      "softness": 0.7
+    }
+  }
+}

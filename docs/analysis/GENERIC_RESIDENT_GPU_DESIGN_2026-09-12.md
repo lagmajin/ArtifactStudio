@@ -1,6 +1,13 @@
-**最終更新:** 2026-10-05
+**最終更新:** 2026-11-14
 
 # 汎用GPU常駐 設計メモ（Halftoneパイロット）
+## 2026-11-14 — 現行ResidentGenericParams ABI補正
+
+以下は現行ソース確認による訂正。上記の古いslot説明より `Artifact/src/Render/ArtifactRenderLayerPipeline.cpp` の `kResidentGenericPrelude` と `ResidentGenericParams` を優先する。
+
+- HLSL prelude は `g_P0` から `g_P15` までの16個のscalar `float` を宣言し、その後に `g_Width`、`g_Height`、`g_Time`、`g_Frame`、`g_HistoryValid` を持つ。
+- C++側の対応領域は `float p[16]` である。従って容量は8個のfloat4ではなく16 scalar lanes。Float32は1 lane、Vector4相当値は4連続laneへ展開する。
+- ShaderGraphLabのsource-only adapterはこの実装をvalidatorで照合する。adapterはGPU renderer接続やshader compiler reflectionを行わない。
 
 ## 2026-10-05 — CPU消費境界の同期待ち除去
 

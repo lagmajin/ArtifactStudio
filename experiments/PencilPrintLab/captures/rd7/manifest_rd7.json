@@ -1,0 +1,107 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd7",
+  "stage": "content_locked_dither",
+  "date": "2026-11-17",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "blind_seed": 20267618,
+  "outputs": {
+    "alpha_boundary_small_v4_screen_multi4": {
+      "npy": "alpha_boundary_small_v4_screen_multi4.npy",
+      "npy_sha256": "e002af4bc4ca7bc22e0c37dea8a8117faf82666595d0b1792a7bc14661987612"
+    },
+    "alpha_boundary_small_v4_content_multi4": {
+      "npy": "alpha_boundary_small_v4_content_multi4.npy",
+      "npy_sha256": "dcebccaf31a8206470aaed81dc47c59961c9cdc679fef6e8dc91012958083649"
+    },
+    "alpha_boundary_small_v4_global_multi4": {
+      "npy": "alpha_boundary_small_v4_global_multi4.npy",
+      "npy_sha256": "33b94ea2e6763ee3315a2f2fe36190aea4d59fb894b542deaf8fe7465c2fffed"
+    },
+    "alpha_boundary_small_v5_screen_multi4": {
+      "npy": "alpha_boundary_small_v5_screen_multi4.npy",
+      "npy_sha256": "e002af4bc4ca7bc22e0c37dea8a8117faf82666595d0b1792a7bc14661987612"
+    },
+    "alpha_boundary_small_v5_content_multi4": {
+      "npy": "alpha_boundary_small_v5_content_multi4.npy",
+      "npy_sha256": "dcebccaf31a8206470aaed81dc47c59961c9cdc679fef6e8dc91012958083649"
+    },
+    "alpha_boundary_small_v5_global_multi4": {
+      "npy": "alpha_boundary_small_v5_global_multi4.npy",
+      "npy_sha256": "33b94ea2e6763ee3315a2f2fe36190aea4d59fb894b542deaf8fe7465c2fffed"
+    },
+    "alpha_boundary_large_v4_screen_multi4": {
+      "npy": "alpha_boundary_large_v4_screen_multi4.npy",
+      "npy_sha256": "04fd6db723a7aa59a01ef2324e159e5608364109fef50dbd3ad0fde43b85efda"
+    },
+    "alpha_boundary_large_v4_content_multi4": {
+      "npy": "alpha_boundary_large_v4_content_multi4.npy",
+      "npy_sha256": "c67d6bb324d1c47782e28eb12eda2f72761d498ecd41aecc9ec319ae8e23046a"
+    },
+    "alpha_boundary_large_v4_global_multi4": {
+      "npy": "alpha_boundary_large_v4_global_multi4.npy",
+      "npy_sha256": "f0f797037c68ced0f55f6e71cd85e17ac810350f1ff1ee88bd8deb7d39d2f8a9"
+    },
+    "alpha_boundary_large_v5_screen_multi4": {
+      "npy": "alpha_boundary_large_v5_screen_multi4.npy",
+      "npy_sha256": "04fd6db723a7aa59a01ef2324e159e5608364109fef50dbd3ad0fde43b85efda"
+    },
+    "alpha_boundary_large_v5_content_multi4": {
+      "npy": "alpha_boundary_large_v5_content_multi4.npy",
+      "npy_sha256": "c67d6bb324d1c47782e28eb12eda2f72761d498ecd41aecc9ec319ae8e23046a"
+    },
+    "alpha_boundary_large_v5_global_multi4": {
+      "npy": "alpha_boundary_large_v5_global_multi4.npy",
+      "npy_sha256": "f0f797037c68ced0f55f6e71cd85e17ac810350f1ff1ee88bd8deb7d39d2f8a9"
+    },
+    "sequence_small_screen_multi4_frame03": {
+      "npy": "sequence_small_screen_multi4_frame03.npy",
+      "npy_sha256": "623139fb016cba872422dc89ae7a05f80fb45d92b25760171fcd139fa2be5da4"
+    },
+    "sequence_small_content_multi4_frame03": {
+      "npy": "sequence_small_content_multi4_frame03.npy",
+      "npy_sha256": "ffa66dab1e0e0ba53e093386fac6ea30bdaad97e07e978338fd5b53b409092bc"
+    },
+    "sequence_small_global_multi4_frame03": {
+      "npy": "sequence_small_global_multi4_frame03.npy",
+      "npy_sha256": "1b504c3a7ec7d1b187ac7942aff5c3fb8ce1ac28095cee45c10afe39fc89f6c6"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd7.json",
+      "sha256": "715e6b9d344769a7e8a91cc51b9ee790b87ecb5d829d1fc37afcb6cb0d0e6748"
+    },
+    "tables": {
+      "file": "review/RD7_TABLES.md",
+      "sha256": "4df52c035b7019ed1914930aea985957bb22966b25480f79babef22debf99366"
+    },
+    "blind_sheet": {
+      "file": "review/rd7_temporal_blind_sheet.png",
+      "sha256": "f2cf6e8b0e89575d7b5e26ddc49fd51b36e29e5366a8173840953d079b6b55c9"
+    },
+    "blind_key": {
+      "file": "temporal_blind_key.json",
+      "sha256": "67dd3a2530e1709d74774d6ddbedc780d30f44075c81a2f06ae25575ba9cb3b4"
+    },
+    "form": {
+      "file": "review/TEMPORAL_BLIND_FORM.md",
+      "sha256": "7d586cb1da7e1ed32cb1b07ff7bd2ec58e15482e9dce2bc2ad63a81d5ffb9276"
+    }
+  },
+  "gates": "unset; no judgment or quality ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference artwork images",
+    "motion estimation for real footage",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

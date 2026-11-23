@@ -1,0 +1,57 @@
+{
+  "intent": "Compare a shared standard-G||w foundation followed by distinct registered Glow-family signatures. Exploratory CPU chained PNG proxy; not a final in-memory stack or preset.",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 1.0,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "edge-contour": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.25,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "chromatic-fringe": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.6,
+        "Radius": 7.0,
+        "Intensity": 0.65,
+        "Dispersion": 1.5,
+        "Angle": 0.0,
+        "Tint Mix": 0.25
+      }
+    },
+    "liquid-wave": {
+      "effect_id": "liquid_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.6,
+        "Flow Scale": 30.0,
+        "Distortion": 6.0,
+        "Phase": 0.0
+      }
+    },
+    "caustic-ridge": {
+      "effect_id": "luminescence_caustics",
+      "properties": {
+        "Threshold": 0.45,
+        "Edge Weight": 0.8,
+        "Scale": 22.0,
+        "Intensity": 0.55,
+        "Evolution": 0.0,
+        "Color Shift": 0.25
+      }
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "rd": "rd0",
+  "seed": 20261116,
+  "dimensions": [
+    512,
+    320
+  ],
+  "color_contract": "linear RGB float32 [0,1]; PNG uses sRGB transfer encoding",
+  "purpose": "fixture and measurement sanity only; no candidate ranking or gate",
+  "generator_sha256": "8e2e004d0cf9f13955fdc13cf2bb765272754f8ee2cddb661209fd0ac00c51ac",
+  "files": {
+    "repair_damage_mask": {
+      "path": "repair_damage_mask.png",
+      "sha256": "9d41beb1c82b65eef62a1a7f3c126f8f0c7ca08f1cf9540ae7cb02ac384007d5"
+    },
+    "chart": {
+      "npy": {
+        "path": "chart.npy",
+        "sha256": "398188e2fbcd124f7f5ffbdc77b96ba566260f99911e54ada88bd784135cf8be"
+      },
+      "preview": {
+        "path": "chart.png",
+        "sha256": "9c8e4a726c6692b047ce2ff0a7a45b7d1ad4b365b2b0a553c0462f8ec9ae705a"
+      }
+    },
+    "smooth_color": {
+      "npy": {
+        "path": "smooth_color.npy",
+        "sha256": "1a06d4d3866699673b09d1a09620ec915431eddd239c310b73363c1e7d36362e"
+      },
+      "preview": {
+        "path": "smooth_color.png",
+        "sha256": "2619b9c20d6eb54aac38507c416a2c3999bf1ef12c8c33c95a6374db9c126435"
+      }
+    },
+    "texture": {
+      "npy": {
+        "path": "texture.npy",
+        "sha256": "ff93de6add73d9a6291d78eebd117286e3fe5b38dcbc5db6b1637b7de1c8eca8"
+      },
+      "preview": {
+        "path": "texture.png",
+        "sha256": "bc6fec5b257879685ceaf7d13182134b50bff47417bc6a41584777b87e525075"
+      }
+    },
+    "repair_clean": {
+      "npy": {
+        "path": "repair_clean.npy",
+        "sha256": "ff93de6add73d9a6291d78eebd117286e3fe5b38dcbc5db6b1637b7de1c8eca8"
+      },
+      "preview": {
+        "path": "repair_clean.png",
+        "sha256": "bc6fec5b257879685ceaf7d13182134b50bff47417bc6a41584777b87e525075"
+      }
+    },
+    "repair_damaged": {
+      "npy": {
+        "path": "repair_damaged.npy",
+        "sha256": "b8bdb25eda65f5510a2f2043ea8b527926ded4d5181288756802884b5ea4817c"
+      },
+      "preview": {
+        "path": "repair_damaged.png",
+        "sha256": "87f27c9d0ab7152ee70bfd329d26114014fb0cf1a0c6b30c0d34f1b7e2c3c3c3"
+      }
+    },
+    "moire_reference": {
+      "npy": {
+        "path": "moire_reference.npy",
+        "sha256": "1a06d4d3866699673b09d1a09620ec915431eddd239c310b73363c1e7d36362e"
+      },
+      "preview": {
+        "path": "moire_reference.png",
+        "sha256": "2619b9c20d6eb54aac38507c416a2c3999bf1ef12c8c33c95a6374db9c126435"
+      }
+    },
+    "moire_corrupted": {
+      "npy": {
+        "path": "moire_corrupted.npy",
+        "sha256": "33b1e6492b29d1382223ba600c67037a84fafe25c7a5739d3d12f1d02eb23c67"
+      },
+      "preview": {
+        "path": "moire_corrupted.png",
+        "sha256": "e55510d4673e7151996bd7d04da982c1fe8a99031925aaa389dac3cb1d0d5ab9"
+      }
+    },
+    "chromatic_reference": {
+      "npy": {
+        "path": "chromatic_reference.npy",
+        "sha256": "398188e2fbcd124f7f5ffbdc77b96ba566260f99911e54ada88bd784135cf8be"
+      },
+      "preview": {
+        "path": "chromatic_reference.png",
+        "sha256": "9c8e4a726c6692b047ce2ff0a7a45b7d1ad4b365b2b0a553c0462f8ec9ae705a"
+      }
+    },
+    "chromatic_shifted": {
+      "npy": {
+        "path": "chromatic_shifted.npy",
+        "sha256": "80666a2bfb3a81e179a08133fb9b5f7683dc4cb350d27c1fafe39a8fb58002f2"
+      },
+      "preview": {
+        "path": "chromatic_shifted.png",
+        "sha256": "50d5a5f7b8324288ed76e445748604ff6deb9563ba500dda8f0f9cd6b8ab3aaa"
+      }
+    },
+    "distortion_barrel": {
+      "npy": {
+        "path": "distortion_barrel.npy",
+        "sha256": "22ac78d4a324c4680326933c56b1defd54a5da275b69fea83d4e68564d27b64c"
+      },
+      "preview": {
+        "path": "distortion_barrel.png",
+        "sha256": "cd3706490afbbf51fbe1005ad843b9a49f5aaf2812b5aa87d728a1e71ffffd75"
+      }
+    },
+    "distortion_pincushion": {
+      "npy": {
+        "path": "distortion_pincushion.npy",
+        "sha256": "cc21cb599460f37dd30f1f76aae58ee88412a8fc4d856412e5d1dfe1dbbb4eab"
+      },
+      "preview": {
+        "path": "distortion_pincushion.png",
+        "sha256": "f64cf9e392ba0c7448a56b872b0dee53a2e7ca8bdff3833b04d1e80623f0ec51"
+      }
+    },
+    "distortion_reference": {
+      "npy": {
+        "path": "distortion_reference.npy",
+        "sha256": "398188e2fbcd124f7f5ffbdc77b96ba566260f99911e54ada88bd784135cf8be"
+      },
+      "preview": {
+        "path": "distortion_reference.png",
+        "sha256": "9c8e4a726c6692b047ce2ff0a7a45b7d1ad4b365b2b0a553c0462f8ec9ae705a"
+      }
+    },
+    "color_match_source": {
+      "npy": {
+        "path": "color_match_source.npy",
+        "sha256": "3af903040c64be22bbe9c92866ac47ed46cc824d9ea55dc919a8ddda46e2081a"
+      },
+      "preview": {
+        "path": "color_match_source.png",
+        "sha256": "867bccdf8ce8e467c5989ab891f4232a3232e48aba9ebd33b90042e86f77bd37"
+      }
+    },
+    "color_match_reference": {
+      "npy": {
+        "path": "color_match_reference.npy",
+        "sha256": "4ad14e4e9ed19f36eb612d014592d6af2908616e05e27eadd86712e1bac570c9"
+      },
+      "preview": {
+        "path": "color_match_reference.png",
+        "sha256": "a144c74b427dea1697c2acb9be5151189a1271fd0cb642ec0982b8279f39a94b"
+      }
+    },
+    "palette_coverage": {
+      "npy": {
+        "path": "palette_coverage.npy",
+        "sha256": "eed082e6b3699641d32f4e6005a7285bb9657159f31cf957404fe032cbb8846e"
+      },
+      "preview": {
+        "path": "palette_coverage.png",
+        "sha256": "78010b82d24ddcc960cd3a4094e1d6e71e46e61a16a69c283c83bc29d5c656e0"
+      }
+    }
+  },
+  "repair_baseline": {
+    "mae": 0.29082806890782636,
+    "p95": 0.4481361247599125,
+    "max": 0.5670315437018871,
+    "outside_damage_max_abs": 0.0
+  },
+  "notes": [
+    "Synthetic responses do not establish real-photo quality.",
+    "Distortion inverses, chromatic shift correction, moire suppression, and color transfer candidates are not executed in rd0.",
+    "Palette fixture has analytically known area proportions; palette extraction is not executed in rd0."
+  ]
+}

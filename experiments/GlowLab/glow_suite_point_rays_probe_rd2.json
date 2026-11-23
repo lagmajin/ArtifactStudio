@@ -1,0 +1,42 @@
+{
+  "intent": "Second exploratory point-rays candidate after CPU source inspection; stronger radial accumulation and a readable Glint response, still an unaccepted PNG-chain proxy.",
+  "input": "captures/glow-point-rays-probe-rd1/point-rays-probe.png",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.08,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "point-rays-probe-rd2": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.34,
+          "sourceY": 0.35,
+          "rayLength": 0.85,
+          "intensity": 4.0,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.22,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 1.0,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ]
+  }
+}

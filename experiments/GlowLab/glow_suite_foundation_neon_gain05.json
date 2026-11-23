@@ -1,0 +1,15 @@
+{
+  "intent": "Follow-up calibration added because Glow foundation gain 0.10 left only a narrow 2.4% clipping margin in the central-intersection ROI before specialist effects. Measure gain 0.05 on the same source before the next ordered-stack iteration.",
+  "source": "assets/cc0-neon-streets-1536.jpg",
+  "compute": "cpu",
+  "profiles": {
+    "glow-gain-0p05": {
+      "effect_id": "glow",
+      "properties": {
+        "glowGain": 0.05,
+        "layerCount": 4,
+        "baseSigma": 6.0
+      }
+    }
+  }
+}

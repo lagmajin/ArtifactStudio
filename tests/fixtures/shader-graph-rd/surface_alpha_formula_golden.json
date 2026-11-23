@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-surface-alpha-golden",
+  "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
+  "binary32": "Each multiply/add intermediate is rounded to IEEE-754 binary32 by the host oracle; this is not a GPU rounding claim.",
+  "sourceContract": {
+    "fixedPath": "materialAlpha = baseColor.a * opacitySample.a",
+    "graphOverride": "materialAlpha = graphBaseColor.a * graphAlpha",
+    "transparentRgb": "srcRgb * srcAlpha + dstRgb * (1-srcAlpha)",
+    "transparentAlpha": "srcAlpha + dstAlpha * (1-srcAlpha)"
+  },
+  "alphaCompositionCases": [
+    {
+      "caseId": "graph-base-alpha-0",
+      "baseColorAlpha": 0.0,
+      "opacitySampleAlpha": 0.4,
+      "principledGraphAlpha": 0.5,
+      "expectedMaterialAlpha": 0.0,
+      "formula": "((baseColor.a * opacitySample.a) from the fixed path is replaced by graphBaseColor.a * graphAlpha when the graph splice is active)"
+    },
+    {
+      "caseId": "graph-base-alpha-0.5",
+      "baseColorAlpha": 0.5,
+      "opacitySampleAlpha": 0.4,
+      "principledGraphAlpha": 0.5,
+      "expectedMaterialAlpha": 0.10000000149011612,
+      "formula": "((baseColor.a * opacitySample.a) from the fixed path is replaced by graphBaseColor.a * graphAlpha when the graph splice is active)"
+    },
+    {
+      "caseId": "graph-base-alpha-1",
+      "baseColorAlpha": 1.0,
+      "opacitySampleAlpha": 0.4,
+      "principledGraphAlpha": 0.5,
+      "expectedMaterialAlpha": 0.20000000298023224,
+      "formula": "((baseColor.a * opacitySample.a) from the fixed path is replaced by graphBaseColor.a * graphAlpha when the graph splice is active)"
+    }
+  ],
+  "associationComparison": {
+    "sourceStraightRgb": [
+      0.8,
+      0.2,
+      0.1
+    ],
+    "sourceAlpha": 0.5,
+    "backgrounds": {
+      "black": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "white": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "straightInputComposites": {
+      "black": {
+        "rgb": [
+          0.4000000059604645,
+          0.10000000149011612,
+          0.05000000074505806
+        ],
+        "alpha": 1.0
+      },
+      "white": {
+        "rgb": [
+          0.8999999761581421,
+          0.6000000238418579,
+          0.550000011920929
+        ],
+        "alpha": 1.0
+      }
+    },
+    "premultipliedInputPassedToCurrentStraightBlend": {
+      "black": {
+        "rgb": [
+          0.20000000298023224,
+          0.05000000074505806,
+          0.02500000037252903
+        ],
+        "alpha": 1.0
+      },
+      "white": {
+        "rgb": [
+          0.699999988079071,
+          0.550000011920929,
+          0.5249999761581421
+        ],
+        "alpha": 1.0
+      }
+    },
+    "purpose": "show the current straight-alpha blend equation darkens premultiplied RGB a second time; this does not select the product association policy"
+  },
+  "limitations": [
+    "CPU formula candidate only; no HLSL compiler, GPU blend state, or image capture executed",
+    "current source equations are observed behavior, not a product-approved color/alpha contract",
+    "RGBA32F capture and black/white composite remain required to inspect actual backend output",
+    "sRGB transfer and alpha association are independent policy dimensions"
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-constant-value-golden",
+  "status": "candidate-binary32-canonicalization-no-Core-runtime",
+  "rounding": "IEEE-754 binary32 round-to-nearest ties-to-even as provided by the host conversion oracle",
+  "byteOrder": "big-endian IEEE-754 binary32 per component",
+  "signedZero": "normalize negative zero to positive zero before semantic serialization",
+  "acceptedDomain": "finite source number whose rounded binary32 result remains finite",
+  "rejectedInputs": [
+    "NaN",
+    "+Inf",
+    "-Inf",
+    "finite source number that overflows to binary32 infinity"
+  ],
+  "scalarOperationId": "artifact.constant.scalar.float32",
+  "colorOperationId": "artifact.constant.color4.float32",
+  "rawVectorOperationId": "artifact.constant.vector4.float32",
+  "scalarCases": [
+    {
+      "caseId": "scalar-positive-zero",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": 0.0,
+      "expected": 0.0,
+      "bytes": "00000000",
+      "actual": 0.0,
+      "actualBytes": "00000000",
+      "matchesExpected": true
+    },
+    {
+      "caseId": "scalar-negative-zero-normalizes",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": -0.0,
+      "expected": 0.0,
+      "bytes": "00000000",
+      "actual": 0.0,
+      "actualBytes": "00000000",
+      "matchesExpected": true
+    },
+    {
+      "caseId": "scalar-one-third-rounds-to-binary32",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": 0.3333333333333333,
+      "expected": 0.3333333432674408,
+      "bytes": "3EAAAAAB",
+      "actual": 0.3333333432674408,
+      "actualBytes": "3EAAAAAB",
+      "matchesExpected": true
+    },
+    {
+      "caseId": "scalar-smallest-positive-subnormal",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": 1.401298464324817e-45,
+      "expected": 1.401298464324817e-45,
+      "bytes": "00000001",
+      "actual": 1.401298464324817e-45,
+      "actualBytes": "00000001",
+      "matchesExpected": true
+    },
+    {
+      "caseId": "scalar-half-subnormal-rounds-to-zero",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": 7.006492321624085e-46,
+      "expected": 0.0,
+      "bytes": "00000000",
+      "actual": 0.0,
+      "actualBytes": "00000000",
+      "matchesExpected": true
+    },
+    {
+      "caseId": "scalar-largest-finite-binary32",
+      "operationId": "artifact.constant.scalar.float32",
+      "valueType": "Float",
+      "input": 3.4028234663852886e+38,
+      "expected": 3.4028234663852886e+38,
+      "bytes": "7F7FFFFF",
+      "actual": 3.4028234663852886e+38,
+      "actualBytes": "7F7FFFFF",
+      "matchesExpected": true
+    }
+  ],
+  "typedTupleCases": {
+    "color": {
+      "semanticKind": "color",
+      "valueType": "Color4",
+      "components": [
+        0.25,
+        -0.5,
+        1.25,
+        0.75
+      ],
+      "componentBytesBigEndian": [
+        "3E800000",
+        "BF000000",
+        "3FA00000",
+        "3F400000"
+      ],
+      "canonicalSemanticBytesHex": "3E800000BF0000003FA000003F400000",
+      "status": "candidate-canonicalization-no-Core-codec"
+    },
+    "rawVector": {
+      "semanticKind": "vector",
+      "valueType": "Vector4",
+      "components": [
+        0.25,
+        -0.5,
+        1.25,
+        0.75
+      ],
+      "componentBytesBigEndian": [
+        "3E800000",
+        "BF000000",
+        "3FA00000",
+        "3F400000"
+      ],
+      "canonicalSemanticBytesHex": "3E800000BF0000003FA000003F400000",
+      "status": "candidate-canonicalization-no-Core-codec"
+    },
+    "sameNumericBytesDoNotImplySameSemanticType": true
+  },
+  "rejectionCases": [
+    {
+      "caseId": "nan-rejected",
+      "input": "NaN",
+      "expectedError": "constant component must be finite binary64 input"
+    },
+    {
+      "caseId": "positive-infinity-rejected",
+      "input": "+Inf",
+      "expectedError": "constant component must be finite binary64 input"
+    },
+    {
+      "caseId": "binary32-overflow-rejected",
+      "input": 3.4028236e+38,
+      "expectedError": "constant component is outside finite binary32 range"
+    }
+  ],
+  "limitations": [
+    "Python IEEE-754 conversion is a candidate oracle; it does not execute the Core codec",
+    "Color4 transfer function and alpha association remain unspecified",
+    "equal component bytes do not make Color4 and Vector4 interchangeable semantic types",
+    "no shader compiler, GPU output, renderer parity, or project round-trip evidence is included"
+  ]
+}

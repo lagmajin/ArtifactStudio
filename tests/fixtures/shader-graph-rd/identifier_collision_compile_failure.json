@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "base-color", "type": "RGB", "params": {"r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0}},
+    {"id": "base_color", "type": "RGB", "params": {"r": 0.0, "g": 0.0, "b": 1.0, "a": 1.0}},
+    {"id": "mix", "type": "MixRGB", "params": {"blend": 0, "clampFactor": false, "clampResult": false}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "base-color", "out": "Color", "to": "mix", "in": "Color1"},
+    {"from": "base_color", "out": "Color", "to": "mix", "in": "Color2"},
+    {"from": "mix", "out": "Color", "to": "surface", "in": "BaseColor"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

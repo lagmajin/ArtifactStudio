@@ -1,0 +1,254 @@
+{
+  "rd": "rd0",
+  "purpose": "synthetic response characterization only; no Core execution, gate, or ranking",
+  "seed": 20261116,
+  "dimensions": [
+    512,
+    320
+  ],
+  "condition": "linear RGB float32, opaque, fixed dimensions; metrics unclipped; previews clipped then sRGB encoded",
+  "reference_role": "known regional numeric transformation, not photographic or perceptual ground truth",
+  "control": "offline per-channel mean/std equation, not AutoColorMatcher implementation",
+  "generator_sha256": "2494faed68d34bdc8e86640425e7cbba7b5834684128b052adf1d56c87aa9b59",
+  "files": {
+    "synthetic_source.npy": "b2ec9da18bff74df940afbade74b12527b7e9c26519062202819bea621bea3b8",
+    "synthetic_source.png": "bb07edef54de82e15766a54890969712daabee63bcbd48229daa974c28e2649d",
+    "synthetic_reference.npy": "2d31869e008f0daeafa5c2180e2b0c661f815f2125637210a9e22b3710b32689",
+    "synthetic_reference.png": "8a04f8c623d100a7f4b55de3c37a5562cc84732547ddc5ca0dc8baae2fb5c2ea",
+    "offline_mean_std_control.npy": "e197fbfe523e4395027b58930ae20cc5aae71ee6e8a685f870635d2601d08768",
+    "offline_mean_std_control.png": "ac70b0310d502e2f19a3db9129481a8e056f6207cedd4bbd3d5f25f9c6079ccb",
+    "roi_skin_like.png": "74912b00af7c1dd1c0332c817f802025737e2e8bbe8a6eb8c27797a3c36851aa",
+    "roi_neutral_white.png": "765de42d9f769e2833fc26cca74b7df6f1bde968c4ae241cdf197cb782bb28f8",
+    "roi_saturated.png": "cfc5ee9abb8b6a0868a2778d63d334a813e1739c4c3461e809a17afd7fa6646a",
+    "roi_smooth_ramp.png": "35d56b888850f4c37ec5ba87ff6dfb70a91961cfc156c6e6ef11813370389147",
+    "roi_texture.png": "7ce27b916a95ecf290e544cdd8a2c0ba69e071a9516fddee06b21cb362e5ea71"
+  },
+  "roi_masks": {
+    "skin_like": {
+      "path": "roi_skin_like.png",
+      "sha256": "74912b00af7c1dd1c0332c817f802025737e2e8bbe8a6eb8c27797a3c36851aa",
+      "pixels": 6402
+    },
+    "neutral_white": {
+      "path": "roi_neutral_white.png",
+      "sha256": "765de42d9f769e2833fc26cca74b7df6f1bde968c4ae241cdf197cb782bb28f8",
+      "pixels": 6402
+    },
+    "saturated": {
+      "path": "roi_saturated.png",
+      "sha256": "cfc5ee9abb8b6a0868a2778d63d334a813e1739c4c3461e809a17afd7fa6646a",
+      "pixels": 13332
+    },
+    "smooth_ramp": {
+      "path": "roi_smooth_ramp.png",
+      "sha256": "35d56b888850f4c37ec5ba87ff6dfb70a91961cfc156c6e6ef11813370389147",
+      "pixels": 43424
+    },
+    "texture": {
+      "path": "roi_texture.png",
+      "sha256": "7ce27b916a95ecf290e544cdd8a2c0ba69e071a9516fddee06b21cb362e5ea71",
+      "pixels": 33040
+    }
+  },
+  "metrics": {
+    "skin_like": {
+      "pixels": 6402,
+      "rgb_min": [
+        0.6478610038757324,
+        0.37860894203186035,
+        0.31564009189605713
+      ],
+      "rgb_mean": [
+        0.6478610038757324,
+        0.37860894203186035,
+        0.31564009189605713
+      ],
+      "rgb_p95": [
+        0.6478610038757324,
+        0.37860894203186035,
+        0.31564009189605713
+      ],
+      "rgb_max": [
+        0.6478610038757324,
+        0.37860894203186035,
+        0.31564009189605713
+      ],
+      "luminance_shift_mean": 0.02040156940817833,
+      "source_rgb_mae": 0.02737000584602356,
+      "reference_rgb_mae": 0.025963326295216877,
+      "reference_rgb_p95": 0.03213900327682495,
+      "neutral_chroma_mean_abs": 0.1336606608496772,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0
+    },
+    "neutral_white": {
+      "pixels": 6402,
+      "rgb_min": [
+        0.8227710723876953,
+        0.846706748008728,
+        0.7733343243598938
+      ],
+      "rgb_mean": [
+        0.8227710723876953,
+        0.846706748008728,
+        0.7733343243598938
+      ],
+      "rgb_p95": [
+        0.8227710723876953,
+        0.846706748008728,
+        0.7733343243598938
+      ],
+      "rgb_max": [
+        0.8227710723876953,
+        0.846706748008728,
+        0.7733343243598938
+      ],
+      "luminance_shift_mean": 0.052148554301261904,
+      "source_rgb_mae": 0.04093738396962484,
+      "reference_rgb_mae": 0.03906261920928955,
+      "reference_rgb_p95": 0.0666656494140625,
+      "neutral_chroma_mean_abs": 0.0272909270392524,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0
+    },
+    "saturated": {
+      "pixels": 13332,
+      "rgb_min": [
+        0.21518859267234802,
+        0.2225762903690338,
+        0.8343601226806641
+      ],
+      "rgb_mean": [
+        0.21518859267234802,
+        0.2225762903690338,
+        0.8343601226806641
+      ],
+      "rgb_p95": [
+        0.21518859267234802,
+        0.2225762903690338,
+        0.8343601226806641
+      ],
+      "rgb_max": [
+        0.21518859267234802,
+        0.2225762903690338,
+        0.8343601226806641
+      ],
+      "luminance_shift_mean": 0.017500462210178373,
+      "source_rgb_mae": 0.03737501303354899,
+      "reference_rgb_mae": 0.09391593933105469,
+      "reference_rgb_p95": 0.1543601155281067,
+      "neutral_chroma_mean_abs": 0.27354563607109916,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0
+    },
+    "smooth_ramp": {
+      "pixels": 43424,
+      "rgb_min": [
+        0.2186441421508789,
+        0.15973228216171265,
+        0.2057529091835022
+      ],
+      "rgb_mean": [
+        0.49164272523701313,
+        0.47403987603057546,
+        0.4793346114202719
+      ],
+      "rgb_p95": [
+        0.6821906059980393,
+        0.6974676698446274,
+        0.6763034671545028
+      ],
+      "rgb_max": [
+        0.7739495038986206,
+        0.7993907332420349,
+        0.7627517580986023
+      ],
+      "luminance_shift_mean": 0.03047855533546203,
+      "source_rgb_mae": 0.0360536910431083,
+      "reference_rgb_mae": 0.012298939595293153,
+      "reference_rgb_p95": 0.03486098349094391,
+      "neutral_chroma_mean_abs": 0.008906775038186996,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0
+    },
+    "texture": {
+      "pixels": 33040,
+      "rgb_min": [
+        0.19220396876335144,
+        0.13049307465553284,
+        0.18112346529960632
+      ],
+      "rgb_mean": [
+        0.4318976178129382,
+        0.4040151838280856,
+        0.4175365243909867
+      ],
+      "rgb_p95": [
+        0.6062178492546081,
+        0.607761937379837,
+        0.5970696687698364
+      ],
+      "rgb_max": [
+        0.6774513721466064,
+        0.6876545548439026,
+        0.6650589108467102
+      ],
+      "luminance_shift_mean": 0.02635338358230943,
+      "source_rgb_mae": 0.03508170120857049,
+      "reference_rgb_mae": 0.012685981892121473,
+      "reference_rgb_p95": 0.028020544350147246,
+      "neutral_chroma_mean_abs": 0.010846134852482679,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0
+    },
+    "whole_frame": {
+      "pixels": 163840,
+      "rgb_min": [
+        0.17243552207946777,
+        0.10703966021537781,
+        0.1602349877357483
+      ],
+      "rgb_mean": [
+        0.4819896718129712,
+        0.4571392649955669,
+        0.5068953928286646
+      ],
+      "rgb_p95": [
+        0.7655790746212006,
+        0.7953232556581491,
+        0.8343601226806641
+      ],
+      "rgb_max": [
+        0.8298110961914062,
+        0.8627548217773438,
+        0.8343601226806641
+      ],
+      "luminance_shift_mean": 0.029447063780891035,
+      "source_rgb_mae": 0.03594832890087976,
+      "reference_rgb_mae": 0.02121818608641964,
+      "reference_rgb_p95": 0.08481141924858093,
+      "neutral_chroma_mean_abs": 0.036723279022226045,
+      "clipped_low_ratio": 0.0,
+      "clipped_high_ratio": 0.0,
+      "non_finite_values": 0,
+      "negative_channel_ratio": 0.0,
+      "above_one_channel_ratio": 0.0,
+      "linear_luminance_p01_p50_p99": [
+        0.1839909777546525,
+        0.447812648165226,
+        0.8363205343842507
+      ]
+    }
+  },
+  "unverified": [
+    "Core output and C++ differential",
+    "licensed paired natural photos and reviewed skin/white ROIs",
+    "human review and pre-registered gates",
+    "alpha/hidden RGB, ICC, HDR, GPU/backend, product routes, performance"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "status": "planned-unsupported-by-current-node-schema",
+  "nodes": [
+    {"id": "packed_mr", "type": "ImageTexture", "params": {"slot": 3}},
+    {"id": "channels", "type": "SeparateColor", "params": {"mode": "RGB"}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "packed_mr", "out": "Color", "to": "channels", "in": "Color"},
+    {"from": "channels", "out": "B", "to": "surface", "in": "Metallic"},
+    {"from": "channels", "out": "G", "to": "surface", "in": "Roughness"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

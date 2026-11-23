@@ -1,0 +1,232 @@
+{
+  "lab": "MaterialSeparationLab",
+  "rd": "rd0",
+  "stage": "baseline",
+  "date": "2026-11-18",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "seed": 20261118,
+  "controls": {
+    "baseline_raw": {
+      "description": "input unchanged"
+    },
+    "control_lowpass": {
+      "description": "gaussian low-pass base only (sigma 2.0, premultiplied)"
+    },
+    "control_detail_only": {
+      "description": "high-frequency detail only (premultiplied input minus low-pass)"
+    }
+  },
+  "outputs": {
+    "color_ramp_small_baseline_raw": {
+      "npy": "color_ramp_small_baseline_raw.npy",
+      "npy_sha256": "c47b12fc393e10b7474d6302142b55a7d9246c561fc8f7ba555c8564c8e6ce69",
+      "png": "color_ramp_small_baseline_raw.png",
+      "png_sha256": "44fa4adc209ce5de5f495eaa47f1813dec56b4c849f955a822740265c7a3c933"
+    },
+    "color_ramp_small_control_lowpass": {
+      "npy": "color_ramp_small_control_lowpass.npy",
+      "npy_sha256": "fa728db8a06993aa1a230f23e9db6cb866d4e94b519280ea34d4c32a03a31931",
+      "png": "color_ramp_small_control_lowpass.png",
+      "png_sha256": "f938302198e006cf1aecd7f0acbbca4e170c8b05dd660784aafdd9495bdf434f"
+    },
+    "color_ramp_small_control_detail_only": {
+      "npy": "color_ramp_small_control_detail_only.npy",
+      "npy_sha256": "f01764c6a3ea925e6944fbce43fd0ac755e9d4e029fcffff4953652b2270788e",
+      "png": "color_ramp_small_control_detail_only.png",
+      "png_sha256": "9809fe706c453fc0e8eaef24f5051c95a66210f4eb73806da8a1669c65376842"
+    },
+    "thin_lines_small_baseline_raw": {
+      "npy": "thin_lines_small_baseline_raw.npy",
+      "npy_sha256": "fe6feaef0296c66c1242fe093c537b8aa330b141a47ca4efc37736f6c5fb3701",
+      "png": "thin_lines_small_baseline_raw.png",
+      "png_sha256": "e545d9778014249c75727df104f0b3b01c7f2f4be8b707ee50f803566689873b"
+    },
+    "thin_lines_small_control_lowpass": {
+      "npy": "thin_lines_small_control_lowpass.npy",
+      "npy_sha256": "5a8e2f6062e3308cabf83900752acef9845c2b18bf2fea6f65e0ea66ba515ac8",
+      "png": "thin_lines_small_control_lowpass.png",
+      "png_sha256": "47bf36fd867a25d11c4d82adaacab338232da55342ac527e4253feaa2f595007"
+    },
+    "thin_lines_small_control_detail_only": {
+      "npy": "thin_lines_small_control_detail_only.npy",
+      "npy_sha256": "c751186a4ea66457a3d7efd9526d11e90694ea59c3b0780f7305a881bd29f68e",
+      "png": "thin_lines_small_control_detail_only.png",
+      "png_sha256": "8ae783e0c5d12ae3af330c40d41a177c57a00712edf264d145f4735b2092c279"
+    },
+    "texture_small_baseline_raw": {
+      "npy": "texture_small_baseline_raw.npy",
+      "npy_sha256": "afbbe359b0a517be71921cbc3246f033eb95986e0fd30268a24dd67ea6af6b6d",
+      "png": "texture_small_baseline_raw.png",
+      "png_sha256": "142d0024ae49e141f9be180283627eae6caab7b37cb22b097951504c2bc316ae"
+    },
+    "texture_small_control_lowpass": {
+      "npy": "texture_small_control_lowpass.npy",
+      "npy_sha256": "df2ef6a3fbc53d02ca5f400091746ff011c0ce71d95277fedfc5cf462cede266",
+      "png": "texture_small_control_lowpass.png",
+      "png_sha256": "f3723d4e27bc98dc975485e9056906a9ad35bba077a8b39efc0e1f7c0d2f0a7b"
+    },
+    "texture_small_control_detail_only": {
+      "npy": "texture_small_control_detail_only.npy",
+      "npy_sha256": "f2cb57b4c7fb31e2b623666af0ab5b2fabc89748ba33757acb59e2440e35082d",
+      "png": "texture_small_control_detail_only.png",
+      "png_sha256": "425c8a6909cb2c8aeb0a2e94fce816f409013dbab88f10e8363c7b4498ac321d"
+    },
+    "flat_highlight_small_baseline_raw": {
+      "npy": "flat_highlight_small_baseline_raw.npy",
+      "npy_sha256": "ab99108b5a5762612d50b554922048081eaf0a4215220a1819560eb8c407deed",
+      "png": "flat_highlight_small_baseline_raw.png",
+      "png_sha256": "6defa51ea0add97afbfd51bc42d6622b9a327f7e88c4cfd84ae98cc407392d59"
+    },
+    "flat_highlight_small_control_lowpass": {
+      "npy": "flat_highlight_small_control_lowpass.npy",
+      "npy_sha256": "b185f2cb0a4cf12a9dbbef3a14c34a8a7c1668a69dd324cedc65cade90bdb40e",
+      "png": "flat_highlight_small_control_lowpass.png",
+      "png_sha256": "eef3a710e464af2d6b5688326e1b4f380662f4617b78a5aded5ecc868d2b68b4"
+    },
+    "flat_highlight_small_control_detail_only": {
+      "npy": "flat_highlight_small_control_detail_only.npy",
+      "npy_sha256": "e525edbfbf5f452631d3709b68b9f9289a70d41afa58c0d18df60151c6be086a",
+      "png": "flat_highlight_small_control_detail_only.png",
+      "png_sha256": "6b53222deb06abe2812e97f46060f856f0f944b12f4abec3a383bb7fa9a97f52"
+    },
+    "alpha_boundary_small_baseline_raw": {
+      "npy": "alpha_boundary_small_baseline_raw.npy",
+      "npy_sha256": "43f986b2e59335a98e57628f27b117a88b54b2c225b0e5128f32ec47b1c98367",
+      "png": "alpha_boundary_small_baseline_raw.png",
+      "png_sha256": "443574fad02cc23986c4a22119ef994b06f64bf4e92127e9acff99e891071b37"
+    },
+    "alpha_boundary_small_control_lowpass": {
+      "npy": "alpha_boundary_small_control_lowpass.npy",
+      "npy_sha256": "b6745dd29a3cff16223a2ec5423adc0dadec96116b244092cb0bc25fc6cb7a5a",
+      "png": "alpha_boundary_small_control_lowpass.png",
+      "png_sha256": "483a95737c2fdbaa290c06a4de533325e7e6bc787b06e344315a8b7089c7b8fa"
+    },
+    "alpha_boundary_small_control_detail_only": {
+      "npy": "alpha_boundary_small_control_detail_only.npy",
+      "npy_sha256": "080bba400c01a592569509d5ae8c1c477f410684e32c45efae5c0d47edc0d388",
+      "png": "alpha_boundary_small_control_detail_only.png",
+      "png_sha256": "83fb2df44883ce91eae1c3ce7c7d8f8cb3ad2b98d5dcc1d003c1488ad6356081"
+    },
+    "color_ramp_large_baseline_raw": {
+      "npy": "color_ramp_large_baseline_raw.npy",
+      "npy_sha256": "b5bbd8faefdc6d086686bcd29e79f751589a34dfbeb2932c5dfbb5d7af7950bd",
+      "png": "color_ramp_large_baseline_raw.png",
+      "png_sha256": "a825c161f0fd8b06b90cca7f2bd311b4b6a5ab1d0220d5211659bdd19a169ece"
+    },
+    "color_ramp_large_control_lowpass": {
+      "npy": "color_ramp_large_control_lowpass.npy",
+      "npy_sha256": "bc3f4bf5cf8f2c5a072ec92131e7a474a8435df88787af225f83367f8c14fb19",
+      "png": "color_ramp_large_control_lowpass.png",
+      "png_sha256": "02dcd00d3721e952d1512b49f90322381a63c2291b95ffd0f1b46d10596f50df"
+    },
+    "color_ramp_large_control_detail_only": {
+      "npy": "color_ramp_large_control_detail_only.npy",
+      "npy_sha256": "45e82000d7b069ae6016232da8887c70aac352b230e8d701caa9702f06356680",
+      "png": "color_ramp_large_control_detail_only.png",
+      "png_sha256": "6412f06b492cee375bb79a54f3f1f822a154e72348f05944b8c16e2300b64296"
+    },
+    "thin_lines_large_baseline_raw": {
+      "npy": "thin_lines_large_baseline_raw.npy",
+      "npy_sha256": "1d51559fc5a5637c0aa6f63bde90523db4c1c3ccc64dca8d8d6b4821f2e606f4",
+      "png": "thin_lines_large_baseline_raw.png",
+      "png_sha256": "280d115ad47d37148bfcb34c704273dbf10df81aabfe3cc2d4c0e15ce75b2639"
+    },
+    "thin_lines_large_control_lowpass": {
+      "npy": "thin_lines_large_control_lowpass.npy",
+      "npy_sha256": "e459edc89bb39f122d8b5bc1f92554935645320f2d3d7d95aa209363a3aed563",
+      "png": "thin_lines_large_control_lowpass.png",
+      "png_sha256": "bc14a5fe0853083ae545ff14928285414ed38445df7a50c482b81f7e2a651fa3"
+    },
+    "thin_lines_large_control_detail_only": {
+      "npy": "thin_lines_large_control_detail_only.npy",
+      "npy_sha256": "f88c675ccd3fba25df8d6573bfaf38948b3532d1cc0b43447fd17b6e942f6263",
+      "png": "thin_lines_large_control_detail_only.png",
+      "png_sha256": "b784dbe150958cb372d84614ebbeec9c975b50ce5560cd2e7d0ca2fe54851387"
+    },
+    "texture_large_baseline_raw": {
+      "npy": "texture_large_baseline_raw.npy",
+      "npy_sha256": "0f6863ec995abc10c1a631a8553f467ff0dba59cb54021cad3fe8d8f9aa8dadb",
+      "png": "texture_large_baseline_raw.png",
+      "png_sha256": "23b0d0c8acdef635a8b3d8bc373de34290d1e74bb311d832287cca7e1c40bd08"
+    },
+    "texture_large_control_lowpass": {
+      "npy": "texture_large_control_lowpass.npy",
+      "npy_sha256": "3fca6e78409cfa012c38df08eb9e64cb07e9f3b6f3b3ca3d06394b65eb52ac13",
+      "png": "texture_large_control_lowpass.png",
+      "png_sha256": "8531ee630154e6aa6099f29436abc47c8d842577c3a7dbb88b3a1399a72a2e98"
+    },
+    "texture_large_control_detail_only": {
+      "npy": "texture_large_control_detail_only.npy",
+      "npy_sha256": "f3ef70e361315c23fea937955ed9bd7576a95a8d502984fea7d108581f3b8596",
+      "png": "texture_large_control_detail_only.png",
+      "png_sha256": "97b3a1036be73ee74e893185373f8ddd490d0d4c39baab4694c5d8de3b7f04c0"
+    },
+    "flat_highlight_large_baseline_raw": {
+      "npy": "flat_highlight_large_baseline_raw.npy",
+      "npy_sha256": "e79d8ebc710b3aedc657d88b8d2458aa2246f18a7f6fa611a2cf478ea46fd386",
+      "png": "flat_highlight_large_baseline_raw.png",
+      "png_sha256": "4dbd486b3d22af56481814b4401e7dc79168ae4d2a60785f78c7f576e4a32311"
+    },
+    "flat_highlight_large_control_lowpass": {
+      "npy": "flat_highlight_large_control_lowpass.npy",
+      "npy_sha256": "7349541d0e1930cfeff50f4be2ab174a4a3feb2a9675a18b684671bf476fb09f",
+      "png": "flat_highlight_large_control_lowpass.png",
+      "png_sha256": "1be166f63e167e1101f3f943ad00c80f26cd264c1120e5d6b065942d676c75f3"
+    },
+    "flat_highlight_large_control_detail_only": {
+      "npy": "flat_highlight_large_control_detail_only.npy",
+      "npy_sha256": "8b9cbdf396ac9f4afc369232020e2c0da6b2147b70b4773619953cacb4389169",
+      "png": "flat_highlight_large_control_detail_only.png",
+      "png_sha256": "fcd8ebf72ebda075b96fde54fec6a4453866ddc42f3699281ba76d3cc94ca7dd"
+    },
+    "alpha_boundary_large_baseline_raw": {
+      "npy": "alpha_boundary_large_baseline_raw.npy",
+      "npy_sha256": "cec4f5a68737ac1927bbfd7486fe5eb9359bd1382c6248b9738529676848f359",
+      "png": "alpha_boundary_large_baseline_raw.png",
+      "png_sha256": "78e200701089316e6652e617a98d3c0ffed02731a6c3dc75e1232de90d9bba10"
+    },
+    "alpha_boundary_large_control_lowpass": {
+      "npy": "alpha_boundary_large_control_lowpass.npy",
+      "npy_sha256": "c19fabac21c8086a6c524c323621416a26f545d5701660f2d820cab7d27d9ff8",
+      "png": "alpha_boundary_large_control_lowpass.png",
+      "png_sha256": "5f8e9e0123786c0731e9de46f8416c8f594486135bdb996ad6bd5a2c6f49a3ac"
+    },
+    "alpha_boundary_large_control_detail_only": {
+      "npy": "alpha_boundary_large_control_detail_only.npy",
+      "npy_sha256": "f60e38f3fb5b45478c6ab98d02d98be64cf5584a082432ed9e3295779f53c81e",
+      "png": "alpha_boundary_large_control_detail_only.png",
+      "png_sha256": "184023642f7efe7ebddea56017622de06505b42711702e7e0d1e6436c93403d3"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd0.json",
+      "sha256": "1e02ad83840baff5ffd38b1e5fa3ac00b4081ac923f198ff5169ec4a618cd679"
+    },
+    "full_sheet": {
+      "file": "review/rd0_full_sheet.png",
+      "sha256": "7ce534b31bffc022c187ce40080ad13dfd09e165881dc0c4dd93c6b35a1ccd6a"
+    },
+    "roi_sheet": {
+      "file": "review/rd0_roi_sheet.png",
+      "sha256": "6e13e8956b75ccc90652c605bc8141900c28620a62b94d2c7db094dc313e29c6"
+    },
+    "tables": {
+      "file": "review/RD0_TABLES.md",
+      "sha256": "1f347f54d9319cf4265e1550d8c3c339f891c7ce1aa6ae8ad68e7fc635f8947a"
+    }
+  },
+  "gates": "unset; separate reviewer must fix tolerances before candidate comparison",
+  "unverified": [
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "D3D12 / Vulkan parity",
+    "HDR quality above 1.0",
+    "production performance at 1080p / 4K"
+  ]
+}

@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-map-range-golden",
+  "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
+  "legacyNode": "MapRange",
+  "legacyInputTypes": {
+    "Value": "Float",
+    "FromMin": "Float",
+    "FromMax": "Float",
+    "ToMin": "Float",
+    "ToMax": "Float",
+    "Steps": "Float"
+  },
+  "legacyOutputType": "Float",
+  "formula": "span=fmax-fmin; if abs(span)<1e-5 then span=1; t=(value-fmin)/span; shape t by interpolation; map=tmin+t*(tmax-tmin); optionally clamp result to sorted target bounds",
+  "cases": [
+    {
+      "caseId": "linear-midpoint",
+      "value": 0.5,
+      "interpolation": "linear",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.5
+    },
+    {
+      "caseId": "linear-extrapolates-below",
+      "value": -0.5,
+      "interpolation": "linear",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": -0.5
+    },
+    {
+      "caseId": "linear-clamps-output",
+      "value": -0.5,
+      "interpolation": "linear",
+      "clampRange": true,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.0
+    },
+    {
+      "caseId": "smoothstep-midpoint",
+      "value": 0.5,
+      "interpolation": "smoothstep",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.5
+    },
+    {
+      "caseId": "smoothstep-does-not-clamp-input-t",
+      "value": -0.5,
+      "interpolation": "smoothstep",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 1.0
+    },
+    {
+      "caseId": "smootherstep-midpoint",
+      "value": 0.5,
+      "interpolation": "smootherstep",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.5
+    },
+    {
+      "caseId": "smootherstep-does-not-clamp-input-t",
+      "value": 1.5,
+      "interpolation": "smootherstep",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 3.375
+    },
+    {
+      "caseId": "stepped-quarter",
+      "value": 0.25,
+      "interpolation": "stepped",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.25
+    },
+    {
+      "caseId": "stepped-saturates-t-above-range",
+      "value": 1.5,
+      "interpolation": "stepped",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 1.0
+    },
+    {
+      "caseId": "stepped-floor-steps-below-one",
+      "value": 0.5,
+      "interpolation": "stepped",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 0.25
+      },
+      "expected": 0.0
+    },
+    {
+      "caseId": "zero-span-fallback-one",
+      "value": 2.0,
+      "interpolation": "linear",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 1.0,
+        "from_max": 1.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 1.0
+    },
+    {
+      "caseId": "reversed-source-span",
+      "value": 0.25,
+      "interpolation": "linear",
+      "clampRange": false,
+      "parameters": {
+        "from_min": 1.0,
+        "from_max": 0.0,
+        "to_min": 0.0,
+        "to_max": 1.0,
+        "steps": 4.0
+      },
+      "expected": 0.75
+    },
+    {
+      "caseId": "reversed-target-range-clamp",
+      "value": 0.25,
+      "interpolation": "linear",
+      "clampRange": true,
+      "parameters": {
+        "from_min": 0.0,
+        "from_max": 1.0,
+        "to_min": 2.0,
+        "to_max": -2.0,
+        "steps": 4.0
+      },
+      "expected": 1.0
+    }
+  ],
+  "limitations": [
+    "SmoothStep and SmootherStep use the raw t without saturation; this preserves current source behavior, including extrapolation outside [0,1]",
+    "Stepped alone saturates t and floors Steps to an integer count with a minimum of one",
+    "zero source span is replaced with positive one, including a negative near-zero span",
+    "CPU binary32 sequencing does not establish HLSL compiler contraction, GPU precision, or backend parity",
+    "source-derived Artifact behavior does not establish Blender compatibility",
+    "legacy MapRange exposes one Steps pin even when interpolation does not consume it; no Core operation or runtime implementation is added"
+  ]
+}

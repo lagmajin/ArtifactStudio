@@ -1,0 +1,430 @@
+{
+  "schema": "fog-local-froxel-spatial-resolution-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "slice_distribution": "logarithmic view-Z",
+    "depth_slices": 32,
+    "light_count": 3,
+    "tile_widths_pixels": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "volume_scenarios": {
+      "baseline": {
+        "x_shift": 0.0,
+        "sigma_scale": 1.0
+      },
+      "fine_half_sigma": {
+        "x_shift": 0.0,
+        "sigma_scale": 0.5
+      },
+      "x_shift_half_unit": {
+        "x_shift": 0.5,
+        "sigma_scale": 1.0
+      }
+    },
+    "reference_steps": 512,
+    "validation_steps": 256
+  },
+  "results": {
+    "baseline": {
+      "volume_x_shift": 0.0,
+      "volume_sigma_scale": 1.0,
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 3.4058851074602684e-05,
+        "max_absolute_channel_error": 0.0005819613650519528,
+        "relative_rgb_l2": 7.10995467185364e-05,
+        "pixel_count": 5184
+      },
+      "fog_scattering_reference_energy_rgb_l2": 3.3317605342764396,
+      "tile_width_results": {
+        "1": {
+          "tile_width_pixels": 1,
+          "grid_dimensions": [
+            96,
+            54,
+            32
+          ],
+          "froxel_cell_count": 165888,
+          "light_evaluations": 497664,
+          "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.000675719212390786,
+            "max_absolute_channel_error": 0.027826294864930934,
+            "relative_rgb_l2": 0.0014105974862380693,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0006731954354996775,
+            "max_absolute_channel_error": 0.02793430988284379,
+            "relative_rgb_l2": 0.02519767713536253,
+            "pixel_count": 5184
+          }
+        },
+        "2": {
+          "tile_width_pixels": 2,
+          "grid_dimensions": [
+            48,
+            27,
+            32
+          ],
+          "froxel_cell_count": 41472,
+          "light_evaluations": 124416,
+          "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.001603392072970452,
+            "max_absolute_channel_error": 0.04396319015048089,
+            "relative_rgb_l2": 0.0033471607527390283,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0025951389144969967,
+            "max_absolute_channel_error": 0.05583689026143385,
+            "relative_rgb_l2": 0.09713594157151981,
+            "pixel_count": 5184
+          }
+        },
+        "4": {
+          "tile_width_pixels": 4,
+          "grid_dimensions": [
+            24,
+            14,
+            32
+          ],
+          "froxel_cell_count": 10752,
+          "light_evaluations": 32256,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.001437912770205884,
+            "max_absolute_channel_error": 0.031475673905859036,
+            "relative_rgb_l2": 0.0030017144723554355,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0024748104233735906,
+            "max_absolute_channel_error": 0.03694459718264473,
+            "relative_rgb_l2": 0.09263205115630564,
+            "pixel_count": 5184
+          }
+        },
+        "8": {
+          "tile_width_pixels": 8,
+          "grid_dimensions": [
+            12,
+            7,
+            32
+          ],
+          "froxel_cell_count": 2688,
+          "light_evaluations": 8064,
+          "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.003429519541919141,
+            "max_absolute_channel_error": 0.1087069056056974,
+            "relative_rgb_l2": 0.007159292730066292,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.003700479109016651,
+            "max_absolute_channel_error": 0.09486222867511435,
+            "relative_rgb_l2": 0.13850877905306333,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "tile_width_pixels": 16,
+          "grid_dimensions": [
+            6,
+            4,
+            32
+          ],
+          "froxel_cell_count": 768,
+          "light_evaluations": 2304,
+          "estimated_bytes_R16F_density_RGBA16F_source": 7680,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.007449881563971308,
+            "max_absolute_channel_error": 0.1591981216818228,
+            "relative_rgb_l2": 0.015551998543489333,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.00794576642527584,
+            "max_absolute_channel_error": 0.1571579897525878,
+            "relative_rgb_l2": 0.2974097066307281,
+            "pixel_count": 5184
+          }
+        }
+      }
+    },
+    "fine_half_sigma": {
+      "volume_x_shift": 0.0,
+      "volume_sigma_scale": 0.5,
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 1.3928598301338043e-06,
+        "max_absolute_channel_error": 3.9758683718804644e-05,
+        "relative_rgb_l2": 2.85664476158261e-06,
+        "pixel_count": 5184
+      },
+      "fog_scattering_reference_energy_rgb_l2": 0.11778093555052484,
+      "tile_width_results": {
+        "1": {
+          "tile_width_pixels": 1,
+          "grid_dimensions": [
+            96,
+            54,
+            32
+          ],
+          "froxel_cell_count": 165888,
+          "light_evaluations": 497664,
+          "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 3.0453945696946098e-05,
+            "max_absolute_channel_error": 0.0005388055760134902,
+            "relative_rgb_l2": 6.245862114951301e-05,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 2.7731139802262404e-05,
+            "max_absolute_channel_error": 0.0005353178127438206,
+            "relative_rgb_l2": 0.029362014202604966,
+            "pixel_count": 5184
+          }
+        },
+        "2": {
+          "tile_width_pixels": 2,
+          "grid_dimensions": [
+            48,
+            27,
+            32
+          ],
+          "froxel_cell_count": 41472,
+          "light_evaluations": 124416,
+          "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.00029902814439490165,
+            "max_absolute_channel_error": 0.014088772251387605,
+            "relative_rgb_l2": 0.0006132829476239574,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.00045662042400665805,
+            "max_absolute_channel_error": 0.018222514462875625,
+            "relative_rgb_l2": 0.48347437106747343,
+            "pixel_count": 5184
+          }
+        },
+        "4": {
+          "tile_width_pixels": 4,
+          "grid_dimensions": [
+            24,
+            14,
+            32
+          ],
+          "froxel_cell_count": 10752,
+          "light_evaluations": 32256,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0005186136422375013,
+            "max_absolute_channel_error": 0.02212978683725486,
+            "relative_rgb_l2": 0.0010636353438670976,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0008599691326677645,
+            "max_absolute_channel_error": 0.03008578918552012,
+            "relative_rgb_l2": 0.9105441055521547,
+            "pixel_count": 5184
+          }
+        },
+        "8": {
+          "tile_width_pixels": 8,
+          "grid_dimensions": [
+            12,
+            7,
+            32
+          ],
+          "froxel_cell_count": 2688,
+          "light_evaluations": 8064,
+          "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0006131105622795693,
+            "max_absolute_channel_error": 0.01803342171001343,
+            "relative_rgb_l2": 0.0012574410131697524,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.001528585157678439,
+            "max_absolute_channel_error": 0.034437389817028444,
+            "relative_rgb_l2": 1.6184815853109584,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "tile_width_pixels": 16,
+          "grid_dimensions": [
+            6,
+            4,
+            32
+          ],
+          "froxel_cell_count": 768,
+          "light_evaluations": 2304,
+          "estimated_bytes_R16F_density_RGBA16F_source": 7680,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0016919014927695747,
+            "max_absolute_channel_error": 0.02972647233822201,
+            "relative_rgb_l2": 0.003469955434043718,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0026666838329210195,
+            "max_absolute_channel_error": 0.03795335877277668,
+            "relative_rgb_l2": 2.8235120927015087,
+            "pixel_count": 5184
+          }
+        }
+      }
+    },
+    "x_shift_half_unit": {
+      "volume_x_shift": 0.5,
+      "volume_sigma_scale": 1.0,
+      "reference_validation_direct_256_vs_512": {
+        "rgb_rmse": 3.125412589926802e-05,
+        "max_absolute_channel_error": 0.0006002052320606133,
+        "relative_rgb_l2": 6.532366914841711e-05,
+        "pixel_count": 5184
+      },
+      "fog_scattering_reference_energy_rgb_l2": 3.2907053403091964,
+      "tile_width_results": {
+        "1": {
+          "tile_width_pixels": 1,
+          "grid_dimensions": [
+            96,
+            54,
+            32
+          ],
+          "froxel_cell_count": 165888,
+          "light_evaluations": 497664,
+          "estimated_bytes_R16F_density_RGBA16F_source": 1658880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0006654151983332847,
+            "max_absolute_channel_error": 0.02755495651768558,
+            "relative_rgb_l2": 0.001390771970470301,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.0006623088195759846,
+            "max_absolute_channel_error": 0.02766070274433885,
+            "relative_rgb_l2": 0.025099476652112724,
+            "pixel_count": 5184
+          }
+        },
+        "2": {
+          "tile_width_pixels": 2,
+          "grid_dimensions": [
+            48,
+            27,
+            32
+          ],
+          "froxel_cell_count": 41472,
+          "light_evaluations": 124416,
+          "estimated_bytes_R16F_density_RGBA16F_source": 414720,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0015985119901354668,
+            "max_absolute_channel_error": 0.043950600240431625,
+            "relative_rgb_l2": 0.0033410202771286777,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.002613989864190438,
+            "max_absolute_channel_error": 0.056167468926506314,
+            "relative_rgb_l2": 0.09906221331479644,
+            "pixel_count": 5184
+          }
+        },
+        "4": {
+          "tile_width_pixels": 4,
+          "grid_dimensions": [
+            24,
+            14,
+            32
+          ],
+          "froxel_cell_count": 10752,
+          "light_evaluations": 32256,
+          "estimated_bytes_R16F_density_RGBA16F_source": 107520,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.001441522024457685,
+            "max_absolute_channel_error": 0.031273674629269776,
+            "relative_rgb_l2": 0.0030128984601689225,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.002486323653569962,
+            "max_absolute_channel_error": 0.03711661530439048,
+            "relative_rgb_l2": 0.09422405477300953,
+            "pixel_count": 5184
+          }
+        },
+        "8": {
+          "tile_width_pixels": 8,
+          "grid_dimensions": [
+            12,
+            7,
+            32
+          ],
+          "froxel_cell_count": 2688,
+          "light_evaluations": 8064,
+          "estimated_bytes_R16F_density_RGBA16F_source": 26880,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.0034222413306701682,
+            "max_absolute_channel_error": 0.10886891697287077,
+            "relative_rgb_l2": 0.007152763163213996,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.003708161405936518,
+            "max_absolute_channel_error": 0.09458543824255311,
+            "relative_rgb_l2": 0.14052796502114398,
+            "pixel_count": 5184
+          }
+        },
+        "16": {
+          "tile_width_pixels": 16,
+          "grid_dimensions": [
+            6,
+            4,
+            32
+          ],
+          "froxel_cell_count": 768,
+          "light_evaluations": 2304,
+          "estimated_bytes_R16F_density_RGBA16F_source": 7680,
+          "metrics_vs_direct_512": {
+            "rgb_rmse": 0.007431792895033902,
+            "max_absolute_channel_error": 0.15809156095309462,
+            "relative_rgb_l2": 0.015533052558226288,
+            "pixel_count": 5184
+          },
+          "fog_scattering_only_metrics_vs_direct_512": {
+            "rgb_rmse": 0.007935236467590928,
+            "max_absolute_channel_error": 0.15535748022137919,
+            "relative_rgb_l2": 0.30072116897794343,
+            "pixel_count": 5184
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Volume scenarios change Gaussian widths/positions but not production density field or volume boundary representation.",
+    "All volumes are smooth Gaussians; hard-edged volume boundaries and depth discontinuities are not modeled.",
+    "The X shift is a world-space stress perturbation, not an exact screen-space half-pixel phase shift.",
+    "Memory estimates are arithmetic scenarios, not a production resource layout."
+  ],
+  "source_script_sha256": "a6b61db52d65e4e5e5e34699be2c0b6be3990c8c199dd9735691c7a36a3d1a76",
+  "proxy_script_sha256": "f53940801d88a18255ec25e9a7e81db95d2a48ff877cd02a03f2bb074418630b"
+}

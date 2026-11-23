@@ -1,0 +1,46 @@
+{
+  "capture_kind": "headless Vulkan GPU execution of Artifact DepthOfFieldPass",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti",
+  "fixture": "three horizontal metric-depth planes with alternating chart bars",
+  "width": 160,
+  "height": 96,
+  "focus_distance": 10.0,
+  "near_clip": 1.0,
+  "far_clip": 100.0,
+  "max_coc_radius_px": 12.0,
+  "sample_count": 64,
+  "planes": {
+    "near": 4.0,
+    "focus": 10.0,
+    "far": 30.0
+  },
+  "input_contrast": {
+    "near": 51.5066,
+    "focus": 124.29000000000002,
+    "far": 69.026
+  },
+  "output_contrast": {
+    "near": 6.124299999999998,
+    "focus": 124.29000000000002,
+    "far": 1.494099999999996
+  },
+  "contrast_retention": {
+    "near": 0.11890320852084972,
+    "focus": 1.0,
+    "far": 0.021645466925506274
+  },
+  "changed_pixels": 10240,
+  "checks": {
+    "GPU output differs from the input": true,
+    "known focus plane retains more chart contrast than near plane": true,
+    "known focus plane retains more chart contrast than far plane": true
+  },
+  "comparison_png": "dof-gpu-comparison.png",
+  "layout": "left=input, right=GPU DoF output",
+  "limitations": [
+    "synthetic flat-depth fixture, not a production 3D camera render",
+    "relative chart contrast is an aliasing-sensitive diagnostic, not a perceptual sharpness score",
+    "does not evaluate aperture-shaped bokeh, transparency, temporal stability, or GPU timing",
+    "PPM capture is clamped to display range; HDR headroom is not represented"
+  ]
+}

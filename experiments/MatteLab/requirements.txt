@@ -1,0 +1,5 @@
+numpy>=2.0
+opencv-python-headless>=4.9
+pillow>=10.0
+# 学習モデル（rd1 以降）を実行する場合のみ
+onnxruntime>=1.18

@@ -1,0 +1,54 @@
+{
+  "plan_version": 1,
+  "plan_id": "grunge-grain-temporal-field-correlation-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Measure how Film Grunge's deterministic hash-grain field changes between consecutive Composition frames, its temporal autocorrelation over short frame lags, block-size dependence, exact low-16-bit repeat period and deterministic random-access behavior.",
+  "scope": {
+    "effect": "ArtifactFilmGrungeEffect grain equation only: frameSeed, grainBlock and blockHash-to-grain mapping. grainAmount=.075, seed=1977; all other controls neutral.",
+    "method": "Independent NumPy float32 model of the source arithmetic over a 28x28 opaque tone chart for frames 0..4095. Coordinates are deliberately bounded so the source signed-int x/y hash products remain within int32 range; no undefined-overflow assumption is required for this fixture.",
+    "excluded": ["C++ invocation or compiled parity", "large product-resolution pixels where source signed-int hash multiplication can overflow", "other Film Grunge controls", "alpha edges and premultiplication", "motion/scene changes", "GPU/preview/final/viewer transform", "perceptual acceptance or film emulation claim", "performance/allocation"]
+  },
+  "comparison": {
+    "baseline": "Per-pixel source tone chart at grainAmount=0; paired grain residual reference only, not an appearance target.",
+    "candidates": ["grainSize 1.0, 1.5, 3.0, 8.0 (source grainBlock 1,2,3,8)", "4096 sequential Composition frame indices starting at 0", "repeat/random-access frame indices 0,37,2048,4095 queried in a different order"],
+    "ground_truth": "The inspected source equation is the model reference; no approved temporal grain appearance or compiled pixel capture exists.",
+    "acceptance": "Descriptive equation result. Verify exact model determinism and key period algebra; report measured correlations/field changes without labeling them perceptually stable or unstable."
+  },
+  "materials": {
+    "fixture": "Locally generated 28x28 opaque grayscale tone chart with three vertical bands (.10,.50,.90); grain residual is also analyzed directly so base tone addition does not substitute for residual statistics.",
+    "rights": "Generated locally by the study script.",
+    "identity": "Record fixture, plan, source, runner, metrics and preview hashes.",
+    "regions": {"all": "whole 28x28 chart", "shadow": "first 9 columns", "midtone": "columns 9..17", "highlight": "last 10 columns"}
+  },
+  "conditions": {
+    "size_wh": [28, 28],
+    "integer_safety": "Max x hash product is 27*73856093=1994114511 and max y product is 27*19349663=522440901, both within signed int32. No coordinate hash overflow is induced in this study.",
+    "frame_seed": "frameSeed=uint32(uint64(seed)*1664525 + uint64(compositionFrame)*1013904223); seed=1977; frame=0..4095. Arithmetic stays within uint64 before narrowing.",
+    "grain_equation": "grainBlock=positive std::round-equivalent grainSize; blockHash=frameSeed XOR uint32((x/grainBlock)*73856093) XOR uint32((y/grainBlock)*19349663); grain=(float(blockHash & 0xffff)/32767.5 - 1)*.075; output component c=source component c+grain*(c==2 ? 1.05 : c==0 ? .92 : 1.0); alpha remains opaque.",
+    "temporal_metrics": ["per-pixel residual lag correlation at lags 1,2,3,12,24,60,120,240,480,960,2048", "frame mean/std/RMS and frame-to-frame residual RMSE", "fraction of changed pixels and duplicate full fields", "per-pixel complete low-16-bit value coverage over 65536-frame analytic cycle", "per-channel grain scale and temporal correlation", "exact repeatability of queried frame indices", "spatial block constancy for each grainSize"],
+    "display": "Selected frames are enlarged with nearest-neighbor for a compact contact sheet; raw float32 residual metrics are authoritative."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_equation_model_only", "method": "Verify source markers, safe coordinate arithmetic, positive half-up grainBlock mapping, exact frameSeed/hash equation, frame-index determinism and gain-zero identity.", "acceptance_criteria": "Repeated frame queries are bit-identical in the model; every adjacent frame changes each low-16-bit hash value; block-constancy matches grainBlock. No compiled parity claim."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect selected sequential frames and fixed-tone bands; report whether spatial blocks and temporal residual changes are observable at the model display scale.", "judge": "Research author", "acceptance_criteria": "No perceptual accept/reject; 28x28 model and display enlargement are not product Viewer evidence."},
+    "color_and_alpha": {"status": "opaque_gray_only", "reason": "This study isolates temporal grain residuals on an opaque neutral tone chart; prior separate studies cover alpha association and channel mode."},
+    "temporal_stability": {"status": "equation_sequence_only", "method": "Analyze exact deterministic fields over fixed Composition frame indices and repeated seeks in the model.", "unverified": "Actual compiled source output, runtime cadence, perceived shimmer/flicker and behavior under motion."},
+    "render_paths_and_resolution": {"status": "bounded_coordinate_model_only", "reason": "28x28 is chosen to keep source signed-int coordinate products defined; it does not establish product-size behavior or render-path parity."},
+    "performance": {"status": "unverified", "reason": "No product timing, allocation or memory measurement."}
+  },
+  "execution": {
+    "backend": "Python 3 and NumPy; offline equation model only.",
+    "artifacts": "experiments/FilmEffectsLab/captures/grunge-grain-temporal-field-correlation-r1/",
+    "threshold_policy": "Descriptive only; no temporal perceptual threshold is invented.",
+    "reproducibility": "Fixed chart, seed, frame range and grainSize values; record Python/NumPy and all source/plan/runner/output hashes."
+  },
+  "amendments": [
+    {
+      "date": "2026-11-12",
+      "reason": "After the first model run, source review found that ArtifactFilmGrungeEffect multiplies the common raw grain field by a channel-specific factor (component 0=.92, component 1=1.0, component 2=1.05) before adding it to RGB.",
+      "change": "Preserve the first scalar-field-only metrics as exploratory evidence; amend the source-equation model, displayed frames and metrics to apply the three component multipliers, and rerun the full frame/size comparison.",
+      "impact": "Raw hash-field temporal correlations remain valid; final output/color metrics and previews now include the registered channel scale. No threshold or product acceptance criterion changes."
+    }
+  ]
+}

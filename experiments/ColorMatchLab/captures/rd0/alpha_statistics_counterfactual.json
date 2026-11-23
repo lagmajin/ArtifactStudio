@@ -1,0 +1,89 @@
+{
+  "purpose": "alpha-statistics counterfactual only; no AutoColorMatcher execution or product output",
+  "condition": "synthetic straight RGB float32; common visible pixels and alpha; hidden RGB varies only where alpha is zero",
+  "alpha_counts": {
+    "transparent": 15552,
+    "partial": 4224,
+    "opaque": 41664
+  },
+  "all_pixels_hidden_rgb_variant_a": {
+    "pixels": 61440,
+    "mean_rgb": [
+      0.40378203988075256,
+      0.2763426601886749,
+      0.2111971378326416
+    ],
+    "std_rgb": [
+      0.24257005751132965,
+      0.1735972911119461,
+      0.12693250179290771
+    ],
+    "p95_rgb": [
+      0.6439999938011169,
+      0.48366492986679077,
+      0.3389621376991272
+    ]
+  },
+  "all_pixels_hidden_rgb_variant_b": {
+    "pixels": 61440,
+    "mean_rgb": [
+      0.656904399394989,
+      0.2763426601886749,
+      0.4643220603466034
+    ],
+    "std_rgb": [
+      0.20848646759986877,
+      0.1735972911119461,
+      0.31345102190971375
+    ],
+    "p95_rgb": [
+      1.0,
+      0.48366492986679077,
+      1.0
+    ]
+  },
+  "opaque_only_variant_a": {
+    "pixels": 41664,
+    "mean_rgb": [
+      0.5516635179519653,
+      0.3699992001056671,
+      0.28760191798210144
+    ],
+    "std_rgb": [
+      0.06283719092607498,
+      0.07545044273138046,
+      0.03418182209134102
+    ],
+    "p95_rgb": [
+      0.6499686241149902,
+      0.4877486824989319,
+      0.34451720118522644
+    ]
+  },
+  "opaque_only_variant_b": {
+    "pixels": 41664,
+    "mean_rgb": [
+      0.5516635179519653,
+      0.3699992001056671,
+      0.28760191798210144
+    ],
+    "std_rgb": [
+      0.06283719092607498,
+      0.07545044273138046,
+      0.03418182209134102
+    ],
+    "p95_rgb": [
+      0.6499686241149902,
+      0.4877486824989319,
+      0.34451720118522644
+    ]
+  },
+  "opaque_only_visible_input_difference_max": 0.0,
+  "interpretation": "If a whole-image method derives statistics from transparent RGB, identical visible content can produce different transforms. Source inspection indicates all current methods include every pixel; this counterfactual does not quantify their actual output difference.",
+  "unverified": [
+    "actual C++ method outputs",
+    "partial-alpha compositing difference",
+    "alpha-weighted alternatives",
+    "human visible review"
+  ]
+}

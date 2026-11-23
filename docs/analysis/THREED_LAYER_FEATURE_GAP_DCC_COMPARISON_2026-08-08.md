@@ -1,7 +1,23 @@
 # 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08)
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-11-13
 **状態:** 分析完了
+
+## ⚠ 2026-11-13 訂正
+
+2026-11-13 の実コード精査により、本分析の前提は陳腐化していることが判明した。
+
+- **IBL（split-sum）と単一ライトのシャドウマップは既に実装済み**。下記「未実装 ❌」表の
+  IBL / 環境マップ、シャドウマッピングの 🔴 2 項目は解消済み（詳細は
+  `docs/planned/DESIGN_3D_IBL_SHADOW_ENHANCEMENT_2026-11-13.md` §0 の照合表を参照）。
+  残るギャップは CSM / Omni / 複数シャドウライトの**強化**と GPU bake 化である。
+- **ファイル参照の誤り**: `Artifact/App/shaders/PBR_PS.hlsl` は存在しない
+  （実体は `ArtifactCore/src/Graphics/MeshRenderer.cpp` 内のインライン HLSL）。
+  `ArtifactCore/src/Transform/Light.cppm` → 実体は `Light.cpp`、
+  `Artifact/src/Render/ArtifactIRenderer.cppm` → 実体は
+  `Artifact/src/Render/ArtifactIRenderer.cpp` + `Artifact/include/Render/ArtifactIRenderer.ixx`。
+- 本分析の残りの未実装項目（デフォーマ、パーティクルインスタンス等）の
+  判定は未再検証であり、引用時に個別確認を要する。
 
 ## 概要
 

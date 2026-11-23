@@ -1,0 +1,38 @@
+{
+  "intent": "Radius-scaled dispersion follow-up using a wider optical halo on the same CC0 night photograph; exploratory, not an accepted preset.",
+  "profiles": {
+    "chromatic-radius24-dispersion-0p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 0.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "chromatic-radius24-dispersion-1p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 1.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    },
+    "chromatic-radius24-dispersion-2p0": {
+      "effect_id": "chromatic_glow",
+      "properties": {
+        "Threshold": 0.62,
+        "Radius": 24.0,
+        "Intensity": 0.4,
+        "Dispersion": 2.0,
+        "Angle": 0.0,
+        "Tint Mix": 1.0
+      }
+    }
+  }
+}

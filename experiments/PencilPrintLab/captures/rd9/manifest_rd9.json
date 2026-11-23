@@ -1,0 +1,59 @@
+{
+  "lab": "PencilPrintLab",
+  "rd": "rd9",
+  "stage": "integer_shift_reference",
+  "date": "2026-11-17",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "blind_seed": 20269618,
+  "outputs": {
+    "sequence_int_screen_frame03": {
+      "npy": "sequence_int_screen_frame03.npy",
+      "npy_sha256": "e0665ccbceb76c2dac59b078fab70be77088a10fb783da9246a39996b6122a18"
+    },
+    "sequence_int_content_nearest_frame03": {
+      "npy": "sequence_int_content_nearest_frame03.npy",
+      "npy_sha256": "780551b7b524119846ea42005eac24be6b6a628c0e89cb96837102a6bfe47270"
+    },
+    "sequence_int_content_interp_frame03": {
+      "npy": "sequence_int_content_interp_frame03.npy",
+      "npy_sha256": "fcbd26096bf7981a3cc7d1041f56e8d991002e02de91bd1ae95005ce1b7e4441"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd9.json",
+      "sha256": "75c1a8cf9a1df4e43ebbc03c48d4e7eb4f5fd439f33e3ea569a764daf9a8950f"
+    },
+    "tables": {
+      "file": "review/RD9_TABLES.md",
+      "sha256": "c6dfcead037a1ab062219f8ab6b195bc7ad45355a0e7902d2a95d3853c53c513"
+    },
+    "blind_sheet": {
+      "file": "review/rd9_temporal_blind_sheet.png",
+      "sha256": "1d9428f812cd960451c6bde9dd45abb2ee2e2cc2f706de2143fda5dcc7dfee7e"
+    },
+    "blind_key": {
+      "file": "temporal_blind_key.json",
+      "sha256": "1611bd5c80316856e52036aff634bf8869ca952cd57e2ca98edd71ac75d677c3"
+    },
+    "form": {
+      "file": "review/TEMPORAL_BLIND_FORM.md",
+      "sha256": "761ea3ebc35d89f95ba4c1027a8b6ffc74b95752b868369994868de4fe22f7d8"
+    }
+  },
+  "gates": "unset; no judgment or quality ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "reference artwork images",
+    "motion estimation for real footage",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

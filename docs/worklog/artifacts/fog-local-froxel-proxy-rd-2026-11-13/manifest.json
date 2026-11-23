@@ -1,0 +1,775 @@
+{
+  "schema": "fog-local-froxel-proxy-rd-v1",
+  "scene": {
+    "size": [
+      96,
+      54
+    ],
+    "camera": [
+      0.0,
+      4.0,
+      0.0
+    ],
+    "depth": "synthetic Euclidean ray distance; not a product depth buffer",
+    "density_volumes": [
+      {
+        "center": [
+          -2.5,
+          3.0,
+          16.0
+        ],
+        "sigma": [
+          3.5,
+          2.5,
+          5.0
+        ],
+        "amplitude": 0.035
+      },
+      {
+        "center": [
+          4.0,
+          3.0,
+          32.0
+        ],
+        "sigma": [
+          5.0,
+          4.0,
+          8.0
+        ],
+        "amplitude": 0.025
+      },
+      {
+        "center": [
+          0.0,
+          8.0,
+          52.0
+        ],
+        "sigma": [
+          7.0,
+          6.0,
+          12.0
+        ],
+        "amplitude": 0.015
+      }
+    ],
+    "point_lights": [
+      {
+        "position": [
+          -5.0,
+          9.0,
+          6.0
+        ],
+        "color": [
+          1.0,
+          0.68,
+          0.42
+        ],
+        "intensity": 520.0
+      },
+      {
+        "position": [
+          9.0,
+          5.5,
+          30.0
+        ],
+        "color": [
+          0.34,
+          0.56,
+          1.0
+        ],
+        "intensity": 780.0
+      },
+      {
+        "position": [
+          0.0,
+          15.0,
+          55.0
+        ],
+        "color": [
+          0.52,
+          1.0,
+          0.66
+        ],
+        "intensity": 1050.0
+      }
+    ],
+    "occluder_aabbs": [
+      {
+        "minimum": [
+          -1.2,
+          0.0,
+          18.0
+        ],
+        "maximum": [
+          1.2,
+          7.5,
+          20.0
+        ]
+      },
+      {
+        "minimum": [
+          5.0,
+          0.0,
+          34.0
+        ],
+        "maximum": [
+          7.5,
+          9.0,
+          36.5
+        ]
+      }
+    ]
+  },
+  "model": {
+    "extinction": 1.0,
+    "scattering_albedo": 0.9,
+    "phase": "isotropic 1/(4*pi)",
+    "reference_direct_steps": 512,
+    "validation_direct_steps": 256,
+    "reference_validation": {
+      "rgb_rmse": 3.4058851074602684e-05,
+      "max_absolute_channel_error": 0.0005819613650519528,
+      "relative_rgb_l2": 7.10995467185364e-05,
+      "pixel_count": 5184
+    },
+    "froxel_configurations": [
+      {
+        "name": "tile2_z64",
+        "tile_size": 2,
+        "depth_slices": 64,
+        "grid_dimensions": [
+          48,
+          27,
+          64
+        ],
+        "froxel_cell_count": 82944,
+        "illustrative_bytes_per_cell": {
+          "one_RGBA16F": 663552,
+          "density_R16F_plus_source_RGBA16F": 829440,
+          "previous_plus_history_RGBA16F": 1492992,
+          "three_RGBA16F_intermediates": 1990656
+        },
+        "injection_light_evaluations_for_three_lights": 248832,
+        "pixel_slice_integrations": 331776,
+        "trilinear_froxel_cell_reads_upper_bound": 2654208
+      },
+      {
+        "name": "tile4_z64",
+        "tile_size": 4,
+        "depth_slices": 64,
+        "grid_dimensions": [
+          24,
+          14,
+          64
+        ],
+        "froxel_cell_count": 21504,
+        "illustrative_bytes_per_cell": {
+          "one_RGBA16F": 172032,
+          "density_R16F_plus_source_RGBA16F": 215040,
+          "previous_plus_history_RGBA16F": 387072,
+          "three_RGBA16F_intermediates": 516096
+        },
+        "injection_light_evaluations_for_three_lights": 64512,
+        "pixel_slice_integrations": 331776,
+        "trilinear_froxel_cell_reads_upper_bound": 2654208
+      },
+      {
+        "name": "tile8_z64",
+        "tile_size": 8,
+        "depth_slices": 64,
+        "grid_dimensions": [
+          12,
+          7,
+          64
+        ],
+        "froxel_cell_count": 5376,
+        "illustrative_bytes_per_cell": {
+          "one_RGBA16F": 43008,
+          "density_R16F_plus_source_RGBA16F": 53760,
+          "previous_plus_history_RGBA16F": 96768,
+          "three_RGBA16F_intermediates": 129024
+        },
+        "injection_light_evaluations_for_three_lights": 16128,
+        "pixel_slice_integrations": 331776,
+        "trilinear_froxel_cell_reads_upper_bound": 2654208
+      },
+      {
+        "name": "tile4_z32",
+        "tile_size": 4,
+        "depth_slices": 32,
+        "grid_dimensions": [
+          24,
+          14,
+          32
+        ],
+        "froxel_cell_count": 10752,
+        "illustrative_bytes_per_cell": {
+          "one_RGBA16F": 86016,
+          "density_R16F_plus_source_RGBA16F": 107520,
+          "previous_plus_history_RGBA16F": 193536,
+          "three_RGBA16F_intermediates": 258048
+        },
+        "injection_light_evaluations_for_three_lights": 32256,
+        "pixel_slice_integrations": 165888,
+        "trilinear_froxel_cell_reads_upper_bound": 1327104
+      }
+    ],
+    "shadow_region_mask": {
+      "definition": "64 midpoint probes along pixel ray; density >= 0.003 and at least one point-light segment intersects an analytic AABB",
+      "pixel_count": 2275
+    },
+    "direct_light_evaluations_three_lights": {
+      "steps_32": 497664,
+      "steps_64": 995328,
+      "steps_512_reference": 7962624
+    }
+  },
+  "metrics_vs_reference_direct_512": {
+    "validation_direct_256": {
+      "rgb_rmse": 3.4058851074602684e-05,
+      "max_absolute_channel_error": 0.0005819613650519528,
+      "relative_rgb_l2": 7.10995467185364e-05,
+      "pixel_count": 5184
+    },
+    "direct_32": {
+      "rgb_rmse": 0.0002504009643164407,
+      "max_absolute_channel_error": 0.003201001246491031,
+      "relative_rgb_l2": 0.0005227244754024935,
+      "pixel_count": 5184
+    },
+    "direct_64": {
+      "rgb_rmse": 9.368332050698783e-05,
+      "max_absolute_channel_error": 0.002168130698614934,
+      "relative_rgb_l2": 0.00019556859415322786,
+      "pixel_count": 5184
+    },
+    "froxel_tile2_z64": {
+      "rgb_rmse": 0.0011944814982482257,
+      "max_absolute_channel_error": 0.01995072582548485,
+      "relative_rgb_l2": 0.0024935395766317054,
+      "pixel_count": 5184
+    },
+    "froxel_tile4_z64": {
+      "rgb_rmse": 0.0014670044303997255,
+      "max_absolute_channel_error": 0.046116995807379824,
+      "relative_rgb_l2": 0.0030624447608945636,
+      "pixel_count": 5184
+    },
+    "froxel_tile8_z64": {
+      "rgb_rmse": 0.0034838569871875245,
+      "max_absolute_channel_error": 0.11114346966700911,
+      "relative_rgb_l2": 0.00727272485142479,
+      "pixel_count": 5184
+    },
+    "froxel_tile4_z32": {
+      "rgb_rmse": 0.001437912770205884,
+      "max_absolute_channel_error": 0.031475673905859036,
+      "relative_rgb_l2": 0.0030017144723554355,
+      "pixel_count": 5184
+    }
+  },
+  "region_metrics_vs_reference_direct_512": {
+    "validation_direct_256": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 7.3787030543769e-06,
+          "max_absolute_channel_error": 6.33572542001748e-05,
+          "relative_rgb_l2": 1.4958682522063934e-05,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 4.702124634586941e-05,
+          "max_absolute_channel_error": 0.0005819613650519528,
+          "relative_rgb_l2": 0.0001017013637083219,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 4.1864914116096875e-05,
+          "max_absolute_channel_error": 0.0005680343935693388,
+          "relative_rgb_l2": 8.802542242485414e-05,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 4.829865512252818e-06,
+          "max_absolute_channel_error": 9.058698797337339e-05,
+          "relative_rgb_l2": 1.1641016423893677e-05,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 6.184813962309363e-06,
+          "max_absolute_channel_error": 3.0702344142263804e-05,
+          "relative_rgb_l2": 3.3607197654893173e-06,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 5.0371354457290446e-05,
+          "max_absolute_channel_error": 0.0005819613650519528,
+          "relative_rgb_l2": 9.843143392449148e-05,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "direct_32": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 4.503159371601421e-05,
+          "max_absolute_channel_error": 0.00034190438532721856,
+          "relative_rgb_l2": 9.129156016935143e-05,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.0003495596592242233,
+          "max_absolute_channel_error": 0.003201001246491031,
+          "relative_rgb_l2": 0.0007560559705079523,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.0003346296952187779,
+          "max_absolute_channel_error": 0.002912323853576454,
+          "relative_rgb_l2": 0.000703594427444614,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 3.089214851868431e-05,
+          "max_absolute_channel_error": 0.000626511729732715,
+          "relative_rgb_l2": 7.445673329061897e-05,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 5.770794023759035e-05,
+          "max_absolute_channel_error": 0.000316860657744944,
+          "relative_rgb_l2": 3.1357485700302356e-05,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.00036921595751033143,
+          "max_absolute_channel_error": 0.003201001246491031,
+          "relative_rgb_l2": 0.0007214905478938546,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "direct_64": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 1.852568356203126e-05,
+          "max_absolute_channel_error": 0.00018733492476474822,
+          "relative_rgb_l2": 3.7556711100369084e-05,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.00012905277298661344,
+          "max_absolute_channel_error": 0.002168130698614934,
+          "relative_rgb_l2": 0.00027912579999555935,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.00010734677535775411,
+          "max_absolute_channel_error": 0.002168130698614934,
+          "relative_rgb_l2": 0.00022570798116552295,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 1.6505859995247276e-05,
+          "max_absolute_channel_error": 0.00028402490357959387,
+          "relative_rgb_l2": 3.978267858757417e-05,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 2.4743263081040077e-05,
+          "max_absolute_channel_error": 0.00014518314069589255,
+          "relative_rgb_l2": 1.3445056521652267e-05,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.00013821416267815895,
+          "max_absolute_channel_error": 0.002168130698614934,
+          "relative_rgb_l2": 0.0002700864085880277,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "froxel_tile2_z64": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 0.0006585301131558447,
+          "max_absolute_channel_error": 0.011635579728908496,
+          "relative_rgb_l2": 0.001335023624249773,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.0014529093260464766,
+          "max_absolute_channel_error": 0.01995072582548485,
+          "relative_rgb_l2": 0.003142470080792442,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.0008360745010140904,
+          "max_absolute_channel_error": 0.007419284598538689,
+          "relative_rgb_l2": 0.0017579353184942323,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 0.00044873447911063745,
+          "max_absolute_channel_error": 0.002963259908443927,
+          "relative_rgb_l2": 0.0010815467693753187,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 0.0025835810416839165,
+          "max_absolute_channel_error": 0.011635579728908496,
+          "relative_rgb_l2": 0.0014038727640707511,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.0016867535546451228,
+          "max_absolute_channel_error": 0.01995072582548485,
+          "relative_rgb_l2": 0.0032961109116437987,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "froxel_tile4_z64": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 0.0007332092692542015,
+          "max_absolute_channel_error": 0.012580498673517404,
+          "relative_rgb_l2": 0.0014864190359987705,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.0018175336537854783,
+          "max_absolute_channel_error": 0.046116995807379824,
+          "relative_rgb_l2": 0.003931109137688561,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.0008921048261998289,
+          "max_absolute_channel_error": 0.005924960331297302,
+          "relative_rgb_l2": 0.001875745020179019,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 0.0006747624457298829,
+          "max_absolute_channel_error": 0.004352839826742949,
+          "relative_rgb_l2": 0.001626322864071721,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 0.0027805470909206807,
+          "max_absolute_channel_error": 0.012580498673517404,
+          "relative_rgb_l2": 0.001510900671269623,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.0020581916904411006,
+          "max_absolute_channel_error": 0.046116995807379824,
+          "relative_rgb_l2": 0.004021943852102806,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "froxel_tile8_z64": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 0.001070523409403538,
+          "max_absolute_channel_error": 0.019584122988390185,
+          "relative_rgb_l2": 0.002170248578333294,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.004691580147036484,
+          "max_absolute_channel_error": 0.11114346966700911,
+          "relative_rgb_l2": 0.010147329898294248,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.0012690746506732824,
+          "max_absolute_channel_error": 0.006903670170895826,
+          "relative_rgb_l2": 0.002668364060282105,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 0.0017077393697012926,
+          "max_absolute_channel_error": 0.010519301254677815,
+          "relative_rgb_l2": 0.004116019793923815,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 0.004384471631810348,
+          "max_absolute_channel_error": 0.019584122988390185,
+          "relative_rgb_l2": 0.0023824452221276366,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.004982435269382804,
+          "max_absolute_channel_error": 0.11114346966700911,
+          "relative_rgb_l2": 0.009736252941483642,
+          "pixel_count": 2275
+        }
+      }
+    },
+    "froxel_tile4_z32": {
+      "near_surface_distance_lt_20": {
+        "pixel_count": 2230,
+        "metrics": {
+          "rgb_rmse": 0.0007906958334373443,
+          "max_absolute_channel_error": 0.014295735554557432,
+          "relative_rgb_l2": 0.0016029602840423268,
+          "pixel_count": 2230
+        }
+      },
+      "far_surface_distance_ge_30": {
+        "pixel_count": 2574,
+        "metrics": {
+          "rgb_rmse": 0.0016847835645557264,
+          "max_absolute_channel_error": 0.031475673905859036,
+          "relative_rgb_l2": 0.0036439864823731277,
+          "pixel_count": 2574
+        }
+      },
+      "near_horizon_abs_ray_y_le_0_15": {
+        "pixel_count": 1620,
+        "metrics": {
+          "rgb_rmse": 0.0009001054057944398,
+          "max_absolute_channel_error": 0.005850668301088671,
+          "relative_rgb_l2": 0.001892567087376059,
+          "pixel_count": 1620
+        }
+      },
+      "steep_ray_abs_ray_y_gt_0_35": {
+        "pixel_count": 1196,
+        "metrics": {
+          "rgb_rmse": 0.0006898071968356674,
+          "max_absolute_channel_error": 0.004613538769314585,
+          "relative_rgb_l2": 0.0016625839554564666,
+          "pixel_count": 1196
+        }
+      },
+      "hdr_source_any_channel_gt_1": {
+        "pixel_count": 77,
+        "metrics": {
+          "rgb_rmse": 0.0031421275080584115,
+          "max_absolute_channel_error": 0.014295735554557432,
+          "relative_rgb_l2": 0.001707377147699467,
+          "pixel_count": 77
+        }
+      },
+      "ray_intersects_shadowed_dense_fog_probe": {
+        "pixel_count": 2275,
+        "metrics": {
+          "rgb_rmse": 0.002000176649648586,
+          "max_absolute_channel_error": 0.031475673905859036,
+          "relative_rgb_l2": 0.003908575773838464,
+          "pixel_count": 2275
+        }
+      }
+    }
+  },
+  "captures": {
+    "reference_direct_512": {
+      "pfm": "reference_direct_512.pfm",
+      "pfm_sha256": "b7eb6e374c04067834561e673b6b67125615dd81c60722c25a7489188e6e6e48",
+      "preview_png": "reference_direct_512_preview.png",
+      "preview_sha256": "04a8b1b38e1efb59e24f7040ceb1b67cee409f1f8a14b53e9ee69b71c813bad4"
+    },
+    "validation_direct_256": {
+      "pfm": "validation_direct_256.pfm",
+      "pfm_sha256": "de5feab89c8bee55504182de8a2775c741cb067171863148de04a942a64c30e2",
+      "preview_png": "validation_direct_256_preview.png",
+      "preview_sha256": "1595902918eea676222c26ce23f2f701802323986f810562ad190d9bb0fe870f"
+    },
+    "direct_32": {
+      "pfm": "direct_32.pfm",
+      "pfm_sha256": "8a68237a239cd3d66dc4604551136e56d356bc0a2fa7f1e6fdbaba232e55e7e1",
+      "preview_png": "direct_32_preview.png",
+      "preview_sha256": "431ba749a2ae1688f0ee7929f2869b55bd302e366168b7477af5847473eeeaf5"
+    },
+    "direct_64": {
+      "pfm": "direct_64.pfm",
+      "pfm_sha256": "2844624ac6b6753714653bbe707d7076e58ee00a8bbcf88648dbdf76e2db8003",
+      "preview_png": "direct_64_preview.png",
+      "preview_sha256": "33553a9ee9fb88844408e1b917f8a5463c03dc23b0a4811df6bb8b761898bd06"
+    },
+    "froxel_tile2_z64": {
+      "pfm": "froxel_tile2_z64.pfm",
+      "pfm_sha256": "92119b70e12802c024cdcb20209e8f6d7981db631c4d2a507fda0ea6faba8a5f",
+      "preview_png": "froxel_tile2_z64_preview.png",
+      "preview_sha256": "d950ff52dd875dd59afdddb55e416e44a9ab9939f087893a03fde0da84b92b56"
+    },
+    "froxel_tile4_z64": {
+      "pfm": "froxel_tile4_z64.pfm",
+      "pfm_sha256": "8f939c2c00b57a6fc7ea8ea5ace5317539ab0ff77d3bd7811779b4d1475eb246",
+      "preview_png": "froxel_tile4_z64_preview.png",
+      "preview_sha256": "00c9378ecc95526b2e679128f04b83af39053051a56b606e200c76cc94a69071"
+    },
+    "froxel_tile8_z64": {
+      "pfm": "froxel_tile8_z64.pfm",
+      "pfm_sha256": "5c80168f4b93ba4314e795d454d02641462fe0f415c6bb9b48918db9a568d0f2",
+      "preview_png": "froxel_tile8_z64_preview.png",
+      "preview_sha256": "aee4fc4f2eeabcc3ec03b4d086db05ebe50bb317199c972cf5cb59a5a581d561"
+    },
+    "froxel_tile4_z32": {
+      "pfm": "froxel_tile4_z32.pfm",
+      "pfm_sha256": "e587339f78d761870608094fe7546a73f4c243ae8378d9c364e0381fa36bf0d1",
+      "preview_png": "froxel_tile4_z32_preview.png",
+      "preview_sha256": "3c53a0d4df610fe4f85f0ef12d0495df2091d6ff1973c6c2018b6b8ddfa2064b"
+    }
+  },
+  "difference_captures": {
+    "validation_direct_256": {
+      "pfm": "validation_direct_256_diff_raw.pfm",
+      "pfm_sha256": "92a718144280c5db12f715776096543a56959ccaf9a800fd0bf29d45250203fb",
+      "preview_png": "validation_direct_256_diff_gain24_preview.png",
+      "preview_sha256": "8ed79ffc1c53a7264cbbaf24aa0004bd01a4169f7737ff68ffd1123ff8ac23b3",
+      "display_gain": 24.0
+    },
+    "direct_32": {
+      "pfm": "direct_32_diff_raw.pfm",
+      "pfm_sha256": "a391a1e9a3b2d5dcd9fd5ad42e01993d79a49f86db9e4f034c958ab218770570",
+      "preview_png": "direct_32_diff_gain24_preview.png",
+      "preview_sha256": "b167b66dc801cf5ff126fac1424925430cffa403433d64902ccc7864f240bac6",
+      "display_gain": 24.0
+    },
+    "direct_64": {
+      "pfm": "direct_64_diff_raw.pfm",
+      "pfm_sha256": "d6698123d8fa707ce4651633ede235e6249f86eb5a9079f4d77c8dafe41a2c14",
+      "preview_png": "direct_64_diff_gain24_preview.png",
+      "preview_sha256": "380eb8f73ffd59abc6309153670517898d90640233cd2908889ffc53f62aa367",
+      "display_gain": 24.0
+    },
+    "froxel_tile2_z64": {
+      "pfm": "froxel_tile2_z64_diff_raw.pfm",
+      "pfm_sha256": "5694c02ae59badbba4b6bf382d793c1de10095a5006e5de964aa56ae9ed3b287",
+      "preview_png": "froxel_tile2_z64_diff_gain24_preview.png",
+      "preview_sha256": "3d364102ec8168d9f9ed69b3cf641b2fc0a8da7566719c94b8dbe460350add02",
+      "display_gain": 24.0
+    },
+    "froxel_tile4_z64": {
+      "pfm": "froxel_tile4_z64_diff_raw.pfm",
+      "pfm_sha256": "91644be97bbc69a65e1680b8ead522a691d9e4e9388b89c99fc55ae068d7d821",
+      "preview_png": "froxel_tile4_z64_diff_gain24_preview.png",
+      "preview_sha256": "8a33dfc60130b2fe8b9b1a37832d7ca77a72d0262cdd687bfec1c1931028c774",
+      "display_gain": 24.0
+    },
+    "froxel_tile8_z64": {
+      "pfm": "froxel_tile8_z64_diff_raw.pfm",
+      "pfm_sha256": "d00b079d5a48aeed6586a811c6161ffd7fa1d88aa78177181a3d68d2a135b3ae",
+      "preview_png": "froxel_tile8_z64_diff_gain24_preview.png",
+      "preview_sha256": "41cf1782ff8708ad0ce3995d0e031e55e843a43658f2d3e82bc6f38a4f98d9ed",
+      "display_gain": 24.0
+    },
+    "froxel_tile4_z32": {
+      "pfm": "froxel_tile4_z32_diff_raw.pfm",
+      "pfm_sha256": "85996d44dd4b5bdffa959f528429f942f8b67cb00a87a7110f75c56864a40a85",
+      "preview_png": "froxel_tile4_z32_diff_gain24_preview.png",
+      "preview_sha256": "93fdb5e250e383e603ef191af61e5442c04453fc7bf9a1ac20bd677c1e5d99a9",
+      "display_gain": 24.0
+    }
+  },
+  "limitations": [
+    "CPU synthetic proxy; no GPU shader, runtime, or wall-clock performance measurement.",
+    "Hard AABB visibility, isotropic phase, analytic gaussian density, and fixed three point lights only.",
+    "Froxel storage estimates are arithmetic scenarios, not a proposed production resource layout.",
+    "The 512-step direct raymarch is a high-step reference; validation compares 256 to 512.",
+    "No temporal reprojection, anisotropic scattering, shadow-map filtering, or backend parity."
+  ],
+  "source_script_sha256": "1119eb0ecbaac5f46d051b1c6b4db05504ae6625fec1695ceefa59e8039ef186",
+  "scene_fixture_sha256": "59814fb8a8f14c8a58dcefdd2d259961720982850d0f48f7556f82032ef83126"
+}

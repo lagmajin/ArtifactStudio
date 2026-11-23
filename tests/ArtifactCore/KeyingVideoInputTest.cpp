@@ -2,6 +2,11 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
+#include <QByteArray>
+#include <QCryptographicHash>
+#include <QFile>
+#include <QIODevice>
+#include <QString>
 #include <gtest/gtest.h>
 #include <QTemporaryDir>
 
@@ -119,4 +124,52 @@ TEST(KeyingVideoInputTest, RemovesGreenScreenAndPreservesForegroundAcrossDecoded
         ++decodedFrameCount;
     }
     EXPECT_EQ(decodedFrameCount, kFrameCount);
+}
+
+TEST(KeyingVideoInputTest, CoreChromaKeyProcessesRealLiveActionGreenScreenFrame) {
+    const QString fixturePath =
+        qEnvironmentVariable("ARTIFACT_KEYING_CORE_REAL_FIXTURE");
+    ASSERT_FALSE(fixturePath.isEmpty())
+        << "CTest must provide the bundled green-screen fixture path";
+
+    QFile fixtureFile(fixturePath);
+    ASSERT_TRUE(fixtureFile.open(QIODevice::ReadOnly))
+        << "Could not open the green-screen fixture for hash verification";
+    ASSERT_EQ(QCryptographicHash::hash(fixtureFile.readAll(),
+                                       QCryptographicHash::Sha256).toHex(),
+              QByteArrayLiteral(
+                  "132819fcfd733c007edbd6cd1e9c276c3dd0b8b1b56230989e67ef01a107d1a3"))
+        << "Update the documented coordinates and expected samples if the fixture changes";
+
+    ImageF32x4_RGBA sourceImage;
+    ASSERT_TRUE(sourceImage.load(fixturePath))
+        << "Could not load the fixture with ArtifactCore's image loader";
+    ASSERT_EQ(sourceImage.width(), 540);
+    ASSERT_EQ(sourceImage.height(), 960);
+
+    ImageF32x4_RGBA outputImage;
+    outputImage.resize(sourceImage.width(), sourceImage.height());
+    ChromaKeyParams params;
+    params.despillStrength = 0.0f;
+    const auto descriptor = sourceImage.colorDescriptor();
+    ASSERT_TRUE(processChromaKey(
+        ChromaKeyBuffers{sourceImage.rgba32fData(), outputImage.rgba32fData(),
+                         sourceImage.width(), sourceImage.height(),
+                         descriptor.channelOrder, descriptor.alphaMode},
+        params));
+
+    const auto alphaAt = [&](int x, int y) {
+        return outputImage.getPixel(x, y).a();
+    };
+    EXPECT_LT(alphaAt(300, 300), 0.10f)
+        << "the green backing should be removed by the Core API";
+    EXPECT_GT(alphaAt(380, 450), 0.85f)
+        << "the presenter's dark jacket should remain opaque";
+    EXPECT_GT(alphaAt(80, 300), 0.85f)
+        << "the non-green studio wall should remain opaque";
+    const float hairEdgeAlpha = alphaAt(369, 282);
+    EXPECT_GT(hairEdgeAlpha, 0.10f)
+        << "the hair edge should retain partial coverage";
+    EXPECT_LT(hairEdgeAlpha, 0.90f)
+        << "the hair edge should remain a soft matte transition";
 }

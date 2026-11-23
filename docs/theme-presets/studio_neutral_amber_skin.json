@@ -1,0 +1,22 @@
+{
+  "base": "Modo",
+  "backgroundColor": "#222529",
+  "secondaryBackgroundColor": "#2C3035",
+  "trackBackgroundColor": "#1D2024",
+  "placeholderBackgroundColor": "#191C20",
+  "inputBackgroundColor": "#181B1F",
+  "borderColor": "#515963",
+  "borderSubtleColor": "#383E45",
+  "textColor": "#E7EAEE",
+  "textSecondaryColor": "#B5BDC7",
+  "textMutedColor": "#9DA7B2",
+  "disabledTextColor": "#858F9A",
+  "selectionColor": "#584735",
+  "accentColor": "#F0B76C",
+  "buttonColor": "#353B42",
+  "buttonHoverColor": "#424A53",
+  "buttonPressedColor": "#24292F",
+  "sliderHandleColor": "#F0B76C",
+  "focusRingColor": "#A5CCFF",
+  "dockFocusFrameColor": "#A5CCFF"
+}

@@ -1,0 +1,101 @@
+{
+  "lab": "SeamlessTextureLab",
+  "rd": "rd0",
+  "stage": "naive_tile_baseline",
+  "date": "2026-11-18",
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "opencv": "4.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "outputs": {
+    "baseline_checker_small": {
+      "npy": "baseline_checker_small.npy",
+      "npy_sha256": "79b2f65c9d51ca9c42658c5a7896e1e91226db62b83b649c9e22c60bc5400a2e",
+      "png": "baseline_checker_small.png",
+      "png_sha256": "469f799377434fe552d4515cf4b151b3ca5995570db64428c877f061dbcc83af"
+    },
+    "baseline_radial_small": {
+      "npy": "baseline_radial_small.npy",
+      "npy_sha256": "e3911fd8e7208806fa2f4b3ba76a296346c0c04b3bc289e4e16372f0e2d6e700",
+      "png": "baseline_radial_small.png",
+      "png_sha256": "7a08e1fb9c5969808109e2dc289853538343570127400f931f18247455a1f157"
+    },
+    "baseline_clouds_small": {
+      "npy": "baseline_clouds_small.npy",
+      "npy_sha256": "6b69e96cb76cfdd223eec1727da3d32dd989defa31856236fc0a0d24e974e080",
+      "png": "baseline_clouds_small.png",
+      "png_sha256": "8159ffdeaea7336890f047fa64a3092745c59debe608b16d703c9acaef01a74d"
+    },
+    "baseline_blobs_small": {
+      "npy": "baseline_blobs_small.npy",
+      "npy_sha256": "e595b5f0ef4da9146a00991001d4145fac1925c43426a56881b8a09052f678af",
+      "png": "baseline_blobs_small.png",
+      "png_sha256": "5862ecb4a626e9c70f36003438db39b7cf25ab428f49cfb1b98a881764ecca1a"
+    },
+    "baseline_alpha_patch_small": {
+      "npy": "baseline_alpha_patch_small.npy",
+      "npy_sha256": "8947b296a16314ba193adf0eeac251024af816575a153e8a58776cc4a93e8bb6",
+      "png": "baseline_alpha_patch_small.png",
+      "png_sha256": "ccd4894abe8f01729042cfdae619c9580ce8a22e462392bce99124e3cb8214ad"
+    },
+    "baseline_checker_large": {
+      "npy": "baseline_checker_large.npy",
+      "npy_sha256": "0d1b850880aecd23f21081a32f9a43c94f1013afaa4797dcec3a900a74d66520",
+      "png": "baseline_checker_large.png",
+      "png_sha256": "abcba77c0ab8424bd37bd5383ff2be534623908f3dfcd0a903871a310c381038"
+    },
+    "baseline_radial_large": {
+      "npy": "baseline_radial_large.npy",
+      "npy_sha256": "d93547e3ce053c9262ee1d26e2edafbe8ebed66b737c6fe2f734427877d21bca",
+      "png": "baseline_radial_large.png",
+      "png_sha256": "bc4ee44cf17317808c26fdda329981d50e8bf463de4a0729ebc092f68128aff8"
+    },
+    "baseline_clouds_large": {
+      "npy": "baseline_clouds_large.npy",
+      "npy_sha256": "7f614d25ac6faf4693fa6b9311f28a75d76b849b787c8961aa814b4b7c4c4847",
+      "png": "baseline_clouds_large.png",
+      "png_sha256": "c03338145ea47d8c0f937c03e671a2373b65a41133239a82f5c1972e22cde763"
+    },
+    "baseline_blobs_large": {
+      "npy": "baseline_blobs_large.npy",
+      "npy_sha256": "69e1bea0bd2480468265428e2e59638d20f87930a75a2525a7266815610481f0",
+      "png": "baseline_blobs_large.png",
+      "png_sha256": "cb9e5c7a7386a1d39ea0d308cab54348c6d14f5f8a7b46fc518a528818a0ef03"
+    },
+    "baseline_alpha_patch_large": {
+      "npy": "baseline_alpha_patch_large.npy",
+      "npy_sha256": "569b60a98b26ae44d902b9351d6f15917d4e92549cf1940f794c6b6c941c5fe6",
+      "png": "baseline_alpha_patch_large.png",
+      "png_sha256": "c22a0f312efd939158abb23fe08089f7718ab02b0d2bdcf705429a44fb732338"
+    }
+  },
+  "evidence": {
+    "metrics": {
+      "file": "metrics_rd0.json",
+      "sha256": "ba349e0a22c9dc13f3bdecc64d17622060a8dcb8b3675102810593727a01758f"
+    },
+    "tables": {
+      "file": "review/RD0_TABLES.md",
+      "sha256": "15b9d5e4400d5aeeaf74912b57f2c614c210d4f2b85a7538ac2c1b270e8a0fad"
+    },
+    "sheet": {
+      "file": "review/rd0_baseline_sheet.png",
+      "sha256": "47f7b302592e58c8029c65d3b6157bb2d9332215a839d5adbc68cb31602e95d1"
+    },
+    "form": {
+      "file": "review/GATE_FORM.md",
+      "sha256": "7861d71574cfc0ff1944c6fe640eefd55a158493e26506d6bf0f264606509d86"
+    }
+  },
+  "gates": "unset; no judgment or quality ranking performed",
+  "unverified": [
+    "human visual review and quality gate",
+    "real photo textures and their licences",
+    "product effect / UI / undo / save-reload",
+    "preview and final render paths",
+    "CPU/GPU parity, D3D12/Vulkan",
+    "production performance at 1080p / 4K"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "intent": "Point-rays transfer check on the same CC0 street-light photo and shared Glow foundation; compare increased synthetic-probe settings against the existing restrained photographic candidate. Existing beams remain a source confound.",
+  "input": "assets/cc0-street-light-night.jpg",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.05,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "point-rays-rd2-photo-transfer": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.28,
+          "sourceY": 0.3,
+          "rayLength": 0.85,
+          "intensity": 4.0,
+          "decay": 0.94,
+          "samples": 32,
+          "threshold": 0.22,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 1.0,
+          "length": 40.0,
+          "width": 1.0,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.55
+        }
+      }
+    ]
+  }
+}

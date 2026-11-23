@@ -1,0 +1,474 @@
+{
+  "audit": "Looks browser preset IDs versus executable LUT registry",
+  "scope": "static source inventory; no inferred semantic mapping",
+  "sources": {
+    "Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp": "a6a09bad96073eef9102ecbda784d23d518c9852bc372308257020654c4393d3",
+    "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp": "6c0c4ac1031334b1f3e79f6baffdba8ec3eb9c98952a9bd68f525a090ce66821",
+    "ArtifactCore/src/Color/ColorLUT.cpp": "b7ae6140a8cc473526929eb0475e537f104a613ff7b80c907a3428e807715f7e",
+    "Artifact/src/Service/ArtifactEffectService.cpp": "ff5bd978a62c8cbfa7e1cdafc97af882e479a60b7b8ef6e99da0323f6586cc8c",
+    "Artifact/src/Widgets/InspectorEffectCatalog.cpp": "f6079abd6cefa388363fcc1d4263f07d2ccf7fffac0733b2775d6ec1dfce11f4",
+    "Artifact/include/Effects/ColorCorrection/LUTEffect.ixx": "53704b424dd57a888860068a92a5047c027bd228bc4b95949cef1a7b5d8cfcff",
+    "Artifact/src/Widgets/ArtifactInspectorWidget.cpp": "2f2a4ef78ea92b33a613f4e3a16a18775d798126aa65d06956b2757b983b20cc",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorShared.cpp": "7a0ecbc18fa93d31fb0e841d9309f13ecc66fd7f1e2a854be91d18e9ea0bdb61",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorTextAnimatorColor.cpp": "acf965b550c34e52a06511dec165f3d9582030c1921fac4ded3de5acb5b6f911",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorNumeric.cpp": "8da398aceecd5562705485e34141edba66d3a96d4229455f639fa21e9af5cc68",
+    "Artifact/src/Widgets/ArtifactPropertyWidgetShared.cpp": "1ab9c80ce437b9ae877e24e627c56ba56872b5a92a7a41bd93e538ea36eed8a8",
+    "Artifact/src/Project/ArtifactPresetManager.cpp": "5436b26411fb60ddab07cd99c16ff06112e0681e3761b35f690360c68eb29cd7",
+    "Artifact/src/Composition/ArtifactAbstractComposition.cpp": "eccf9da8c4c5a9b9745394973fe284a5dd26a65bcefc058ea70d7e713a8aa2d7",
+    "Artifact/src/Effects/ArtifactAbstractEffect.cpp": "506d9d14ca6950fc0d9cb003ad769d133c4b6ebbc1821c8430e6e2049f58279c",
+    "Artifact/src/Layer/ArtifactAbstractLayerEffectPersistence.cpp": "56aafbb19687a6a68387a82cd5e4dc3db28c001c932ec3ebf8b4fcfc123f97c7",
+    "Artifact/src/Render/ArtifactCompositionViewDrawing.cpp": "dc7932efbc297e714f99be1fe325f9ed20ffe63f9a5966c13b659d7942ce48c8",
+    "Artifact/src/Render/ArtifactFinalPostProcess.cpp": "d0692099973d21a6284ee60476d62da9985cd19388223a2c2cb2e1845eab12ea",
+    "Artifact/src/Render/ArtifactIRenderer.cpp": "bd54e78c0d22a8000451868222236594740b5f9a522be8991e9deb990edd06c2",
+    "Artifact/include/Render/ArtifactFinalPostProcess.ixx": "702de3c5584c7cef2670aa0c85308b71708ef7651fafa846e258b34e4124bde9",
+    "tests/Artifact/LUTEffectContractTest.cpp": "254b437357f31f18b3781960e75ae411312458bea60b38edf7601e1dd0ec05e6",
+    "tests/Artifact/ArtifactProjectRoundTripTest.cpp": "cc0b22f11a88471ceedf3f6b1ab803d33c185c3354cdc5d43df3fd6261f700fe",
+    "Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorEnum.cpp": "829cd0c7d66ef49d351ad49a5e4ce9918f0d7fac82a1558fd200a412834aa308",
+    "Artifact/include/Effects/ColorCorrection/ColorBalanceEffect.ixx": "35eb3ae1c49545a5789d7d1dcc1ce6f61a6b82cf98776a39ef78f511a741c0ea",
+    "Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cpp": "c25ea219ba5590cb85d59957cd3a0c89bd9273f9d208cf2b319360cc7407a90d",
+    "ArtifactCore/include/ImageProcessing/ColorTransform/ColorBalance.ixx": "9e10987101ccc55c4dcdc8b082d38861e703a63142bd43fba0e7ecf871b47ea7",
+    "ArtifactCore/src/ImageProcessing/ColorTransform/ColorBalance.cpp": "7e51d33554b8874b125445b6d2c6bfa064b9cc9a60d839db9b08d251e04fd01a",
+    "Artifact/include/Effects/ColorCorrection/TritoneEffect.ixx": "2f93b47aa3349d044868b2a697bd3a8797356e9c4012666dfe9d31067181f06f",
+    "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "6303eac9fe1e9ba8e752403ba8aac0905fae66549caede8a50ffb5489ca44cf2",
+    "ArtifactCore/include/ImageProcessing/ColorTransform/Tritone.ixx": "d45edd40c7fc72ff45cc7de2cfb63d2a8a80a9a756b48d11f83f0a0c2fd1d7c8",
+    "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp": "64af14e97cfacfe1e38a9a0e5cf81390ec769e7baa1c26018fc9ecb8e9905d8c",
+    "ArtifactCore/include/ColorCollection/ColorGrading.ixx": "48f4f45427538ed16c76574f29fdc98d8ba3383ac1ad79d9f0d0d8629a2c0325",
+    "ArtifactCore/src/ColorCollection/ColorGrading.cpp": "3d680844ee43b2292923619157008461918ed204ff166e7ddd5757948ac3ee16",
+    "Artifact/include/Color/ArtifactColorWheels.ixx": "696aa9f9b562b8395b061ff3f0b0ec3c9971cc2130b0a241ae384e491a9177bf",
+    "Artifact/src/Color/ArtifactColorWheels.cpp": "9ecafd1a8b125c9d596b33306d5e3c8ecc73f1ac11728107937d6edd43cf45b9"
+  },
+  "browser_preset_count": 24,
+  "browser_presets": [
+    {
+      "id": "amber_dusk",
+      "name": "Amber Dusk",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "bleach_bypass",
+      "name": "Bleach Bypass",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "broadcast_safe",
+      "name": "Broadcast Safe",
+      "category": "TV & Video",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cold_day",
+      "name": "Cold Day",
+      "category": "Photo",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cross_process",
+      "name": "Cross Process",
+      "category": "Creative",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "cyberpunk",
+      "name": "Cyberpunk",
+      "category": "Creative",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "day_for_night",
+      "name": "Day For Night",
+      "category": "Film",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "deep_forest",
+      "name": "Deep Forest",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "fuji_velvia",
+      "name": "Fuji Velvia",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "golden_hour",
+      "name": "Golden Hour",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "horror_night",
+      "name": "Horror Night",
+      "category": "Creative",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "hyper_real",
+      "name": "Hyper Real",
+      "category": "Photo",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "kodak_5219",
+      "name": "Kodak 5219",
+      "category": "Film",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "log_c_rec709",
+      "name": "Log C Rec709",
+      "category": "TV & Video",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "miami_vice",
+      "name": "Miami Vice",
+      "category": "TV & Video",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "muted_indie",
+      "name": "Muted Indie",
+      "category": "Film",
+      "pack": "Studio Looks",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "news_footage",
+      "name": "News Footage",
+      "category": "TV & Video",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "noir_bw",
+      "name": "Noir B&W",
+      "category": "Creative",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "pastel_dream",
+      "name": "Pastel Dream",
+      "category": "Photo",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "pro_mist",
+      "name": "Pro Mist",
+      "category": "Film",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "raw_log_flat",
+      "name": "Raw Log Flat",
+      "category": "TV & Video",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "teal_orange",
+      "name": "Teal & Orange",
+      "category": "Film",
+      "pack": "カスタム",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "vintage_70s",
+      "name": "Vintage 70s",
+      "category": "Creative",
+      "pack": "Looks Classic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    },
+    {
+      "id": "washed_out",
+      "name": "Washed Out",
+      "category": "Photo",
+      "pack": "Cinematic",
+      "lut_mapping": null,
+      "status": "unmapped_in_source"
+    }
+  ],
+  "lut_effect_presets": [
+    "Custom",
+    "Cinematic",
+    "Vintage",
+    "Cold",
+    "Warm",
+    "HighContrast",
+    "LowContrast",
+    "Desaturated",
+    "Kodak2383",
+    "Fuji3510"
+  ],
+  "builtin_lut_names": [
+    "cinematic",
+    "vintage",
+    "cold",
+    "warm",
+    "highContrast",
+    "lowContrast",
+    "desaturated",
+    "kodak2383",
+    "fuji3510"
+  ],
+  "mapping_contract": "No browser preset is treated as mapped without an explicit implementation and an observed apply path.",
+  "existing_effect_availability": {
+    "effect_id": "effect.colorcorrection.lut",
+    "display_name": "Apply LUT",
+    "inspector_catalog_entry": true,
+    "effect_service_factory": true,
+    "inspector_add_path": "addSelectedEffectToCurrentTarget creates through ArtifactEffectService and adds to the selected layer or composition through ArtifactProjectService",
+    "preset_property_ui": "LUTEffect exports Preset as Integer without enum-option tooltip/metadata. The shared property editor has no hard-coded Preset enum mapping, so it falls through to the generic integer spinbox rather than a named preset chooser; LUTEffect::setPreset clamps input to indices 0..9.",
+    "runtime_verified": false,
+    "preset_enum": [
+      "Custom",
+      "Cinematic",
+      "Vintage",
+      "Cold",
+      "Warm",
+      "HighContrast",
+      "LowContrast",
+      "Desaturated",
+      "Kodak2383",
+      "Fuji3510"
+    ],
+    "preset_index_table": [
+      {
+        "value": 0,
+        "name": "Custom"
+      },
+      {
+        "value": 1,
+        "name": "Cinematic"
+      },
+      {
+        "value": 2,
+        "name": "Vintage"
+      },
+      {
+        "value": 3,
+        "name": "Cold"
+      },
+      {
+        "value": 4,
+        "name": "Warm"
+      },
+      {
+        "value": 5,
+        "name": "HighContrast"
+      },
+      {
+        "value": 6,
+        "name": "LowContrast"
+      },
+      {
+        "value": 7,
+        "name": "Desaturated"
+      },
+      {
+        "value": 8,
+        "name": "Kodak2383"
+      },
+      {
+        "value": 9,
+        "name": "Fuji3510"
+      }
+    ],
+    "default_preset": "Cinematic",
+    "default_intensity": 1.0,
+    "scope": "Static source evidence for the general LUT effect path; not evidence that the separate Looks browser is connected or that image quality is accepted.",
+    "effect_preset_persistence": {
+      "available": true,
+      "api": "ArtifactEffectService::saveEffectPreset/loadEffectPreset delegates to ArtifactPresetManager",
+      "serialized_fields": [
+        "effect_id",
+        "effect_enabled",
+        "effect_mix",
+        "mask state",
+        "properties including Preset, LUT File, Intensity"
+      ],
+      "load_behavior": "Applies the file to an already-created effect; rejects a non-empty mismatching effect_id and validates owned property payloads before mutation.",
+      "preset_round_trip_mechanism": "Preset is serialized as an integer property and restored through LUTEffect::setPropertyValue -> setPreset, clamped to 0..9; Intensity is restored through setIntensity, clamped to 0..1 (non-finite becomes 1).",
+      "application_confirmed": false,
+      "scope": "Generic per-effect preset file support; does not create a named cinematic look library, connect the Looks browser, or prove project save/reload/runtime rendering."
+    }
+  },
+  "integration_findings": [
+    "The general Apply LUT effect is registered in InspectorEffectCatalog and ArtifactEffectService; ArtifactInspectorWidget::addSelectedEffectToCurrentTarget creates and adds it to a selected layer or composition stack. Its LUTEffect has nine built-in presets plus Custom. This is static source evidence, not a runtime click-through.",
+    "The Preset property is currently a generic integer field, not a named chooser. The code-level built-in enum exists, but Inspector property metadata does not expose those labels.",
+    "No LooksPresetBrowserDialog construction callsite was found under Artifact/src or Artifact/include.",
+    "Dialog Apply updates only appliedId_ and a badge; it does not create or apply an effect, notify a caller, or close the dialog.",
+    "No browser preset ID to LUTEffect preset mapping was found in the inspected source.",
+    "Generic effect-preset JSON includes the LUT effect id and its Preset / LUT File / Intensity properties, and can apply them to an existing LUTEffect. This is a file API contract from source inspection, not an executed save/load round trip.",
+    "Composition-level LUT persistence differs from layer-level persistence: composition JSON writes the LUT properties, but its local deserializer does not instantiate LUTEffect and falls back to the base ArtifactAbstractEffect. Layer deserialization uses ArtifactEffectService::createEffect and can rebuild the concrete LUTEffect. See findings.json RD0-COMPOSITION-LUT-RESTORE-01; static source path only, runtime round-trip pending.",
+    "GPU final-post-process distinction (static callsite audit): ArtifactFinalPostProcess::updateFromEffectStack returns after finding an enabled LUT entry and documents that the caller must separately call updateFromColorLUT with actual LUT data. Repository search of Artifact/src and Artifact/include found no updateFromEffectStack callsite; updateFromColorLUT is called by ArtifactIRenderer viewportDisplayPostProcess_ with viewport display LUT data. This does not prove GPU application of the composition/layer Apply LUT effect. Pinned source hashes for the post-process implementation, interface, and renderer are in sources; runtime/backend behavior remains unverified.",
+    "Reusable named-enum editor path (static source audit): ArtifactPropertyEditorShared::enumOptionsForProperty accepts Integer properties and parses AbstractProperty metadata tooltip entries formatted as comma-separated integer=label pairs, then the property editor routes the property to ArtifactEnumPropertyEditor. LUTEffect::getProperties currently returns Preset as Integer without this option tooltip; the editor therefore receives no enum options for Preset. A future named chooser can reuse this existing metadata path by supplying the complete 0..9 mapping; this conclusion is source-only and has not been exercised in the UI.",
+    "Existing source-level test coverage audit (tests were not run): tests/Artifact/LUTEffectContractTest.cpp covers RGB transform, alpha channel preservation for a basic straight float surface, zero intensity, empty Custom LUT behavior, and preset index clamping. tests/Artifact/ArtifactProjectRoundTripTest.cpp contains a composition effect round-trip for IBK keyer and asserts concrete restored type/properties, but no LUT composition round-trip was found by search. No test source referencing enumOptionsForProperty/ArtifactEnumPropertyEditor was found in the searched test trees, so the tooltip-to-named-chooser behavior currently lacks identified direct test coverage. These source-presence observations are not execution results.",
+    "Additional executable Cinematic preset effects found (static source audit): Color Balance (effect.colorcorrection.colorbalance) exposes Custom, Neutral, CoolShadows, WarmHighlights, Cinematic and defaults to Cinematic; Tritone (effect.colorcorrection.tritone) exposes Custom, Cinematic, TealAndOrange, WarmGold, ColdBlue and defaults to Cinematic. Both have Inspector catalog entries, ArtifactEffectService factories, and CPU/GPU implementations. Their Preset properties are Integer values without enum option tooltips, so source inspection predicts generic numeric controls, not named choosers. Their formulas/settings are separately documented and are not among the nine-LUT rd0 image measurements. Tritone CPU loop writes transformed RGB directly without checking alpha mode, so premultiplied-alpha response requires separate runtime confirmation. ColorGrader::createCinematic and createFilmLook factories also exist in ColorGrading, but searches found only declarations/definitions and the ArtifactColorWheels wrapper definitions, with no product callsite; treat them as unconnected APIs. All are source-only observations, not visual acceptance."
+  ],
+  "cinematic_effect_presets": [
+    {
+      "effect_id": "effect.colorcorrection.lut",
+      "display_name": "Apply LUT",
+      "presets": [
+        "Custom",
+        "Cinematic",
+        "Vintage",
+        "Cold",
+        "Warm",
+        "HighContrast",
+        "LowContrast",
+        "Desaturated",
+        "Kodak2383",
+        "Fuji3510"
+      ],
+      "default_preset": "Cinematic",
+      "preset_property": "Integer, no enum option tooltip; generic numeric editor by source inspection",
+      "inspector_catalog": true,
+      "effect_service_factory": true,
+      "cpu": true,
+      "gpu": false,
+      "runtime_verified": false,
+      "source_paths": [
+        "Artifact/src/Effects/ColorCorrection/LUTEffect.cpp",
+        "Artifact/include/Effects/ColorCorrection/LUTEffect.ixx"
+      ]
+    },
+    {
+      "effect_id": "effect.colorcorrection.colorbalance",
+      "display_name": "Color Balance",
+      "presets": [
+        "Custom",
+        "Neutral",
+        "CoolShadows",
+        "WarmHighlights",
+        "Cinematic"
+      ],
+      "default_preset": "Cinematic",
+      "preset_property": "Integer, no enum option tooltip; generic numeric editor by source inspection",
+      "inspector_catalog": true,
+      "effect_service_factory": true,
+      "cpu": true,
+      "gpu": true,
+      "runtime_verified": false,
+      "cinematic_settings_source": "ArtifactCore/src/ImageProcessing/ColorTransform/ColorBalance.cpp",
+      "source_paths": [
+        "Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cpp",
+        "Artifact/include/Effects/ColorCorrection/ColorBalanceEffect.ixx",
+        "ArtifactCore/src/ImageProcessing/ColorTransform/ColorBalance.cpp",
+        "ArtifactCore/include/ImageProcessing/ColorTransform/ColorBalance.ixx"
+      ]
+    },
+    {
+      "effect_id": "effect.colorcorrection.tritone",
+      "display_name": "Tritone",
+      "presets": [
+        "Custom",
+        "Cinematic",
+        "TealAndOrange",
+        "WarmGold",
+        "ColdBlue"
+      ],
+      "default_preset": "Cinematic",
+      "preset_property": "Integer, no enum option tooltip; generic numeric editor by source inspection",
+      "inspector_catalog": true,
+      "effect_service_factory": true,
+      "cpu": true,
+      "gpu": true,
+      "runtime_verified": false,
+      "cinematic_settings_source": "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp",
+      "alpha_association_note": "The LUT-like RGB remap applies directly to pixel RGB in the CPU loop without consulting the surface alpha descriptor; alpha-dependent output is a source-level candidate concern, not a runtime finding.",
+      "source_paths": [
+        "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp",
+        "Artifact/include/Effects/ColorCorrection/TritoneEffect.ixx",
+        "ArtifactCore/src/ImageProcessing/ColorTransform/Tritone.cpp",
+        "ArtifactCore/include/ImageProcessing/ColorTransform/Tritone.ixx"
+      ]
+    }
+  ],
+  "product_followup_2026_11_17": {
+    "status": "implemented_source_path_runtime_unverified",
+    "entrypoint": "ArtifactInspectorWidget::Impl::handleAddEffectClicked adds a Cinematic Looks entry to the existing effect picker and opens LooksPresetBrowserDialog.",
+    "mapping": {
+      "browser_id": "teal_orange",
+      "effect_id": "effect.colorcorrection.tritone",
+      "preset_property": "Preset",
+      "preset_value": 2,
+      "preset_name": "TealAndOrange",
+      "strength_property": "Effect Mix",
+      "strength_source": "Intensity slider value divided by 100",
+      "mapping_basis": "Provisional product hypothesis from the browser and built-in preset labels; no source-backed mapping existed in the initial audit.",
+      "targets": ["current composition", "selected layer"],
+      "undo_behavior": "Construct effect and set properties before one undoable ProjectService add operation; close the modal after success to prevent duplicate clicks. Static source inspection only."
+    },
+    "remaining_browser_ids_unmapped": 23,
+    "near_name_candidates_not_effect_stack_mappings": [
+      {
+        "browser_id": "cross_process",
+        "candidate": "Artifact::FilmPresets::crossProcessed()",
+        "source": "Artifact/src/Effect/ArtifactFilmEffects.cpp",
+        "contract": "Returns FilmEffectPreset, a QObject consumed by FilmEffectProcessor; it is not an ArtifactAbstractEffect or ArtifactEffectService factory entry.",
+        "mapping_status": "not_connected; name similarity does not establish compatible ownership, persistence, or render path"
+      },
+      {
+        "browser_id": "cyberpunk",
+        "candidate": "ArtifactCore::TriChromaticTriad::cyberpunk()",
+        "source": "ArtifactCore/src/ImageProcessing/ColorTransform/TriChromaticShift.cpp",
+        "contract": "Returns a color-transform settings value consumed by TriChromaticProcessor; no ArtifactAbstractEffect / Inspector catalog integration was found in the source search.",
+        "mapping_status": "not_connected; adding it requires a product effect integration and a reviewed preset definition"
+      }
+    ],
+    "preview": "Placeholder/sample preview only; no effect-rendered before/after image.",
+    "runtime_verified": false,
+    "source_hashes": {
+      "Artifact/src/Widgets/ArtifactLooksPresetBrowser.cpp": "613fdf06822a3b9267fd60a83a5b181d1b51e6916ca34d35791a707cdccd8085",
+      "Artifact/src/Effects/ColorCorrection/TritoneEffect.cpp": "e3ab919ed3b2f3d4617820f822888d82f445368b9e496f6ee5af0896654925f7",
+      "Artifact/src/Widgets/ArtifactInspectorWidget.cpp": "41b0eabf9f9fc27d5e9d2632c7d33ee848cca3dc963333737ddfb7e6631ae3bc",
+      "Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx": "70b62f505fb68324194f212b738200f23e36bfa09a3b7b6570ca3cd18f8caabb"
+    }
+  }
+}

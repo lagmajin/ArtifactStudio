@@ -1,0 +1,95 @@
+{
+  "lab": "WatercolorLab",
+  "rd": "rd7",
+  "stage": "fast_filter_tuning",
+  "gates": "unset; no pass/fail judgment or ranking performed",
+  "objective": "lexicographic: max RGB delta vs v3, then mean absolute delta; runtime recorded only",
+  "tune_fixtures": [
+    "color_ramp_small",
+    "thin_lines_small",
+    "flat_highlight_small"
+  ],
+  "tune_candidates": [
+    "only_bleed",
+    "wc_a"
+  ],
+  "param_grid": {
+    "k": [
+      3,
+      5,
+      7,
+      11
+    ],
+    "sigma_space": [
+      1.0,
+      2.0,
+      3.0,
+      5.0
+    ],
+    "sigma_color": [
+      0.08,
+      0.15,
+      0.25,
+      0.4,
+      0.6
+    ]
+  },
+  "combinations": 80,
+  "best": {
+    "params": {
+      "k": 11,
+      "sigma_space": 1.0,
+      "sigma_color": 0.6
+    },
+    "max_rgb_delta_vs_v3": 0.4842036962509155,
+    "mean_mae_vs_v3": 0.004980103927664459,
+    "seconds_sum": 0.17408749999594875
+  },
+  "descriptor_check": {
+    "only_bleed": 0.0,
+    "wc_a": 0.0
+  },
+  "outputs": {
+    "tuned_color_ramp_small_only_bleed": {
+      "npy": "tuned_color_ramp_small_only_bleed.npy",
+      "npy_sha256": "851a9fb16eded9c59f769eaf7d116f3b41f05d0525f03312f53b17a2e605e2e6",
+      "png": "tuned_color_ramp_small_only_bleed.png",
+      "png_sha256": "0f11509151a0561a638b096d7d53e0823b2cef48579e7986b7251bbbe93366b2"
+    },
+    "tuned_color_ramp_small_wc_a": {
+      "npy": "tuned_color_ramp_small_wc_a.npy",
+      "npy_sha256": "8b827c399b30347fc108f609bef36d31f0cbe199b5cf32c12b24f8473ebe3413",
+      "png": "tuned_color_ramp_small_wc_a.png",
+      "png_sha256": "21d29c7c832ce12d351d02b4eab19a4e9ca53d42a1d120fcebb0a76ec3b6fb75"
+    },
+    "tuned_thin_lines_small_only_bleed": {
+      "npy": "tuned_thin_lines_small_only_bleed.npy",
+      "npy_sha256": "c5692a447b6b0f0db0a1b37c3fef8bc7f27a09086e25909f6a39efa3a5dbcf9d",
+      "png": "tuned_thin_lines_small_only_bleed.png",
+      "png_sha256": "c1a78ffcf4dbd7c998735f0b6bb995ce84a965954c795fe740358a4c700386f4"
+    },
+    "tuned_thin_lines_small_wc_a": {
+      "npy": "tuned_thin_lines_small_wc_a.npy",
+      "npy_sha256": "b9f76268bec7802c45d31c4acd334ea6e52ff6619ccd904fd0d001eea99c5fa5",
+      "png": "tuned_thin_lines_small_wc_a.png",
+      "png_sha256": "6c32583f9dc831ab98506e36f0c45bcbd9c36d088b9b3611c2e104dda011360f"
+    },
+    "tuned_flat_highlight_small_only_bleed": {
+      "npy": "tuned_flat_highlight_small_only_bleed.npy",
+      "npy_sha256": "23d49f0c882abdf150337c401e5a7e995de2167c858751b00510a8f284354628",
+      "png": "tuned_flat_highlight_small_only_bleed.png",
+      "png_sha256": "e15e865d54e20b3c97e81c0a66b1a0359645205913d218fa99285c3f247486f3"
+    },
+    "tuned_flat_highlight_small_wc_a": {
+      "npy": "tuned_flat_highlight_small_wc_a.npy",
+      "npy_sha256": "1ddb1ea5ca4b93003a0dd550b1d1b4628c45551edcd6872e9d414b3740bf5460",
+      "png": "tuned_flat_highlight_small_wc_a.png",
+      "png_sha256": "14b038948fa16b0ad0134b1151d927f23dafae6b6f7e478a4429ee2652a9db14"
+    }
+  },
+  "environment": {
+    "python": "3.14.2",
+    "numpy": "2.4.3",
+    "platform": "Windows-11-10.0.26200-SP0"
+  }
+}

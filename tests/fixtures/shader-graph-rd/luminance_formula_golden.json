@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-luminance-formula-golden",
+  "status": "source-derived-cpu-formula-candidate-no-renderer-runtime",
+  "operationId": "artifact.vector4.weighted_luminance.legacy_v1",
+  "legacyInputType": "Vector4",
+  "legacyOutputType": "Float",
+  "formula": "r*0.2126 + g*0.7152 + b*0.0722; ignore alpha; no clamp or transfer conversion",
+  "cases": [
+    {
+      "caseId": "primary-red-alpha-zero",
+      "inputVector4": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expectedFloat32": 0.2125999927520752,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    },
+    {
+      "caseId": "primary-green-alpha-zero",
+      "inputVector4": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "expectedFloat32": 0.7152000069618225,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    },
+    {
+      "caseId": "primary-blue-alpha-zero",
+      "inputVector4": [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "expectedFloat32": 0.0722000002861023,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    },
+    {
+      "caseId": "mixed-rgb-alpha-one",
+      "inputVector4": [
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "expectedFloat32": 0.46490001678466797,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    },
+    {
+      "caseId": "same-rgb-alpha-half",
+      "inputVector4": [
+        0.25,
+        0.5,
+        0.75,
+        0.5
+      ],
+      "expectedFloat32": 0.46490001678466797,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    },
+    {
+      "caseId": "negative-and-over-one-rgb",
+      "inputVector4": [
+        -0.5,
+        1.5,
+        2.0,
+        -2.0
+      ],
+      "expectedFloat32": 1.1109000444412231,
+      "alphaIgnored": true,
+      "roundingModel": "binary32 component conversion, multiply terms, then left-associated additions; CPU candidate only"
+    }
+  ],
+  "limitations": [
+    "coefficients are pinned to current Artifact source and do not establish Blender parity",
+    "input channels are treated as raw numeric Vector4 components; linear/sRGB interpretation is not selected",
+    "CPU binary32 evaluation does not establish HLSL compiler contraction, GPU precision, or backend parity",
+    "no Core operation registry or lowering is implemented"
+  ]
+}

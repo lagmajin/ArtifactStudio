@@ -1,0 +1,1184 @@
+{
+  "schemaId": "artifact.shadergraph.legacy-core-projection-compiler-evidence",
+  "schemaVersion": 1,
+  "status": "passed",
+  "targetEnvironment": "vulkan1.2",
+  "sourceCandidate": "experiments/ShaderGraphLab/core_math_add_projection_candidate.json",
+  "sourceCandidateSha256": "BF371E5613CFE782427897BE0A6CCC77599002D64782823130F2CBBEFDE949A9",
+  "candidateCount": 10,
+  "passedCount": 10,
+  "limitations": [
+    "No GPU execution or image response comparison",
+    "No ArtifactCore loader or renderer integration",
+    "SPIR-V interface agreement does not establish Diligent binding compatibility"
+  ],
+  "candidates": [
+    {
+      "caseId": "base_color_add",
+      "projectionSha256": "9339BA2E2B593891494CE3FE11F6FC8FF0754B93F46A9228EB41F6E583583F89",
+      "documentSha256": "D64C4AAA1E6F60491949A5976A0837E9CF8E2D0EFEF1E6E86ED8FE42EF73A67F",
+      "outputType": "Vector4",
+      "glslSha256": "A11D81F858BDEC6BAB8410A223E9B5B645CA8A29C7F066AB1D8F11434D7B21F9",
+      "hlslSha256": "8ED714A6D768B2F737F4CC1C555F8E77FA25B011364885E9E955704555D165E1",
+      "glslSpirvSha256": "21D19CFB6C8DFEBAD6A26551AB934FE464E98F0359A2FF33E7DC867C2DE4B771",
+      "hlslSpirvSha256": "0E97F99B56CA0949BDA9CD6832335F10A5077ECA6CEA513C35559EB818B05EE3",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/base_color_add.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.75,
+        -1.0,
+        -1.0,
+        0.75
+      ],
+      "glslOutputRGBA32F": [
+        0.75,
+        -1.0,
+        -1.0,
+        0.75
+      ],
+      "hlslOutputRGBA32F": [
+        0.75,
+        -1.0,
+        -1.0,
+        0.75
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "nested_add",
+      "projectionSha256": "22D3DFA16635417F15DF901169572374F2BC8BA8F0EEA86FF9CA41642EC6D659",
+      "documentSha256": "5D7C466B8F1DE3A75DC119B39DCB6C7AE4C2557020859C8AC5D09027131E2363",
+      "outputType": "Vector4",
+      "glslSha256": "73ACBE62E2FC4FF6A8B19B57B0C2FE5F5BACF23950B1D781B288AE60A715DF60",
+      "hlslSha256": "866AC1E132A14BEFFA66A4B8C6F27D1D026B722360937AB6AE898310CF44AA0E",
+      "glslSpirvSha256": "6C47E9C553C0418BA58CF22273AA10E5FC59A484F1DFA97E47680C8778CD897F",
+      "hlslSpirvSha256": "E2BEC870626E8028709EA5ED7C6B8D595E233ACBA75BDF794903220A54DB08EF",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/nested_add.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.625,
+        -0.75,
+        -0.5,
+        0.5
+      ],
+      "glslOutputRGBA32F": [
+        0.625,
+        -0.75,
+        -0.5,
+        0.5
+      ],
+      "hlslOutputRGBA32F": [
+        0.625,
+        -0.75,
+        -0.5,
+        0.5
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "scalar_conversion",
+      "projectionSha256": "55DCD08A6564F9E1199478D9D1F26A8DC09893AB9585DF6882925F1766CF2664",
+      "documentSha256": "96361C67C7972D81F58389E329547E71DBC7DA51D78D359E12804DEF1BBC0D07",
+      "outputType": "Vector4",
+      "glslSha256": "577392F2431B87D89C71F2DF95645212418FD9D03A70D87556244F54255EB34A",
+      "hlslSha256": "80BF2C48DFEBEAA32B42F57A330BB63F1F5FC6D45C98277738FB50803103420E",
+      "glslSpirvSha256": "E09B8FB6CAFAEF821C29894FA40210E04017349F11A16DB96178AA879E89B07D",
+      "hlslSpirvSha256": "F66CF2D153E8DC44881AFC80C5BB5A1F425E279523B999229F2C0B8CBDF08A9A",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/scalar_conversion.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.375,
+        0.375,
+        0.375,
+        1.0
+      ],
+      "glslOutputRGBA32F": [
+        0.375,
+        0.375,
+        0.375,
+        1.0
+      ],
+      "hlslOutputRGBA32F": [
+        0.375,
+        0.375,
+        0.375,
+        1.0
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "base_color_default",
+      "projectionSha256": "13FF7AD3ECAAEB16310FF436BEFB1F0898E6B52BB4DD6486D47FF54B2324B7F6",
+      "documentSha256": "311824555EBBD0DBD9D23F9B7522B95EB4143D5054785C42CFE41496AB5D167E",
+      "outputType": "Vector4",
+      "glslSha256": "DA7A45CB5CC8483700E7112BC2E4773F449882D3FB1B8C5FC4794F93097C1634",
+      "hlslSha256": "EDAD94F22BDF846EA86D095F406DB1DDBC81C19B934EC58AA115C75D9FD4E1A8",
+      "glslSpirvSha256": "1491ACBC660A99EC23954B9925CE76BAD0A4D7F926F3AD9D8E9516BFD05F5F41",
+      "hlslSpirvSha256": "4DF9B989E179BDCF20910566FF879EB2D0FB2D767D87A313A71B5671C9377958",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/base_color_default.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "glslOutputRGBA32F": [
+        0.800000012,
+        0.800000012,
+        0.800000012,
+        1.0
+      ],
+      "hlslOutputRGBA32F": [
+        0.800000012,
+        0.800000012,
+        0.800000012,
+        1.0
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "base_color_subtract",
+      "projectionSha256": "B78A722C30D765904C27A89E502886AF23703886C386E0A3827C39F86E31B349",
+      "documentSha256": "184B2601C47DE2C1BC8BD1307BA4878C9A54EC17480EE905D8EBA973C7EE206E",
+      "outputType": "Vector4",
+      "glslSha256": "E5E5AE690DEEF22D9F285010F0E73D0D9E146EC8A7D912DCF332F1DC840DC8F1",
+      "hlslSha256": "07BB637DD06B4BCBE83C884109F0CD9CFB992D76598DB9B42BD15C2987FD3E28",
+      "glslSpirvSha256": "87652DD25458A4E395A84786E7C33068EA6F8F3F852E970C601672FEBA2E6B88",
+      "hlslSpirvSha256": "2345C23B51FB25AE8DD8C26E07A46C5A2E0DB4118DD32C3E8201CA4246C79906",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/base_color_subtract.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        -0.25,
+        -3.0,
+        7.0,
+        0.25
+      ],
+      "glslOutputRGBA32F": [
+        -0.25,
+        -3.0,
+        7.0,
+        0.25
+      ],
+      "hlslOutputRGBA32F": [
+        -0.25,
+        -3.0,
+        7.0,
+        0.25
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "base_color_multiply",
+      "projectionSha256": "A458C7B718524151BD0E303554E32B9C562EB4D491695785F2718368EBEB8062",
+      "documentSha256": "BC50900EF7E650258B1A710F6F46A47F8594423254674D106781158330F57144",
+      "outputType": "Vector4",
+      "glslSha256": "4073AC93FCA3FE37F994D61676861363091AD24F16D7AD4B724331487DBB076E",
+      "hlslSha256": "6DD31FF59974154F155D9277ED7917E63B4E1704AF62311A695BA12366D60102",
+      "glslSpirvSha256": "5488C675D81EC6F40E54512FA2A57B88562EB937FF727BD57C3804C61CC5FEA4",
+      "hlslSpirvSha256": "C1B324F2D6E18DBC234F6F44E76B97253CE1B5F9867C23683A5779A811004F5C",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/base_color_multiply.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.125,
+        -2.0,
+        -12.0,
+        0.125
+      ],
+      "glslOutputRGBA32F": [
+        0.125,
+        -2.0,
+        -12.0,
+        0.125
+      ],
+      "hlslOutputRGBA32F": [
+        0.125,
+        -2.0,
+        -12.0,
+        0.125
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "base_color_divide_positive_floor",
+      "projectionSha256": "370C3FB1E7BD8311FA4CC06FE0D7A420F6FF5FAD96FCAEB2C232BEF20D97646E",
+      "documentSha256": "569393D85355FF57820D49A7BECAFCFC414B5413F84C5F5BF6978C04990E1658",
+      "outputType": "Vector4",
+      "glslSha256": "EC6EC91365737D7FDD288D9C37F7ED7457D64AA80C8A6B95704DC226F6025C7C",
+      "hlslSha256": "DCDCA3691E2619D40796FB72BAC66941B184B37738FDA1F0DB69003C287106DF",
+      "glslSpirvSha256": "D60A050EA91E59C20B476AD592B2016731D73C9EB6D9F290852DE7EA86AFC064",
+      "hlslSpirvSha256": "77F8F8965D1B2A7365D924D23347A249335D35FD1FF4CF971DAF30F632BCDE7D",
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/base_color_divide_positive_floor.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimize": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "expectedOutputRGBA32F": [
+        0.5,
+        -2.0,
+        300000.0,
+        2.0
+      ],
+      "glslOutputRGBA32F": [
+        0.5,
+        -2.0,
+        300000.0,
+        2.0
+      ],
+      "hlslOutputRGBA32F": [
+        0.5,
+        -2.0,
+        300000.0,
+        2.0
+      ],
+      "exactBinary32GoldenMatch": true,
+      "outputReadbackError": null,
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "dynamic_roughness_uv0_x",
+      "outputType": "Float",
+      "sourceSha256": "9FA0D193FFA456835250BA831CAA9043756BF604A8A0CB7CF29F83248A915437",
+      "glslSha256": "75B1E18B475BE8C0170446E261F2D53EF3B83B0784B34ABA29DDBFA3BB92B969",
+      "hlslSha256": "D43DDF824A03A59EA98964A06E54E3F4A4A4D06060411BA77CE839EED84F8A97",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "x",
+          "valueType": "Float",
+          "hlslExpression": "In.UV.x",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "glslCompile": {
+        "exitCode": 0,
+        "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x.frag\n",
+        "stderr": ""
+      },
+      "hlslCompile": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "glslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "hlslOptimizedValidation": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "interfaceMatch": true,
+      "dynamicInputRetained": true,
+      "gpuExecution": false,
+      "status": "passed",
+      "numericSpecializations": [
+        {
+          "uv0X": -0.25,
+          "expectedBinary32": 0.0,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_00.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 30\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n    %float_0 = OpConstant %float 0\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_0\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.0,
+            "outputError": null,
+            "sourceSha256": "650A825D136A772C3053A01B91526DB27503E62AE99174386B233063E50822BC",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %6 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n    %float_0 = OpConstant %float 0\n       %main = OpFunction %void None %6\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_0\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.0,
+            "outputError": null,
+            "sourceSha256": "86E65370B2BB069DDE4684F815DB490EE0035E67D49107A22546E915E27372DA",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.0,
+          "expectedBinary32": 0.125,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_01.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 28\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%float_0_125 = OpConstant %float 0.125\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_0_125\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.125,
+            "outputError": null,
+            "sourceSha256": "65AA20326D4F150033954CF5E921C1E900D40D55F768B13308D8A79F7DA8A776",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%float_0_125 = OpConstant %float 0.125\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %7 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n       %main = OpFunction %void None %7\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_0_125\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.125,
+            "outputError": null,
+            "sourceSha256": "9C181F3693FAF2E208168A179F5E447106CE69D27E265F1DDA64A897F8FAB2B8",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.125,
+          "expectedBinary32": 0.1875,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_02.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 29\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n%float_0_1875 = OpConstant %float 0.1875\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_0_1875\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.1875,
+            "outputError": null,
+            "sourceSha256": "211EB1199F894C5D28389BB9899939A80A77BEC9583CB7520C362A9D6E2B241C",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %6 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n%float_0_1875 = OpConstant %float 0.1875\n       %main = OpFunction %void None %6\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_0_1875\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.1875,
+            "outputError": null,
+            "sourceSha256": "B4A9E1A41EE00B4AE51B7DB4088CEDCA6E6DC8CC3F785CAF01A0AFFE27ECDF74",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.5,
+          "expectedBinary32": 0.375,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_03.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 29\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n%float_0_375 = OpConstant %float 0.375\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_0_375\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.375,
+            "outputError": null,
+            "sourceSha256": "FB6C33CF0D97025D7579D81CFC0FB2FD24FBD0FFA0A6B42E700D7CCA172F555D",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %6 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n%float_0_375 = OpConstant %float 0.375\n       %main = OpFunction %void None %6\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_0_375\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.375,
+            "outputError": null,
+            "sourceSha256": "B954E9E9CB659BEEAF58C083D81732E7262C8FDF70D39A59D9731ADA98E28B20",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.0,
+          "expectedBinary32": 0.625,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_04.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 29\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n%float_0_625 = OpConstant %float 0.625\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_0_625\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.625,
+            "outputError": null,
+            "sourceSha256": "02F2DB524C224983E0A0D2664D5D1A49436EDF8DE29A2CFEEF4AE881506B43A3",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %6 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n%float_0_625 = OpConstant %float 0.625\n       %main = OpFunction %void None %6\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_0_625\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 0.625,
+            "outputError": null,
+            "sourceSha256": "2E23ED442ED5F6339F786DB8B63F491CE5242255E5BA479C44226A2E8CE0F039",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.75,
+          "expectedBinary32": 1.0,
+          "glsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "<repo>/temp/shader-graph-core-projection-compile/dynamic_roughness_uv0_x_sample_05.frag\n",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Khronos Glslang Reference Front End; 11\n; Bound: 30\n; Schema: 0\n               OpCapability Shader\n          %1 = OpExtInstImport \"GLSL.std.450\"\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %artifactGraphOutput %artifactHostUV\n               OpExecutionMode %main OriginUpperLeft\n               OpSource GLSL 450\n               OpName %main \"main\"\n               OpName %artifactGraphOutput \"artifactGraphOutput\"\n               OpName %artifactHostUV \"artifactHostUV\"\n               OpDecorate %artifactGraphOutput Location 0\n               OpDecorate %artifactHostUV Location 0\n       %void = OpTypeVoid\n          %3 = OpTypeFunction %void\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n%artifactGraphOutput = OpVariable %_ptr_Output_float Output\n    %v2float = OpTypeVector %float 2\n%_ptr_Input_v2float = OpTypePointer Input %v2float\n%artifactHostUV = OpVariable %_ptr_Input_v2float Input\n    %float_1 = OpConstant %float 1\n       %main = OpFunction %void None %3\n          %5 = OpLabel\n               OpStore %artifactGraphOutput %float_1\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 1.0,
+            "outputError": null,
+            "sourceSha256": "C464B812AAFEA3E9C5B6297AF3AD65EAD202630EDE75688B0C7B2530D8142CD1",
+            "status": "passed"
+          },
+          "hlsl": {
+            "compile": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "validation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimize": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "optimizedValidation": {
+              "exitCode": 0,
+              "stdout": "",
+              "stderr": ""
+            },
+            "disassembly": {
+              "exitCode": 0,
+              "stdout": "; SPIR-V\n; Version: 1.5\n; Generator: Google spiregg; 0\n; Bound: 9\n; Schema: 0\n               OpCapability Shader\n               OpMemoryModel Logical GLSL450\n               OpEntryPoint Fragment %main \"main\" %out_var_SV_Target0\n               OpExecutionMode %main OriginUpperLeft\n               OpSource HLSL 600\n               OpName %out_var_SV_Target0 \"out.var.SV_Target0\"\n               OpName %main \"main\"\n               OpDecorate %out_var_SV_Target0 Location 0\n      %float = OpTypeFloat 32\n%_ptr_Output_float = OpTypePointer Output %float\n       %void = OpTypeVoid\n          %6 = OpTypeFunction %void\n%out_var_SV_Target0 = OpVariable %_ptr_Output_float Output\n    %float_1 = OpConstant %float 1\n       %main = OpFunction %void None %6\n          %8 = OpLabel\n               OpStore %out_var_SV_Target0 %float_1\n               OpReturn\n               OpFunctionEnd\n",
+              "stderr": ""
+            },
+            "output": 1.0,
+            "outputError": null,
+            "sourceSha256": "B772392312CD731284E7816153B7A5DF78F9556402E289A1683EC0C89B954EBE",
+            "status": "passed"
+          },
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        }
+      ],
+      "coreRoughnessEpilogue": {
+        "sourceContract": "roughness = clamp(graphRoughness, 0.04f, 1.0f);",
+        "glslExpression": "}",
+        "hlslExpression": "}",
+        "numericSpecializations": [
+          {
+            "uv0X": -0.25,
+            "expectedRoughnessBinary32": 0.03999999910593033,
+            "glslOutput": 0.0399999991,
+            "hlslOutput": 0.0399999991,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          },
+          {
+            "uv0X": 0.0,
+            "expectedRoughnessBinary32": 0.125,
+            "glslOutput": 0.125,
+            "hlslOutput": 0.125,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          },
+          {
+            "uv0X": 0.125,
+            "expectedRoughnessBinary32": 0.1875,
+            "glslOutput": 0.1875,
+            "hlslOutput": 0.1875,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          },
+          {
+            "uv0X": 0.5,
+            "expectedRoughnessBinary32": 0.375,
+            "glslOutput": 0.375,
+            "hlslOutput": 0.375,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          },
+          {
+            "uv0X": 1.0,
+            "expectedRoughnessBinary32": 0.625,
+            "glslOutput": 0.625,
+            "hlslOutput": 0.625,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          },
+          {
+            "uv0X": 1.75,
+            "expectedRoughnessBinary32": 1.0,
+            "glslOutput": 1.0,
+            "hlslOutput": 1.0,
+            "exactBinary32GoldenMatch": true,
+            "status": "passed"
+          }
+        ],
+        "status": "passed"
+      }
+    },
+    {
+      "caseId": "legacy_roughness_subtract",
+      "operationId": "artifact.rd.math.subtract.float32",
+      "candidateSha256": "1E6383A6EBBE9860DB27520F31A9A819401436350E2326A494497445A5BFB4F5",
+      "hlslBodySha256": "0F27A5E0852E6E6028E288276A242BD0C3EF9ED10B9A3774CF1F55566C63F866",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "x",
+          "valueType": "Float",
+          "hlslExpression": "In.UV.x",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "numericSpecializations": [
+        {
+          "uv0X": -0.25,
+          "expectedBinary32": -0.625,
+          "glslOutput": -0.625,
+          "hlslOutput": -0.625,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.0,
+          "expectedBinary32": -0.375,
+          "glslOutput": -0.375,
+          "hlslOutput": -0.375,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.125,
+          "expectedBinary32": -0.25,
+          "glslOutput": -0.25,
+          "hlslOutput": -0.25,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.5,
+          "expectedBinary32": 0.125,
+          "glslOutput": 0.125,
+          "hlslOutput": 0.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.0,
+          "expectedBinary32": 0.625,
+          "glslOutput": 0.625,
+          "hlslOutput": 0.625,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.75,
+          "expectedBinary32": 1.375,
+          "glslOutput": 1.375,
+          "hlslOutput": 1.375,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        }
+      ],
+      "gpuExecution": false,
+      "status": "passed"
+    },
+    {
+      "caseId": "legacy_roughness_dividePositiveFloor",
+      "operationId": "artifact.rd.math.divide.positive_floor.float32",
+      "candidateSha256": "CA452A1F38EA76ECF03D861A626ED5DF37BE408332801D9E47011B5358D09388",
+      "hlslBodySha256": "63DBBD36507FB1FDD98037AC305512B86E3969287671B75210474254D4DCDD07",
+      "contextBindings": [
+        {
+          "contextId": "artifact.material.surface.uv0",
+          "component": "x",
+          "valueType": "Float",
+          "hlslExpression": "In.UV.x",
+          "nodeIds": [
+            "uv"
+          ]
+        }
+      ],
+      "numericSpecializations": [
+        {
+          "uv0X": -0.25,
+          "expectedBinary32": -24999.875,
+          "glslOutput": -24999.875,
+          "hlslOutput": -24999.875,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.0,
+          "expectedBinary32": 0.125,
+          "glslOutput": 0.125,
+          "hlslOutput": 0.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.125,
+          "expectedBinary32": 12500.125,
+          "glslOutput": 12500.125,
+          "hlslOutput": 12500.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 0.5,
+          "expectedBinary32": 50000.125,
+          "glslOutput": 50000.125,
+          "hlslOutput": 50000.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.0,
+          "expectedBinary32": 100000.125,
+          "glslOutput": 100000.125,
+          "hlslOutput": 100000.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        },
+        {
+          "uv0X": 1.75,
+          "expectedBinary32": 175000.125,
+          "glslOutput": 175000.125,
+          "hlslOutput": 175000.125,
+          "exactBinary32GoldenMatch": true,
+          "status": "passed"
+        }
+      ],
+      "gpuExecution": false,
+      "status": "passed"
+    }
+  ]
+}

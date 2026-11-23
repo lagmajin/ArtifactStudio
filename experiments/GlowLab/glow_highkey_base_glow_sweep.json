@@ -1,0 +1,39 @@
+{
+  "intent": "Find a high-key headroom range for the standard multiscale Glow while keeping its broad halo role; exploratory control sweep.",
+  "source": "walkway-orbit-cc0.mp4 frame 20 (source frame 2.0–6.0 excerpt)",
+  "compute": "cpu",
+  "profiles": {
+    "glow-gain-0p05": {
+      "effect_id": "glow",
+      "properties": {
+        "glowGain": 0.05,
+        "layerCount": 4,
+        "baseSigma": 10.0
+      }
+    },
+    "glow-gain-0p10": {
+      "effect_id": "glow",
+      "properties": {
+        "glowGain": 0.1,
+        "layerCount": 4,
+        "baseSigma": 10.0
+      }
+    },
+    "glow-gain-0p20": {
+      "effect_id": "glow",
+      "properties": {
+        "glowGain": 0.2,
+        "layerCount": 4,
+        "baseSigma": 10.0
+      }
+    },
+    "glow-gain-0p50": {
+      "effect_id": "glow",
+      "properties": {
+        "glowGain": 0.5,
+        "layerCount": 4,
+        "baseSigma": 10.0
+      }
+    }
+  }
+}

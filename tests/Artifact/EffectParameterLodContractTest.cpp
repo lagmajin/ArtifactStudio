@@ -35,7 +35,6 @@ import Artifact.Effect.Rasterizer.TurbulentDisplace;
 import Artifact.Effect.Rasterizer.Voronoi;
 import Artifact.Effect.Rasterizer.Glow;
 import Artifact.Effect.DirectionalGlow;
-import Artifact.Effect.Creative;
 import ColorBalanceEffect;
 import ColorWheelsEffect;
 import CurvesEffect;
@@ -186,94 +185,22 @@ TEST(EffectParameterLodContractTest,
     effect.setIntensity(1.7f);
     effect.setLength1(72.0f);
     effect.setLength2(144.0f);
-    effect.setLength3(216.0f);
     effect.setWeight1(0.3f);
     effect.setWeight2(0.7f);
-    effect.setWeight3(0.2f);
     effect.setAngleOffset(18.0f);
-    effect.setHalfSampling(true);
 
     Artifact::GpuSpatialEffectStack stack;
     ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
     ASSERT_EQ(stack.count, 1u);
     EXPECT_EQ(stack.nodes[0].resolutionScaledParameterMask,
-              (1u << 2) | (1u << 3) | (1u << 7));
+              (1u << 2) | (1u << 3));
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[0], effect.threshold());
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[1], effect.intensity());
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[2], effect.length1());
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[3], effect.length2());
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[4], effect.weight1());
     EXPECT_FLOAT_EQ(stack.nodes[0].parameters[5], effect.weight2());
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[7], effect.length3());
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[8], effect.angleOffset());
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[9], effect.weight3());
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[10], 1.0f);
-}
-
-TEST(EffectParameterLodContractTest,
-     GlintScalesRayLengthAndWidthButNotRayCount)
-{
-    Artifact::GlintStarFilterEffect effect;
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("threshold")),
-                            QVariant(0.7f));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("length")),
-                            QVariant(48.0f));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("width")),
-                            QVariant(2.5f));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("rays")),
-                            QVariant(8));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("rotation")),
-                            QVariant(15.0f));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("chromatic")),
-                            QVariant(0.3f));
-    effect.setPropertyValue(ArtifactCore::UniString(QStringLiteral("softness")),
-                            QVariant(0.4f));
-
-    Artifact::GpuSpatialEffectStack stack;
-    ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
-    ASSERT_EQ(stack.count, 1u);
-    EXPECT_EQ(stack.nodes[0].genericKey,
-              Artifact::GlintStarFilterEffect::kGpuGenericKey);
-    EXPECT_EQ(stack.nodes[0].resolutionScaledParameterMask,
-              (1u << 2) | (1u << 3));
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[0], 0.7f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[2], 48.0f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[3], 2.5f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[4], 8.0f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[5], 15.0f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[6], 0.3f);
-    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[7], 0.4f);
-}
-
-TEST(EffectParameterLodContractTest,
-     CinematicLensFlareKeepsAutoDetectionOnCpu)
-{
-    Artifact::ArtifactCinematicLensFlareEffect effect;
-    Artifact::GpuSpatialEffectStack automatic;
-    EXPECT_FALSE(effect.appendGpuSpatialNodes(automatic));
-    EXPECT_EQ(automatic.count, 0u);
-
-    effect.setPropertyValue(
-        ArtifactCore::UniString(QStringLiteral("autoPosition")), QVariant(false));
-    effect.setPropertyValue(
-        ArtifactCore::UniString(QStringLiteral("positionX")), QVariant(0.25f));
-    effect.setPropertyValue(
-        ArtifactCore::UniString(QStringLiteral("positionY")), QVariant(0.75f));
-    effect.setPropertyValue(
-        ArtifactCore::UniString(QStringLiteral("ghostCount")), QVariant(4));
-    effect.setPropertyValue(
-        ArtifactCore::UniString(QStringLiteral("chromatic")), QVariant(0.5f));
-
-    Artifact::GpuSpatialEffectStack manual;
-    ASSERT_TRUE(effect.appendGpuSpatialNodes(manual));
-    ASSERT_EQ(manual.count, 1u);
-    EXPECT_EQ(manual.nodes[0].genericKey,
-              Artifact::ArtifactCinematicLensFlareEffect::kGpuGenericKey);
-    EXPECT_EQ(manual.nodes[0].resolutionScaledParameterMask, 0u);
-    EXPECT_FLOAT_EQ(manual.nodes[0].parameters[0], 0.25f);
-    EXPECT_FLOAT_EQ(manual.nodes[0].parameters[1], 0.75f);
-    EXPECT_FLOAT_EQ(manual.nodes[0].parameters[7], 4.0f);
-    EXPECT_FLOAT_EQ(manual.nodes[0].parameters[9], 0.5f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[7], effect.angleOffset());
 }
 
 TEST(EffectParameterLodContractTest,

@@ -12,7 +12,24 @@ if(ARTIFACT_BUILD_TESTS)
         TIMEOUT 30
     )
 
-    add_subdirectory(MeshShaderLodStandalone)
+    artifact_add_test(ArtifactCoreShaderGraphContractTest
+        SOURCES
+            ShaderGraphContractTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreShaderGraphContractTest PROPERTIES
+        LABELS "core;shader-graph;cpu;contract;standalone"
+        TIMEOUT 30
+    )
+
+    artifact_add_test(ArtifactCoreMeshShaderLodStandaloneTest
+        SOURCES MeshShaderLodStandaloneTest.cpp
+        LIBS ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreMeshShaderLodStandaloneTest PROPERTIES
+        LABELS "core;mesh-shader;meshlet;lod;cpu;contract"
+    )
 endif()
 
 if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
@@ -31,6 +48,21 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
             ArtifactCore
             ${_artifact_rt_test_backend}
     )
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_PBR_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx"
+        )
+    endif()
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/multi-material-pbr.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_MULTI_MATERIAL_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/multi-material-pbr.fbx"
+        )
+    endif()
+    if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/fabric-pillow/fabric-pillow.fbx")
+        target_compile_definitions(ArtifactCoreRayTracingAcceptanceTest PRIVATE
+            ARTIFACT_TEST_FBX_FABRIC_PILLOW_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/fbx-materials/fabric-pillow/fabric-pillow.fbx"
+        )
+    endif()
     if(PLATFORM_WIN32)
         copy_shader_compiler_dlls(ArtifactCoreRayTracingAcceptanceTest
             DXCOMPILER_FOR_SPIRV YES)
@@ -87,8 +119,147 @@ if(ARTIFACT_ENABLE_MESH_SHADER_LOD_TEST AND NOT VULKAN_SUPPORTED)
 endif()
 
 
+# These contracts previously rebuilt reduced copies of production modules in
+# separate standalone projects. Keep their tests in the repository test graph
+# and link the owning production target so the configured build products are
+# reused.
+artifact_add_test(ArtifactCoreConfigLayerStandaloneTest
+    SOURCES ConfigLayerStandaloneTest.cpp
+    LIBS ArtifactCoreConfiguration
+)
+set_tests_properties(ArtifactCoreConfigLayerStandaloneTest PROPERTIES
+    LABELS "core;configuration;config-layer;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreDepthMapStandaloneTest
+    SOURCES DepthMapContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreDepthMapStandaloneTest PROPERTIES
+    LABELS "core;image;depth-map;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFallbackPolicyStandaloneTest
+    SOURCES FallbackPolicyStandaloneTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreFallbackPolicyStandaloneTest PROPERTIES
+    LABELS "core;diagnostics;fallback-policy;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFastSettingsStoreContractTest
+    SOURCES FastSettingsStoreContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreFastSettingsStoreContractTest PROPERTIES
+    LABELS "core;settings;persistence;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFileWatcherStandaloneTest
+    SOURCES FileWatcherStandaloneTest.cpp
+    LIBS ArtifactCoreData
+)
+set_tests_properties(ArtifactCoreFileWatcherStandaloneTest PROPERTIES
+    LABELS "core;data;file-watcher;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFontLicenseRegistryStandaloneTest
+    SOURCES FontLicenseRegistryStandaloneTest.cpp
+    LIBS ArtifactCoreText
+)
+set_tests_properties(ArtifactCoreFontLicenseRegistryStandaloneTest PROPERTIES
+    LABELS "core;font;license-registry;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFormantExtractorStandaloneTest
+    SOURCES FormantExtractorStandaloneTest.cpp
+    LIBS ArtifactCoreAudio
+)
+set_tests_properties(ArtifactCoreFormantExtractorStandaloneTest PROPERTIES
+    LABELS "audio;formant;phoneme;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreInterpolatorFactoryStandaloneTest
+    SOURCES InterpolatorFactoryStandaloneTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreInterpolatorFactoryStandaloneTest PROPERTIES
+    LABELS "core;math;interpolation;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreJsonLikeContractTest
+    SOURCES JsonLikeContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreJsonLikeContractTest PROPERTIES
+    LABELS "core;json;concept;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreMultiIndexContainerStandaloneTest
+    SOURCES MultiIndexContainerStandaloneTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreMultiIndexContainerStandaloneTest PROPERTIES
+    LABELS "container;multi-index;lookup;lifecycle;contract"
+)
+
+artifact_add_test(ArtifactCorePathUtilsContractTest
+    SOURCES PathUtilsContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCorePathUtilsContractTest PROPERTIES
+    LABELS "core;path;filesystem;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreShapeVertexContractTest
+    SOURCES ShapeVertexContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreShapeVertexContractTest PROPERTIES
+    LABELS "core;shape-vertex;geometry;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreSmokeEmitterStandaloneTest
+    SOURCES SmokeEmitterStandaloneTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreSmokeEmitterStandaloneTest PROPERTIES
+    LABELS "core;physics;fluid;smoke"
+)
+
+artifact_add_test(ArtifactCoreStringViewContractTest
+    SOURCES StringViewContractTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreStringViewContractTest PROPERTIES
+    LABELS "core;string;view;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreTypeInferenceStandaloneTest
+    SOURCES TypeInferenceStandaloneTest.cpp
+    LIBS ArtifactCoreData
+)
+set_tests_properties(ArtifactCoreTypeInferenceStandaloneTest PROPERTIES
+    LABELS "core;data;type-inference;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreXYZColorStandaloneTest
+    SOURCES XYZColorStandaloneTest.cpp
+    LIBS ArtifactCore
+)
+set_tests_properties(ArtifactCoreXYZColorStandaloneTest PROPERTIES
+    LABELS "color;xyz-color;cpu;contract"
+)
+
+
 if(ARTIFACT_BUILD_TESTS)
-    add_subdirectory(AnimationDynamicsStandalone)
+    artifact_add_test(ArtifactCoreAnimationDynamicsStandaloneTest
+        SOURCES AnimationDynamicsStandaloneTest.cpp
+        LIBS ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreAnimationDynamicsStandaloneTest PROPERTIES
+        LABELS "core;animation;dynamics;spring;cpu;contract"
+    )
 endif()
 
 
@@ -103,6 +274,8 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
         LABELS "keying;video;cpu;core"
         TIMEOUT 60
         RUN_SERIAL TRUE
+        ENVIRONMENT
+            "ARTIFACT_KEYING_CORE_REAL_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/../Artifact/fixtures/keying/voa-green-screen-frame-2s.jpg"
     )
 endif()
 
@@ -790,6 +963,7 @@ artifact_add_test(ArtifactCorePropertyPathTest
 )
 set_tests_properties(ArtifactCorePropertyPathTest PROPERTIES
     LABELS "property;path;cpu;contract"
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
 
 artifact_add_test(ArtifactCoreSchemaMigrationContractTest
@@ -1181,13 +1355,18 @@ set_tests_properties(ArtifactCoreFracturePlaneImageTest PROPERTIES
 artifact_add_test(ArtifactCoreMathVecTest
     SOURCES
         MathVecTest.cpp
+        MathVecStandaloneTest.cpp
     LIBS
         ArtifactCore
+)
+set_tests_properties(ArtifactCoreMathVecTest PROPERTIES
+    LABELS "math;vector;coordinates;cpu;contract;core"
 )
 
 artifact_add_test(ArtifactCoreRandomStreamContractTest
     SOURCES
         RandomStreamContractTest.cpp
+        RandomStreamStandaloneTest.cpp
     LIBS
         ArtifactCore
 )
@@ -1692,6 +1871,24 @@ set_tests_properties(ArtifactCoreProcedural3DQualityLodTest PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     LABELS "procedural-3d;lod;mesh;cpu;contract;core"
 )
+if(WIN32)
+    find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
+        PATHS "${Qt6Gui_DIR}" NO_DEFAULT_PATH
+    )
+    add_custom_command(TARGET ArtifactCoreProcedural3DQualityLodTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+            "$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms/"
+        VERBATIM
+    )
+    set_tests_properties(ArtifactCoreProcedural3DQualityLodTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>/platforms"
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactCoreProcedural3DQualityLodTest>;PATH=path_list_prepend:${VCPKG_INSTALLED}/debug/bin;PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+endif()
 artifact_add_test(ArtifactCorePreviewSettingsLodContractTest
     SOURCES
         PreviewSettingsLodContractTest.cpp
@@ -1725,6 +1922,7 @@ artifact_add_test(ArtifactCoreBezierArcLengthTest
 artifact_add_test(ArtifactCoreKeyframeSplineTest
     SOURCES
         KeyframeSplineTest.cpp
+        KeyframeContractTest.cpp
     LIBS
         ArtifactCore
 )
@@ -1754,8 +1952,12 @@ set_tests_properties(ArtifactCoreTrajectoryKeyframeContractTest PROPERTIES
 artifact_add_test(ArtifactCoreEasingFunctionsTest
     SOURCES
         EasingFunctionsTest.cpp
+        EasingContractTest.cpp
     LIBS
         ArtifactCore
+)
+set_tests_properties(ArtifactCoreEasingFunctionsTest PROPERTIES
+    LABELS "animation;easing;cpu;contract;core"
 )
 artifact_add_test(ArtifactCoreEasingLabCurveTest
     SOURCES

@@ -1,0 +1,2479 @@
+{
+  "rd": "rd15-encoding-sensitivity",
+  "status": "completed synthetic equation-mirror sensitivity probe; not Core execution, differential, or quality acceptance",
+  "fixture": {
+    "dimensions": [
+      256,
+      192
+    ],
+    "generation": "deterministic analytic gradient plus synthetic skin/neutral/saturated/detail patches and fixed encoded-RGB cast",
+    "seed": null,
+    "reference": "uncast synthetic sRGB target",
+    "alpha": "opaque RGB only"
+  },
+  "conditions": {
+    "transfer_arms": [
+      "sRGB encoded float",
+      "linear-light float decoded from same sRGB values"
+    ],
+    "primaries": "sRGB/Rec.709 D65 assumed for both arms",
+    "methods": [
+      "Reinhard",
+      "MeanStddev",
+      "Histogram"
+    ],
+    "intensities": [
+      0.25,
+      0.5,
+      1.0
+    ],
+    "comparison": "linear output re-encoded to sRGB before cross-arm and target metrics",
+    "gate": "none; descriptive only"
+  },
+  "source_contract": {
+    "ImageF32x4_RGBA_descriptor": "records transfer and primaries; setColorDescriptor retains those fields while canonicalizing float storage and channel order",
+    "matcher_overload": "passes rgba32fData and dimensions only; descriptor is not read or transformed",
+    "source_sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "mirror": "independent Python equations imported from run_rd1_source_mirror.py; not C++ or runtime parity"
+  },
+  "unverified": [
+    "compiled Core differential",
+    "actual caller metadata population",
+    "ICC/primaries conversion",
+    "HDR and out-of-range float behavior",
+    "alpha and hidden RGB",
+    "visual review",
+    "natural paired portraits and reviewed skin/white",
+    "GPU/product route",
+    "performance"
+  ],
+  "cross_encoding_output_difference": [
+    {
+      "method": "Reinhard",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0005167471721145687,
+          "rgb_p95": 0.0008570072712831278,
+          "rgb_max": 0.0008657792989257285,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.0003159889306309077,
+          "rgb_p95": 0.0006329519105717774,
+          "rgb_max": 0.0007038372272434312,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.004537118009180066,
+          "rgb_p95": 0.013177004853261676,
+          "rgb_max": 0.0131972304946118,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0017395181732409654,
+          "rgb_p95": 0.008839501798078242,
+          "rgb_max": 0.016412625100000577,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.001785527760383639,
+          "rgb_p95": 0.013022307639997177,
+          "rgb_max": 0.029260666120982715,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "Reinhard",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0010271160759947572,
+          "rgb_p95": 0.0016955913744865492,
+          "rgb_max": 0.0017130180876254175,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.0006351677261406304,
+          "rgb_p95": 0.0012720875325322734,
+          "rgb_max": 0.001414099708960781,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.00867596369453908,
+          "rgb_p95": 0.02502789308260056,
+          "rgb_max": 0.02502894658103144,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.003524062269015711,
+          "rgb_p95": 0.017814646990207794,
+          "rgb_max": 0.03637259166656859,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.00363625867169947,
+          "rgb_p95": 0.024984392218831142,
+          "rgb_max": 0.06873375914370758,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "Reinhard",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0020293807559756843,
+          "rgb_p95": 0.0033194788246938,
+          "rgb_max": 0.0033539304831116667,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.0012831435608814054,
+          "rgb_p95": 0.00256877134564637,
+          "rgb_max": 0.002853702247470946,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.015575665881791762,
+          "rgb_p95": 0.0449194057856559,
+          "rgb_max": 0.044971252841763565,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0073538880966719355,
+          "rgb_p95": 0.035956420561299496,
+          "rgb_max": 0.086861904483787,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.0077761901057228,
+          "rgb_p95": 0.04474286731821203,
+          "rgb_max": 0.18432009842363187,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.00010985669871444164,
+          "rgb_p95": 0.0002256267858431471,
+          "rgb_max": 0.0002632832255150541,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 7.82027469580824e-05,
+          "rgb_p95": 0.00019430581082391374,
+          "rgb_max": 0.0002490519304855221,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.00019096822654501595,
+          "rgb_p95": 0.00040650716873408266,
+          "rgb_max": 0.00041263716379735804,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0002784073809127808,
+          "rgb_p95": 0.0017139398745250334,
+          "rgb_max": 0.0023817117784387387,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.00017732048265286387,
+          "rgb_p95": 0.0006425693139324173,
+          "rgb_max": 0.0023817117784387387,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.00022127267652549427,
+          "rgb_p95": 0.0004515204577067444,
+          "rgb_max": 0.0005270413286673215,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.00015902209729942523,
+          "rgb_p95": 0.0003958023085445239,
+          "rgb_max": 0.0005194927838370056,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.00037916046808142575,
+          "rgb_p95": 0.0008159063313308845,
+          "rgb_max": 0.0008282492857762946,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0005609473663593322,
+          "rgb_p95": 0.0034740830505042564,
+          "rgb_max": 0.004855823936384063,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.00035499837977185706,
+          "rgb_p95": 0.0012899310890592264,
+          "rgb_max": 0.004855823936384063,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0004488529116852879,
+          "rgb_p95": 0.000904087267295739,
+          "rgb_max": 0.0010560025439748655,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.00033034107397710374,
+          "rgb_p95": 0.0008696389054834164,
+          "rgb_max": 0.0011232202015205583,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.0007472187043362867,
+          "rgb_p95": 0.0016435331854974533,
+          "rgb_max": 0.0016685910655826475,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0011398297066404187,
+          "rgb_p95": 0.007142065973364503,
+          "rgb_max": 0.010109897305431464,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.0007120265313364461,
+          "rgb_p95": 0.0025992407207474366,
+          "rgb_max": 0.010109897305431464,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0006165128494422745,
+          "rgb_p95": 0.0016524500044827195,
+          "rgb_max": 0.002266547623736015,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.00041484131349482737,
+          "rgb_p95": 0.0010146709105383067,
+          "rgb_max": 0.014361853017367587,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.0007491279683333991,
+          "rgb_p95": 0.002332921503127694,
+          "rgb_max": 0.0023430883753770004,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0005647184401911892,
+          "rgb_p95": 0.0015964491187198115,
+          "rgb_max": 0.0031254578758312113,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.0006123152162654689,
+          "rgb_p95": 0.0017670892536876537,
+          "rgb_max": 0.037530324343394456,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.001233831785519022,
+          "rgb_p95": 0.00330798388941439,
+          "rgb_max": 0.0045379697048586465,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.000825538077473763,
+          "rgb_p95": 0.002020654981746861,
+          "rgb_max": 0.0287101944056527,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.001502263239064555,
+          "rgb_p95": 0.0047042395383569136,
+          "rgb_max": 0.0047180502975661676,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0011336068776830036,
+          "rgb_p95": 0.0032579394799822636,
+          "rgb_max": 0.006375588252595821,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.0012273469746686952,
+          "rgb_p95": 0.003568957264949213,
+          "rgb_max": 0.0750417040702703,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "pixels": 4096,
+          "rgb_mae": 0.0024709537020479646,
+          "rgb_p95": 0.0066283875933869085,
+          "rgb_max": 0.009095497261805974,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "neutral_white": {
+          "pixels": 4096,
+          "rgb_mae": 0.0016348740240899459,
+          "rgb_p95": 0.00401145183465168,
+          "rgb_max": 0.05736692710839797,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "saturated": {
+          "pixels": 4096,
+          "rgb_mae": 0.0030217900499156566,
+          "rgb_p95": 0.009568403667140457,
+          "rgb_max": 0.009568403667140457,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "gradient_detail": {
+          "pixels": 9216,
+          "rgb_mae": 0.0022850283320525497,
+          "rgb_p95": 0.006526396426089709,
+          "rgb_max": 0.013294237559972888,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        },
+        "whole_frame": {
+          "pixels": 49152,
+          "rgb_mae": 0.002466209418784741,
+          "rgb_p95": 0.007180306235419931,
+          "rgb_max": 0.1500052073153946,
+          "output_below_zero_ratio": 0.0,
+          "output_above_one_ratio": 0.0,
+          "output_non_finite_values": 0
+        }
+      }
+    }
+  ],
+  "results": [
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Reinhard",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0026520205697629037,
+            "rgb_p95": 0.006631653980217145,
+            "rgb_max": 0.006843001716788755,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0004376474712336627,
+            "rgb_p95": 0.0006260784955935961,
+            "rgb_max": 0.0006487599993958426,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.008355177320937442,
+            "rgb_p95": 0.012791015529403316,
+            "rgb_max": 0.01366697759290314,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.001498189052760484,
+            "rgb_p95": 0.0027526035182157127,
+            "rgb_max": 0.0029030224070968336,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.004194747908792473,
+            "rgb_p95": 0.007083247882518351,
+            "rgb_max": 0.007103645907596268,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0010776255590296358,
+            "rgb_p95": 0.0011621105759944683,
+            "rgb_max": 0.0011661352431696081,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0032773075749535393,
+            "rgb_p95": 0.008366352297764279,
+            "rgb_max": 0.010498461597281517,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0007517597766844483,
+            "rgb_p95": 0.0012844761292590823,
+            "rgb_max": 0.002083446463333305,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0034654726330463985,
+            "rgb_p95": 0.008358187441971254,
+            "rgb_max": 0.01366697759290314,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0009533586739879184,
+            "rgb_p95": 0.0022049863288685356,
+            "rgb_max": 0.0031364050354628914,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Reinhard",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.002297490773256686,
+            "rgb_p95": 0.006087962732071572,
+            "rgb_max": 0.0063303583392753104,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0008751302111917138,
+            "rgb_p95": 0.0012517130835580925,
+            "rgb_max": 0.0012979328175133364,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.006854767386801779,
+            "rgb_p95": 0.010409021574153798,
+            "rgb_max": 0.010996383686642242,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.002998598986896145,
+            "rgb_p95": 0.0055065739614110765,
+            "rgb_max": 0.0058075288080078336,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0038131396528013235,
+            "rgb_p95": 0.006052572920439592,
+            "rgb_max": 0.0060753623784545185,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.00215367301801517,
+            "rgb_p95": 0.0023245138589272907,
+            "rgb_max": 0.0023325659187070635,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0028432564076255745,
+            "rgb_p95": 0.007794012877909373,
+            "rgb_max": 0.010166794994520667,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0015050647100911863,
+            "rgb_p95": 0.0025795079121339326,
+            "rgb_max": 0.004192718501790038,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0030562316943261235,
+            "rgb_p95": 0.00786346335496281,
+            "rgb_max": 0.010996383686642242,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0019087004806441835,
+            "rgb_p95": 0.004418483920106769,
+            "rgb_max": 0.006338152205266345,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Reinhard",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0018267180021578169,
+            "rgb_p95": 0.004999000966419143,
+            "rgb_max": 0.005303434725394185,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0017497303902626298,
+            "rgb_p95": 0.002503549409705541,
+            "rgb_max": 0.0025976793304492984,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003847167151024851,
+            "rgb_p95": 0.00971350143290195,
+            "rgb_max": 0.010962645955990169,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.006006199222673074,
+            "rgb_p95": 0.011018580552336621,
+            "rgb_max": 0.011620956203555965,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003111613731622166,
+            "rgb_p95": 0.005404068650939842,
+            "rgb_max": 0.005416880492601084,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004301477809850389,
+            "rgb_p95": 0.004650180895065414,
+            "rgb_max": 0.004666295894716177,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0022501553539752053,
+            "rgb_p95": 0.007593833673013639,
+            "rgb_max": 0.009653361387720993,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.003016557570920339,
+            "rgb_p95": 0.005199659431359416,
+            "rgb_max": 0.008491333415693025,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0026039428783656737,
+            "rgb_p95": 0.008720540474664196,
+            "rgb_max": 0.015802613020598127,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.003825685205004704,
+            "rgb_p95": 0.008874365491066363,
+            "rgb_max": 0.012952613020598136,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "MeanStddev",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.002280295608520529,
+            "rgb_p95": 0.005381367187500041,
+            "rgb_max": 0.0055163671875000375,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0007600985361734836,
+            "rgb_p95": 0.0017937890624999397,
+            "rgb_max": 0.0018387890625000125,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.007390024780273453,
+            "rgb_p95": 0.011657714285714271,
+            "rgb_max": 0.012427499999999925,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0024633415934244714,
+            "rgb_p95": 0.003885904761904757,
+            "rgb_max": 0.004142500000000049,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0034299945068359365,
+            "rgb_p95": 0.006083999999999978,
+            "rgb_max": 0.006097499999999978,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0011433315022786477,
+            "rgb_p95": 0.0020280000000000298,
+            "rgb_max": 0.0020324999999999926,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.002860104453580922,
+            "rgb_p95": 0.00670117185314686,
+            "rgb_max": 0.008122500000000032,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0009533681511936246,
+            "rgb_p95": 0.0022337239510489167,
+            "rgb_max": 0.002707499999999974,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0029902335912722227,
+            "rgb_p95": 0.006777125000000023,
+            "rgb_max": 0.012427499999999925,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0009967445304240603,
+            "rgb_p95": 0.0022590416666666835,
+            "rgb_max": 0.004142500000000049,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "MeanStddev",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0015201970723470453,
+            "rgb_p95": 0.0035875781250001015,
+            "rgb_max": 0.003677578125000136,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0015201970723469672,
+            "rgb_p95": 0.0035875781249998795,
+            "rgb_max": 0.003677578124999914,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.004926683186848983,
+            "rgb_p95": 0.007771809523809403,
+            "rgb_max": 0.008284999999999987,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004926683186848942,
+            "rgb_p95": 0.007771809523809625,
+            "rgb_max": 0.008284999999999987,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0022866630045573068,
+            "rgb_p95": 0.0040560000000000596,
+            "rgb_max": 0.004065000000000096,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.002286663004557278,
+            "rgb_p95": 0.0040559999999999485,
+            "rgb_max": 0.004064999999999874,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0019067363023872975,
+            "rgb_p95": 0.004467447902097944,
+            "rgb_max": 0.005415000000000059,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0019067363023872483,
+            "rgb_p95": 0.004467447902097833,
+            "rgb_max": 0.005414999999999948,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.001993489060848165,
+            "rgb_p95": 0.00451808333333345,
+            "rgb_max": 0.008284999999999987,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0019934890608481184,
+            "rgb_p95": 0.004518083333333256,
+            "rgb_max": 0.008284999999999987,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "MeanStddev",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 1.0022545582818083e-16,
+            "rgb_p95": 2.220446049250313e-16,
+            "rgb_max": 2.220446049250313e-16,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0030403941446939357,
+            "rgb_p95": 0.00717515624999987,
+            "rgb_max": 0.007355156249999828,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 8.880519294466686e-17,
+            "rgb_p95": 2.220446049250313e-16,
+            "rgb_max": 2.220446049250313e-16,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.009853366373697884,
+            "rgb_p95": 0.01554361904761914,
+            "rgb_max": 0.016570000000000085,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 7.570893420285237e-17,
+            "rgb_p95": 2.220446049250313e-16,
+            "rgb_max": 2.220446049250313e-16,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004573326009114556,
+            "rgb_p95": 0.008111999999999897,
+            "rgb_max": 0.00812999999999986,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 1.0334554874677801e-16,
+            "rgb_p95": 2.220446049250313e-16,
+            "rgb_max": 2.220446049250313e-16,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0038134726047744975,
+            "rgb_p95": 0.008934895804195667,
+            "rgb_max": 0.010829999999999895,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 9.6350750668352e-17,
+            "rgb_p95": 2.220446049250313e-16,
+            "rgb_max": 2.498001805406602e-16,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.003986978121696237,
+            "rgb_p95": 0.00903616666666654,
+            "rgb_max": 0.016570000000000085,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Histogram",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.002257791180380033,
+            "rgb_p95": 0.004879058363970623,
+            "rgb_max": 0.005322203584558816,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0011517638200498079,
+            "rgb_p95": 0.0027949728860293677,
+            "rgb_max": 0.0029409649203431254,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.007531912370270378,
+            "rgb_p95": 0.012134965686274474,
+            "rgb_max": 0.021768078431372517,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0023421531184576743,
+            "rgb_p95": 0.0037161358543417178,
+            "rgb_max": 0.011672078431372523,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0033854559964448007,
+            "rgb_p95": 0.005891539215686303,
+            "rgb_max": 0.0059259313725489315,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0011878700126697842,
+            "rgb_p95": 0.0028923529411765125,
+            "rgb_max": 0.0029299607843137343,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.002938511417761619,
+            "rgb_p95": 0.00640377526395175,
+            "rgb_max": 0.00795466591251881,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0010616829901000234,
+            "rgb_p95": 0.002724484437131469,
+            "rgb_max": 0.0039111804470040035,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.003094906787249099,
+            "rgb_p95": 0.006819476190476181,
+            "rgb_max": 0.03737750000000001,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0010772048967003871,
+            "rgb_p95": 0.002798627450980362,
+            "rgb_max": 0.039207500000000006,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Histogram",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.001502068455714809,
+            "rgb_p95": 0.0029920229779411,
+            "rgb_max": 0.003857362745098014,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0023035276400996158,
+            "rgb_p95": 0.005589945772058846,
+            "rgb_max": 0.005881929840686251,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.005210458366842828,
+            "rgb_p95": 0.00889593837535009,
+            "rgb_max": 0.03344015686274515,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004684306236915349,
+            "rgb_p95": 0.007432271708683547,
+            "rgb_max": 0.023344156862745158,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0022436490965201113,
+            "rgb_p95": 0.0039590980392156805,
+            "rgb_max": 0.00405031372549014,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0023757400253395706,
+            "rgb_p95": 0.005784705882353025,
+            "rgb_max": 0.005859921568627469,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.00221272078985467,
+            "rgb_p95": 0.00461562745098032,
+            "rgb_max": 0.005993681475387369,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0021233659802000465,
+            "rgb_p95": 0.005448968874263049,
+            "rgb_max": 0.007822360894008007,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0023095244868264414,
+            "rgb_p95": 0.005163518157038638,
+            "rgb_max": 0.076585,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0021544097934007747,
+            "rgb_p95": 0.005597254901960835,
+            "rgb_max": 0.078415,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "encoded_srgb_float",
+      "descriptor_contract": "sRGB encoded values; transfer=sRGB",
+      "method": "Histogram",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0021500855489493885,
+            "rgb_p95": 0.0045403339460784176,
+            "rgb_max": 0.005813725490196042,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0046070552801992315,
+            "rgb_p95": 0.011179891544117693,
+            "rgb_max": 0.011763859681372502,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.00209244312959556,
+            "rgb_p95": 0.004495798319327671,
+            "rgb_max": 0.0567843137254902,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.009368612473830699,
+            "rgb_p95": 0.014864543417367093,
+            "rgb_max": 0.046688313725490205,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0016480465558619272,
+            "rgb_p95": 0.003568627450980355,
+            "rgb_max": 0.003607843137254929,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004751480050679143,
+            "rgb_p95": 0.011569411764705939,
+            "rgb_max": 0.011719843137254937,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0022431603194388488,
+            "rgb_p95": 0.004749001673208686,
+            "rgb_max": 0.006666666666666682,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.004246731960400092,
+            "rgb_p95": 0.010897937748526099,
+            "rgb_max": 0.015644721788016014,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0020592518086081967,
+            "rgb_p95": 0.0045660609793655715,
+            "rgb_max": 0.155,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0043088195868015485,
+            "rgb_p95": 0.01119450980392156,
+            "rgb_max": 0.15683,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Reinhard",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0025137064792797024,
+            "rgb_p95": 0.0065382635479531714,
+            "rgb_max": 0.006760372937304027,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0009543951110704358,
+            "rgb_p95": 0.0014693256911895213,
+            "rgb_max": 0.0014907282581386738,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.008645796522076954,
+            "rgb_p95": 0.01342395737981772,
+            "rgb_max": 0.014370817815647863,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0012146842474394627,
+            "rgb_p95": 0.002119661667801309,
+            "rgb_max": 0.002199182184352111,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.00873187000142779,
+            "rgb_p95": 0.015370946918235373,
+            "rgb_max": 0.015377570756229086,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.005273209929317024,
+            "rgb_p95": 0.01422694691823534,
+            "rgb_max": 0.014247570756229067,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0045171787242575655,
+            "rgb_p95": 0.010608928810788565,
+            "rgb_max": 0.019497252540999765,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0021909344244028625,
+            "rgb_p95": 0.010030892053884743,
+            "rgb_max": 0.017907252540999785,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.004901919254168052,
+            "rgb_p95": 0.015335666885462673,
+            "rgb_max": 0.03515827770709409,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.002551040938345574,
+            "rgb_p95": 0.014107666885462666,
+            "rgb_max": 0.0323082777070941,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Reinhard",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0026107911458610584,
+            "rgb_p95": 0.005900409081711189,
+            "rgb_max": 0.006164425067384682,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0019022467928546283,
+            "rgb_p95": 0.0029193552238142378,
+            "rgb_max": 0.0029624228003573005,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.007437824582022942,
+            "rgb_p95": 0.01131331238988631,
+            "rgb_max": 0.012176569671384696,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0024292430790857204,
+            "rgb_p95": 0.0042344943517719225,
+            "rgb_max": 0.004393430328615278,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.012489102765688325,
+            "rgb_p95": 0.02836108453025299,
+            "rgb_max": 0.02836192467085219,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.010144628494881937,
+            "rgb_p95": 0.02711726130268305,
+            "rgb_max": 0.0271176944492314,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.005778918826092356,
+            "rgb_p95": 0.020022419647074907,
+            "rgb_max": 0.04096746567125281,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.004427015916887551,
+            "rgb_p95": 0.01972709460625721,
+            "rgb_max": 0.03937746567125283,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.00629026972251665,
+            "rgb_p95": 0.028289201804927278,
+            "rgb_max": 0.07774493978476782,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.005168134116670835,
+            "rgb_p95": 0.027091924670852197,
+            "rgb_max": 0.07489493978476783,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Reinhard",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003565132076837384,
+            "rgb_p95": 0.004620856366417514,
+            "rgb_max": 0.004968923127891767,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.003779111348268726,
+            "rgb_p95": 0.005764189445883114,
+            "rgb_max": 0.005851077053497966,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.005020438144519878,
+            "rgb_p95": 0.010237949894236098,
+            "rgb_max": 0.011618386341190279,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004858272393068252,
+            "rgb_p95": 0.008449802955440178,
+            "rgb_max": 0.008767254046601614,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.018616807830265075,
+            "rgb_p95": 0.05032346916356445,
+            "rgb_max": 0.05038812957763755,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.018499360870453466,
+            "rgb_p95": 0.049067469163564414,
+            "rgb_max": 0.04911812957763756,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.009118845892361132,
+            "rgb_p95": 0.039789179728154545,
+            "rgb_max": 0.09452525249892485,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.00916041785845048,
+            "rgb_p95": 0.03985043014968859,
+            "rgb_max": 0.0930152100188022,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.01013571154568936,
+            "rgb_p95": 0.05010895692918366,
+            "rgb_max": 0.19770921516224388,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.01084361598687882,
+            "rgb_p95": 0.048894956929183664,
+            "rgb_max": 0.19527992104459682,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "MeanStddev",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0022753131574817895,
+            "rgb_p95": 0.005363315326191276,
+            "rgb_max": 0.005506896620007695,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0008528724880654988,
+            "rgb_p95": 0.0018118409238087052,
+            "rgb_max": 0.0018482596299923548,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.007453160386260506,
+            "rgb_p95": 0.011845294718256238,
+            "rgb_max": 0.012676557200555827,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0024002059874374173,
+            "rgb_p95": 0.00369832432936279,
+            "rgb_max": 0.0038934427994441467,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003255821377541008,
+            "rgb_p95": 0.006113003013027862,
+            "rgb_max": 0.006127461702190695,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0013175046315735742,
+            "rgb_p95": 0.001998996986972146,
+            "rgb_max": 0.0020025382978092754,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.002610379797641964,
+            "rgb_p95": 0.006775843657318293,
+            "rgb_max": 0.008314223344393468,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.001208134462372683,
+            "rgb_p95": 0.0026601933260073096,
+            "rgb_max": 0.0035042079369388968,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.002846443539255528,
+            "rgb_p95": 0.006881079510397292,
+            "rgb_max": 0.012676557200555827,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0011512695900207262,
+            "rgb_p95": 0.0023742309787829763,
+            "rgb_max": 0.0038934427994441467,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "MeanStddev",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0015398047001385373,
+            "rgb_p95": 0.0035456551972986583,
+            "rgb_max": 0.003652657903675971,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0017073038161205857,
+            "rgb_p95": 0.0036295010527013227,
+            "rgb_max": 0.003702498346324079,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.005058044936068433,
+            "rgb_p95": 0.008167045574605125,
+            "rgb_max": 0.008804491544259885,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.00479532143762949,
+            "rgb_p95": 0.007376573473013903,
+            "rgb_max": 0.007765508455740089,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0020490887994057496,
+            "rgb_p95": 0.004107364318501783,
+            "rgb_max": 0.004118266122451586,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0026366165654933753,
+            "rgb_p95": 0.004004635681498225,
+            "rgb_max": 0.004011733877548385,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0017735317993591115,
+            "rgb_p95": 0.004609446143866618,
+            "rgb_max": 0.005789539477653927,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.0024212949960889353,
+            "rgb_p95": 0.005366575830983544,
+            "rgb_max": 0.007100824618912593,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0018464597894845534,
+            "rgb_p95": 0.004727710986588418,
+            "rgb_max": 0.008804491544259885,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0023027455815406014,
+            "rgb_p95": 0.004756750927283893,
+            "rgb_max": 0.007765508455740089,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "MeanStddev",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0004488527847114775,
+            "rgb_p95": 0.0009040772469268155,
+            "rgb_max": 0.0010560142684691298,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0034209157729927302,
+            "rgb_p95": 0.0072824837025954325,
+            "rgb_max": 0.00742912497611814,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.00033034135200838154,
+            "rgb_p95": 0.0008696075344405418,
+            "rgb_max": 0.0011232367357844053,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.00957074677784984,
+            "rgb_p95": 0.014674011513178487,
+            "rgb_max": 0.015446763264215568,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.000747218255604872,
+            "rgb_p95": 0.0016435398553389935,
+            "rgb_max": 0.0016685966244289197,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.005279829946255522,
+            "rgb_p95": 0.008036080049996341,
+            "rgb_max": 0.00805033944681377,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0011398297864368555,
+            "rgb_p95": 0.007142068400282892,
+            "rgb_max": 0.010109892143979837,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.004863923389290993,
+            "rgb_p95": 0.010927067289994069,
+            "rgb_max": 0.014599892143979831,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0007120264930581219,
+            "rgb_p95": 0.0025992485567686296,
+            "rgb_max": 0.010109892143979837,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.004606687156103906,
+            "rgb_p95": 0.009546975054062767,
+            "rgb_max": 0.015446763264215568,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Histogram",
+      "intensity": 0.25,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0027427929834934993,
+            "rgb_p95": 0.005007285828469814,
+            "rgb_max": 0.005360083238166502,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0012906053613859505,
+            "rgb_p95": 0.002513883350126922,
+            "rgb_max": 0.0026922456054706556,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.007475685451981413,
+            "rgb_p95": 0.011859583094933956,
+            "rgb_max": 0.020685996220162317,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0023863202415571375,
+            "rgb_p95": 0.0036816134376150833,
+            "rgb_max": 0.010615996220162294,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003548808464850389,
+            "rgb_p95": 0.006117852600676765,
+            "rgb_max": 0.006239468269924386,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0014448752762377074,
+            "rgb_p95": 0.0026385219526980364,
+            "rgb_max": 0.0028739329702243688,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.00300540785848511,
+            "rgb_p95": 0.006461910840361296,
+            "rgb_max": 0.00803963704501709,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.001237779478870723,
+            "rgb_p95": 0.002832769379438105,
+            "rgb_max": 0.004188063326772712,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0032860576255496383,
+            "rgb_p95": 0.006771174140638214,
+            "rgb_max": 0.020685996220162317,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0012841060858003312,
+            "rgb_p95": 0.002736532806134395,
+            "rgb_max": 0.010615996220162294,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Histogram",
+      "intensity": 0.5,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0024757868696533695,
+            "rgb_p95": 0.0041694942234823396,
+            "rgb_max": 0.00465065346743232,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0025862947933261013,
+            "rgb_p95": 0.005039186774680848,
+            "rgb_max": 0.005397817204876865,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.005101291847810317,
+            "rgb_p95": 0.008302742525882367,
+            "rgb_max": 0.031522865091406005,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.004769532912192461,
+            "rgb_p95": 0.007343449197213747,
+            "rgb_max": 0.02145286509140598,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003150189225591765,
+            "rgb_p95": 0.004434801458886473,
+            "rgb_max": 0.004663353001311377,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0028981958195116024,
+            "rgb_p95": 0.005315447334124979,
+            "rgb_max": 0.0057933530013113965,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.0025852769783717973,
+            "rgb_p95": 0.004567892263955153,
+            "rgb_max": 0.006067100899668776,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.002482066752008514,
+            "rgb_p95": 0.00567719316810944,
+            "rgb_max": 0.008502542028617027,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0028572977006324704,
+            "rgb_p95": 0.00532511398084376,
+            "rgb_max": 0.031522865091406005,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.0025727452564250066,
+            "rgb_p95": 0.005487568897106998,
+            "rgb_max": 0.02145286509140598,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    },
+    {
+      "encoding": "linear_float",
+      "descriptor_contract": "linear-light values; transfer=Linear",
+      "method": "Histogram",
+      "intensity": 1.0,
+      "regions": {
+        "skin_proxy": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.003438711999389338,
+            "rgb_p95": 0.006934488578303144,
+            "rgb_max": 0.007786131983075983,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.0051931797616472175,
+            "rgb_p95": 0.010124624431707474,
+            "rgb_max": 0.010849664690584238,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "neutral_white": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.00129950030898221,
+            "rgb_p95": 0.002830996569217814,
+            "rgb_max": 0.05391225134590283,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.009527124823230843,
+            "rgb_p95": 0.01460892401970404,
+            "rgb_max": 0.043842251345902805,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "saturated": {
+          "to_reference": {
+            "pixels": 4096,
+            "rgb_mae": 0.0029138538261238036,
+            "rgb_p95": 0.009646838437572747,
+            "rgb_max": 0.010646838437572748,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 4096,
+            "rgb_mae": 0.00583115953005996,
+            "rgb_p95": 0.01079083843757278,
+            "rgb_max": 0.011776838437572767,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "gradient_detail": {
+          "to_reference": {
+            "pixels": 9216,
+            "rgb_mae": 0.00282388403512037,
+            "rgb_p95": 0.007722252567605059,
+            "rgb_max": 0.013329547962688149,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 9216,
+            "rgb_mae": 0.004991394297010489,
+            "rgb_p95": 0.011518126022587949,
+            "rgb_max": 0.017556080829720988,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        },
+        "whole_frame": {
+          "to_reference": {
+            "pixels": 49152,
+            "rgb_mae": 0.0029370061196417963,
+            "rgb_p95": 0.007893704338647944,
+            "rgb_max": 0.05391225134590283,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          },
+          "from_source": {
+            "pixels": 49152,
+            "rgb_mae": 0.005164332691637436,
+            "rgb_p95": 0.011028684864473254,
+            "rgb_max": 0.043842251345902805,
+            "output_below_zero_ratio": 0.0,
+            "output_above_one_ratio": 0.0,
+            "output_non_finite_values": 0
+          }
+        }
+      }
+    }
+  ],
+  "files": {
+    "encoded_srgb_float_Histogram_i0.25.npy": "04ec9fd50d33d2b5ff981cc66f81414bf3bc6e68d820f7330f2a1ab8f8d3443c",
+    "encoded_srgb_float_Histogram_i0.50.npy": "ebfbb5909226515c1255aa8d7886a99e11463539c6c36affc7c7cb15d0ca1b4a",
+    "encoded_srgb_float_Histogram_i1.00.npy": "863b768d32391a02c42e507e0a15cf6eb549250036c14ef76b3e3242c3653f49",
+    "encoded_srgb_float_MeanStddev_i0.25.npy": "ff94fe7b62e8baed261e2fddc6d84a5934be503a1d3183763a6655b7d7cb23bf",
+    "encoded_srgb_float_MeanStddev_i0.50.npy": "839258e627fe417459809823db97f95d95e5f04f158c17c58e40969f2edb7523",
+    "encoded_srgb_float_MeanStddev_i1.00.npy": "a96857f2b6346eb310be1834dbde4eadfde2e098f1cdf59a4ed66998cecd523b",
+    "encoded_srgb_float_Reinhard_i0.25.npy": "2d6d98473aeba5b0b4f74cc3c11e9af690e037def7ea3c8dfc1eb38363cb1b7f",
+    "encoded_srgb_float_Reinhard_i0.50.npy": "8a9ef9ece9bc59743bd1cc5e636572226082d46b6709a9aad33ba52e1489bc51",
+    "encoded_srgb_float_Reinhard_i1.00.npy": "c9196eb5eaa36f1a2a46b91c583a40e11df83fe0f2df514f3c0ba1d4d8cb755b",
+    "linear_float_Histogram_i0.25.npy": "b81087c9dc53afb0bbf941ff1ab7082730d8768e674caf14ce187adb4edb1f63",
+    "linear_float_Histogram_i0.50.npy": "06993d9634a2b3dfd2a14d6f98386ad6408b22fba166af5a7f9d6c32ae123344",
+    "linear_float_Histogram_i1.00.npy": "f573108305e00623a723583822eb967810e07ce615941445fd84a5c590a11498",
+    "linear_float_MeanStddev_i0.25.npy": "c5372fb079ab7d15d5de921e3f10a5795db42203ad53f80a0f1c4ed291450c73",
+    "linear_float_MeanStddev_i0.50.npy": "54aa16ef582ea9df75370ddd530bcbab251e7a919549e2799be60d4c5df19e70",
+    "linear_float_MeanStddev_i1.00.npy": "3ac25342a9cfaa855f0817962dec3acde81ec2adde6cc4ca20faaaa5565f96d9",
+    "linear_float_Reinhard_i0.25.npy": "95e98bb1cd4ba0cb880f314ce7abbdf6f04cc7dbcf429f5acc4292ca0bc0cb23",
+    "linear_float_Reinhard_i0.50.npy": "be0abe31eed539c0ee8b4df9dddc49af53dda761bfc9452e97ba1a93db819dc5",
+    "linear_float_Reinhard_i1.00.npy": "16e9f0ec35e0d0f21678e7cef576498b325eba43bcd458e0d08f868d0a8bf258"
+  },
+  "mirror_script_sha256": "a68bbf3a76f94a88d08a12e32fe2f15e8868ab7121b42b0bbd42bb3720df6cb4",
+  "equation_mirror_script_sha256": "7e63937bd9b3a9cbcbf58c765efb6a209d67dc0e1fb06a15139b3b5e69fd664b"
+}

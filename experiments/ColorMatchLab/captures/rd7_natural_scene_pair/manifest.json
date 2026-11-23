@@ -1,0 +1,836 @@
+{
+  "rd": "rd7-middlebury-natural-scene-raw-jpeg-pair",
+  "status": "registered natural-scene rendering pair; equation mirror outputs for offline descriptive metrics; Core image-overload/raw-buffer contract checked separately; no Core-vs-mirror differential and no acceptance gate",
+  "dataset": {
+    "source_page": "https://vision.middlebury.edu/color/data/",
+    "archive": "other-scaled.zip",
+    "archive_sha256": "6fce6384c086a8088de08497038ab3681dabafe22b0f49832b45961e1a882d98",
+    "permission_note": "dataset page grants use and publication with citation; not designated CC0",
+    "citation": "A. Chakrabarti, D. Scharstein, and T. Zickler, An empirical camera model for Internet color vision, BMVC 2009"
+  },
+  "pair": {
+    "camera": "Canon EOS 5D",
+    "scene": "warm-lit kitchen interior",
+    "source": "scaled-im00-raw.png",
+    "source_sha256": "cca354ddc2ee8719288e3508b38a50f79587291c03790bab2c7a7e80763f58c2",
+    "source_transfer": "dataset standard linear RGB, converted to sRGB OETF",
+    "reference": "scaled-im00-jpg.png",
+    "reference_sha256": "fb24747e5a0778a214c13f83a3c4763e6fa77bc01fb6ac721218f086f4963fcf",
+    "reference_transfer": "camera JPEG treated as sRGB; no ICC profile in PNG container",
+    "dimensions": [
+      1000,
+      667
+    ],
+    "alignment": "registered RAW/JPG natural scene pair per dataset page",
+    "reference_role": "camera rendition; not colorimetric ground truth"
+  },
+  "roi": {
+    "whole_frame": {
+      "xyxy": null,
+      "pixels": 667000,
+      "status": "full frame"
+    },
+    "light_wall_candidate": {
+      "xyxy": [
+        20,
+        108,
+        155,
+        164
+      ],
+      "pixels": 7560,
+      "status": "unreviewed candidate region"
+    },
+    "refrigerator_detail_candidate": {
+      "xyxy": [
+        317,
+        240,
+        490,
+        434
+      ],
+      "pixels": 33562,
+      "status": "unreviewed candidate region"
+    }
+  },
+  "methods": [
+    "Reinhard",
+    "MeanStddev",
+    "Histogram"
+  ],
+  "intensities": [
+    0.25,
+    0.5,
+    1.0
+  ],
+  "measurement": "CIE Lab D65/2-degree \u0394E76 and encoded-sRGB errors; linear Rec.709 luminance-gradient magnitude for source/output/reference",
+  "method_source": {
+    "path": "ArtifactCore/src/Color/AutoColorMatch.cpp",
+    "sha256": "62b4354eff5de8462b007632a801fe7bb930220b338e2ea2eb7533b82e60a4ab",
+    "mirror_runner": "run_rd1_source_mirror.py",
+    "runner_sha256": "acaee59e2952164ed16c32d68262fcbef5865919a3117a475dbee66ce75526e3",
+    "script": "run_rd7_natural_scene_pair.py",
+    "script_sha256": "fd65e88740290c4829257fa3b7b68668ae9a0dcdaeecf0cfde5fbb1458ac64e7",
+    "evidence": "Python equation mirrors supply offline descriptive captures only; Core image-overload/raw-buffer behavior is separately checked; no C++-versus-Python mirror differential",
+    "core_contract_test_source_sha256": "4c1e25e5dc319fa265b61af12e24876238c9b23a739cf1e9b4c46f051ab3aa73"
+  },
+  "files": {
+    "comparison_sheet.png": "6f8f0837af19192e73e61f04d4936b520d84e6692059967dcd7b27d0b05e9a29",
+    "Histogram_i0.25.npy": "de09719e7ef948dbf21d6dc0e77684035f9d611f6dc1a4430184d1e057c2a8d9",
+    "Histogram_i0.25.png": "cd77a9856b50dcea96ce1b0774f53c4228b045db23e24157233e5023347bd1c4",
+    "Histogram_i0.50.npy": "1fcfe6ce4d74fec9655fa652f3f1bcc8f66f588f9e0b86cfb4031ab8b8ec6b21",
+    "Histogram_i0.50.png": "4e20a6f7f7e10bb16a922dfec123ed644cd6088ca5ff85877cf87546a79927f3",
+    "Histogram_i1.00.npy": "bd7d3dd35e94b281ce5f30a785cad6aed35f62385eeca1056e06444a2aac39be",
+    "Histogram_i1.00.png": "57f4c3153261bc15c6d3a6540b7d504932174da94e1f061cfd76c5103032d749",
+    "MeanStddev_i0.25.npy": "b07050825169889905aaf769723faad84789e3ad42ed5b905341f2a4fcb63c17",
+    "MeanStddev_i0.25.png": "b27b2a4ef84d914c0d9ea51f8befece7fedbfa51ef9ddf597f5a1078155d95ca",
+    "MeanStddev_i0.50.npy": "5783204355211edf053652d8945c9d7e946973e99409554d39f5b033edd60a40",
+    "MeanStddev_i0.50.png": "3ccb8d9441827394a0f0c94d3514c7ddf83752e9130b4326c94cc3bc49a852d8",
+    "MeanStddev_i1.00.npy": "ec741330c8bbab7a49a331cce736e75cb712c1e7120400f8ca90eec4fa6c67ac",
+    "MeanStddev_i1.00.png": "bf33ebe2e05af41db56bc744d4cc80850498d1f4ba0a050969936a4202bfd0d8",
+    "reference_camera_jpeg.png": "99067be5ec5c1507c93c31064274f86eaa39207c23081e3e0945d057c7a2617f",
+    "reference_camera_jpeg_srgb.npy": "cb389b8f1fbcda5d3f088a2605871183620936f3a4a4e4261e4aa0c14ba18a97",
+    "Reinhard_i0.25.npy": "52def957856513b5455d77b1d27ffae51bcfeb849cdc77190db41a273b15ce58",
+    "Reinhard_i0.25.png": "237e71b820fd0cd5e5d14fb322d535a6a72fa0745007e5a694b8c944282eb8ef",
+    "Reinhard_i0.50.npy": "2e4af665a2ee5527a1b4dac7eea4fe135224620cc10c49b39f6aa923045f0e62",
+    "Reinhard_i0.50.png": "95735ef2f8d7c03ce7341492f8194d3acda565a99223b84b5a8e9abfde7bbbed",
+    "Reinhard_i1.00.npy": "cfe3957bf169d59c1b8b0f107d037655503298476ab9a3626197cd1b440d98da",
+    "Reinhard_i1.00.png": "b1455ed17e171872723a6d8c97d2756133596293c1ba68d67ae92cbd3017d736",
+    "roi_light_wall_candidate.png": "60604d0f0e27c3a569b18cf6757dccad39c0a324d281498cb5dd08fe5be8be32",
+    "roi_refrigerator_detail_candidate.png": "7a93d92c4d4fc657dda86529edff67a1a855dfd50321a19f74856ca336894cb8",
+    "source_srgb_from_linear_raw.npy": "9926d6f9bdeb490c1ad3f00dcd7065ec6ca17156d3c982fd53681ee6ab2b5aca",
+    "source_srgb_from_linear_raw.png": "0e754499714266e258384b91fc0b1a6a109d93a7c2ec89591d98e0b40bcbf5cb"
+  },
+  "results": [
+    {
+      "method": "unchanged_source",
+      "intensity": 0.0,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 14.148360226520936,
+          "deltaE76_p95": 24.205894701248653,
+          "encoded_sRGB_MAE": 0.10021074087163749,
+          "encoded_sRGB_p95": 0.24793022858629893,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 19.201136334579314,
+          "deltaE76_p95": 21.874092826778714,
+          "encoded_sRGB_MAE": 0.17666797328760234,
+          "encoded_sRGB_p95": 0.22089174981659526,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 21.66612062371817,
+          "deltaE76_p95": 25.20504105684304,
+          "encoded_sRGB_MAE": 0.21393360001597247,
+          "encoded_sRGB_p95": 0.2702925107412216,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Reinhard",
+      "intensity": 0.25,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 11.248873285404915,
+          "deltaE76_p95": 18.425538392102794,
+          "encoded_sRGB_MAE": 0.07786324485485104,
+          "encoded_sRGB_p95": 0.19006277169943409,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.011211209394898334,
+            "gradient_magnitude_p95": 0.04969605891362893
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 15.005619268118902,
+          "deltaE76_p95": 16.972922150122844,
+          "encoded_sRGB_MAE": 0.13928588165707084,
+          "encoded_sRGB_p95": 0.17365082914330748,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.004666861288316549,
+            "gradient_magnitude_p95": 0.02361157050693761
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 16.371016515448503,
+          "deltaE76_p95": 19.80155139677073,
+          "encoded_sRGB_MAE": 0.16021098234216985,
+          "encoded_sRGB_p95": 0.2082433239148991,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.03308017501891431,
+            "gradient_magnitude_p95": 0.11215322073366676
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Reinhard",
+      "intensity": 0.5,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 8.54385860487723,
+          "deltaE76_p95": 13.393843266243197,
+          "encoded_sRGB_MAE": 0.056761822755494275,
+          "encoded_sRGB_p95": 0.13488780821286872,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.014051511244130012,
+            "gradient_magnitude_p95": 0.06320128623706067
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 10.85944264683749,
+          "deltaE76_p95": 12.166703745932407,
+          "encoded_sRGB_MAE": 0.10146660092920158,
+          "encoded_sRGB_p95": 0.12778021660351685,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.005934606600086915,
+            "gradient_magnitude_p95": 0.03015804907705225
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 11.399437280858114,
+          "deltaE76_p95": 15.364789519529255,
+          "encoded_sRGB_MAE": 0.10613239474994138,
+          "encoded_sRGB_p95": 0.15371913014520383,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.042927886633650505,
+            "gradient_magnitude_p95": 0.1452382538951599
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Reinhard",
+      "intensity": 1.0,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 4.605037412960061,
+          "deltaE76_p95": 8.772145950606438,
+          "encoded_sRGB_MAE": 0.024962786370569576,
+          "encoded_sRGB_p95": 0.05847427019026584,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.020481178877534107,
+            "gradient_magnitude_p95": 0.09413296905925277
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 3.4756701099121803,
+          "deltaE76_p95": 4.489323434425635,
+          "encoded_sRGB_MAE": 0.025392546218787292,
+          "encoded_sRGB_p95": 0.043988246111509754,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009060200195565945,
+            "gradient_magnitude_p95": 0.04641864199230373
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 6.0676492894920395,
+          "deltaE76_p95": 11.52728264050299,
+          "encoded_sRGB_MAE": 0.03963070541906276,
+          "encoded_sRGB_p95": 0.10127497099949356,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.06506870456285978,
+            "gradient_magnitude_p95": 0.22212327158915085
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 0.25,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 10.987905442757517,
+          "deltaE76_p95": 18.371369626535646,
+          "encoded_sRGB_MAE": 0.07742869931251285,
+          "encoded_sRGB_p95": 0.19030310949164597,
+          "output_clip_low_ratio": 0.008678660669665167,
+          "output_clip_high_ratio": 0.0006581709145427287,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.011225851250533757,
+            "gradient_magnitude_p95": 0.049702608110345506
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 14.85190909061505,
+          "deltaE76_p95": 16.889595953024553,
+          "encoded_sRGB_MAE": 0.13879196073478586,
+          "encoded_sRGB_p95": 0.17361056766705685,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.00467804304924709,
+            "gradient_magnitude_p95": 0.02367194086414979
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 16.23880745946194,
+          "deltaE76_p95": 19.775330015714225,
+          "encoded_sRGB_MAE": 0.16060594759797384,
+          "encoded_sRGB_p95": 0.20941866863654524,
+          "output_clip_low_ratio": 0.005442663329559224,
+          "output_clip_high_ratio": 9.931867389706612e-05,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.03297287423840494,
+            "gradient_magnitude_p95": 0.11200562006047693
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 0.5,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 8.131279137485967,
+          "deltaE76_p95": 13.308749622994469,
+          "encoded_sRGB_MAE": 0.05629119033191084,
+          "encoded_sRGB_p95": 0.13593351401989284,
+          "output_clip_low_ratio": 0.010131934032983509,
+          "output_clip_high_ratio": 0.0014117941029485256,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.014037861031789575,
+            "gradient_magnitude_p95": 0.06301020214097895
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 10.67311113747921,
+          "deltaE76_p95": 12.121178107994632,
+          "encoded_sRGB_MAE": 0.10109521469265817,
+          "encoded_sRGB_p95": 0.12995585514635388,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.005935521261463999,
+            "gradient_magnitude_p95": 0.030016644476950377
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 11.256244219775633,
+          "deltaE76_p95": 15.43004226717301,
+          "encoded_sRGB_MAE": 0.10795519165024167,
+          "encoded_sRGB_p95": 0.15541747195001332,
+          "output_clip_low_ratio": 0.005750551218640129,
+          "output_clip_high_ratio": 0.0019565778757722027,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.04247201389781826,
+            "gradient_magnitude_p95": 0.14383875152822767
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "MeanStddev",
+      "intensity": 1.0,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 4.4449303386910275,
+          "deltaE76_p95": 7.933109493830347,
+          "encoded_sRGB_MAE": 0.028292263001829698,
+          "encoded_sRGB_p95": 0.065049850912692,
+          "output_clip_low_ratio": 0.03847476261869066,
+          "output_clip_high_ratio": 0.006407296351824088,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.020258567869311406,
+            "gradient_magnitude_p95": 0.09272118245485705
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 4.059433738540511,
+          "deltaE76_p95": 5.454778834334745,
+          "encoded_sRGB_MAE": 0.027577742557103033,
+          "encoded_sRGB_p95": 0.05371467906478089,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008946077007532085,
+            "gradient_magnitude_p95": 0.045418979077868384
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 5.849751655611423,
+          "deltaE76_p95": 12.257079465743027,
+          "encoded_sRGB_MAE": 0.04007643978124097,
+          "encoded_sRGB_p95": 0.11571262529432047,
+          "output_clip_low_ratio": 0.010497983830919889,
+          "output_clip_high_ratio": 0.03220904594481854,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.06338990219722382,
+            "gradient_magnitude_p95": 0.21547336351686344
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 0.25,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 10.589571160990268,
+          "deltaE76_p95": 18.148533828937207,
+          "encoded_sRGB_MAE": 0.07554638976998296,
+          "encoded_sRGB_p95": 0.18853769886727423,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.011126600579811375,
+            "gradient_magnitude_p95": 0.049783576389106084
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 14.246087809740185,
+          "deltaE76_p95": 16.251321331405066,
+          "encoded_sRGB_MAE": 0.1318850727302902,
+          "encoded_sRGB_p95": 0.16575560873630002,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.004851492968405428,
+            "gradient_magnitude_p95": 0.024505001928688538
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 16.177531341945087,
+          "deltaE76_p95": 19.307305728584716,
+          "encoded_sRGB_MAE": 0.16201873861889285,
+          "encoded_sRGB_p95": 0.20827429388083663,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.030971728721506265,
+            "gradient_magnitude_p95": 0.10811559818922957
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 0.5,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 7.213648405610597,
+          "deltaE76_p95": 12.424651314184608,
+          "encoded_sRGB_MAE": 0.051237109008368246,
+          "encoded_sRGB_p95": 0.12781642815646,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.013890061393665101,
+            "gradient_magnitude_p95": 0.06325668272408383
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 9.404563753186878,
+          "deltaE76_p95": 10.803647437426612,
+          "encoded_sRGB_MAE": 0.08718670853442337,
+          "encoded_sRGB_p95": 0.11108473983465461,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.006325478512838907,
+            "gradient_magnitude_p95": 0.03139630098892003
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 11.048104823975375,
+          "deltaE76_p95": 14.311821828751484,
+          "encoded_sRGB_MAE": 0.11046822107570428,
+          "encoded_sRGB_p95": 0.15035330454508467,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.03801078734151257,
+            "gradient_magnitude_p95": 0.13705422420337515
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    },
+    {
+      "method": "Histogram",
+      "intensity": 1.0,
+      "regions": {
+        "whole_frame": {
+          "pixels": 667000,
+          "deltaE76_mean": 3.1231583670509777,
+          "deltaE76_p95": 7.093274677042134,
+          "encoded_sRGB_MAE": 0.015771269755064266,
+          "encoded_sRGB_p95": 0.0392157042727751,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.008697789254407864,
+            "gradient_magnitude_p95": 0.037981068495094306
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.020470358505146023,
+            "gradient_magnitude_p95": 0.09607886869734944
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02036488087498189,
+            "gradient_magnitude_p95": 0.09708034803653226
+          }
+        },
+        "light_wall_candidate": {
+          "pixels": 7560,
+          "deltaE76_mean": 1.456148810171211,
+          "deltaE76_p95": 2.9924241384044996,
+          "encoded_sRGB_MAE": 0.006412326912538172,
+          "encoded_sRGB_p95": 0.019607843955357862,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.0035782747500516655,
+            "gradient_magnitude_p95": 0.018480784313725476
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009907446817697597,
+            "gradient_magnitude_p95": 0.048152747690289086
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.009760024633439767,
+            "gradient_magnitude_p95": 0.05186341958805241
+          }
+        },
+        "refrigerator_detail_candidate": {
+          "pixels": 33562,
+          "deltaE76_mean": 3.843251730129779,
+          "deltaE76_p95": 11.321664454120885,
+          "encoded_sRGB_MAE": 0.01894003252417469,
+          "encoded_sRGB_p95": 0.07450982723750321,
+          "output_clip_low_ratio": 0.0,
+          "output_clip_high_ratio": 0.0,
+          "non_finite_values": 0,
+          "source_luminance_gradient": {
+            "gradient_magnitude_mean": 0.02475111991196533,
+            "gradient_magnitude_p95": 0.08442571911247625
+          },
+          "output_luminance_gradient": {
+            "gradient_magnitude_mean": 0.05466664486206365,
+            "gradient_magnitude_p95": 0.2075819763545461
+          },
+          "reference_luminance_gradient": {
+            "gradient_magnitude_mean": 0.055595174923509516,
+            "gradient_magnitude_p95": 0.21253201020434487
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "no human subject or skin ROI",
+    "wall ROI is not verified neutral white",
+    "camera JPEG rendering may include tone/color processing",
+    "single scene and camera",
+    "no Core execution, ICC/HDR, alpha, performance, GPU path, or blinded review"
+  ],
+  "core_contract_evidence": {
+    "test": "AutoColorMatcherContractTest.CoreImageOverloadMatchesMiddleburyNaturalSceneRawBuffer",
+    "scope": "same full-frame float32 source/reference arrays from RD7; image overload compared with raw-buffer overload for three methods at three strengths",
+    "result": "pass in authorized Visual Studio 18 Debug target; overload equivalence only"
+  }
+}

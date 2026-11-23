@@ -1,0 +1,12 @@
+{
+  "intent": "One-step role-visibility probe on the CC0 street-light plate. Double only each specialist's amplitude from the restrained transfer profile; all shape, threshold, and color controls remain fixed. This is a visibility/headroom probe, not an accepted style or default.",
+  "profiles": {
+    "edge-contour-2x": {"effect_id": "edge_bloom", "properties": {"Threshold": 0.8, "Threshold Softness": 0.15, "Radius": 8.0, "Amount": 0.4, "Edge Boost": 0.15, "Tint Mix": 0.2}},
+    "reactive-spectrum-2x": {"effect_id": "reactive_glow", "properties": {"Threshold": 0.45, "Radius": 10.0, "Intensity": 0.5, "Reaction": 0.8, "Saturation Weight": 0.6, "Tint Mix": 0.18}},
+    "chromatic-fringe-2x": {"effect_id": "chromatic_glow", "properties": {"Threshold": 0.8, "Radius": 8.0, "Intensity": 0.7, "Dispersion": 2.0, "Angle": 0.0, "Tint Mix": 0.0}},
+    "directional-streak-2x": {"effect_id": "directional_glow", "properties": {"Threshold": 0.45, "Intensity": 0.28, "Length 1 (Inner)": 18.0, "Length 2 (Outer)": 60.0, "Weight 1": 0.7, "Weight 2": 0.25, "Pattern": 0, "Angle Offset": 0.0}},
+    "physical-halation-2x": {"effect_id": "physical_halation", "properties": {"Threshold": 0.65, "Spread": 18.0, "Intensity": 0.5, "Red Diffusion": 2.0, "Softness": 0.5}},
+    "caustic-ridge-2x": {"effect_id": "luminescence_caustics", "properties": {"Threshold": 0.45, "Edge Weight": 0.8, "Scale": 22.0, "Intensity": 0.6, "Evolution": 0.0, "Color Shift": 0.25}},
+    "four-ray-glint-2x": {"effect_id": "builtin.glint_star_filter", "properties": {"threshold": 0.45, "intensity": 0.5, "length": 50.0, "width": 1.0, "rays": 4, "rotation": 45.0, "chromatic": 0.3, "softness": 0.55}}
+  }
+}

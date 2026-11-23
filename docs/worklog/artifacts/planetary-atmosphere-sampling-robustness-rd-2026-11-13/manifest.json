@@ -1,0 +1,3137 @@
+{
+  "schema": "planetary-atmosphere-sampling-robustness-rd-v1",
+  "source_script": "tools/planetary_atmosphere_scattering_rd.py",
+  "source_script_sha256": "3b71dacaa37be0299be7c47206af2b5fd09995a346bc0e0021e4d99ad9e1815b",
+  "sweep": {
+    "sun_elevations_degrees": [
+      2.0,
+      18.0,
+      75.0
+    ],
+    "camera_altitudes_m": [
+      500.0,
+      2000.0,
+      10000.0
+    ],
+    "ray_pitches_degrees": "-8, 0, 2, 10, sun-aligned, 90; azimuth follows configured sun azimuth",
+    "case_count": 51,
+    "reference": {
+      "view_steps": 128,
+      "sun_steps": 48,
+      "view_sampling": "uniform"
+    },
+    "candidate_sun_steps": 48,
+    "candidates": {
+      "uniform_32": {
+        "view_steps": 32,
+        "view_sampling": "uniform"
+      },
+      "altitude_biased_32": {
+        "view_steps": 32,
+        "view_sampling": "altitude_biased"
+      },
+      "uniform_64": {
+        "view_steps": 64,
+        "view_sampling": "uniform"
+      }
+    }
+  },
+  "summary": {
+    "metrics_by_candidate": {
+      "uniform_32": {
+        "case_count": 51,
+        "median_relative_rgb_l2": 0.004104092355485408,
+        "p95_relative_rgb_l2": 0.11369460737835597,
+        "max_relative_rgb_l2": 0.16185970971460842,
+        "median_absolute_rgb_l2": 0.001759283210401293,
+        "max_absolute_rgb_l2": 0.5501597842444566
+      },
+      "altitude_biased_32": {
+        "case_count": 51,
+        "median_relative_rgb_l2": 0.0011516279992034365,
+        "p95_relative_rgb_l2": 0.024124859292825807,
+        "max_relative_rgb_l2": 0.060689846697812855,
+        "median_absolute_rgb_l2": 0.0007827064462235841,
+        "max_absolute_rgb_l2": 0.3037254162981045
+      },
+      "uniform_64": {
+        "case_count": 51,
+        "median_relative_rgb_l2": 0.0008612071677630838,
+        "p95_relative_rgb_l2": 0.025680350655244884,
+        "max_relative_rgb_l2": 0.03661399384233074,
+        "median_absolute_rgb_l2": 0.00037082454740714003,
+        "max_absolute_rgb_l2": 0.12002969786786363
+      }
+    },
+    "altitude_biased_32_cases_better_than_uniform_32": 36,
+    "altitude_biased_32_case_fraction_better": 0.7058823529411765
+  },
+  "limitations": [
+    "Selected CPU rays only; not a full-image metric or GPU implementation.",
+    "Sun-path step count is fixed across view-sampling candidates to isolate view quadrature.",
+    "128x48 is a numerical comparison reference, not proven converged for every geometry.",
+    "No temporal camera sequence, LUT, terrain, ground reflection, or performance timing is included."
+  ],
+  "cases": [
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.4468678234137596,
+            0.14984283608714385,
+            0.009280567104777194
+          ],
+          "candidate_rgb": [
+            0.44686843164564494,
+            0.14984301355210428,
+            0.009280545538670444
+          ],
+          "absolute_rgb_l2": 6.339597270355444e-07,
+          "relative_rgb_l2": 1.3448085675580834e-06,
+          "max_absolute_channel_error": 6.082318853573021e-07
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.4468678234137596,
+            0.14984283608714385,
+            0.009280567104777194
+          ],
+          "candidate_rgb": [
+            0.4468819666688662,
+            0.14984501502513514,
+            0.009280242081902224
+          ],
+          "absolute_rgb_l2": 1.431380716826202e-05,
+          "relative_rgb_l2": 3.036364881451502e-05,
+          "max_absolute_channel_error": 1.4143255106624508e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.4468678234137596,
+            0.14984283608714385,
+            0.009280567104777194
+          ],
+          "candidate_rgb": [
+            0.4468679450576676,
+            0.14984287157900802,
+            0.009280562791499839
+          ],
+          "absolute_rgb_l2": 1.267892627070917e-07,
+          "relative_rgb_l2": 2.689560227432391e-07,
+          "max_absolute_channel_error": 1.2164390800206704e-07
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            10.19452199020895,
+            2.956341205822086,
+            0.13628860570434675
+          ],
+          "candidate_rgb": [
+            10.097101966311783,
+            2.904377872881347,
+            0.12993095518763206
+          ],
+          "absolute_rgb_l2": 0.11059506655600553,
+          "relative_rgb_l2": 0.010418356605147089,
+          "max_absolute_channel_error": 0.09742002389716653
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            10.19452199020895,
+            2.956341205822086,
+            0.13628860570434675
+          ],
+          "candidate_rgb": [
+            10.097101966311783,
+            2.904377872881347,
+            0.12993095518763206
+          ],
+          "absolute_rgb_l2": 0.11059506655600553,
+          "relative_rgb_l2": 0.010418356605147089,
+          "max_absolute_channel_error": 0.09742002389716653
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            10.19452199020895,
+            2.956341205822086,
+            0.13628860570434675
+          ],
+          "candidate_rgb": [
+            10.174620259002685,
+            2.945708393582236,
+            0.13496637070494716
+          ],
+          "absolute_rgb_l2": 0.0226027411286318,
+          "relative_rgb_l2": 0.0021292397994322984,
+          "max_absolute_channel_error": 0.019901731206264373
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            6.482100470671489,
+            2.4224392507145787,
+            0.19111664249682503
+          ],
+          "candidate_rgb": [
+            6.4938950798915736,
+            2.438456280829084,
+            0.19445376283177548
+          ],
+          "absolute_rgb_l2": 0.020169145556354268,
+          "relative_rgb_l2": 0.002913522547349355,
+          "max_absolute_channel_error": 0.016017030114505282
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            6.482100470671489,
+            2.4224392507145787,
+            0.19111664249682503
+          ],
+          "candidate_rgb": [
+            6.490964600601556,
+            2.4304709524611217,
+            0.19259652412698786
+          ],
+          "absolute_rgb_l2": 0.01205284539027276,
+          "relative_rgb_l2": 0.0017410869838862405,
+          "max_absolute_channel_error": 0.008864129930066689
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            6.482100470671489,
+            2.4224392507145787,
+            0.19111664249682503
+          ],
+          "candidate_rgb": [
+            6.485951957044752,
+            2.426149116759391,
+            0.19181388795183393
+          ],
+          "absolute_rgb_l2": 0.005392884624986037,
+          "relative_rgb_l2": 0.0007790261072909134,
+          "max_absolute_channel_error": 0.0038514863732626026
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            1.524201452358934,
+            0.8285031899919392,
+            0.25498103396432314
+          ],
+          "candidate_rgb": [
+            1.4564494823064387,
+            0.8230227498719884,
+            0.26230928961051764
+          ],
+          "absolute_rgb_l2": 0.06836715586243566,
+          "relative_rgb_l2": 0.03898985160606397,
+          "max_absolute_channel_error": 0.06775197005249534
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            1.524201452358934,
+            0.8285031899919392,
+            0.25498103396432314
+          ],
+          "candidate_rgb": [
+            1.5307543549498694,
+            0.8289792338038635,
+            0.25420150584303813
+          ],
+          "absolute_rgb_l2": 0.006616253786625328,
+          "relative_rgb_l2": 0.003773255594362383,
+          "max_absolute_channel_error": 0.006552902590935439
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            1.524201452358934,
+            0.8285031899919392,
+            0.25498103396432314
+          ],
+          "candidate_rgb": [
+            1.5149312319899082,
+            0.8290823390802892,
+            0.2565962276306466
+          ],
+          "absolute_rgb_l2": 0.009427685290492517,
+          "relative_rgb_l2": 0.005376617556017778,
+          "max_absolute_channel_error": 0.009270220369025806
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.03081914905541867,
+            0.04449457059438139,
+            0.04587656192211338
+          ],
+          "candidate_rgb": [
+            0.031041544058535517,
+            0.04493693573273407,
+            0.04622516456544734
+          ],
+          "absolute_rgb_l2": 0.0006055330345906446,
+          "relative_rgb_l2": 0.008534353686192576,
+          "max_absolute_channel_error": 0.0004423651383526836
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.03081914905541867,
+            0.04449457059438139,
+            0.04587656192211338
+          ],
+          "candidate_rgb": [
+            0.030813990979256058,
+            0.04446662388529282,
+            0.04584230715692608
+          ],
+          "absolute_rgb_l2": 4.450857486616856e-05,
+          "relative_rgb_l2": 0.0006273017296786347,
+          "max_absolute_channel_error": 3.425476518729986e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.03081914905541867,
+            0.04449457059438139,
+            0.04587656192211338
+          ],
+          "candidate_rgb": [
+            0.030874757187356702,
+            0.04458989574798801,
+            0.04595110768095414
+          ],
+          "absolute_rgb_l2": 0.0001331773982660257,
+          "relative_rgb_l2": 0.0018769958943322586,
+          "max_absolute_channel_error": 9.532515360662075e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            1.310650712364724,
+            0.47725544021210475,
+            0.0379220817999632
+          ],
+          "candidate_rgb": [
+            1.310650114740583,
+            0.47725881044165774,
+            0.037921598566661475
+          ],
+          "absolute_rgb_l2": 3.456749380231256e-06,
+          "relative_rgb_l2": 2.477325762309121e-06,
+          "max_absolute_channel_error": 3.370229552990267e-06
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            1.310650712364724,
+            0.47725544021210475,
+            0.0379220817999632
+          ],
+          "candidate_rgb": [
+            1.3108608235999875,
+            0.47731257944504024,
+            0.03791990375711567
+          ],
+          "absolute_rgb_l2": 0.00021775299537561026,
+          "relative_rgb_l2": 0.00015605560193313446,
+          "max_absolute_channel_error": 0.00021011123526348818
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            1.310650712364724,
+            0.47725544021210475,
+            0.0379220817999632
+          ],
+          "candidate_rgb": [
+            1.3106505927220418,
+            0.4772561140200362,
+            0.03792198512631312
+          ],
+          "absolute_rgb_l2": 6.911420219548773e-07,
+          "relative_rgb_l2": 4.95316191042085e-07,
+          "max_absolute_channel_error": 6.738079314505541e-07
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            7.539956753422781,
+            2.772196396264982,
+            0.216610351283922
+          ],
+          "candidate_rgb": [
+            7.52665267941132,
+            2.759139879653463,
+            0.21276147043746182
+          ],
+          "absolute_rgb_l2": 0.01903378299496804,
+          "relative_rgb_l2": 0.0023684608227061165,
+          "max_absolute_channel_error": 0.01330407401146072
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            7.539956753422781,
+            2.772196396264982,
+            0.216610351283922
+          ],
+          "candidate_rgb": [
+            7.52665267941132,
+            2.759139879653463,
+            0.21276147043746182
+          ],
+          "absolute_rgb_l2": 0.01903378299496804,
+          "relative_rgb_l2": 0.0023684608227061165,
+          "max_absolute_channel_error": 0.01330407401146072
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            7.539956753422781,
+            2.772196396264982,
+            0.216610351283922
+          ],
+          "candidate_rgb": [
+            7.537288384685953,
+            2.7695768083200973,
+            0.2158301134461989
+          ],
+          "absolute_rgb_l2": 0.0038198434261213846,
+          "relative_rgb_l2": 0.00047532061839896983,
+          "max_absolute_channel_error": 0.002668368736828519
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            3.39487449955049,
+            1.7380306255389975,
+            0.26968113732362003
+          ],
+          "candidate_rgb": [
+            3.3424275160277257,
+            1.7229071700840741,
+            0.27048596465567587
+          ],
+          "absolute_rgb_l2": 0.054589859246645694,
+          "relative_rgb_l2": 0.0142777022863485,
+          "max_absolute_channel_error": 0.052446983522764334
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            3.39487449955049,
+            1.7380306255389975,
+            0.26968113732362003
+          ],
+          "candidate_rgb": [
+            3.3706434165951094,
+            1.730810303584421,
+            0.2699404950458286
+          ],
+          "absolute_rgb_l2": 0.02528528617094039,
+          "relative_rgb_l2": 0.006613239036625553,
+          "max_absolute_channel_error": 0.02423108295538068
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            3.39487449955049,
+            1.7380306255389975,
+            0.26968113732362003
+          ],
+          "candidate_rgb": [
+            3.3845364292082696,
+            1.735079505409844,
+            0.26985074735736103
+          ],
+          "absolute_rgb_l2": 0.010752375364585181,
+          "relative_rgb_l2": 0.0028122295321002903,
+          "max_absolute_channel_error": 0.010338070342220451
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.7590960285004014,
+            0.594111357632712,
+            0.3052778495950075
+          ],
+          "candidate_rgb": [
+            0.7051875096336551,
+            0.5785482266245909,
+            0.3083763580841871
+          ],
+          "absolute_rgb_l2": 0.05619555327639188,
+          "relative_rgb_l2": 0.055576824527065104,
+          "max_absolute_channel_error": 0.0539085188667463
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.7590960285004014,
+            0.594111357632712,
+            0.3052778495950075
+          ],
+          "candidate_rgb": [
+            0.7649605624320619,
+            0.595838358020455,
+            0.3049407924661108
+          ],
+          "absolute_rgb_l2": 0.006122817658807309,
+          "relative_rgb_l2": 0.0060554037249368284,
+          "max_absolute_channel_error": 0.005864533931660532
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.7590960285004014,
+            0.594111357632712,
+            0.3052778495950075
+          ],
+          "candidate_rgb": [
+            0.7482184336139884,
+            0.5911235075680764,
+            0.3059481500815024
+          ],
+          "absolute_rgb_l2": 0.011300381465413222,
+          "relative_rgb_l2": 0.011175961106801895,
+          "max_absolute_channel_error": 0.010877594886412933
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.02769120323060909,
+            0.042957649770460335,
+            0.047929092039704385
+          ],
+          "candidate_rgb": [
+            0.027697609093995434,
+            0.043139462825642225,
+            0.048151789483003804
+          ],
+          "absolute_rgb_l2": 0.00028756072988569785,
+          "relative_rgb_l2": 0.004104092355485408,
+          "max_absolute_channel_error": 0.00022269744329941887
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.02769120323060909,
+            0.042957649770460335,
+            0.047929092039704385
+          ],
+          "candidate_rgb": [
+            0.02770786490213946,
+            0.04295797674091875,
+            0.047911551940289884
+          ],
+          "absolute_rgb_l2": 2.4194488945568047e-05,
+          "relative_rgb_l2": 0.00034530590169892545,
+          "max_absolute_channel_error": 1.7540099414500854e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.02769120323060909,
+            0.042957649770460335,
+            0.047929092039704385
+          ],
+          "candidate_rgb": [
+            0.027694957040810098,
+            0.04299661289482862,
+            0.04797501531600429
+          ],
+          "absolute_rgb_l2": 6.034205380728e-05,
+          "relative_rgb_l2": 0.0008612071677630838,
+          "max_absolute_channel_error": 4.592327629990289e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            2.0666390217591304,
+            0.9245794572707754,
+            0.2097989636161356
+          ],
+          "candidate_rgb": [
+            2.065537129921603,
+            0.9243434546883393,
+            0.2097551032099693
+          ],
+          "absolute_rgb_l2": 0.0011277351531962575,
+          "relative_rgb_l2": 0.0004959840867993287,
+          "max_absolute_channel_error": 0.0011018918375271802
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            2.0666390217591304,
+            0.9245794572707754,
+            0.2097989636161356
+          ],
+          "candidate_rgb": [
+            2.0673924514095443,
+            0.924758319255851,
+            0.20968502708497921
+          ],
+          "absolute_rgb_l2": 0.0007827064462235841,
+          "relative_rgb_l2": 0.0003442385748656297,
+          "max_absolute_channel_error": 0.0007534296504139171
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            2.0666390217591304,
+            0.9245794572707754,
+            0.2097989636161356
+          ],
+          "candidate_rgb": [
+            2.0664186339845756,
+            0.9245321790660778,
+            0.20979018274110992
+          ],
+          "absolute_rgb_l2": 0.00022557283431048179,
+          "relative_rgb_l2": 9.920816595556655e-05,
+          "max_absolute_channel_error": 0.00022038777455479774
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.7169004174889783,
+            1.0112497239594753,
+            0.740051125220187
+          ],
+          "candidate_rgb": [
+            0.7169391736303659,
+            1.0112957592167438,
+            0.7396465216464723
+          ],
+          "absolute_rgb_l2": 0.00040905419600557766,
+          "relative_rgb_l2": 0.0002833388765953947,
+          "max_absolute_channel_error": 0.00040460357371474576
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.7169004174889783,
+            1.0112497239594753,
+            0.740051125220187
+          ],
+          "candidate_rgb": [
+            0.7169391736303659,
+            1.0112957592167438,
+            0.7396465216464723
+          ],
+          "absolute_rgb_l2": 0.00040905419600557766,
+          "relative_rgb_l2": 0.0002833388765953947,
+          "max_absolute_channel_error": 0.00040460357371474576
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.7169004174889783,
+            1.0112497239594753,
+            0.740051125220187
+          ],
+          "candidate_rgb": [
+            0.7169081397869445,
+            1.011258745868515,
+            0.7399693208352742
+          ],
+          "absolute_rgb_l2": 8.266187827261895e-05,
+          "relative_rgb_l2": 5.725726311021574e-05,
+          "max_absolute_channel_error": 8.180438491278696e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.42204936529599574,
+            0.7008985006154216,
+            0.7404767990924136
+          ],
+          "candidate_rgb": [
+            0.42175519612334283,
+            0.7010633726659323,
+            0.7420697170577454
+          ],
+          "absolute_rgb_l2": 0.0016282217107800978,
+          "relative_rgb_l2": 0.0014755200809082774,
+          "max_absolute_channel_error": 0.001592917965331786
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.42204936529599574,
+            0.7008985006154216,
+            0.7404767990924136
+          ],
+          "candidate_rgb": [
+            0.42195147161524554,
+            0.7010200683471195,
+            0.7412098428914199
+          ],
+          "absolute_rgb_l2": 0.0007494765489210301,
+          "relative_rgb_l2": 0.0006791874170336313,
+          "max_absolute_channel_error": 0.0007330437990062943
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.42204936529599574,
+            0.7008985006154216,
+            0.7404767990924136
+          ],
+          "candidate_rgb": [
+            0.42199035673028473,
+            0.7009313926985067,
+            0.7407950403479231
+          ],
+          "absolute_rgb_l2": 0.00032533274760652303,
+          "relative_rgb_l2": 0.000294821644308194,
+          "max_absolute_channel_error": 0.00031824125550949933
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.13529673392679498,
+            0.2559533477530481,
+            0.3812409140488652
+          ],
+          "candidate_rgb": [
+            0.13489049423218882,
+            0.2557754839500326,
+            0.38237057990073187
+          ],
+          "absolute_rgb_l2": 0.001213594313916536,
+          "relative_rgb_l2": 0.0025351418918023037,
+          "max_absolute_channel_error": 0.0011296658518666902
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.13529673392679498,
+            0.2559533477530481,
+            0.3812409140488652
+          ],
+          "candidate_rgb": [
+            0.1354199530986202,
+            0.2561010611864352,
+            0.3812398947204711
+          ],
+          "absolute_rgb_l2": 0.000192362318915828,
+          "relative_rgb_l2": 0.00040183590800944467,
+          "max_absolute_channel_error": 0.00014771343338709775
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.13529673392679498,
+            0.2559533477530481,
+            0.3812409140488652
+          ],
+          "candidate_rgb": [
+            0.13521369923051502,
+            0.255917263864704,
+            0.38146715350414234
+          ],
+          "absolute_rgb_l2": 0.00024368237299494299,
+          "relative_rgb_l2": 0.0005090411062322767,
+          "max_absolute_channel_error": 0.00022623945527716627
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 2.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.012573780502859788,
+            0.024856959738161925,
+            0.041670789278370125
+          ],
+          "candidate_rgb": [
+            0.012533962199404084,
+            0.024822641358522926,
+            0.04173042139293198
+          ],
+          "absolute_rgb_l2": 7.949363218683257e-05,
+          "relative_rgb_l2": 0.001585937081374395,
+          "max_absolute_channel_error": 5.9632114561856964e-05
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.012573780502859788,
+            0.024856959738161925,
+            0.041670789278370125
+          ],
+          "candidate_rgb": [
+            0.012586521667749269,
+            0.02487572133977546,
+            0.04168281228060761
+          ],
+          "absolute_rgb_l2": 2.5668805204929282e-05,
+          "relative_rgb_l2": 0.0005121052955964507,
+          "max_absolute_channel_error": 1.876160161353585e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.012573780502859788,
+            0.024856959738161925,
+            0.041670789278370125
+          ],
+          "candidate_rgb": [
+            0.01256582771866008,
+            0.024850166005318513,
+            0.04168273718981746
+          ],
+          "absolute_rgb_l2": 1.587936303596907e-05,
+          "relative_rgb_l2": 0.0003168011068881653,
+          "max_absolute_channel_error": 1.1947911447332538e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.34413001375851343,
+            0.3136003858955733,
+            0.23674996203910123
+          ],
+          "candidate_rgb": [
+            0.34412845832883526,
+            0.31359921716194944,
+            0.2367492363157945
+          ],
+          "absolute_rgb_l2": 2.07652933647486e-06,
+          "relative_rgb_l2": 3.9755663257807435e-06,
+          "max_absolute_channel_error": 1.5554296781683519e-06
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.34413001375851343,
+            0.3136003858955733,
+            0.23674996203910123
+          ],
+          "candidate_rgb": [
+            0.34415506397482293,
+            0.3136201556004865,
+            0.2367598514348002
+          ],
+          "absolute_rgb_l2": 3.340890175982474e-05,
+          "relative_rgb_l2": 6.396216151858072e-05,
+          "max_absolute_channel_error": 2.5050216309496776e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.34413001375851343,
+            0.3136003858955733,
+            0.23674996203910123
+          ],
+          "candidate_rgb": [
+            0.34412970267152787,
+            0.3136001521478823,
+            0.2367498168936313
+          ],
+          "absolute_rgb_l2": 4.1530748017399295e-07,
+          "relative_rgb_l2": 7.951163530525779e-07,
+          "max_absolute_channel_error": 3.1108698556048253e-07
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            7.355964102844758,
+            5.125770737690451,
+            2.3451478833448403
+          ],
+          "candidate_rgb": [
+            7.230030576928275,
+            4.955225507141447,
+            2.127652596286278
+          ],
+          "absolute_rgb_l2": 0.3037254162981045,
+          "relative_rgb_l2": 0.032773769094019634,
+          "max_absolute_channel_error": 0.21749528705856225
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            7.355964102844758,
+            5.125770737690451,
+            2.3451478833448403
+          ],
+          "candidate_rgb": [
+            7.230030576928275,
+            4.955225507141447,
+            2.127652596286278
+          ],
+          "absolute_rgb_l2": 0.3037254162981045,
+          "relative_rgb_l2": 0.032773769094019634,
+          "max_absolute_channel_error": 0.21749528705856225
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            7.355964102844758,
+            5.125770737690451,
+            2.3451478833448403
+          ],
+          "candidate_rgb": [
+            7.330443362507502,
+            5.090923490558897,
+            2.2991182859468955
+          ],
+          "absolute_rgb_l2": 0.06312180809059686,
+          "relative_rgb_l2": 0.006811216487486143,
+          "max_absolute_channel_error": 0.046029597397944766
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            5.09906208813826,
+            4.198469933843818,
+            2.3297771750861465
+          ],
+          "candidate_rgb": [
+            4.96593717491254,
+            4.060120628460292,
+            2.1844830024308513
+          ],
+          "absolute_rgb_l2": 0.24077618119125963,
+          "relative_rgb_l2": 0.034377153183476325,
+          "max_absolute_channel_error": 0.1452941726552952
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            5.09906208813826,
+            4.198469933843818,
+            2.3297771750861465
+          ],
+          "candidate_rgb": [
+            5.034117545499784,
+            4.128622000802563,
+            2.253006513175889
+          ],
+          "absolute_rgb_l2": 0.12243472505296621,
+          "relative_rgb_l2": 0.017480787664703665,
+          "max_absolute_channel_error": 0.0767706619102575
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            5.09906208813826,
+            4.198469933843818,
+            2.3297771750861465
+          ],
+          "candidate_rgb": [
+            5.071602888419454,
+            4.169403521869851,
+            2.2980921891279142
+          ],
+          "absolute_rgb_l2": 0.05101766644419358,
+          "relative_rgb_l2": 0.007284118079032015,
+          "max_absolute_channel_error": 0.031684985958232215
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            3.056056786443523,
+            2.878505751487677,
+            2.2121741920136047
+          ],
+          "candidate_rgb": [
+            2.6687131936490247,
+            2.564067139649018,
+            2.02820712052094
+          ],
+          "absolute_rgb_l2": 0.5317429669375613,
+          "relative_rgb_l2": 0.11205397583487652,
+          "max_absolute_channel_error": 0.38734359279449837
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            3.056056786443523,
+            2.878505751487677,
+            2.2121741920136047
+          ],
+          "candidate_rgb": [
+            3.097362315942154,
+            2.910926659832086,
+            2.2290028429136317
+          ],
+          "absolute_rgb_l2": 0.05514041672089396,
+          "relative_rgb_l2": 0.011619717244880068,
+          "max_absolute_channel_error": 0.04130552949863109
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            3.056056786443523,
+            2.878505751487677,
+            2.2121741920136047
+          ],
+          "candidate_rgb": [
+            2.973188449994593,
+            2.8110140239360932,
+            2.1722394704368915
+          ],
+          "absolute_rgb_l2": 0.1140924031700616,
+          "relative_rgb_l2": 0.02404264500457843,
+          "max_absolute_channel_error": 0.08286833644892999
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 18.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.40193385173382307,
+        0.30901699437494745,
+        0.8619499266302464
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            2.4633799849665428,
+            2.3196482348357454,
+            1.881665032840545
+          ],
+          "candidate_rgb": [
+            2.0624537911116825,
+            1.9937086971316615,
+            1.6927274954314586
+          ],
+          "absolute_rgb_l2": 0.5501597842444566,
+          "relative_rgb_l2": 0.14209957319490188,
+          "max_absolute_channel_error": 0.4009261938548603
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            2.4633799849665428,
+            2.3196482348357454,
+            1.881665032840545
+          ],
+          "candidate_rgb": [
+            2.506389956845291,
+            2.354076593011384,
+            1.9005976502080562
+          ],
+          "absolute_rgb_l2": 0.058254729662623586,
+          "relative_rgb_l2": 0.015046487327334324,
+          "max_absolute_channel_error": 0.04300997187874822
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            2.4633799849665428,
+            2.3196482348357454,
+            1.881665032840545
+          ],
+          "candidate_rgb": [
+            2.3757845542328666,
+            2.2485781488554686,
+            1.8406380689803175
+          ],
+          "absolute_rgb_l2": 0.12002969786786363,
+          "relative_rgb_l2": 0.031002209405691043,
+          "max_absolute_channel_error": 0.08759543073367615
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.05038725449275669,
+            0.09848280951877782,
+            0.17475764040815556
+          ],
+          "candidate_rgb": [
+            0.04950899664051922,
+            0.09798285472549664,
+            0.17537718975693872
+          ],
+          "absolute_rgb_l2": 0.0011853830798181815,
+          "relative_rgb_l2": 0.005731240426170443,
+          "max_absolute_channel_error": 0.0008782578522374684
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.05038725449275669,
+            0.09848280951877782,
+            0.17475764040815556
+          ],
+          "candidate_rgb": [
+            0.05051649238273042,
+            0.09860227045620916,
+            0.17478961642623916
+          ],
+          "absolute_rgb_l2": 0.00017887373622005136,
+          "relative_rgb_l2": 0.0008648414218648631,
+          "max_absolute_channel_error": 0.00012923788997373092
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.05038725449275669,
+            0.09848280951877782,
+            0.17475764040815556
+          ],
+          "candidate_rgb": [
+            0.05020082303852566,
+            0.09838665970221387,
+            0.17490656573774735
+          ],
+          "absolute_rgb_l2": 0.0002572551809896167,
+          "relative_rgb_l2": 0.0012438099701538113,
+          "max_absolute_channel_error": 0.00018643145423102858
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.825482442019526,
+            0.7717540186350137,
+            0.6050009866794458
+          ],
+          "candidate_rgb": [
+            0.8254273423288199,
+            0.7717149242719147,
+            0.604979687065115
+          ],
+          "absolute_rgb_l2": 7.083797507463493e-05,
+          "relative_rgb_l2": 5.526377158833108e-05,
+          "max_absolute_channel_error": 5.509969070616183e-05
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.825482442019526,
+            0.7717540186350137,
+            0.6050009866794458
+          ],
+          "candidate_rgb": [
+            0.8256426678396775,
+            0.7718786944438988,
+            0.6050505408944572
+          ],
+          "absolute_rgb_l2": 0.0002089784462325568,
+          "relative_rgb_l2": 0.00016303313452018328,
+          "max_absolute_channel_error": 0.0001602258201515161
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.825482442019526,
+            0.7717540186350137,
+            0.6050009866794458
+          ],
+          "candidate_rgb": [
+            0.825471421634593,
+            0.7717461994023345,
+            0.6049967265034304
+          ],
+          "absolute_rgb_l2": 1.4168217370117978e-05,
+          "relative_rgb_l2": 1.1053239843898234e-05,
+          "max_absolute_channel_error": 1.1020384933058125e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            4.304603981697626,
+            3.3523239479657776,
+            1.795478330794911
+          ],
+          "candidate_rgb": [
+            4.289771676413859,
+            3.3199230299283085,
+            1.7238942080059743
+          ],
+          "absolute_rgb_l2": 0.07996313778962905,
+          "relative_rgb_l2": 0.013921602619266915,
+          "max_absolute_channel_error": 0.07158412278893667
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            4.304603981697626,
+            3.3523239479657776,
+            1.795478330794911
+          ],
+          "candidate_rgb": [
+            4.289771676413859,
+            3.3199230299283085,
+            1.7238942080059743
+          ],
+          "absolute_rgb_l2": 0.07996313778962905,
+          "relative_rgb_l2": 0.013921602619266915,
+          "max_absolute_channel_error": 0.07158412278893667
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            4.304603981697626,
+            3.3523239479657776,
+            1.795478330794911
+          ],
+          "candidate_rgb": [
+            4.301643592128824,
+            3.345826592739037,
+            1.7808339490844227
+          ],
+          "absolute_rgb_l2": 0.016292251134327765,
+          "relative_rgb_l2": 0.002836485064682252,
+          "max_absolute_channel_error": 0.014644381710488208
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            2.4012272678899547,
+            2.422822745510726,
+            1.7256227566505895
+          ],
+          "candidate_rgb": [
+            2.3516880961151614,
+            2.3751512312914755,
+            1.673208474752201
+          ],
+          "absolute_rgb_l2": 0.08645206622754847,
+          "relative_rgb_l2": 0.022614903744653272,
+          "max_absolute_channel_error": 0.05241428189838859
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            2.4012272678899547,
+            2.422822745510726,
+            1.7256227566505895
+          ],
+          "candidate_rgb": [
+            2.377660078923884,
+            2.3994257947363535,
+            1.6984213418461027
+          ],
+          "absolute_rgb_l2": 0.0429272252616757,
+          "relative_rgb_l2": 0.01122928704517758,
+          "max_absolute_channel_error": 0.02720141480448679
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            2.4012272678899547,
+            2.422822745510726,
+            1.7256227566505895
+          ],
+          "candidate_rgb": [
+            2.391188644994905,
+            2.413062150273001,
+            1.7146259334565963
+          ],
+          "absolute_rgb_l2": 0.017803743690124756,
+          "relative_rgb_l2": 0.004657262312122147,
+          "max_absolute_channel_error": 0.0109968231939932
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            1.1846081515013773,
+            1.3708841005542383,
+            1.426582105139615
+          ],
+          "candidate_rgb": [
+            1.0573814104523385,
+            1.263771010661339,
+            1.3597664896965647
+          ],
+          "absolute_rgb_l2": 0.1792322072937705,
+          "relative_rgb_l2": 0.0777234092671874,
+          "max_absolute_channel_error": 0.12722674104903886
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            1.1846081515013773,
+            1.3708841005542383,
+            1.426582105139615
+          ],
+          "candidate_rgb": [
+            1.1986539727673073,
+            1.3825239917282612,
+            1.433178008203708
+          ],
+          "absolute_rgb_l2": 0.019397889029697555,
+          "relative_rgb_l2": 0.008411825590606723,
+          "max_absolute_channel_error": 0.014045821265930014
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            1.1846081515013773,
+            1.3708841005542383,
+            1.426582105139615
+          ],
+          "candidate_rgb": [
+            1.1569155270718232,
+            1.347519268135287,
+            1.411860625629181
+          ],
+          "absolute_rgb_l2": 0.039109062897724124,
+          "relative_rgb_l2": 0.01695950603718105,
+          "max_absolute_channel_error": 0.027692624429554114
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 18.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.40193385173382307,
+        0.30901699437494745,
+        0.8619499266302464
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.8944742692790604,
+            1.0153822747361687,
+            1.1148662179950133
+          ],
+          "candidate_rgb": [
+            0.7677323633655085,
+            0.908234230800033,
+            1.0474244262855208
+          ],
+          "absolute_rgb_l2": 0.17914410206011885,
+          "relative_rgb_l2": 0.10217619614654042,
+          "max_absolute_channel_error": 0.12674190591355183
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.8944742692790604,
+            1.0153822747361687,
+            1.1148662179950133
+          ],
+          "candidate_rgb": [
+            0.9084761486382732,
+            1.0271818652101616,
+            1.1221094330657182
+          ],
+          "absolute_rgb_l2": 0.019691295678659175,
+          "relative_rgb_l2": 0.011231079709043416,
+          "max_absolute_channel_error": 0.014001879359212821
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.8944742692790604,
+            1.0153822747361687,
+            1.1148662179950133
+          ],
+          "candidate_rgb": [
+            0.866291624853191,
+            0.9915931495618356,
+            1.0999059612544906
+          ],
+          "absolute_rgb_l2": 0.03979941212050033,
+          "relative_rgb_l2": 0.022699896298994805,
+          "max_absolute_channel_error": 0.028182644425869374
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.04055184764125128,
+            0.0837613032758011,
+            0.1587230101606273
+          ],
+          "candidate_rgb": [
+            0.0401484589636808,
+            0.0833790010727899,
+            0.15877117136300956
+          ],
+          "absolute_rgb_l2": 0.0005578502496496624,
+          "relative_rgb_l2": 0.0030319111566041988,
+          "max_absolute_channel_error": 0.0004033886775704834
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.04055184764125128,
+            0.0837613032758011,
+            0.1587230101606273
+          ],
+          "candidate_rgb": [
+            0.04062488292742005,
+            0.08386025844971431,
+            0.1588115194121008
+          ],
+          "absolute_rgb_l2": 0.0001515261266790379,
+          "relative_rgb_l2": 0.0008235431538906978,
+          "max_absolute_channel_error": 9.895517391321496e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.04055184764125128,
+            0.0837613032758011,
+            0.1587230101606273
+          ],
+          "candidate_rgb": [
+            0.04046619397660359,
+            0.08368385448211675,
+            0.15873851387105214
+          ],
+          "absolute_rgb_l2": 0.00011651279306444659,
+          "relative_rgb_l2": 0.000633245996396097,
+          "max_absolute_channel_error": 8.565366464769603e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            1.1761378236752449,
+            1.1972638725897666,
+            1.0983646172244563
+          ],
+          "candidate_rgb": [
+            1.1746898645197346,
+            1.1964123632194164,
+            1.0980375138452958
+          ],
+          "absolute_rgb_l2": 0.0017113300512989133,
+          "relative_rgb_l2": 0.0008532000872123229,
+          "max_absolute_channel_error": 0.0014479591555103255
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            1.1761378236752449,
+            1.1972638725897666,
+            1.0983646172244563
+          ],
+          "candidate_rgb": [
+            1.1767072443380229,
+            1.1976225937663592,
+            1.0983082952024148
+          ],
+          "absolute_rgb_l2": 0.0006753465361585069,
+          "relative_rgb_l2": 0.0003367005231466796,
+          "max_absolute_channel_error": 0.0005694206627779863
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            1.1761378236752449,
+            1.1972638725897666,
+            1.0983646172244563
+          ],
+          "candidate_rgb": [
+            1.1758479570217804,
+            1.1970933978975433,
+            1.0982991301833493
+          ],
+          "absolute_rgb_l2": 0.000342597212528513,
+          "relative_rgb_l2": 0.00017080514152495888,
+          "max_absolute_channel_error": 0.0002898666534645322
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.7514817605494195,
+            1.2695475655061375,
+            1.5588111814494174
+          ],
+          "candidate_rgb": [
+            0.7514283076107513,
+            1.2690248336144991,
+            1.5542624955529545
+          ],
+          "absolute_rgb_l2": 0.004578935381927665,
+          "relative_rgb_l2": 0.0021334633767962604,
+          "max_absolute_channel_error": 0.004548685896462956
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.7514817605494195,
+            1.2695475655061375,
+            1.5588111814494174
+          ],
+          "candidate_rgb": [
+            0.7514283076107513,
+            1.2690248336144991,
+            1.5542624955529545
+          ],
+          "absolute_rgb_l2": 0.004578935381927665,
+          "relative_rgb_l2": 0.0021334633767962604,
+          "max_absolute_channel_error": 0.004548685896462956
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.7514817605494195,
+            1.2695475655061375,
+            1.5588111814494174
+          ],
+          "candidate_rgb": [
+            0.7514710697937085,
+            1.2694429162214633,
+            1.5578985055768866
+          ],
+          "absolute_rgb_l2": 0.000918718135959249,
+          "relative_rgb_l2": 0.00042805834395558384,
+          "max_absolute_channel_error": 0.0009126758725308548
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.44553043796930986,
+            0.8564632309960584,
+            1.3351265742359655
+          ],
+          "candidate_rgb": [
+            0.4451425287871049,
+            0.855852699063147,
+            1.3337073025253274
+          ],
+          "absolute_rgb_l2": 0.0015929704841461645,
+          "relative_rgb_l2": 0.0009668422891274555,
+          "max_absolute_channel_error": 0.0014192717106380481
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.44553043796930986,
+            0.8564632309960584,
+            1.3351265742359655
+          ],
+          "candidate_rgb": [
+            0.4453933891851998,
+            0.8562364738822142,
+            1.3343981921300647
+          ],
+          "absolute_rgb_l2": 0.0007750752544762312,
+          "relative_rgb_l2": 0.00047042650240033246,
+          "max_absolute_channel_error": 0.00072838210590076
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.44553043796930986,
+            0.8564632309960584,
+            1.3351265742359655
+          ],
+          "candidate_rgb": [
+            0.44545276690423297,
+            0.8563408869567253,
+            1.334840127544469
+          ],
+          "absolute_rgb_l2": 0.0003210180141047959,
+          "relative_rgb_l2": 0.00019483963745542445,
+          "max_absolute_channel_error": 0.00028644669149646695
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.14925599556897953,
+            0.3201860306633977,
+            0.6442108602063698
+          ],
+          "candidate_rgb": [
+            0.14862347154827146,
+            0.3191687795059579,
+            0.6430950571361759
+          ],
+          "absolute_rgb_l2": 0.0016370409419252034,
+          "relative_rgb_l2": 0.0022281347923927843,
+          "max_absolute_channel_error": 0.001115803070193877
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.14925599556897953,
+            0.3201860306633977,
+            0.6442108602063698
+          ],
+          "candidate_rgb": [
+            0.14941711255952364,
+            0.32048085874236504,
+            0.6446269552798304
+          ],
+          "absolute_rgb_l2": 0.0005348059376519495,
+          "relative_rgb_l2": 0.0007279107604109024,
+          "max_absolute_channel_error": 0.0004160950734606317
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.14925599556897953,
+            0.3201860306633977,
+            0.6442108602063698
+          ],
+          "candidate_rgb": [
+            0.1491267115339786,
+            0.3199800414630064,
+            0.6439864380181705
+          ],
+          "absolute_rgb_l2": 0.00033092481161151456,
+          "relative_rgb_l2": 0.0004504133449164111,
+          "max_absolute_channel_error": 0.00022442218819929138
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 18.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.40193385173382307,
+        0.30901699437494745,
+        0.8619499266302464
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.08848957881188595,
+            0.19349401002506275,
+            0.40988098154034214
+          ],
+          "candidate_rgb": [
+            0.08798658229860688,
+            0.19267868983663414,
+            0.40884154419673935
+          ],
+          "absolute_rgb_l2": 0.0014135708306647352,
+          "relative_rgb_l2": 0.003060905232347012,
+          "max_absolute_channel_error": 0.0010394373436027893
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.08848957881188595,
+            0.19349401002506275,
+            0.40988098154034214
+          ],
+          "candidate_rgb": [
+            0.08860339456326405,
+            0.193706510314208,
+            0.41022592775617917
+          ],
+          "absolute_rgb_l2": 0.00042083047652095927,
+          "relative_rgb_l2": 0.0009112540946450826,
+          "max_absolute_channel_error": 0.00034494621583702756
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.08848957881188595,
+            0.19349401002506275,
+            0.40988098154034214
+          ],
+          "candidate_rgb": [
+            0.08838560571478667,
+            0.1933278344911077,
+            0.409671314354654
+          ],
+          "absolute_rgb_l2": 0.0002870279459565899,
+          "relative_rgb_l2": 0.0006215219800448159,
+          "max_absolute_channel_error": 0.000209667185688156
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 18.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.015212804557935484,
+            0.03412679185366176,
+            0.07622920071512303
+          ],
+          "candidate_rgb": [
+            0.015144336519319873,
+            0.03398837516385863,
+            0.07600128389386515
+          ],
+          "absolute_rgb_l2": 0.00027530552072237895,
+          "relative_rgb_l2": 0.003242939997505342,
+          "max_absolute_channel_error": 0.00022791682125787582
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.015212804557935484,
+            0.03412679185366176,
+            0.07622920071512303
+          ],
+          "candidate_rgb": [
+            0.015230968760831827,
+            0.034165353354938914,
+            0.07630351530976157
+          ],
+          "absolute_rgb_l2": 8.567138742834497e-05,
+          "relative_rgb_l2": 0.0010091594538466236,
+          "max_absolute_channel_error": 7.431459463853873e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.015212804557935484,
+            0.03412679185366176,
+            0.07622920071512303
+          ],
+          "candidate_rgb": [
+            0.015199076731204731,
+            0.03409907702679764,
+            0.07618372223820084
+          ],
+          "absolute_rgb_l2": 5.4998697421116766e-05,
+          "relative_rgb_l2": 0.0006478528843505869,
+          "max_absolute_channel_error": 4.5478476922183875e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.03179570216819905,
+            0.05385902949370656,
+            0.09580189524626433
+          ],
+          "candidate_rgb": [
+            0.03179559504337276,
+            0.05385887825771374,
+            0.09580158624012279
+          ],
+          "absolute_rgb_l2": 3.603232568651213e-07,
+          "relative_rgb_l2": 3.1493894740939317e-06,
+          "max_absolute_channel_error": 3.090061415356171e-07
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.03179570216819905,
+            0.05385902949370656,
+            0.09580189524626433
+          ],
+          "candidate_rgb": [
+            0.03179682262738951,
+            0.05386013088139138,
+            0.09580257879393861
+          ],
+          "absolute_rgb_l2": 1.7133945992665155e-06,
+          "relative_rgb_l2": 1.4975849638035654e-05,
+          "max_absolute_channel_error": 1.1204591904637184e-06
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.03179570216819905,
+            0.05385902949370656,
+            0.09580189524626433
+          ],
+          "candidate_rgb": [
+            0.03179568074310901,
+            0.053858999246311275,
+            0.09580183344470998
+          ],
+          "absolute_rgb_l2": 7.206505064209636e-08,
+          "relative_rgb_l2": 6.298813846124343e-07,
+          "max_absolute_channel_error": 6.180155434631907e-08
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.4998621344301634,
+            0.6176606802423007,
+            0.6554249085045564
+          ],
+          "candidate_rgb": [
+            0.49315511780568766,
+            0.5995674454136618,
+            0.5959656959631355
+          ],
+          "absolute_rgb_l2": 0.06251197624944457,
+          "relative_rgb_l2": 0.060689846697812855,
+          "max_absolute_channel_error": 0.059459212541420836
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.4998621344301634,
+            0.6176606802423007,
+            0.6554249085045564
+          ],
+          "candidate_rgb": [
+            0.49315511780568766,
+            0.5995674454136618,
+            0.5959656959631355
+          ],
+          "absolute_rgb_l2": 0.06251197624944457,
+          "relative_rgb_l2": 0.060689846697812855,
+          "max_absolute_channel_error": 0.059459212541420836
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.4998621344301634,
+            0.6176606802423007,
+            0.6554249085045564
+          ],
+          "candidate_rgb": [
+            0.4984924456154314,
+            0.6139374806016127,
+            0.6427753424323343
+          ],
+          "absolute_rgb_l2": 0.013257065468237468,
+          "relative_rgb_l2": 0.012870642062565558,
+          "max_absolute_channel_error": 0.012649566072222118
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.5287417121497836,
+            0.7343720635519027,
+            0.7665814356375499
+          ],
+          "candidate_rgb": [
+            0.5317427453446215,
+            0.7372736665517708,
+            0.7501775689880036
+          ],
+          "absolute_rgb_l2": 0.016926675434398224,
+          "relative_rgb_l2": 0.01427247002103489,
+          "max_absolute_channel_error": 0.016403866649546295
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.5287417121497836,
+            0.7343720635519027,
+            0.7665814356375499
+          ],
+          "candidate_rgb": [
+            0.530154981447755,
+            0.7355237029836478,
+            0.7573687230244001
+          ],
+          "absolute_rgb_l2": 0.009391361838510349,
+          "relative_rgb_l2": 0.007918739318675627,
+          "max_absolute_channel_error": 0.00921271261314982
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.5287417121497836,
+            0.7343720635519027,
+            0.7665814356375499
+          ],
+          "candidate_rgb": [
+            0.5293267786223698,
+            0.73490728585777,
+            0.7629831961441312
+          ],
+          "absolute_rgb_l2": 0.0036845750292320016,
+          "relative_rgb_l2": 0.0031068113079133486,
+          "max_absolute_channel_error": 0.0035982394934186424
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.2802872395578662,
+            0.5046682051173923,
+            0.7703987051896809
+          ],
+          "candidate_rgb": [
+            0.27790570914506774,
+            0.5062020055699509,
+            0.7768695022603295
+          ],
+          "absolute_rgb_l2": 0.0070636708349743425,
+          "relative_rgb_l2": 0.007337457823597339,
+          "max_absolute_channel_error": 0.006470797070648571
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.2802872395578662,
+            0.5046682051173923,
+            0.7703987051896809
+          ],
+          "candidate_rgb": [
+            0.28071615049420456,
+            0.5047424129247913,
+            0.7696108163556089
+          ],
+          "absolute_rgb_l2": 0.0009001334372441247,
+          "relative_rgb_l2": 0.0009350224954830385,
+          "max_absolute_channel_error": 0.0007878888340719925
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.2802872395578662,
+            0.5046682051173923,
+            0.7703987051896809
+          ],
+          "candidate_rgb": [
+            0.27981146189275125,
+            0.5050759145781727,
+            0.7719120669546344
+          ],
+          "absolute_rgb_l2": 0.0016379423746442899,
+          "relative_rgb_l2": 0.0017014288140281106,
+          "max_absolute_channel_error": 0.0015133617649535358
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 75.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.109381654946615,
+        0.9659258262890683,
+        0.23456971600980447
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.8998454014507445,
+            0.9614326400108291,
+            1.074513657395176
+          ],
+          "candidate_rgb": [
+            0.726288576168515,
+            0.7985552184202,
+            0.9365732097148106
+          ],
+          "absolute_rgb_l2": 0.2750974248740206,
+          "relative_rgb_l2": 0.16185970971460842,
+          "max_absolute_channel_error": 0.1735568252822295
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.8998454014507445,
+            0.9614326400108291,
+            1.074513657395176
+          ],
+          "candidate_rgb": [
+            0.9190355156446184,
+            0.9794240262205317,
+            1.0896842942358318
+          ],
+          "absolute_rgb_l2": 0.030366077828255372,
+          "relative_rgb_l2": 0.017866559618663968,
+          "max_absolute_channel_error": 0.019190114193873842
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.8998454014507445,
+            0.9614326400108291,
+            1.074513657395176
+          ],
+          "candidate_rgb": [
+            0.8605477385486792,
+            0.9245849410301513,
+            1.0433619998221098
+          ],
+          "absolute_rgb_l2": 0.06222929373923968,
+          "relative_rgb_l2": 0.03661399384233074,
+          "max_absolute_channel_error": 0.03929766290206538
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 500.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.37371085676016225,
+            0.4586471185896915,
+            0.6278405593865983
+          ],
+          "candidate_rgb": [
+            0.3116758059992992,
+            0.4004633424608473,
+            0.5789919697257057
+          ],
+          "absolute_rgb_l2": 0.09808100753648782,
+          "relative_rgb_l2": 0.11369460737835597,
+          "max_absolute_channel_error": 0.06203505076086302
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.37371085676016225,
+            0.4586471185896915,
+            0.6278405593865983
+          ],
+          "candidate_rgb": [
+            0.38061141038053986,
+            0.4651605101975098,
+            0.6333762219136291
+          ],
+          "absolute_rgb_l2": 0.01098569388421493,
+          "relative_rgb_l2": 0.012734515930415663,
+          "max_absolute_channel_error": 0.006900553620377614
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.37371085676016225,
+            0.4586471185896915,
+            0.6278405593865983
+          ],
+          "candidate_rgb": [
+            0.3596726551871669,
+            0.44550346246974337,
+            0.616842422399351
+          ],
+          "absolute_rgb_l2": 0.022153686302594316,
+          "relative_rgb_l2": 0.025680350655244884,
+          "max_absolute_channel_error": 0.014038201572995346
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.09637807030047212,
+            0.16992711498178836,
+            0.29468110495828714
+          ],
+          "candidate_rgb": [
+            0.09637474894815218,
+            0.16992283228345453,
+            0.29467276164455003
+          ],
+          "absolute_rgb_l2": 9.949058767926268e-06,
+          "relative_rgb_l2": 2.814008520335997e-05,
+          "max_absolute_channel_error": 8.343313737113611e-06
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.09637807030047212,
+            0.16992711498178836,
+            0.29468110495828714
+          ],
+          "candidate_rgb": [
+            0.0963849142902365,
+            0.16993273868204042,
+            0.29467625312485646
+          ],
+          "absolute_rgb_l2": 1.0099826140047998e-05,
+          "relative_rgb_l2": 2.8566518175197412e-05,
+          "max_absolute_channel_error": 6.843989764387937e-06
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.09637807030047212,
+            0.16992711498178836,
+            0.29468110495828714
+          ],
+          "candidate_rgb": [
+            0.09637740597486119,
+            0.16992625835918873,
+            0.2946794361721014
+          ],
+          "absolute_rgb_l2": 1.9899693789704678e-06,
+          "relative_rgb_l2": 5.628462870963442e-06,
+          "max_absolute_channel_error": 1.6687861857378472e-06
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.6631238043664992,
+            0.8393377875568577,
+            0.8298696670446493
+          ],
+          "candidate_rgb": [
+            0.6619734408874706,
+            0.8331080428139639,
+            0.7978285416996809
+          ],
+          "absolute_rgb_l2": 0.03266139569993101,
+          "relative_rgb_l2": 0.024124859292825807,
+          "max_absolute_channel_error": 0.03204112534496839
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.6631238043664992,
+            0.8393377875568577,
+            0.8298696670446493
+          ],
+          "candidate_rgb": [
+            0.6619734408874706,
+            0.8331080428139639,
+            0.7978285416996809
+          ],
+          "absolute_rgb_l2": 0.03266139569993101,
+          "relative_rgb_l2": 0.024124859292825807,
+          "max_absolute_channel_error": 0.03204112534496839
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.6631238043664992,
+            0.8393377875568577,
+            0.8298696670446493
+          ],
+          "candidate_rgb": [
+            0.6628911374249012,
+            0.8380787537155892,
+            0.8232876930895026
+          ],
+          "absolute_rgb_l2": 0.0067053472143805935,
+          "relative_rgb_l2": 0.0049528060448688965,
+          "max_absolute_channel_error": 0.006581973955146703
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.5331078358825653,
+            0.8131908516377448,
+            0.9018464140489222
+          ],
+          "candidate_rgb": [
+            0.5338271129507319,
+            0.8136846562046631,
+            0.89112878902909
+          ],
+          "absolute_rgb_l2": 0.01075307809498438,
+          "relative_rgb_l2": 0.008108178521482988,
+          "max_absolute_channel_error": 0.0107176250198322
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.5331078358825653,
+            0.8131908516377448,
+            0.9018464140489222
+          ],
+          "candidate_rgb": [
+            0.5334917547368289,
+            0.8133624034481778,
+            0.8959776401512436
+          ],
+          "absolute_rgb_l2": 0.0058838194034483635,
+          "relative_rgb_l2": 0.004436595520828324,
+          "max_absolute_channel_error": 0.005868773897678592
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.5331078358825653,
+            0.8131908516377448,
+            0.9018464140489222
+          ],
+          "candidate_rgb": [
+            0.5332545806017344,
+            0.813289821908354,
+            0.8996240754627389
+          ],
+          "absolute_rgb_l2": 0.0022293761276885207,
+          "relative_rgb_l2": 0.0016810237473549414,
+          "max_absolute_channel_error": 0.002222338586183259
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.2311991379712919,
+            0.4494853957558317,
+            0.7504071095687408
+          ],
+          "candidate_rgb": [
+            0.22972421641433866,
+            0.44869886659856695,
+            0.7509557949977499
+          ],
+          "absolute_rgb_l2": 0.001759283210401293,
+          "relative_rgb_l2": 0.0019444627357940256,
+          "max_absolute_channel_error": 0.0014749215569532514
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.2311991379712919,
+            0.4494853957558317,
+            0.7504071095687408
+          ],
+          "candidate_rgb": [
+            0.23150153579053048,
+            0.4497923235184964,
+            0.7503852083123543
+          ],
+          "absolute_rgb_l2": 0.0004314264220071869,
+          "relative_rgb_l2": 0.0004768377233808597,
+          "max_absolute_channel_error": 0.00030692776266472155
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.2311991379712919,
+            0.4494853957558317,
+            0.7504071095687408
+          ],
+          "candidate_rgb": [
+            0.2308970167729365,
+            0.449348718349724,
+            0.7505731002706602
+          ],
+          "absolute_rgb_l2": 0.00037082454740714003,
+          "relative_rgb_l2": 0.00040985698589506584,
+          "max_absolute_channel_error": 0.00030212119835540396
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 75.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.109381654946615,
+        0.9659258262890683,
+        0.23456971600980447
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.31357427823160666,
+            0.3956963088687284,
+            0.5670794850562547
+          ],
+          "candidate_rgb": [
+            0.2630369437597035,
+            0.34744202558241216,
+            0.5246164340652907
+          ],
+          "absolute_rgb_l2": 0.08176557179193628,
+          "relative_rgb_l2": 0.10769040806787361,
+          "max_absolute_channel_error": 0.05053733447190317
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.31357427823160666,
+            0.3956963088687284,
+            0.5670794850562547
+          ],
+          "candidate_rgb": [
+            0.31923611140916924,
+            0.40114588433763243,
+            0.5719535143089909
+          ],
+          "absolute_rgb_l2": 0.009247182753593477,
+          "relative_rgb_l2": 0.012179122121798624,
+          "max_absolute_channel_error": 0.005661833177562581
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.31357427823160666,
+            0.3956963088687284,
+            0.5670794850562547
+          ],
+          "candidate_rgb": [
+            0.30210474252829644,
+            0.3847604796239159,
+            0.5574803274680028
+          ],
+          "absolute_rgb_l2": 0.018527990633776206,
+          "relative_rgb_l2": 0.024402530653199386,
+          "max_absolute_channel_error": 0.011469535703310219
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 2000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.15635059628115305,
+            0.23983721478863132,
+            0.41630922525394376
+          ],
+          "candidate_rgb": [
+            0.13812800193692754,
+            0.22226847292362323,
+            0.4007124480918612
+          ],
+          "absolute_rgb_l2": 0.029731853174619783,
+          "relative_rgb_l2": 0.058845455544247666,
+          "max_absolute_channel_error": 0.018222594344225518
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.15635059628115305,
+            0.23983721478863132,
+            0.41630922525394376
+          ],
+          "candidate_rgb": [
+            0.15842498205303474,
+            0.2418914133511421,
+            0.41823783932837205
+          ],
+          "absolute_rgb_l2": 0.0034989084459141483,
+          "relative_rgb_l2": 0.006925059807008371,
+          "max_absolute_channel_error": 0.0020743857718816816
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.15635059628115305,
+            0.23983721478863132,
+            0.41630922525394376
+          ],
+          "candidate_rgb": [
+            0.1522213120815484,
+            0.23586906704050853,
+            0.4128057729081371
+          ],
+          "absolute_rgb_l2": 0.006713520901239149,
+          "relative_rgb_l2": 0.013287439347254813,
+          "max_absolute_channel_error": 0.004129284199604649
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": -8.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4185053698688819,
+        -0.13917310096006544,
+        0.8974876619542298
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.25491319403137225,
+            0.4563390761141814,
+            0.70496430146629
+          ],
+          "candidate_rgb": [
+            0.25482936837410947,
+            0.4562498117292964,
+            0.704834377121455
+          ],
+          "absolute_rgb_l2": 0.00017853628932298874,
+          "relative_rgb_l2": 0.00020343446640485856,
+          "max_absolute_channel_error": 0.00012992434483494186
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.25491319403137225,
+            0.4563390761141814,
+            0.70496430146629
+          ],
+          "candidate_rgb": [
+            0.2549607863706152,
+            0.4563844991464609,
+            0.7049009233571831
+          ],
+          "absolute_rgb_l2": 9.135134005606631e-05,
+          "relative_rgb_l2": 0.0001040909452646595,
+          "max_absolute_channel_error": 6.33781091068375e-05
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.25491319403137225,
+            0.4563390761141814,
+            0.70496430146629
+          ],
+          "candidate_rgb": [
+            0.25489639902133715,
+            0.4563211874360454,
+            0.7049382851148558
+          ],
+          "absolute_rgb_l2": 3.576209878460048e-05,
+          "relative_rgb_l2": 4.074938216398935e-05,
+          "max_absolute_channel_error": 2.6016351434177132e-05
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 0.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.42261826174069944,
+        0.0,
+        0.9063077870366499
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.4257198846973931,
+            0.743701399724352,
+            0.9972793878751172
+          ],
+          "candidate_rgb": [
+            0.42568841854052614,
+            0.7433752595365022,
+            0.9941903063529333
+          ],
+          "absolute_rgb_l2": 0.0031064098557429115,
+          "relative_rgb_l2": 0.002362514049366238,
+          "max_absolute_channel_error": 0.0030890815221839008
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.4257198846973931,
+            0.743701399724352,
+            0.9972793878751172
+          ],
+          "candidate_rgb": [
+            0.42568841854052614,
+            0.7433752595365022,
+            0.9941903063529333
+          ],
+          "absolute_rgb_l2": 0.0031064098557429115,
+          "relative_rgb_l2": 0.002362514049366238,
+          "max_absolute_channel_error": 0.0030890815221839008
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.4257198846973931,
+            0.743701399724352,
+            0.9972793878751172
+          ],
+          "candidate_rgb": [
+            0.42571358876070886,
+            0.7436361178788952,
+            0.9966597792889716
+          ],
+          "absolute_rgb_l2": 0.0006230699464668687,
+          "relative_rgb_l2": 0.0004738626165328752,
+          "max_absolute_channel_error": 0.0006196085861455147
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 2.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4223608141144103,
+        0.03489949670250097,
+        0.9057556888204041
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.2541576431625408,
+            0.5015002415927456,
+            0.8370190557801558
+          ],
+          "candidate_rgb": [
+            0.2539627081104201,
+            0.5011139716996866,
+            0.835731681472173
+          ],
+          "absolute_rgb_l2": 0.0013581372219636741,
+          "relative_rgb_l2": 0.0013469371984357495,
+          "max_absolute_channel_error": 0.0012873743079827582
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.2541576431625408,
+            0.5015002415927456,
+            0.8370190557801558
+          ],
+          "candidate_rgb": [
+            0.25409215934530555,
+            0.5013546642451314,
+            0.836372540904246
+          ],
+          "absolute_rgb_l2": 0.0006659297104280584,
+          "relative_rgb_l2": 0.0006604380500095666,
+          "max_absolute_channel_error": 0.0006465148759098316
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.2541576431625408,
+            0.5015002415927456,
+            0.8370190557801558
+          ],
+          "candidate_rgb": [
+            0.2541186757538565,
+            0.5014229222997995,
+            0.8367597155861533
+          ],
+          "absolute_rgb_l2": 0.00027341190213035684,
+          "relative_rgb_l2": 0.0002711571817036189,
+          "max_absolute_channel_error": 0.00025934019400253305
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 10.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.4161977407267835,
+        0.17364817766693036,
+        0.8925389352890302
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.08942185741336399,
+            0.19647491219683821,
+            0.4170434841399317
+          ],
+          "candidate_rgb": [
+            0.08912153626354442,
+            0.1958657072924987,
+            0.4159755236643975
+          ],
+          "absolute_rgb_l2": 0.0012656472596278597,
+          "relative_rgb_l2": 0.0026951616848222733,
+          "max_absolute_channel_error": 0.001067960475534202
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.08942185741336399,
+            0.19647491219683821,
+            0.4170434841399317
+          ],
+          "candidate_rgb": [
+            0.08951041624292413,
+            0.19665635904592832,
+            0.41735751319058706
+          ],
+          "absolute_rgb_l2": 0.0003733361353971759,
+          "relative_rgb_l2": 0.0007950092255388313,
+          "max_absolute_channel_error": 0.00031402905065536224
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.08942185741336399,
+            0.19647491219683821,
+            0.4170434841399317
+          ],
+          "candidate_rgb": [
+            0.08936168201264807,
+            0.19635291268090677,
+            0.4168296297446361
+          ],
+          "absolute_rgb_l2": 0.00025345347329652014,
+          "relative_rgb_l2": 0.0005397223317298998,
+          "max_absolute_channel_error": 0.00021385439529558736
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 75.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        0.109381654946615,
+        0.9659258262890683,
+        0.23456971600980447
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.029465177015244697,
+            0.06693830205375033,
+            0.1562547443979416
+          ],
+          "candidate_rgb": [
+            0.029271409938962926,
+            0.06658196229543877,
+            0.15556773810496707
+          ],
+          "absolute_rgb_l2": 0.0007978103470066841,
+          "relative_rgb_l2": 0.004624348209468613,
+          "max_absolute_channel_error": 0.0006870062929745235
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.029465177015244697,
+            0.06693830205375033,
+            0.1562547443979416
+          ],
+          "candidate_rgb": [
+            0.029507063665138847,
+            0.06702378510055407,
+            0.15643479287557638
+          ],
+          "absolute_rgb_l2": 0.00020366466809146737,
+          "relative_rgb_l2": 0.001180501539939173,
+          "max_absolute_channel_error": 0.00018004847763478105
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.029465177015244697,
+            0.06693830205375033,
+            0.1562547443979416
+          ],
+          "candidate_rgb": [
+            0.029425006175456726,
+            0.06686558616172598,
+            0.1561159520566924
+          ],
+          "absolute_rgb_l2": 0.00016175478760024296,
+          "relative_rgb_l2": 0.0009375792946514549,
+          "max_absolute_channel_error": 0.00013879234124919426
+        }
+      }
+    },
+    {
+      "sun_elevation_degrees": 75.0,
+      "camera_altitude_m": 10000.0,
+      "ray_pitch_degrees": 90.0,
+      "ray_azimuth_degrees": 25.0,
+      "view_direction": [
+        2.5877905075098294e-17,
+        1.0,
+        5.549534652183772e-17
+      ],
+      "reference_view_steps": 128,
+      "sun_steps_all_candidates_and_reference": 48,
+      "candidates": {
+        "uniform_32": {
+          "reference_rgb": [
+            0.027337527583183707,
+            0.06235532567581197,
+            0.1459148429963112
+          ],
+          "candidate_rgb": [
+            0.027189582407358352,
+            0.06205456587242649,
+            0.14530208143363008
+          ],
+          "absolute_rgb_l2": 0.0006984418136694482,
+          "relative_rgb_l2": 0.004337673650922806,
+          "max_absolute_channel_error": 0.0006127615626811134
+        },
+        "altitude_biased_32": {
+          "reference_rgb": [
+            0.027337527583183707,
+            0.06235532567581197,
+            0.1459148429963112
+          ],
+          "candidate_rgb": [
+            0.027372982799310636,
+            0.06243165058851268,
+            0.1460800779892029
+          ],
+          "absolute_rgb_l2": 0.00018543237992674897,
+          "relative_rgb_l2": 0.0011516279992034365,
+          "max_absolute_channel_error": 0.00016523499289169963
+        },
+        "uniform_64": {
+          "reference_rgb": [
+            0.027337527583183707,
+            0.06235532567581197,
+            0.1459148429963112
+          ],
+          "candidate_rgb": [
+            0.027307394187461132,
+            0.062294585091759974,
+            0.14579171594736579
+          ],
+          "absolute_rgb_l2": 0.00014056212246104914,
+          "relative_rgb_l2": 0.0008729612159297732,
+          "max_absolute_channel_error": 0.00012312704894540394
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "script": "run_rd8_skin_white_chroma.py",
+  "script_sha256": "f9d50510f420738e89e3636b582bc2ba634a2bd56a029449d434e125fff39b49",
+  "metrics_sha256": "6806ba12c3dc04f74a73d55bcb79c25a285697e6ca06328345d151f5ba13ce02",
+  "rd6_manifest_sha256": "ab055600d9f80db1503a0f2b87e63581eca41cf32a8611425c16b30e46dae303",
+  "conditions": 10,
+  "regions": [
+    "skin_dark_proxy_patch_r0_c0",
+    "skin_light_proxy_patch_r0_c1",
+    "skin_proxy_combined",
+    "white_patch_r3_c0"
+  ]
+}

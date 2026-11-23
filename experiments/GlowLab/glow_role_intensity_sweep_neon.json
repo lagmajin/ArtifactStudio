@@ -1,0 +1,72 @@
+{
+  "intent": "Measure per-effect intensity response on a fixed synthetic neon plate; exploratory only, no preset accepted.",
+  "input": "captures/light-leak-neon-source.png",
+  "compute": "cpu",
+  "profiles": {
+    "edge_bloom": {
+      "varied_property": "Amount",
+      "values": [
+        0.25,
+        0.4,
+        0.55
+      ],
+      "fixed_properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Edge Boost": 0.75,
+        "Tint Mix": 0.2
+      }
+    },
+    "reactive_glow": {
+      "varied_property": "Intensity",
+      "values": [
+        0.25,
+        0.4,
+        0.55
+      ],
+      "fixed_properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      }
+    },
+    "builtin.optical_glow": {
+      "varied_property": "intensity",
+      "values": [
+        0.35,
+        0.55,
+        0.7
+      ],
+      "fixed_properties": {
+        "threshold": 0.4,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.25,
+        "streakStrength": 0.2,
+        "atmosphere": 0.1,
+        "warmth": 0.2
+      }
+    },
+    "builtin.glint_star_filter": {
+      "varied_property": "intensity",
+      "values": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "fixed_properties": {
+        "threshold": 0.45,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      }
+    }
+  }
+}

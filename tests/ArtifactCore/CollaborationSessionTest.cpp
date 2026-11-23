@@ -106,6 +106,228 @@ TEST(CollaborationSessionTest, OperationEchoDeduplicationAndVersions)
     EXPECT_EQ(session.pendingLocalOperationCount(), 0);
 }
 
+TEST(CollaborationSessionTest, TwoClientsConcurrentPropertyEditsUseServerOrder)
+{
+    CollaborationSession clientA;
+    CollaborationSession clientB;
+    clientA.setLocalIdentity(QStringLiteral("client-a"), QStringLiteral("user-a"),
+                             QStringLiteral("Alice"), QStringLiteral("#ff0000"));
+    clientB.setLocalIdentity(QStringLiteral("client-b"), QStringLiteral("user-b"),
+                             QStringLiteral("Bob"), QStringLiteral("#0000ff"));
+
+    // Both clients begin from the same project value and submit an edit before
+    // either has received the other's operation.
+    const QJsonObject alicePayload{
+        {QStringLiteral("propertyPath"), QStringLiteral("transform.opacity")},
+        {QStringLiteral("expectedValue"), 1.0},
+        {QStringLiteral("value"), 0.5},
+    };
+    const QJsonObject bobPayload{
+        {QStringLiteral("propertyPath"), QStringLiteral("transform.opacity")},
+        {QStringLiteral("expectedValue"), 1.0},
+        {QStringLiteral("value"), 0.25},
+    };
+    const auto aliceEdit = clientA.createLocalOperation(
+        QStringLiteral("property.set"), QStringLiteral("layer-title"),
+        alicePayload, kT0);
+    const auto bobEdit = clientB.createLocalOperation(
+        QStringLiteral("property.set"), QStringLiteral("layer-title"),
+        bobPayload, kT0);
+
+    // Model serialized relay delivery and the receiving client's
+    // expected-value check. Alice's compare-and-set wins; Bob's is stale.
+    double serverOpacity = 1.0;
+    qint64 serverVersion = 0;
+    const auto serverSubmit = [&serverOpacity, &serverVersion](
+                                 const CollabOperationData& operation,
+                                 CollabOperationData& echo) {
+        const auto payload = operation.payload;
+        if (payload.value(QStringLiteral("expectedValue")).toDouble(-1.0) !=
+            serverOpacity) {
+            return false;
+        }
+        serverOpacity = payload.value(QStringLiteral("value")).toDouble();
+        echo = operation;
+        echo.version = serverVersion++;
+        return true;
+    };
+    CollabOperationData accepted;
+    ASSERT_TRUE(serverSubmit(aliceEdit, accepted));
+    EXPECT_FALSE(clientA.processRemoteOperation(accepted)); // own echo
+    EXPECT_TRUE(clientB.processRemoteOperation(accepted));
+    CollabOperationData rejectedEcho;
+    EXPECT_FALSE(serverSubmit(bobEdit, rejectedEcho));
+    EXPECT_DOUBLE_EQ(serverOpacity, 0.5);
+    EXPECT_EQ(clientA.pendingLocalOperationCount(), 0);
+    EXPECT_EQ(clientB.latestVersion(), 0);
+    EXPECT_EQ(clientB.operationLog().size(), 2); // pending local + remote winner
+
+    // Rejection compensates the optimistic edit and clears its pending entry.
+    EXPECT_TRUE(clientB.discardPendingLocalOperation(bobEdit));
+    EXPECT_EQ(clientB.pendingLocalOperationCount(), 0);
+    EXPECT_EQ(clientB.latestVersion(), 0);
+    EXPECT_FALSE(clientB.processRemoteOperation(accepted)); // duplicate delivery
+    EXPECT_EQ(clientB.operationLog().size(), 1);
+}
+
+TEST(CollaborationSessionTest,
+     TwoClientsInterleaveEditsAndReplayReviewHistoryAfterReconnect)
+{
+    CollaborationSession clientA;
+    CollaborationSession clientB;
+    clientA.setLocalIdentity(QStringLiteral("client-a"), QStringLiteral("user-a"),
+                             QStringLiteral("Alice"), QStringLiteral("#ff0000"));
+    clientB.setLocalIdentity(QStringLiteral("client-b"), QStringLiteral("user-b"),
+                             QStringLiteral("Bob"), QStringLiteral("#0000ff"));
+    clientA.processUserJoined(QStringLiteral("client-b"), QStringLiteral("user-b"),
+                              QStringLiteral("Bob"), QStringLiteral("#0000ff"),
+                              kT0);
+    clientB.processUserJoined(QStringLiteral("client-a"), QStringLiteral("user-a"),
+                              QStringLiteral("Alice"), QStringLiteral("#ff0000"),
+                              kT0);
+
+    // Presence is peer-scoped, and a lock grant from the relay is visible to
+    // the other client while remaining non-blocking for its owner.
+    CollabPresenceState presence;
+    presence.hasSelection = true;
+    presence.selectedLayerId = QStringLiteral("layer-accent");
+    presence.hasPlayback = true;
+    presence.playbackFrame = 36;
+    clientA.processPresence(QStringLiteral("client-b"), presence, kT0 + 1);
+    EXPECT_EQ(clientA.participantPresence(QStringLiteral("client-b")).playbackFrame,
+              36);
+    clientA.processLockGranted(QStringLiteral("layer-title"),
+                               QStringLiteral("client-a"),
+                               QStringLiteral("user-a"), QStringLiteral("Alice"),
+                               kT0 + 2);
+    clientB.processLockGranted(QStringLiteral("layer-title"),
+                               QStringLiteral("client-a"),
+                               QStringLiteral("user-a"), QStringLiteral("Alice"),
+                               kT0 + 2);
+    EXPECT_FALSE(clientA.isLayerLockedByOther(QStringLiteral("layer-title")));
+    EXPECT_TRUE(clientB.isLayerLockedByOther(QStringLiteral("layer-title")));
+
+    CollaborationReview reviewA;
+    CollaborationReview reviewB;
+    Array<CollabOperationData> durableHistory;
+    qint64 serverVersion = 0;
+    const auto relay = [&](CollaborationSession& sender,
+                           CollaborationSession& receiver,
+                           CollaborationReview& senderReview,
+                           CollaborationReview& receiverReview,
+                           const CollabOperationData& request) {
+        EXPECT_TRUE(validateCollabOperation(request).isEmpty());
+        auto committed = request;
+        committed.version = serverVersion++;
+        durableHistory.append(committed);
+        const bool senderWasPending = sender.isPendingLocalOperation(committed);
+        const bool senderAccepted = sender.processRemoteOperation(committed);
+        EXPECT_FALSE(senderAccepted); // local echo is deduplicated
+        EXPECT_TRUE(senderWasPending);
+        EXPECT_TRUE(receiver.processRemoteOperation(committed));
+        if (committed.type.startsWith(QStringLiteral("review.comment."))) {
+            EXPECT_TRUE(validateCollabReviewOperation(senderReview, committed).isEmpty());
+            EXPECT_TRUE(validateCollabReviewOperation(receiverReview, committed).isEmpty());
+            EXPECT_TRUE(applyReviewOperation(senderReview, committed));
+            EXPECT_TRUE(applyReviewOperation(receiverReview, committed));
+        }
+    };
+
+    // Edits on separate layers interleave in one ordered operation stream.
+    auto titleEdit = clientA.createLocalOperation(
+        makePropertySetOperation(QStringLiteral("client-a"),
+                                 QStringLiteral("layer-title"),
+                                 QStringLiteral("transform.position.x"), 24.0,
+                                 kT0 + 3),
+        kT0 + 3);
+    relay(clientA, clientB, reviewA, reviewB, titleEdit);
+    auto accentEdit = clientB.createLocalOperation(
+        makePropertySetOperation(QStringLiteral("client-b"),
+                                 QStringLiteral("layer-accent"),
+                                 QStringLiteral("transform.position.y"), -12.0,
+                                 kT0 + 4),
+        kT0 + 4);
+    relay(clientB, clientA, reviewB, reviewA, accentEdit);
+    EXPECT_EQ(clientA.latestVersion(), 1);
+    EXPECT_EQ(clientB.latestVersion(), 1);
+    EXPECT_EQ(clientA.pendingLocalOperationCount(), 0);
+    EXPECT_EQ(clientB.pendingLocalOperationCount(), 0);
+
+    // Bob disconnects. Alice creates an anchored root comment; it remains in
+    // durable server history and is not applied to the disconnected review.
+    clientA.processUserLeft(QStringLiteral("client-b"));
+    EXPECT_FALSE(clientA.hasParticipant(QStringLiteral("client-b")));
+    CollabComment root;
+    root.commentId = QStringLiteral("review-root-1");
+    root.authorClientId = QStringLiteral("client-a");
+    root.authorUserId = QStringLiteral("user-a");
+    root.authorName = QStringLiteral("Alice");
+    root.compositionId = QStringLiteral("composition-main");
+    root.layerId = QStringLiteral("layer-title");
+    root.frame = 36;
+    root.text = QStringLiteral("Check title timing at this frame");
+    root.createdAtMs = kT0 + 5;
+    auto rootOp = clientA.createLocalOperation(
+        makeReviewCommentAddOperation(QStringLiteral("client-a"), root,
+                                      kT0 + 5),
+        kT0 + 5);
+    auto rootCommit = rootOp;
+    rootCommit.version = serverVersion++;
+    durableHistory.append(rootCommit);
+    EXPECT_FALSE(clientA.processRemoteOperation(rootCommit));
+    ASSERT_TRUE(validateCollabReviewOperation(reviewA, rootCommit).isEmpty());
+    ASSERT_TRUE(applyReviewOperation(reviewA, rootCommit));
+    EXPECT_EQ(reviewB.unresolvedCount(), 0);
+
+    // Reconnect history replay catches Bob up before his reply is accepted.
+    clientA.processUserJoined(QStringLiteral("client-b"), QStringLiteral("user-b"),
+                              QStringLiteral("Bob"), QStringLiteral("#0000ff"),
+                              kT0 + 6);
+    clientB.processHistory(durableHistory);
+    for (const auto& operation : durableHistory) {
+        if (operation.type.startsWith(QStringLiteral("review.comment."))) {
+            ASSERT_TRUE(validateCollabReviewOperation(reviewB, operation).isEmpty());
+            ASSERT_TRUE(applyReviewOperation(reviewB, operation));
+        }
+    }
+    ASSERT_EQ(reviewB.unresolvedCount(), 1);
+    const auto caughtUp = reviewB.commentsFor(QStringLiteral("composition-main"));
+    ASSERT_EQ(caughtUp.size(), 1);
+    ASSERT_TRUE(caughtUp.first().has_value());
+    EXPECT_EQ(caughtUp.first()->layerId.toStdString(), "layer-title");
+    EXPECT_EQ(caughtUp.first()->frame, 36);
+
+    // Bob replies, then both clients observe the same anchored thread.
+    CollabComment reply;
+    reply.commentId = QStringLiteral("review-reply-1");
+    reply.parentCommentId = root.commentId;
+    reply.authorClientId = QStringLiteral("client-b");
+    reply.authorUserId = QStringLiteral("user-b");
+    reply.authorName = QStringLiteral("Bob");
+    reply.compositionId = root.compositionId;
+    reply.layerId = root.layerId;
+    reply.frame = root.frame;
+    reply.text = QStringLiteral("I will adjust the entrance");
+    reply.createdAtMs = kT0 + 7;
+    auto replyOp = clientB.createLocalOperation(
+        makeReviewCommentAddOperation(QStringLiteral("client-b"), reply,
+                                      kT0 + 7),
+        kT0 + 7);
+    relay(clientB, clientA, reviewB, reviewA, replyOp);
+
+    EXPECT_EQ(reviewA.unresolvedCount(), 1);
+    EXPECT_EQ(reviewB.unresolvedCount(), 1);
+    const auto threadA = reviewA.commentsFor(QStringLiteral("composition-main"));
+    const auto threadB = reviewB.commentsFor(QStringLiteral("composition-main"));
+    ASSERT_EQ(threadA.size(), 2);
+    ASSERT_EQ(threadB.size(), 2);
+    EXPECT_EQ(threadA[0].commentId, threadB[0].commentId);
+    EXPECT_EQ(threadA[1].parentCommentId, root.commentId);
+    EXPECT_EQ(threadB[1].text.toStdString(), "I will adjust the entrance");
+    EXPECT_EQ(clientA.latestVersion(), 3);
+    EXPECT_EQ(clientB.latestVersion(), 3);
+}
+
 TEST(CollaborationSessionTest,
      DelimiterCharactersInOperationFieldsDoNotCollideInDeduplication)
 {

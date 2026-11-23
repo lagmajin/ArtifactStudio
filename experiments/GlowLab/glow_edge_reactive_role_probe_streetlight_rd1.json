@@ -1,0 +1,51 @@
+{
+  "intent": "Transfer the restrained Edge Bloom contour and Reactive Glow saturation role probe to a provenance-recorded CC0 practical-light photograph; exploratory only.",
+  "input": "assets/cc0-street-light-night.jpg",
+  "compute": "cpu",
+  "profiles": {
+    "edge-contour-low": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.65,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.35,
+        "Edge Boost": 0.15,
+        "Tint Mix": 0.2
+      }
+    },
+    "edge-contour-restrained": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.65,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.35,
+        "Edge Boost": 0.3,
+        "Tint Mix": 0.2
+      }
+    },
+    "reactive-saturation-low": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.65,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.1,
+        "Tint Mix": 0.18
+      }
+    },
+    "reactive-saturation-restrained": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.65,
+        "Radius": 8.0,
+        "Intensity": 0.35,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.35,
+        "Tint Mix": 0.18
+      }
+    }
+  }
+}

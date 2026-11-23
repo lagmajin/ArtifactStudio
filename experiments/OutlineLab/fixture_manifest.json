@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "lab": "OutlineLab",
+  "created": "2026-11-12",
+  "status": "fixture_manifest_draft",
+  "notes": [
+    "This manifest describes generated fixture inputs, not product captures or approved visual targets.",
+    "External assets are not bundled in this repository. Record source, license, version, retrieval date, and SHA-256 before using them.",
+    "Alpha is stored as straight or premultiplied explicitly. Never infer alpha association from file extension alone.",
+    "Depth maps are normalized only for visualization. Raw values and units must be recorded for each fixture."
+  ],
+  "fixtures": [
+    {
+      "id": "alpha-shapes-2d-rd1",
+      "kind": "generated_2d_shapes",
+      "phase": 1,
+      "width": 512,
+      "height": 512,
+      "seed": 20261112,
+      "alpha_modes": ["straight", "premultiplied"],
+      "channels": ["r", "g", "b", "a"],
+      "backgrounds": ["transparent", "black", "gray", "white"],
+      "contents": [
+        "overlapping circles",
+        "rectangles",
+        "star",
+        "thin lines",
+        "sharp corners",
+        "antialiased edges",
+        "semi-transparent fill",
+        "alpha-zero RGB stress"
+      ],
+      "line_widths_px": [1, 2, 4],
+      "truth": "truth-alpha.npy (boundary ring of alpha>=0.5)",
+      "expected_use": "alpha boundary and basic variable-width line evaluation"
+    },
+    {
+      "id": "depth-planes-3d-rd1",
+      "kind": "generated_depth_planes",
+      "phase": 1,
+      "width": 512,
+      "height": 512,
+      "seed": 20261112,
+      "alpha_modes": ["straight"],
+      "channels": ["r", "g", "b", "a", "depth"],
+      "alpha_note": "alpha is fully opaque so only depth discontinuity contributes to the line",
+      "backgrounds": ["transparent", "black", "gray", "white"],
+      "contents": [
+        "near and far planes",
+        "occluding rectangle",
+        "curved ramp",
+        "depth discontinuity",
+        "normal discontinuity placeholder"
+      ],
+      "line_widths_px": [1, 2, 4],
+      "truth": "truth-depth.npy (rectangle geometry, not the rendered depth field)",
+      "expected_use": "depth discontinuity evaluation; normal and color edges are deferred"
+    }
+  ],
+  "color_contract": {
+    "storage": "float32 linear RGBA for reference model",
+    "alpha_modes": ["straight", "premultiplied"],
+    "display": "composite over black, gray, and white backgrounds in linear light, then convert to sRGB only for review images",
+    "known_limitation": "Artifact runtime color descriptors and alpha conventions are not verified by this manifest"
+  },
+  "depth_contract": {
+    "storage": "float32 depth in a documented arbitrary unit",
+    "normalization": "none for measurement; optional normalization only for preview images",
+    "invalid_values": ["NaN", "infinity", "negative values", "zero as invalid sentinel must be documented per fixture"]
+  },
+  "acceptance": {
+    "required_reviews": [
+      "full frame",
+      "1:1 crop",
+      "edge crop",
+      "composite over black",
+      "composite over gray",
+      "composite over white",
+      "temporal sequence contact sheet"
+    ],
+    "metrics": [
+      "boundary_position_error",
+      "line_width_50",
+      "line_width_90",
+      "unwanted_line_rate",
+      "alpha_preservation",
+      "frame_difference",
+      "region_rgb_delta"
+    ],
+    "metric_status": {
+      "boundary_position_error": "implemented in outline_metrics.py::position_error",
+      "line_width_50": "implemented in outline_metrics.py::line_widths",
+      "line_width_90": "implemented in outline_metrics.py::line_widths",
+      "unwanted_line_rate": "implemented in outline_metrics.py::position_error",
+      "alpha_preservation": "not implemented",
+      "frame_difference": "not implemented",
+      "region_rgb_delta": "not implemented"
+    },
+    "thresholds": "To be defined after baseline capture. Do not reuse values from unrelated blur or keying studies.",
+    "width_calibration": {
+      "status": "empirical linear model implemented in calibrate_width.py; inverse resolution in resolve_line_width.py",
+      "data": "captures/width-sweep/width-calibration.json and width-resolve.json",
+      "formula": "width_50 ~= slope * effective_radius + intercept",
+      "validation": "residual max 0.08px on sweep rows, 0.52px on hold-out rows",
+      "measured_width_floor_px": 4.25,
+      "measured_width_step_px": "about 2.0 (depth) to 2.65 (alpha) in the hard class",
+      "note": "Requested width is quantized to ceil(width/2) core radius; requested and measured widths must not be treated as equal. Targets below the floor or between steps are unreachable. Coefficients are specific to this reference model and fixtures."
+    },
+    "metric_caveats": {
+      "unwanted_line_rate": "tolerance is requested_width_px + 2, so small requested widths are judged more strictly; compare within one width setting."
+    }
+  }
+}

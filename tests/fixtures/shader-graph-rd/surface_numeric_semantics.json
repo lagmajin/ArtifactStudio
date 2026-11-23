@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "artifact-material-graph",
+  "nodes": [
+    {"id": "metallic_value", "type": "Value", "params": {"value": 0.75}},
+    {"id": "roughness_value", "type": "Value", "params": {"value": 0.25}},
+    {"id": "emission_color", "type": "RGB", "params": {"r": 0.25, "g": 0.5, "b": 1.0, "a": 1.0}},
+    {"id": "emission_strength", "type": "Value", "params": {"value": 2.5}},
+    {"id": "surface", "type": "Principled", "params": {}},
+    {"id": "output", "type": "MaterialOutput", "params": {}}
+  ],
+  "links": [
+    {"from": "metallic_value", "out": "Value", "to": "surface", "in": "Metallic"},
+    {"from": "roughness_value", "out": "Value", "to": "surface", "in": "Roughness"},
+    {"from": "emission_color", "out": "Color", "to": "surface", "in": "EmissionColor"},
+    {"from": "emission_strength", "out": "Value", "to": "surface", "in": "EmissionStrength"},
+    {"from": "surface", "out": "BSDF", "to": "output", "in": "Surface"}
+  ]
+}

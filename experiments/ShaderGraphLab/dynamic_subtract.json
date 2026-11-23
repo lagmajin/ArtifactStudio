@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "artifact-shader-graph-rd-document",
+  "nodes": [
+    {"nodeId": "minuend", "operationId": "artifact.rd.constant.float32", "semanticVersion": 1, "parameters": {"value": 0.75}, "layout": {"x": 32, "y": 80}},
+    {"nodeId": "subtrahend", "operationId": "artifact.rd.constant.float32", "semanticVersion": 1, "parameters": {"value": 0.25}, "layout": {"x": 32, "y": 180}},
+    {"nodeId": "difference", "operationId": "artifact.rd.math.subtract.float32", "semanticVersion": 1, "parameters": {}, "layout": {"x": 240, "y": 120}}
+  ],
+  "links": [
+    {"from": {"nodeId": "minuend", "socketId": "value"}, "to": {"nodeId": "difference", "socketId": "a"}},
+    {"from": {"nodeId": "subtrahend", "socketId": "value"}, "to": {"nodeId": "difference", "socketId": "b"}}
+  ],
+  "output": {"nodeId": "difference", "socketId": "result"}
+}

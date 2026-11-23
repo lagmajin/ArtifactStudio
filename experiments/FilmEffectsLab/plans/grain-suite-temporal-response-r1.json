@@ -1,0 +1,59 @@
+{
+  "plan_version": 1,
+  "plan_id": "grain-suite-temporal-response-r1",
+  "registered_on": "2026-11-12",
+  "comparison_started_after_registration": true,
+  "objective": "Compare the temporal behavior of the active Add Noise, Film Grunge, and Match Grain grain equations on a static source after calibrating their initial green-channel residual strength to the same target.",
+  "scope": {
+    "effects": ["Add Noise CPU color mode", "Film Grunge isolated grain term", "Match Grain default luma/chroma transfer and temporal jitter"],
+    "method": "Independent Python/NumPy/OpenCV source-equation models; no Artifact execution. Use a 28x28 opaque neutral .5 source, 128 integer frame keys, and one fixed deterministic synthetic multiscale reference for Match Grain.",
+    "included": ["frame-key behavior", "initial green residual-standard-deviation matching", "frame-to-frame spatial correlation and delta RMSE", "per-pixel temporal variance", "static-seed repeatability", "RGB channel correlation at frame zero", "tone clipping at neutral .5"],
+    "excluded": ["Core NoiseType::FilmGrain and legacy FilmEffectProcessor (no active production consumer found)", "runtime named-input route", "compiled C++/GPU output", "playback cadence/dropped frames/seek behavior", "moving sources", "perceptual temporal acceptance", "performance/allocation", "source changes"]
+  },
+  "comparison": {
+    "baseline": "Film Grunge grain term with source default grainAmount=.075 and grainSize=1.4 (rounds to one pixel); all other effect contributions disabled in the isolated model.",
+    "candidates": ["Add Noise color mode at Size=1 and seed=1977, Amount solved to match Film Grunge frame-zero centered green residual stddev", "Match Grain grainSize=1.15, default luma/chroma/shadow/highlight/jitter controls and fixed reference, Amount solved to match the same frame-zero centered green residual stddev", "frame keys 0..127 inclusive for all three effects"],
+    "ground_truth": "None. RMS matching is a calibration convention only; the synthetic reference and equations do not establish a preferred look or temporal quality target.",
+    "acceptance": "Descriptive only. Verify source markers, deterministic frame access, finite outputs, zero-amount/neutral assumptions where applicable, exact Add Noise field hold, and report temporal metrics. No pass threshold for perceived flicker."
+  },
+  "materials": {
+    "fixture": "Generated locally: opaque neutral source at RGB=.5; fixed 28x28 three-channel synthetic multi-scale texture for Match Grain; no external material.",
+    "rights": "Locally generated.",
+    "identity": "Record plan/source/runner hashes, synthetic reference residual hash, library versions, seeds, dimensions, settings, and output checksums.",
+    "regions": {"whole": "All 28x28 pixels; per-frame mean-center residual fields for temporal correlation and standard deviation."}
+  },
+  "conditions": {
+    "dimensions_wh": [28, 28],
+    "coordinate_safety": "For Film Grunge x,y<=27 and block=1, coordinate products 27*73856093 and 27*19349663 remain within signed int32; no overflow assumptions are needed.",
+    "frames_inclusive": [0, 127],
+    "source_rgb": [0.5, 0.5, 0.5],
+    "film_grunge": {"seed": 1977, "grainAmount": 0.075, "grainSize": 1.4, "other_contributions": "isolated to zero; only the grain term is modeled"},
+    "add_noise": {"seed": 1977, "size": 1.0, "mode": "color", "amount": "calibrated to Film Grunge initial centered green residual stddev"},
+    "match_grain": {"reference_seed": 20261112, "grainSize": 1.15, "amount": "calibrated to Film Grunge initial centered green residual stddev", "lumaAmount": 1.0, "chromaAmount": 0.65, "shadowResponse": 0.25, "highlightResponse": -0.2, "temporalJitter": 1.0, "mix": 1.0},
+    "metrics": ["per-effect calibrated Amount and initial per-channel standard deviation", "per-frame mean/std/min/max and nonfinite count", "adjacent-frame spatial luma correlation and delta RMSE, raw and normalized by target stddev", "pooled per-pixel temporal autocorrelation at lag 1 and lag 4 after temporal-mean removal", "per-pixel temporal variance and unique frame fields", "RGB cross-channel correlation", "RGB range and clipping fraction", "static Add Noise exact repeatability", "Match Grain reverse-offset alignment", "checksums"],
+    "display": "Three rows (one per effect) by frames 0..5; common 4x residual gain on neutral .5 plate. Metrics use Float32 equation outputs before display conversion."
+  },
+  "evaluation": {
+    "effect_correctness": {"status": "source_equation_model_only", "method": "Check each isolated grain equation, seeds, per-frame key and source markers; verify Add Noise is time invariant and Match Grain is a pure cyclic shift of its fixed residual field.", "acceptance_criteria": "Markers agree; exact deterministic regeneration; source model outputs finite; zero-amount neutral identity where modeled."},
+    "image_quality_and_detail": {"status": "descriptive_synthetic_only", "method": "Inspect fixed frame contact sheet and per-frame residual statistics.", "acceptance_criteria": "No aesthetic judgment, matched-appearance claim, or temporal-quality verdict."},
+    "color_and_alpha": {"status": "partial_opaque_neutral_only", "method": "Report RGB channel correlations and range at source=.5; alpha is source-preserved by source contract.", "unverified": "Colored content, alpha edges/association, transfer function, display transform, real reference import."},
+    "temporal_stability": {"status": "source_model_only", "method": "Static source, fixed settings and 128 composition-frame keys; compare unaligned and known-offset-aligned residuals.", "unverified": "Real playback, motion, dropped frames, seek/reverse, viewer perception."},
+    "render_paths_and_resolution": {"status": "single_safe_resolution_model_only", "unverified": "Compiled CPU/GPU outputs, production size behavior, preview/final parity."},
+    "performance": {"status": "not_measured", "reason": "No runtime profiling."},
+    "decision": "No effect preference, preset recommendation, quality acceptance or product integration approval."
+  },
+  "execution": {
+    "backend": "Python 3, NumPy, OpenCV, Pillow; offline source-equation models only.",
+    "threshold_policy": "Only exact model invariants are checked; no perceptual threshold.",
+    "reproducibility": "Fixed source/reference seeds, frame keys, sizes, amount calibration, source hashes and SHA-256 manifests.",
+    "artifacts": "experiments/FilmEffectsLab/captures/grain-suite-temporal-response-r1/"
+  },
+  "amendments": [
+    {
+      "date": "2026-11-12",
+      "reason": "A comparability review found that the planned lag-4 value was implemented as a median spatial correlation across frame pairs, while the existing Film Grunge temporal study reports a pooled per-pixel time autocorrelation.",
+      "change": "Retain adjacent-frame spatial correlation and add pooled per-pixel temporal autocorrelation at lags 1 and 4, with each pixel's temporal mean removed.",
+      "scope_effect": "Adds a separately named temporal metric for cross-study interpretation; candidate settings, calibration, conditions, and acceptance criteria are unchanged. Regenerate the complete report."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "origin": "project-authored procedural fixture; no downloaded assets",
+  "mesh": "six-part upholstered sofa with divided seat cushion; FBX 7.4.0 ASCII",
+  "textureSize": [
+    512,
+    512
+  ],
+  "textures": {
+    "fabric-base.png": "sRGB deep teal woven cloth albedo",
+    "fabric-roughness.png": "linear grayscale roughness",
+    "fabric-normal.png": "linear tangent-space normal map"
+  },
+  "sha256": {
+    "fabric-base.png": "9bf5a333a843f8653ba2d04839ed21969da62d6afeb2df5d60dd793071ab1cd9",
+    "fabric-normal.png": "5f3fa0b6bdcabdcc393ae537ff436505bb4ba51bd013c18e5e3cf283f532f42a",
+    "fabric-pillow.fbx": "6293ea0e368d71004ed0a271efc6829a15bcc6a76472977e67b849e3da69098b",
+    "fabric-roughness.png": "930361fc32f6ebac8cf73959b463526a20f8e11bc89285acf32d9760bacaa6b5"
+  }
+}

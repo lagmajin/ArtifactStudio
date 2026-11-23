@@ -1,0 +1,42 @@
+{
+  "intent": "Point-rays and Glint role test on an isolated synthetic night plate with no baked beams; exploratory ordered CPU PNG-chain candidate.",
+  "input": "captures/glow-point-rays-probe-rd1/point-rays-probe.png",
+  "foundation": {
+    "effect_id": "glow",
+    "properties": {
+      "glowGain": 0.08,
+      "layerCount": 4,
+      "baseSigma": 6.0
+    }
+  },
+  "recipes": {
+    "point-rays-probe-rd1": [
+      {
+        "effect_id": "builtin.volumetric_shine",
+        "properties": {
+          "sourceX": 0.34,
+          "sourceY": 0.35,
+          "rayLength": 0.5,
+          "intensity": 0.75,
+          "decay": 0.85,
+          "samples": 48,
+          "threshold": 0.35,
+          "warmth": 0.1
+        }
+      },
+      {
+        "effect_id": "builtin.glint_star_filter",
+        "properties": {
+          "threshold": 0.6,
+          "intensity": 0.55,
+          "length": 32.0,
+          "width": 0.75,
+          "rays": 4,
+          "rotation": 45.0,
+          "chromatic": 0.15,
+          "softness": 0.7
+        }
+      }
+    ]
+  }
+}

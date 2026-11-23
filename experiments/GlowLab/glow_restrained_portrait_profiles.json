@@ -1,0 +1,83 @@
+{
+  "intent": "Cross-plate check of restrained Edge/Reactive/Glint choices and Optical component balance; exploratory only.",
+  "source": "assets/flash-photo-plate.png",
+  "profiles": {
+    "edge_bloom-restrained": {
+      "effect_id": "edge_bloom",
+      "properties": {
+        "Threshold": 0.8,
+        "Threshold Softness": 0.15,
+        "Radius": 8.0,
+        "Amount": 0.25,
+        "Edge Boost": 0.75,
+        "Tint Mix": 0.2
+      }
+    },
+    "reactive_glow-restrained": {
+      "effect_id": "reactive_glow",
+      "properties": {
+        "Threshold": 0.45,
+        "Radius": 10.0,
+        "Intensity": 0.4,
+        "Reaction": 0.8,
+        "Saturation Weight": 0.6,
+        "Tint Mix": 0.18
+      }
+    },
+    "builtin.glint_star_filter-restrained": {
+      "effect_id": "builtin.glint_star_filter",
+      "properties": {
+        "threshold": 0.45,
+        "intensity": 0.5,
+        "length": 50.0,
+        "width": 1.0,
+        "rays": 4,
+        "rotation": 45.0,
+        "chromatic": 0.3,
+        "softness": 0.55
+      }
+    },
+    "optical-primary-only": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.4,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.55,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.0,
+        "streakStrength": 0.0,
+        "atmosphere": 0.0,
+        "warmth": 0.0
+      }
+    },
+    "optical-secondary-only": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.4,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.0,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.25,
+        "streakStrength": 0.2,
+        "atmosphere": 0.1,
+        "warmth": 0.2
+      }
+    },
+    "optical-restrained-stack": {
+      "effect_id": "builtin.optical_glow",
+      "properties": {
+        "threshold": 0.4,
+        "softKnee": 0.3,
+        "radius": 8.0,
+        "intensity": 0.55,
+        "afterglowRadius": 20.0,
+        "afterglowIntensity": 0.12,
+        "streakStrength": 0.08,
+        "atmosphere": 0.04,
+        "warmth": 0.1
+      }
+    }
+  }
+}
