@@ -91,6 +91,11 @@ def parse_args() -> argparse.Namespace:
         help="exercise a Layer Component through virtual pointer events",
     )
     parser.add_argument(
+        "--color-wheel-editor",
+        action="store_true",
+        help="exercise the Color Wheels effect's grading-wheel editor",
+    )
+    parser.add_argument(
         "--component",
         choices=("cloner", "layout", "physics", "fluid", "script"),
         default=None,
@@ -265,7 +270,7 @@ def main() -> int:
     args = parse_args()
     isolated_fixtures = sum((
         bool(args.timeline or args.curve_editor), args.render_manager,
-        args.cloner, args.components, args.tracker,
+        args.cloner, args.components, args.color_wheel_editor, args.tracker,
         args.contents_viewer is not None, args.light_leak, args.glow,
         args.effect_suite_id is not None,
     ))
@@ -524,6 +529,7 @@ def main() -> int:
         cloner_fixture_path.unlink(missing_ok=True)
     tracker_result_path = output_path.with_suffix(".result.txt")
     components_result_path = output_path.with_suffix(".components-result.txt")
+    color_wheel_result_path = output_path.with_suffix(".color-wheel-result.txt")
     light_leak_paths = {
         name: output_path.with_name(
             f"{output_path.stem}-{name}-{args.light_leak_compute}{output_path.suffix}"
@@ -545,6 +551,8 @@ def main() -> int:
         effect_suite_capture_path.unlink(missing_ok=True)
     if args.components:
         components_result_path.unlink(missing_ok=True)
+    if args.color_wheel_editor:
+        color_wheel_result_path.unlink(missing_ok=True)
     if args.tracker:
         tracker_result_path.unlink(missing_ok=True)
 
@@ -561,6 +569,8 @@ def main() -> int:
         "ARTIFACT_UI_TEST_COMPONENT",
         "ARTIFACT_UI_TEST_COMPONENTS_RESULT_PATH",
         "ARTIFACT_UI_TEST_COMPONENTS_NO_WINDOW",
+        "ARTIFACT_UI_TEST_COLOR_WHEEL_EDITOR",
+        "ARTIFACT_UI_TEST_COLOR_WHEEL_RESULT_PATH",
         "ARTIFACT_UI_TEST_TRACKER",
         "ARTIFACT_UI_TEST_LIGHT_LEAK",
         "ARTIFACT_UI_TEST_LIGHT_LEAK_OUTPUT_PATTERN",
@@ -605,13 +615,13 @@ def main() -> int:
     console_log_file = None
     console_log_path = (
         Path(f"{output_path}.console.log")
-        if args.contents_viewer is not None or args.components or args.light_leak or
+        if args.contents_viewer is not None or args.components or args.color_wheel_editor or args.light_leak or
         args.glow or args.effect_suite_id is not None else None
     )
     if console_log_path is not None:
         console_log_path.parent.mkdir(parents=True, exist_ok=True)
         console_log_file = console_log_path.open("wb")
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.tracker or args.contents_viewer or args.light_leak or args.effect_suite_id is not None:
+    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.components or args.color_wheel_editor or args.tracker or args.contents_viewer or args.light_leak or args.effect_suite_id is not None:
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -717,6 +727,14 @@ def main() -> int:
             environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = (
                 "inspectorComponentsSurface"
             )
+    if args.color_wheel_editor:
+        environment["ARTIFACT_UI_TEST_COLOR_WHEEL_EDITOR"] = "1"
+        environment["ARTIFACT_UI_TEST_COLOR_WHEEL_RESULT_PATH"] = str(
+            color_wheel_result_path.resolve()
+        )
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = (
+            "propertyGradingWheelDialog"
+        )
     if args.tracker:
         environment["ARTIFACT_UI_TEST_TRACKER"] = "1"
         environment["ARTIFACT_UI_TEST_TRACKER_RESULT_PATH"] = str(
@@ -775,6 +793,21 @@ def main() -> int:
     renderer_stable_observations = 0
     try:
         while time.monotonic() < deadline:
+            if args.color_wheel_editor and color_wheel_result_path.is_file():
+                result_lines = [
+                    line.strip()
+                    for line in color_wheel_result_path.read_text(
+                        encoding="utf-8", errors="replace"
+                    ).splitlines()
+                    if line.strip()
+                ]
+                if len(result_lines) != 1 or not result_lines[0].startswith("pass "):
+                    print(
+                        "capture_ui_test: Color Wheel UI fixture failed: "
+                        + " | ".join(result_lines),
+                        file=sys.stderr,
+                    )
+                    return 1
             if args.components_no_window:
                 exit_code = process.poll()
                 if exit_code is not None:
@@ -838,6 +871,32 @@ def main() -> int:
                                 )
                                 return 1
                             component_result = " | ".join(component_lines)
+                        if args.color_wheel_editor:
+                            if not color_wheel_result_path.is_file():
+                                time.sleep(0.1)
+                                continue
+                            color_wheel_lines = [
+                                line.strip()
+                                for line in color_wheel_result_path.read_text(
+                                    encoding="utf-8", errors="replace"
+                                ).splitlines()
+                                if line.strip()
+                            ]
+                            if (
+                                len(color_wheel_lines) != 1 or
+                                not color_wheel_lines[0].startswith("pass ")
+                            ):
+                                print(
+                                    "capture_ui_test: Color Wheel UI fixture failed: "
+                                    + " | ".join(color_wheel_lines),
+                                    file=sys.stderr,
+                                )
+                                return 1
+                            print(
+                                f"{args.language}: "
+                                + color_wheel_lines[0]
+                            )
+                            return 0
                         if renderer_output_path is not None:
                             if not renderer_output_path.is_file():
                                 pass
