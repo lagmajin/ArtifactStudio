@@ -692,7 +692,7 @@ public:
                 return snapshot.value(QStringLiteral("compositionId")).toString() == parentId &&
                     selection.value(QStringLiteral("activeCompositionId")).toString() == parentId &&
                     selection.value(QStringLiteral("currentLayerId")).toString() == expectedLayerId &&
-                    selected.size() == 1 && selected.front().toString() == expectedLayerId;
+                    selected.size() == 1 && selected.at(0).toString() == expectedLayerId;
             };
             sendKey(Qt::Key_P);
             const auto afterPrecomposeKey = state();
@@ -1087,7 +1087,7 @@ public:
                 finalSelection.value(QStringLiteral("activeCompositionId")).toString() ==
                     result.value(QStringLiteral("rootCompositionId")).toString() &&
                 finalSelection.value(QStringLiteral("currentLayerId")).toString() == expectedWrapperId &&
-                finalSelectedIds.size() == 1 && finalSelectedIds.front().toString() == expectedWrapperId;
+                finalSelectedIds.size() == 1 && finalSelectedIds.at(0).toString() == expectedWrapperId;
             result[QStringLiteral("guiKeyRouted")] = actionCompleted;
             result[QStringLiteral("returnedToRoot")] = returnedToRoot;
             result[QStringLiteral("rootWrapperSelectedAfterReturn")] = rootWrapperSelected;
@@ -4269,7 +4269,7 @@ public:
             hasChild_ = true;
             const auto originalChild = service->findComposition(outcome.childCompId).ptr.lock();
             const auto childLayerIds = originalChild
-                ? namedLayerIds(originalChild, {QStringLiteral("A"), QStringLiteral("B"}))
+                ? namedLayerIds(originalChild, {QStringLiteral("A"), QStringLiteral("B")})
                 : QVector<LayerID>{};
             QVector<ArtifactAbstractLayerPtr> originalChildLayers;
             if (originalChild)
@@ -6411,7 +6411,7 @@ public:
                 : SharedPtr<ArtifactCompositionLayer>{};
             const bool wrapperTransformPreservedInNestedChild = nestedExistingWrapper == existingWrapper &&
                 wrapperTransformMatches(nestedExistingWrapper);
-            const auto& manager = PreComposeManager::instance();
+            auto& manager = PreComposeManager::instance();
             const auto hasParentReference = [&](CompositionID expectedParent) {
                 for (const auto& reference : manager.getPrecompLayersForChild(existing.childCompId)) {
                     if (reference.parentCompId == expectedParent &&
@@ -7469,8 +7469,8 @@ public:
                 const auto expected = sourceTransformKeys.isEmpty()
                     ? QJsonArray{} : sourceTransformKeys.back();
                 if (actual.size() != expected.size() + 1 ||
-                    actual.front().toObject()["timeValue"].toInt() != 0 ||
-                    std::abs(actual.front().toObject()["value"].toDouble() - overrideValue) > 1.0e-6 ||
+                    actual.at(0).toObject()["timeValue"].toInt() != 0 ||
+                    std::abs(actual.at(0).toObject()["value"].toDouble() - overrideValue) > 1.0e-6 ||
                     std::abs(opacity->evaluateValue(RationalTime(
                         0, layer->keyframeTimeScale())).toDouble() - overrideValue) > 1.0e-6) {
                     return false;
@@ -7705,7 +7705,7 @@ private:
             auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
             const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
                                                   : CompositionID{};
-            if (!childId.isNil()) {
+            if (compositionLayer && !childId.isNil()) {
                 entry["childId"] = childId.toString();
                 auto child = ArtifactProjectService::instance()->findComposition(childId).ptr.lock();
                 entry["childExists"] = bool(child);
