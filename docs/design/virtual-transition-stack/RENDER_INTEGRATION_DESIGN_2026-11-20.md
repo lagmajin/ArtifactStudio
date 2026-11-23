@@ -1,6 +1,6 @@
 # Virtual Transition — 描画統合設計（提案）
 
-**最終更新:** 2026-11-22
+**最終更新:** 2026-11-23
 **ステータス:** P1/P2実装済み、P3画素合成統合は未完了（model API・3描画経路のdraw plan接続を追加。2026-11-22に対象target buildとtransition契約CTest 10/10 Passを確認）
 
 ## 1. 目的と範囲
@@ -142,15 +142,15 @@
 - この時点で未実装だった項目: P3 の crossfade kernel 描画ループ接続、P4 parity、P5 Undo / UI 整理。Fail / ハングの2件は後続の2026-11-22修正・検証で解消した。UI / Undo の現状は本書 §10 を参照。P3画素合成統合とP4 parityは引き続き未完了。
 - ビルドを通すための既存コード修正（今回の機能変更とは別）: Boost UUID `data()` 呼び出し、`ArtifactShapeLayer::evaluatePathAt()` の PImpl 定義後の配置、`ArtifactPythonAPI.cpp` の QString→std::string 変換、`ArtifactLayerPanelWidget.cpp` の画像 filter 固定文字列。一時プレースホルダ `tests/Artifact/ArtifactLayerGroupingUiContractTest.cpp` は CMake 参照切れ回避のため残している（Git 追跡対象の変更ではない）。
 
-## 10. Transition Stack UI / Undo 実装状況（2026-11-22）
+## 10. Transition Stack UI / Undo 実装状況（2026-11-23）
 
 - Layer Panel の既存 Transition Stack メニューから開く編集ダイアログを追加し、name、source A/B、kind、easing、frame range、stack position、enabled を編集する。
-- ダイアログ上部にQPainter owner-drawのA/B stack previewを置き、ソースカード・遷移矢印・kind・easing・range長・挿入位置を表示する。可視UIの見た目／操作受入はまだ未確認。
+- ダイアログ上部にQPainter owner-drawのA/B stack previewを置き、ソースカード・遷移矢印・kind・easing・range長・挿入位置を表示する。2026-11-23に Windows Qt platform pluginでアプリwindowを不可視化し、localhost MCPのQt仮想入力とwidget captureで実表示を確認した。OS入力注入やデスクトップcaptureは使用しない。
 - 参照切れの source A/B はダイアログ上で明示し、代替レイヤーを選ぶまでApplyを受け付けない。別プロパティだけを編集してsourceが暗黙に差し替わることを防ぐ。
 - Frame range input は signed 64-bit として検証し、`FramePosition` の `int64_t` assignment を通して保存する。`int` constructor による暗黙 narrowing を避ける。
 - 作成・変更・複製・削除・全削除を `setTimelineTransitions()` ベースの in-memory snapshot Undo command に接続。新規公開signal/slot/event配線は追加していない。
 - Wipe/Slide は追加／種類変更メニューから除外。Dissolve を追加し、編集UI文言は ja/en/zh/zh-TW を用意。
-- 確認済み（2026-11-22）: Artifact app／Stack targetのbuild、および関連CTest 2/2（Core 20/20、Stack 10/10）。これらのCTestは新設編集dialog／Undoを行使しない。未確認: 可視UIの操作、owner-draw受入、Undo/Redoの実操作、Undo履歴の永続化、共同編集へのsnapshot operation dispatch。Computer Use runtimeは初期化失敗のため画面操作に至っていない。失敗確認は適用後のtransition countで行い、競合した編集は履歴へ入れない。
+- 確認済み（2026-11-23）: Artifact app／Stack targetのbuild、および関連CTest 2/2（Core 20/20、Stack 10/10）。hidden UI MCPでdialog表示・stack図・Apply・名前変更後の反映を確認し、transition追加のCtrl+Z/Ctrl+Shift+Zによるmarker除去／復元を確認した。未確認: 編集値変更そのもののUndo/Redo、Undo履歴の永続化、共同編集へのsnapshot operation dispatch。編集UIの操作完了後に値は反映されたが、編集値の履歴復元はまだ確認していない。
 - 既存CTestログ確認（2026-11-22 11:41）: `ArtifactCoreTransitionRenderContractTest` 20/20 と `ArtifactVirtualTransitionStackContractTest` 10/10 Pass。この記録は上記編集ダイアログ／Undo変更より前であり、それらの検証証跡には使わない。
 
 ## 9. 参考
