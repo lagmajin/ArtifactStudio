@@ -1,5 +1,7 @@
 # Milestone: Track Matte Drag-Link UX
 
+**最終更新:** 2026-11-24
+
 作成日: 2026-06-01
 親: `MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md` (Track Matte / Mask / Blend)
 関連: `MILESTONE_PROPERTY_REFERENCE_LINKING_2026-05-11.md` (Property Row Pick Whip Surface)
@@ -132,3 +134,9 @@ After Effects 標準操作を実現する。MatteType 列挙と LayerMatteRefere
 - Phase 3: 6–10h
 
 合計: 26–40h
+
+## 現行 main の描画経路（2026-11-24）
+
+- Composition View は、表示中かつ有効な Stretch のマット元を条件付きで GPU 中間面に描画し、対応外のケースでは既存の画像経路で解決する。
+- Render Queue の実運用経路は `renderSingleFrame()`。Stretch のマット元を GPU 中間面へ描画する経路がある。3D、調整レイヤー、グループ配下、別の有効なマットを持つソースは、その経路の対象外。
+- 変換付き画像、マスク／エフェクト、Precomp／3D を同じ条件で比較する候補は、9月1日の開発コミット `f6597398` の記録にある。今回の確認はコード上の分岐までで、Composition View と Render Queue の出力一致は未確認。
