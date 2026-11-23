@@ -2574,6 +2574,95 @@ TEST(Model3DLightCompositionIntegrationTest,
 #endif
 }
 
+// Present/readback contract: display-only presentation transforms (channel
+// inspection, exposure, clipping warnings, and any future OCIO present stage)
+// must not change the beauty view returned by the readback helpers. Color
+// sampler, scopes, magnifier and RAM preview depend on that separation.
+TEST(Model3DLightCompositionIntegrationTest,
+     PresentReadbackStaysBeautyUnderChannelInspection)
+{
+    auto& app = application();
+    diligentErrorDetected.store(false, std::memory_order_relaxed);
+    Diligent::SetDebugMessageCallback(integrationDiligentMessageCallback);
+    Diligent::WindowsDebug::SetBreakOnError(false);
+
+    QWidget host;
+    host.resize(kViewportSize);
+    host.show();
+    app.processEvents();
+
+    Artifact::CompositionRenderController controller;
+    controller.initialize(&host);
+    ASSERT_TRUE(controller.isInitialized());
+    ASSERT_NE(controller.renderer(), nullptr);
+
+    struct ControllerCleanup final {
+        Artifact::CompositionRenderController& controller;
+        ~ControllerCleanup()
+        {
+            controller.stop();
+            controller.destroy();
+        }
+    } cleanup{controller};
+
+    Artifact::ArtifactCompositionInitParams params(
+        ArtifactCore::UniString(QStringLiteral("PresentReadbackContract")),
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+    params.setResolution(kViewportSize.width(), kViewportSize.height());
+    params.setDurationFrames(2);
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactComposition3D>(
+        ArtifactCore::CompositionID(QStringLiteral("present-readback-contract")),
+        params);
+
+    auto redLayer = ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
+    ASSERT_TRUE(redLayer);
+    redLayer->setLayerName(QStringLiteral("Red probe"));
+    redLayer->setSize(kViewportSize.width(), kViewportSize.height());
+    redLayer->setColor(ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
+    ASSERT_TRUE(composition->appendLayerTop(redLayer).success);
+    controller.setComposition(composition);
+    controller.start();
+
+    const auto renderOnce = [&]() {
+        const quint64 previousSerial = controller.currentFrameSerial();
+        controller.markRenderDirty();
+        controller.renderOneFrame();
+        QElapsedTimer timeout;
+        timeout.start();
+        while (controller.currentFrameSerial() <= previousSerial &&
+               timeout.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+        }
+        EXPECT_GT(controller.currentFrameSerial(), previousSerial);
+    };
+
+    controller.setViewportChannelDisplayMode(
+        Artifact::ViewportChannelDisplayMode::Color);
+    renderOnce();
+    const QImage beautyBefore = controller.readbackPresentedFrameImage();
+    ASSERT_FALSE(beautyBefore.isNull());
+
+    // Red channel inspection writes a separate display surface. The beauty
+    // readback must keep reporting the unchanged composite.
+    controller.setViewportChannelDisplayMode(
+        Artifact::ViewportChannelDisplayMode::Red);
+    renderOnce();
+    const QImage beautyDuringInspection = controller.readbackPresentedFrameImage();
+    const QImage inspection = controller.readbackViewportChannelDisplayImage();
+    ASSERT_FALSE(beautyDuringInspection.isNull());
+    ASSERT_FALSE(inspection.isNull());
+    EXPECT_EQ(beautyBefore.size(), beautyDuringInspection.size());
+    EXPECT_EQ(beautyBefore, beautyDuringInspection)
+        << "channel inspection must not mutate the beauty readback surface";
+
+    // Returning to Color must restore the same beauty pixels.
+    controller.setViewportChannelDisplayMode(
+        Artifact::ViewportChannelDisplayMode::Color);
+    renderOnce();
+    EXPECT_EQ(controller.readbackPresentedFrameImage(), beautyBefore)
+        << "readback must be independent of display-only transforms";
+}
+
 TEST(Model3DLightCompositionIntegrationTest,
      CompositionControllerRespectsPointLightLinking)
 {

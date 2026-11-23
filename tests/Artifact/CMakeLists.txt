@@ -3368,6 +3368,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactCompositionPresentReadbackContractTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.PresentReadbackStaysBeautyUnderChannelInspection"
+    )
+    set_tests_properties(ArtifactCompositionPresentReadbackContractTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "viewport;present;readback;channel-display;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactCompositionProjected3DLODIntegrationTest
         COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
             "--gtest_filter=Model3DLightCompositionIntegrationTest.ActiveCameraProjectionChangesProjected3DLayerLODAndRestoresDecision"
