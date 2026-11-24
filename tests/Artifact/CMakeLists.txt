@@ -92,6 +92,24 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
         TIMEOUT 30
     )
 
+artifact_add_test(ArtifactMotionBlurLayerPersistenceContractTest
+    SOURCES
+        MotionBlurLayerPersistenceContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_target_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+set_tests_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactMotionBlurLayerPersistenceContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:$<TARGET_FILE_DIR:ArtifactMotionBlurLayerPersistenceContractTest>/platforms"
+    LABELS "motion-blur;layer;camera;serialization;undo;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp
