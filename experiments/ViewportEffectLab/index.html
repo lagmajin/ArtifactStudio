@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viewport Effect Lab</title>
+<style>
+body { margin: 2rem auto; max-width: 640px; font: 16px system-ui; background: #1d2025; color: #eee }
+figure { position: relative; margin: 0 }
+canvas { display: block; width: 100% }
+button { position: relative; margin: .5rem; touch-action: none; cursor: ew-resize; padding: .4rem }
+#handles { position: absolute; bottom: 0; display: flex; justify-content: space-between; width: 100% }
+input { width: 5rem }
+</style>
+<h1>Viewport Effect Lab</h1>
+<figure>
+  <canvas width="640" height="360" aria-label="エフェクトのプレビュー"></canvas>
+  <div id="handles"><button id="blur">ブラー強度</button><button id="opacity">不透明度</button></div>
+</figure>
+<p><label>ブラー強度 <input id="blur-value" type="number" min="0" max="100" value="0"> %</label>
+<label>不透明度 <input id="opacity-value" type="number" min="0" max="100" value="100"> %</label></p>
+<p>ハンドルを左右にドラッグ。Esc で開始値に戻ります。</p>
+<script type="module">
+import { createScalarGizmo } from './scalar-gizmo.mjs';
+const viewport = document.querySelector('canvas');
+function surface() {
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  return canvas.getContext('2d');
+}
+const source = surface();
+const blurred = surface();
+const mix = surface();
+const output = viewport.getContext('2d');
+source.fillStyle = '#f5ebe0';
+source.fillRect(110, 105, 140, 150);
+for (let x = 305; x < 405; x += 6) source.fillRect(x, 105, 2, 150);
+source.fillRect(490, 105, 4, 4);
+source.fillStyle = 'rgba(90, 196, 245, .5)';
+source.beginPath();
+source.arc(482, 211, 52, 0, 2 * Math.PI);
+source.fill();
+blurred.filter = 'blur(12px)';
+blurred.drawImage(source.canvas, 0, 0);
+const values = { blur: 0, opacity: 100 };
+function render() {
+  mix.clearRect(0, 0, viewport.width, viewport.height);
+  mix.globalCompositeOperation = 'source-over';
+  mix.globalAlpha = 1 - values.blur / 100;
+  mix.drawImage(source.canvas, 0, 0);
+  mix.globalCompositeOperation = 'lighter';
+  mix.globalAlpha = values.blur / 100;
+  mix.drawImage(blurred.canvas, 0, 0);
+  output.globalAlpha = 1;
+  output.fillStyle = '#242a34';
+  output.fillRect(0, 0, viewport.width, viewport.height);
+  output.globalAlpha = values.opacity / 100;
+  output.drawImage(mix.canvas, 0, 0);
+}
+function bind(id) {
+  const handle = document.getElementById(id);
+  const input = document.getElementById(id + '-value');
+  const label = handle.textContent;
+  function preview(value) {
+    values[id] = value;
+    handle.textContent = label + ' ' + value + '%';
+    input.value = value;
+    render();
+  }
+  const gizmo = createScalarGizmo({
+    min: 0, max: 100, step: 1, unitsPerPixel: .25, initial: values[id], preview,
+  });
+  let pointer;
+  function finish(commit) {
+    if (!gizmo.finish(pointer, commit)) return;
+    const captured = pointer;
+    pointer = undefined;
+    if (handle.hasPointerCapture(captured)) handle.releasePointerCapture(captured);
+  }
+  handle.onpointerdown = event => {
+    if (event.button !== 0 || !gizmo.begin(event.pointerId, event.clientX)) return;
+    pointer = event.pointerId;
+    handle.focus();
+    handle.setPointerCapture(pointer);
+  };
+  handle.onpointermove = event => gizmo.move(event.pointerId, event.clientX);
+  handle.onpointerup = event => {
+    if (pointer !== event.pointerId) return;
+    gizmo.move(pointer, event.clientX);
+    finish(true);
+  };
+  handle.onpointercancel = handle.onlostpointercapture = event => {
+    if (pointer === event.pointerId) finish(false);
+  };
+  window.addEventListener('blur', () => finish(false));
+  handle.onkeydown = event => {
+    if (event.key === 'Escape') finish(false);
+    if (event.key === 'ArrowLeft') gizmo.set(gizmo.value - 1);
+    if (event.key === 'ArrowRight') gizmo.set(gizmo.value + 1);
+  };
+  input.onchange = () => {
+    gizmo.set(input.valueAsNumber);
+    input.value = gizmo.value;
+  };
+  preview(gizmo.value);
+}
+bind('blur');
+bind('opacity');
+</script>
+</html>

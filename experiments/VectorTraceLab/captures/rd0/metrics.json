@@ -1,0 +1,621 @@
+{
+  "schema_version": 1,
+  "lab": "VectorTraceLab",
+  "rd": "rd0",
+  "seed": 20261120,
+  "supersample": 4,
+  "identity_max_abs_diff": {
+    "logo_badge": 0.0,
+    "flat_illustration": 0.0,
+    "nested_holes": 0.0,
+    "thin_strokes": 0.0,
+    "alpha_logo": 0.0,
+    "logo_badge_256": 0.0,
+    "logo_badge_1024": 0.0
+  },
+  "fixtures": {
+    "logo_badge": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "logo_badge",
+        "region_count": 1,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "ring",
+          "star",
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.799242955278284,
+            "chamfer_p95": 101.23013305664062,
+            "delta_e76": 28.618175506591797
+          }
+        ],
+        "iou_mean": 0.24865735193290145,
+        "iou_min": 0.006947459834997829,
+        "area_error_mean": 0.2328363801825433,
+        "boundary_chamfer_p95": 101.23013305664062,
+        "holes_gt": 1,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 28.618175506591797,
+        "alpha_edge_error_codes": 203.4374964237213,
+        "alpha_edge_error_p95_codes": 139.84883576631546,
+        "alpha_edge_error_mean_codes": 49.74900908768177,
+        "alpha_edge_error_shift1_p95_codes": 129.11576449871063,
+        "alpha_semi_error_codes": 122.06249177455902,
+        "vertices": 16,
+        "finite_output": true,
+        "wall_time_ms_median": 2.6329000011173775
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "logo_badge",
+        "region_count": 6,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 3,
+        "unmatched_gt_regions": [
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 2,
+            "iou": 0.914858922437414,
+            "chamfer_p95": 47.5112190246582,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "ring",
+            "out_index": 0,
+            "iou": 0.9677806825408041,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 1.4142135381698608
+          },
+          {
+            "gt_region": "star",
+            "out_index": 3,
+            "iou": 0.9494888755261576,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 2.4494898319244385
+          }
+        ],
+        "iou_mean": 0.8185789951260939,
+        "iou_min": 0.4421875,
+        "area_error_mean": 0.043353321861145294,
+        "boundary_chamfer_p95": 16.47373966375987,
+        "holes_gt": 1,
+        "holes_recovered": 1,
+        "thin_recall": null,
+        "color_de76_mean": 1.2879011233647664,
+        "alpha_edge_error_codes": 239.8750028014183,
+        "alpha_edge_error_p95_codes": 179.17242407798767,
+        "alpha_edge_error_mean_codes": 54.1221222281456,
+        "alpha_edge_error_shift1_p95_codes": 49.13262516260147,
+        "alpha_semi_error_codes": 122.06249177455902,
+        "vertices": 160,
+        "finite_output": true,
+        "wall_time_ms_median": 14.32089999980235
+      }
+    },
+    "flat_illustration": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "flat_illustration",
+        "region_count": 2,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "red_disc",
+          "green_tri",
+          "yellow_rect"
+        ],
+        "per_region": [
+          {
+            "gt_region": "purple_dot",
+            "out_index": 0,
+            "iou": 0.8939873417721519,
+            "chamfer_p95": 1.3693000078201294,
+            "delta_e76": 0.0
+          }
+        ],
+        "iou_mean": 0.47259824623046875,
+        "iou_min": 0.13735419866340126,
+        "area_error_mean": 0.10301109350237718,
+        "boundary_chamfer_p95": 1.3693000078201294,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 0.0,
+        "alpha_edge_error_codes": 206.24999910593033,
+        "alpha_edge_error_p95_codes": 134.06249105930328,
+        "alpha_edge_error_mean_codes": 47.63184629380703,
+        "alpha_edge_error_shift1_p95_codes": 101.21443927288055,
+        "alpha_semi_error_codes": 170.58944463729858,
+        "vertices": 32,
+        "finite_output": true,
+        "wall_time_ms_median": 1.9047999994654674
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "flat_illustration",
+        "region_count": 5,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 4,
+        "unmatched_gt_regions": [],
+        "per_region": [
+          {
+            "gt_region": "red_disc",
+            "out_index": 3,
+            "iou": 0.9860625655365257,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "green_tri",
+            "out_index": 1,
+            "iou": 0.8202052319699379,
+            "chamfer_p95": 87.4596939086914,
+            "delta_e76": 1.0
+          },
+          {
+            "gt_region": "yellow_rect",
+            "out_index": 0,
+            "iou": 0.9901604278074866,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "purple_dot",
+            "out_index": 4,
+            "iou": 0.9261006289308176,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 0.0
+          }
+        ],
+        "iou_mean": 0.930632213561192,
+        "iou_min": 0.8202052319699379,
+        "area_error_mean": 0.06006921970857616,
+        "boundary_chamfer_p95": 22.581173464655876,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 0.25,
+        "alpha_edge_error_codes": 206.24999910593033,
+        "alpha_edge_error_p95_codes": 106.96137249469757,
+        "alpha_edge_error_mean_codes": 24.71357747912407,
+        "alpha_edge_error_shift1_p95_codes": 43.11363413929939,
+        "alpha_semi_error_codes": 123.75000402331352,
+        "vertices": 43,
+        "finite_output": true,
+        "wall_time_ms_median": 7.299799999600509
+      }
+    },
+    "nested_holes": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "nested_holes",
+        "region_count": 1,
+        "gt_region_count": 3,
+        "matched_pairs": 3,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "ring",
+          "core"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.6987563775510204,
+            "chamfer_p95": 92.63511657714844,
+            "delta_e76": 30.74085235595703
+          }
+        ],
+        "iou_mean": 0.3317605850098817,
+        "iou_min": 0.05414718188530642,
+        "area_error_mean": 0.4080006026819346,
+        "boundary_chamfer_p95": 92.63511657714844,
+        "holes_gt": 1,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 30.74085235595703,
+        "alpha_edge_error_codes": 126.73070847988129,
+        "alpha_edge_error_p95_codes": 98.29321682453156,
+        "alpha_edge_error_mean_codes": 41.122863963246346,
+        "alpha_edge_error_shift1_p95_codes": 98.29321682453156,
+        "alpha_semi_error_codes": 0.0,
+        "vertices": 4,
+        "finite_output": true,
+        "wall_time_ms_median": 1.9369000001461245
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "nested_holes",
+        "region_count": 4,
+        "gt_region_count": 3,
+        "matched_pairs": 3,
+        "confident_matches": 3,
+        "unmatched_gt_regions": [],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 2,
+            "iou": 0.8382091530836673,
+            "chamfer_p95": 66.85006713867188,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "ring",
+            "out_index": 3,
+            "iou": 0.974279067725936,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 1.0
+          },
+          {
+            "gt_region": "core",
+            "out_index": 0,
+            "iou": 0.9713721618953604,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 1.0
+          }
+        ],
+        "iou_mean": 0.9279534609016545,
+        "iou_min": 0.8382091530836673,
+        "area_error_mean": 0.06742212249969176,
+        "boundary_chamfer_p95": 22.92002236843109,
+        "holes_gt": 1,
+        "holes_recovered": 1,
+        "thin_recall": null,
+        "color_de76_mean": 0.6666666666666666,
+        "alpha_edge_error_codes": 233.7500050663948,
+        "alpha_edge_error_p95_codes": 170.00312089920044,
+        "alpha_edge_error_mean_codes": 53.48149560391903,
+        "alpha_edge_error_shift1_p95_codes": 43.19182634353638,
+        "alpha_semi_error_codes": 0.0,
+        "vertices": 139,
+        "finite_output": true,
+        "wall_time_ms_median": 12.842300000556861
+      }
+    },
+    "thin_strokes": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "thin_strokes",
+        "region_count": 4,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 0,
+        "unmatched_gt_regions": [
+          "hline",
+          "vline",
+          "dots",
+          "wedge"
+        ],
+        "per_region": [],
+        "iou_mean": 0.24538149868052891,
+        "iou_min": 0.19959541469993258,
+        "area_error_mean": null,
+        "boundary_chamfer_p95": null,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": 0.6539456662354464,
+        "color_de76_mean": null,
+        "alpha_edge_error_codes": 168.75035852193832,
+        "alpha_edge_error_p95_codes": 84.37536165118217,
+        "alpha_edge_error_mean_codes": 46.25786282122135,
+        "alpha_edge_error_shift1_p95_codes": 56.24999284744263,
+        "alpha_semi_error_codes": 112.49997049570084,
+        "vertices": 27,
+        "finite_output": true,
+        "wall_time_ms_median": 1.6378999989683507
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "thin_strokes",
+        "region_count": 5,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 0,
+        "unmatched_gt_regions": [
+          "hline",
+          "vline",
+          "dots",
+          "wedge"
+        ],
+        "per_region": [],
+        "iou_mean": 0.2778232942807346,
+        "iou_min": 0.2080745341614907,
+        "area_error_mean": null,
+        "boundary_chamfer_p95": null,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": 0.8978007761966365,
+        "color_de76_mean": null,
+        "alpha_edge_error_codes": 196.8749749660492,
+        "alpha_edge_error_p95_codes": 168.75037372112274,
+        "alpha_edge_error_mean_codes": 50.42114742100239,
+        "alpha_edge_error_shift1_p95_codes": 59.82402786612511,
+        "alpha_semi_error_codes": 126.56285628676414,
+        "vertices": 50,
+        "finite_output": true,
+        "wall_time_ms_median": 4.269600000043283
+      }
+    },
+    "alpha_logo": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "alpha_logo",
+        "region_count": 1,
+        "gt_region_count": 3,
+        "matched_pairs": 3,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "glass",
+          "mark"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.6609340773964744,
+            "chamfer_p95": 73.53507995605469,
+            "delta_e76": 27.276363372802734
+          }
+        ],
+        "iou_mean": 0.3317973429761644,
+        "iou_min": 0.03422427599968493,
+        "area_error_mean": 0.48739577841563664,
+        "boundary_chamfer_p95": 73.53507995605469,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 27.276363372802734,
+        "alpha_edge_error_codes": 206.24999910593033,
+        "alpha_edge_error_p95_codes": 141.44278943538666,
+        "alpha_edge_error_mean_codes": 49.93753597140312,
+        "alpha_edge_error_shift1_p95_codes": 134.16365683078766,
+        "alpha_semi_error_codes": 109.99999344348907,
+        "vertices": 16,
+        "finite_output": true,
+        "wall_time_ms_median": 2.5830000013229437
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "alpha_logo",
+        "region_count": 3,
+        "gt_region_count": 3,
+        "matched_pairs": 3,
+        "confident_matches": 3,
+        "unmatched_gt_regions": [],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.9942454744069913,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "glass",
+            "out_index": 1,
+            "iou": 0.9790112143823363,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 64.45928955078125
+          },
+          {
+            "gt_region": "mark",
+            "out_index": 2,
+            "iou": 0.931350114416476,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 1.0
+          }
+        ],
+        "iou_mean": 0.9682022677352679,
+        "iou_min": 0.931350114416476,
+        "area_error_mean": 0.026075901740325924,
+        "boundary_chamfer_p95": 0.9549999833106995,
+        "holes_gt": 0,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 21.81976318359375,
+        "alpha_edge_error_codes": 238.75000476837158,
+        "alpha_edge_error_p95_codes": 152.87327527999878,
+        "alpha_edge_error_mean_codes": 50.61346270143986,
+        "alpha_edge_error_shift1_p95_codes": 35.16520544886589,
+        "alpha_semi_error_codes": 123.74999642372131,
+        "vertices": 90,
+        "finite_output": true,
+        "wall_time_ms_median": 9.747800000695861
+      }
+    },
+    "logo_badge_256": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "logo_badge_256",
+        "region_count": 1,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "ring",
+          "star",
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.791111685848528,
+            "chamfer_p95": 50.61503601074219,
+            "delta_e76": 28.618175506591797
+          }
+        ],
+        "iou_mean": 0.24756199056002065,
+        "iou_min": 0.00724131914151108,
+        "area_error_mean": 0.23062057118316512,
+        "boundary_chamfer_p95": 50.61503601074219,
+        "holes_gt": 1,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 28.618175506591797,
+        "alpha_edge_error_codes": 192.29105293750763,
+        "alpha_edge_error_p95_codes": 128.71816903352737,
+        "alpha_edge_error_mean_codes": 46.42712853848934,
+        "alpha_edge_error_shift1_p95_codes": 125.46817302703857,
+        "alpha_semi_error_codes": 94.93749529123306,
+        "vertices": 16,
+        "finite_output": true,
+        "wall_time_ms_median": 0.5316000006132526
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "logo_badge_256",
+        "region_count": 6,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 3,
+        "unmatched_gt_regions": [
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 1,
+            "iou": 0.9110694183864916,
+            "chamfer_p95": 23.278104782104492,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "ring",
+            "out_index": 2,
+            "iou": 0.947353682441893,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 2.2360680103302
+          },
+          {
+            "gt_region": "star",
+            "out_index": 3,
+            "iou": 0.9037122969837587,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 5.385164737701416
+          }
+        ],
+        "iou_mean": 0.7929434880072526,
+        "iou_min": 0.40963855421686746,
+        "area_error_mean": 0.060737076069357084,
+        "boundary_chamfer_p95": 8.396034916241964,
+        "holes_gt": 1,
+        "holes_recovered": 1,
+        "thin_recall": null,
+        "color_de76_mean": 2.5404109160105386,
+        "alpha_edge_error_codes": 239.8750028014183,
+        "alpha_edge_error_p95_codes": 171.4786121249199,
+        "alpha_edge_error_mean_codes": 53.43115210533142,
+        "alpha_edge_error_shift1_p95_codes": 44.76254805922508,
+        "alpha_semi_error_codes": 122.05803841352463,
+        "vertices": 159,
+        "finite_output": true,
+        "wall_time_ms_median": 3.6997000006522285
+      }
+    },
+    "logo_badge_1024": {
+      "alpha_threshold_trace": {
+        "method": "alpha_threshold_trace",
+        "fixture": "logo_badge_1024",
+        "region_count": 1,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 1,
+        "unmatched_gt_regions": [
+          "ring",
+          "star",
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 0,
+            "iou": 0.8019891427754691,
+            "chamfer_p95": 204.37033081054688,
+            "delta_e76": 28.618175506591797
+          }
+        ],
+        "iou_mean": 0.2491524411119715,
+        "iou_min": 0.0068894172701225685,
+        "area_error_mean": 0.23524197244253844,
+        "boundary_chamfer_p95": 204.37033081054688,
+        "holes_gt": 1,
+        "holes_recovered": 0,
+        "thin_recall": null,
+        "color_de76_mean": 28.618175506591797,
+        "alpha_edge_error_codes": 203.4374964237213,
+        "alpha_edge_error_p95_codes": 139.87782061100006,
+        "alpha_edge_error_mean_codes": 49.84264746308327,
+        "alpha_edge_error_shift1_p95_codes": 130.00281929969788,
+        "alpha_semi_error_codes": 122.06249177455902,
+        "vertices": 16,
+        "finite_output": true,
+        "wall_time_ms_median": 10.60470000084024
+      },
+      "posterize_components": {
+        "method": "posterize_components",
+        "fixture": "logo_badge_1024",
+        "region_count": 6,
+        "gt_region_count": 4,
+        "matched_pairs": 4,
+        "confident_matches": 3,
+        "unmatched_gt_regions": [
+          "dots"
+        ],
+        "per_region": [
+          {
+            "gt_region": "plate",
+            "out_index": 1,
+            "iou": 0.9169604400084206,
+            "chamfer_p95": 94.48174285888672,
+            "delta_e76": 0.0
+          },
+          {
+            "gt_region": "ring",
+            "out_index": 2,
+            "iou": 0.9776611113068602,
+            "chamfer_p95": 1.3693000078201294,
+            "delta_e76": 1.4142135381698608
+          },
+          {
+            "gt_region": "star",
+            "out_index": 3,
+            "iou": 0.9785921072680177,
+            "chamfer_p95": 0.9549999833106995,
+            "delta_e76": 2.4494898319244385
+          }
+        ],
+        "iou_mean": 0.830135175652114,
+        "iou_min": 0.4473270440251572,
+        "area_error_mean": 0.030687751741752867,
+        "boundary_chamfer_p95": 32.26868095000585,
+        "holes_gt": 1,
+        "holes_recovered": 1,
+        "thin_recall": null,
+        "color_de76_mean": 1.2879011233647664,
+        "alpha_edge_error_codes": 246.62499099969864,
+        "alpha_edge_error_p95_codes": 175.3787836432457,
+        "alpha_edge_error_mean_codes": 53.30543205142021,
+        "alpha_edge_error_shift1_p95_codes": 70.21117329597473,
+        "alpha_semi_error_codes": 122.06249177455902,
+        "vertices": 158,
+        "finite_output": true,
+        "wall_time_ms_median": 58.056400001078146
+      }
+    }
+  }
+}

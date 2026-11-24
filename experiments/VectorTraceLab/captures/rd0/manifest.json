@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "lab": "VectorTraceLab",
+  "rd": "rd0",
+  "created": "2026-11-20T04:21:45.881770+00:00",
+  "status": "R0 baseline measured; provisional gates; no human visual review",
+  "operator": "AI agent (no independent human visual review performed)",
+  "environment": {
+    "python": "3.14.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "numpy": "2.4.4",
+    "opencv": "4.13.0"
+  },
+  "seed": 20261120,
+  "supersample": 4,
+  "fixture_generation": {
+    "reused_existing": "captures\\rd0\\fixtures"
+  },
+  "methods": [
+    "alpha_threshold_trace",
+    "posterize_components"
+  ],
+  "outputs": {
+    "metrics": "metrics.json",
+    "gates": "gates.json",
+    "contact": "contact.png"
+  },
+  "hashes": {
+    "metrics.json": "7cf06d8105b96b13a0c8fbdec5e272140579f44718a7d0a88b174a425a2ca120",
+    "gates.json": "c1ca5532344ea39e97c5249d06b66586285df9dccf0623b222afc92219048fb7",
+    "contact.png": "485e4adeb932a09d1b2755f60c541017e25a07dd9fdb45c52e60c6159b24d761"
+  }
+}

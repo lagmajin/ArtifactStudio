@@ -1,6 +1,6 @@
 # Milestone: Python API & Scripting Console (M-PY-1)
 
-**最終更新:** 2026-11-17
+**最終更新:** 2026-11-20
 
 ## 🎯 目的
 `ArtifactStudio` の操作を外部および内部からプログラム可能にし、大量の処理（バッチレンダリング、アセット整理、コンポジション生成）を自動化するための基盤を構築する。また、ユーザーが独自のツール（プラグイン）を作成できるエコシステムを提供する。
@@ -47,6 +47,19 @@
 - **`set_layer_property` の数値対応**: 旧実装は全値を `toBool()` で解釈していた。`opacity` とドット区切りのレイヤープロパティパス（例 `transform.position.x`）を `double` として渡せるようにし、`get_layer_property("opacity")` も数値を返すようにした。プロパティ名は小文字正規化の既存規約を維持する。
 
 ビルド・実機実行は未実施（AGENTS.md 制約）。再帰修正は静的読み取りで confirmed だが、実行確認は今後のビルド時に実施する。
+
+## Update 2026-11-20 — OS/System API 初期実装
+
+`ArtifactCore::CorePythonAPI::registerSystemAPI()` に `artifact.core.system` の filesystem／process 操作を追加した。既定では書き込み先を上書きせず、書き込み destination symlink を拒否する。テキスト読取量は16 MiB（絶対上限256 MiB）、directory listingは10,000 entries、tracked process handleは128個に制限する。通常 directory の再帰削除、shell command string、同期 process wait、process stdout/stderr capture は提供しない。任意 path access に対する sandbox はなく、trusted script 前提である。process handle は Python interpreter 内だけで管理され、アプリ終了後の child process の扱いは保証しない。
+
+外部 Python fallback は `execute()` ごとに subprocess を起動するため、従来の `py.execute()` による Core API 登録は後続スクリプトへ残らなかった。`PythonEngine::registerPreludeCode()` を追加し、Core API の Python 定義を各 external execution に再投入するようにした。これにより pure Python の `artifact.core.*` helper は external runtime でも使える。`artifact.*` の C++ callbacks は in-process bridge を必要とするため external runtime では引き続き未対応。
+
+- `path_exists` / `is_file` / `is_directory` / `list_directory`
+- `read_text` / `write_text` / `create_directory` / `delete_file`
+- `copy_file` / `move_file`
+- `start_process` / `process_status` / `terminate_process` / `forget_process`
+
+API 契約とサンプルは `docs/technical/ARTIFACT_PYTHON_API_GUIDE.md` に記録した。静的確認のみで、ビルド、Python wrapper compile、runtime、Windows process／filesystem behavior は未検証。sandbox／permission prompt、設定ストア編集、large-file streaming、process output capture は未実装。
 
 ## Static Audit (2026-07-25)
 
