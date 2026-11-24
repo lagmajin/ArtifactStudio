@@ -385,9 +385,11 @@ TEST(TextAnimatorLayerContractTest, LayerRenderReflectsAnimatorStack)
         GTEST_SKIP() << "host font produced no rasterized glyphs";
     }
 
+    // Moving the last glyph right preserves the left edge of the cropped buffer.
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("position")));
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("units"), QVariant(1)));
-    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("end"), QVariant(7.0)));
+    ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("start"), QVariant(7.0)));
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("positionX"), QVariant(24.0)));
     layer.updateImage();
     const AlphaSummary moved = summarizeAlpha(layer);
@@ -397,7 +399,8 @@ TEST(TextAnimatorLayerContractTest, LayerRenderReflectsAnimatorStack)
 
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("opacity")));
     ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("units"), QVariant(1)));
-    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("end"), QVariant(0.0)));
+    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("end"), QVariant(7.0)));
+    ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("start"), QVariant(7.0)));
     ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("opacity"), QVariant(0.25)));
     layer.updateImage();
     const AlphaSummary faded = summarizeAlpha(layer);
@@ -422,7 +425,7 @@ TEST(TextAnimatorLayerContractTest,
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("units"), QVariant(1)));
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("end"), QVariant(0.0)));
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("positionX"),
-                            QVariant(96.0)));
+                            QVariant(-96.0)));
     ASSERT_TRUE(setAnimator(layer, 0, QStringLiteral("positionY"),
                             QVariant(-72.0)));
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("rotation")));
@@ -430,17 +433,11 @@ TEST(TextAnimatorLayerContractTest,
     ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("end"), QVariant(0.0)));
     ASSERT_TRUE(setAnimator(layer, 1, QStringLiteral("rotation"), QVariant(65.0)));
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("scale")));
-    ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("units"), QVariant(1)));
-    ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("end"), QVariant(0.0)));
     ASSERT_TRUE(setAnimator(layer, 2, QStringLiteral("scale"), QVariant(2.0)));
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("tracking")));
-    ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("units"), QVariant(1)));
-    ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("end"), QVariant(0.0)));
     ASSERT_TRUE(setAnimator(layer, 3, QStringLiteral("tracking"),
                             QVariant(12.0)));
     ASSERT_TRUE(layer.addAnimatorProperty(QStringLiteral("opacity")));
-    ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("units"), QVariant(1)));
-    ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("end"), QVariant(0.0)));
     ASSERT_TRUE(setAnimator(layer, 4, QStringLiteral("opacity"), QVariant(0.65)));
 
     layer.updateImage();

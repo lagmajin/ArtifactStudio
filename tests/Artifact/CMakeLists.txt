@@ -123,6 +123,27 @@ set_tests_properties(ArtifactMotionBlurLayerPersistenceContractTest PROPERTIES
     RUN_SERIAL TRUE
 )
 
+set_target_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:ArtifactTextAnimatorLayerContractTest>;QT_QPA_PLATFORM_PLUGIN_PATH=set:$<TARGET_FILE_DIR:ArtifactTextAnimatorLayerContractTest>/platforms"
+)
+if(WIN32)
+    find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
+        PATHS "${Qt6Gui_DIR}" NO_DEFAULT_PATH
+    )
+    add_custom_command(TARGET ArtifactTextAnimatorLayerContractTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_FILE_DIR:ArtifactTextAnimatorLayerContractTest>/platforms"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+            "$<TARGET_FILE_DIR:ArtifactTextAnimatorLayerContractTest>/platforms/"
+        VERBATIM
+    )
+endif()
+
 artifact_add_test(ArtifactShapeLayerAnimationPersistenceContractTest
     SOURCES
         ShapeLayerAnimationPersistenceContractTest.cpp
