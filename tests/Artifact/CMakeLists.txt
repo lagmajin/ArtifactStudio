@@ -92,6 +92,19 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
         TIMEOUT 30
     )
 
+artifact_add_test(ArtifactTextAnimatorLayerContractTest
+    SOURCES
+        TextAnimatorLayerContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactTextAnimatorLayerContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "text;layer;animation;serialization;undo;cpu;contract"
+    TIMEOUT 90
+    RUN_SERIAL TRUE
+)
+
 artifact_add_test(ArtifactMotionBlurLayerPersistenceContractTest
     SOURCES
         MotionBlurLayerPersistenceContractTest.cpp
