@@ -1,0 +1,11 @@
+# Generated review images and numeric arrays are reproducible working output.
+captures/**/*.png
+captures/**/*.npz
+captures/**/*.npy
+captures/**/*.pfm
+captures/**/*.exr
+captures/**/*blind*key*.json
+
+# Python caches
+__pycache__/
+*.pyc

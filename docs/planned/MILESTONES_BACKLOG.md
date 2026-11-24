@@ -453,6 +453,10 @@ active milestone の重複名としては扱わない。
   - job snapshot / CLI / progress / diagnostics の設計を先に固める
   - 詳細: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md`
   - Phase 1 completion: `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_2026-06-25.md`
+- **M-RE-2** Out-of-process render + crash recovery — Not Started
+  - オフライン render job を子プロセスへ出し、GPU/TDR/ハング/外部コードのクラッシュからジョブを復帰可能にする（スループット改善は目的外、preview は対象外）
+  - 前提修正: farm の checkpoint が並列 shard の完了位置を表せない問題と、`size() > 0` による truncated frame の誤判定を先に直す
+  - 詳細: `docs/planned/MILESTONE_OUT_OF_PROCESS_RENDER_CRASH_RECOVERY_2026-11-20.md`
 
 ### Creative Effects / Exploratory Backlog
 - **M-FX-FORM-1** ✅ 実装済み（2026-08-15 現行コード再確認、runtime/build 未確認）

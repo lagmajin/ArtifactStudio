@@ -145,6 +145,41 @@ TEST(FileTypeDetectorContractTest, ExtensionLookupIgnoresCaseAndUsesFinalSuffix)
     EXPECT_EQ(detector.detectByExtension(QStringLiteral(".hidden")), FileType::Unknown);
 }
 
+TEST(FileTypeDetectorContractTest, CapabilityTableSeparatesClassificationAndAdmission)
+{
+    const FileTypeDetector detector;
+    EXPECT_TRUE(FileTypeDetector::supports(QStringLiteral(".png"),
+                                           FileCapability::ImageSequence));
+    EXPECT_FALSE(FileTypeDetector::supports(QStringLiteral("exr"),
+                                            FileCapability::ImageSequence));
+    EXPECT_TRUE(FileTypeDetector::supports(QStringLiteral("exr"),
+                                           FileCapability::StillImage));
+    EXPECT_TRUE(FileTypeDetector::supports(QStringLiteral("dpx"),
+                                           FileCapability::SequenceExport));
+    EXPECT_FALSE(FileTypeDetector::supports(QStringLiteral("blend"),
+                                            FileCapability::Import));
+    EXPECT_FALSE(FileTypeDetector::supports(QStringLiteral("dae"),
+                                            FileCapability::Import));
+    EXPECT_EQ(detector.detectByExtension(QStringLiteral("model.dae")),
+              FileType::Model3D);
+    EXPECT_EQ(detector.detectByExtension(QStringLiteral("captions.ass")),
+              FileType::Text);
+    EXPECT_EQ(detector.detectByExtension(QStringLiteral("captions.vtt")),
+              FileType::Text);
+}
+
+TEST(FileTypeDetectorContractTest, SuffixPatternsFollowsCapabilityTable)
+{
+    const QString sequencePatterns =
+        FileTypeDetector::suffixPatterns(FileCapability::ImageSequence);
+    EXPECT_TRUE(sequencePatterns.contains(QStringLiteral("*.png")));
+    EXPECT_FALSE(sequencePatterns.contains(QStringLiteral("*.exr")));
+    const QString modelPatterns =
+        FileTypeDetector::suffixPatterns(FileCapability::Model3D);
+    EXPECT_TRUE(modelPatterns.contains(QStringLiteral("*.fbx")));
+    EXPECT_FALSE(modelPatterns.contains(QStringLiteral("*.dae")));
+}
+
 TEST(FileTypeDetectorContractTest, RecognizesRepresentativeMagicSignatures)
 {
     QTemporaryDir directory;
