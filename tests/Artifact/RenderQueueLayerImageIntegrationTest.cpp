@@ -1182,6 +1182,157 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     SelectedFrameRangesSurviveQueueJsonRoundTripAndRenderDisjointIntervals)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    const QByteArray previousProjectRoot = qgetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+    const QString previousApplicationName = QCoreApplication::applicationName();
+    const bool previousTestMode = QStandardPaths::isTestModeEnabled();
+    const auto restoreEnvironment = qScopeGuard([&] {
+        if (previousProjectRoot.isNull()) {
+            qunsetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+        } else {
+            qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", previousProjectRoot);
+        }
+        QCoreApplication::setApplicationName(previousApplicationName);
+        QStandardPaths::setTestModeEnabled(previousTestMode);
+    });
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueSelectedRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("SelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.24f, 0.36f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_selected_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(composition.id,
+                                       QStringLiteral("SelectedRanges"));
+    ASSERT_EQ(queue->jobCount(), 1);
+    queue->setJobOutputPathAt(0, outputBase);
+    queue->setJobOutputSettingsAt(0, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    queue->setJobFramePaddingAt(0, 4);
+    auto settings = queue->jobSelectiveSettingsAt(0);
+    settings.insert(QStringLiteral("frameRangeMode"),
+                    static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    QVariantList selectedRanges;
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 1}, {QStringLiteral("end"), 3}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 5}, {QStringLiteral("end"), 7}});
+    settings.insert(QStringLiteral("selectedFrameRanges"), selectedRanges);
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(0, settings));
+
+    const QString queueJsonPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("selected-ranges-queue.json"));
+    ASSERT_TRUE(queue->exportQueueJson(queueJsonPath));
+    queue->removeAllRenderQueues();
+    ASSERT_TRUE(queue->importQueueJson(queueJsonPath));
+    ASSERT_EQ(queue->jobCount(), 1);
+    const auto restoredSettings = queue->jobSelectiveSettingsAt(0);
+    EXPECT_EQ(restoredSettings.value(QStringLiteral("frameRangeMode")).toInt(),
+              static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    const auto restoredRanges = restoredSettings.value(
+        QStringLiteral("selectedFrameRanges")).toList();
+    ASSERT_EQ(restoredRanges.size(), 2);
+    EXPECT_EQ(restoredRanges[0].toMap().value(QStringLiteral("start")).toInt(), 1);
+    EXPECT_EQ(restoredRanges[0].toMap().value(QStringLiteral("end")).toInt(), 3);
+    EXPECT_EQ(restoredRanges[1].toMap().value(QStringLiteral("start")).toInt(), 5);
+    EXPECT_EQ(restoredRanges[1].toMap().value(QStringLiteral("end")).toInt(), 7);
+
+    // Starting the full queue exercises the production expansion path that
+    // turns each selected interval into its own output job.
+    queue->startAllJobs();
+    QElapsedTimer timeout;
+    timeout.start();
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        bool allTerminal = queue->jobCount() == 2;
+        bool allCompleted = allTerminal;
+        for (int index = 0; index < queue->jobCount(); ++index) {
+            const QString status = queue->jobStatusAt(index);
+            const bool terminal = status == QStringLiteral("Completed") ||
+                                  status == QStringLiteral("Failed") ||
+                                  status == QStringLiteral("Canceled");
+            allTerminal = allTerminal && terminal;
+            allCompleted = allCompleted &&
+                           status == QStringLiteral("Completed");
+        }
+        if (allTerminal) {
+            ASSERT_TRUE(allCompleted);
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(queue->jobCount(), 2)
+        << "The two disjoint selected ranges should expand into two queue jobs";
+    for (int index = 0; index < queue->jobCount(); ++index) {
+        ASSERT_EQ(queue->jobStatusAt(index), QStringLiteral("Completed"))
+            << queue->jobErrorMessageAt(index).toStdString();
+    }
+
+    const QFileInfo outputInfo(outputBase);
+    const QDir outputDir(outputInfo.absolutePath());
+    const QString stem = outputInfo.completeBaseName();
+    const auto framePath = [&](const QString& interval, int frame) {
+        return outputDir.filePath(QStringLiteral("%1_f%2_%3.png")
+            .arg(stem, interval)
+            .arg(frame, 4, 10, QLatin1Char('0')));
+    };
+    const QList<QPair<QString, int>> expectedFrames{
+        {QStringLiteral("1-3"), 1}, {QStringLiteral("1-3"), 2},
+        {QStringLiteral("5-7"), 5}, {QStringLiteral("5-7"), 6}};
+    for (const auto& [interval, frame] : expectedFrames) {
+        const QString path = framePath(interval, frame);
+        ASSERT_TRUE(QFileInfo::exists(path)) << path.toStdString();
+        const QImage image(path);
+        ASSERT_FALSE(image.isNull()) << path.toStdString();
+        EXPECT_EQ(image.size(), QSize(width, height));
+    }
+    for (int frame = 0; frame < 8; ++frame) {
+        const bool selected = frame == 1 || frame == 2 || frame == 5 || frame == 6;
+        const QString interval = frame < 4 ? QStringLiteral("1-3")
+                                           : QStringLiteral("5-7");
+        EXPECT_EQ(QFileInfo::exists(framePath(interval, frame)), selected)
+            << "Unexpected output membership for frame " << frame;
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr)
 {
     QTemporaryDir projectRoot;

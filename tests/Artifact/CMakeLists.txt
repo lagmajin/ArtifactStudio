@@ -2226,7 +2226,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     add_test(NAME ArtifactRenderQueueSelectedFrameRangesIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
-            --gtest_filter=RenderQueueLayerImageIntegrationTest.UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce:RenderQueueLayerImageIntegrationTest.SelectedFrameRangesSurviveQueueJsonRoundTripAndRenderDisjointIntervals
     )
     set_tests_properties(ArtifactRenderQueueSelectedFrameRangesIntegrationTest PROPERTIES
         LABELS "render-queue;frame-range;cpu;headless;integration"
