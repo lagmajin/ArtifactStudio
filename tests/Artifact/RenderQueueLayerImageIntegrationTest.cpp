@@ -18,6 +18,7 @@
 #include <QPointF>
 #include <QPoint>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QSize>
 #include <QStandardPaths>
 #include <QStringList>
@@ -1054,6 +1055,131 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
 } // namespace
 
 #include "../shape_visual/ShapeVisualCases.inc"
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    const QByteArray previousProjectRoot = qgetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+    const QString previousApplicationName = QCoreApplication::applicationName();
+    const bool previousTestMode = QStandardPaths::isTestModeEnabled();
+    const auto restoreEnvironment = qScopeGuard([&] {
+        if (previousProjectRoot.isNull()) {
+            qunsetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+        } else {
+            qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", previousProjectRoot);
+        }
+        QCoreApplication::setApplicationName(previousApplicationName);
+        QStandardPaths::setTestModeEnabled(previousTestMode);
+    });
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueOverlappingRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("OverlappingSelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.24f, 0.36f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_overlapping_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(composition.id,
+                                       QStringLiteral("OverlappingRanges"));
+    ASSERT_EQ(queue->jobCount(), 1);
+    queue->setJobOutputPathAt(0, outputBase);
+    queue->setJobOutputSettingsAt(0, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    queue->setJobFramePaddingAt(0, 4);
+    queue->setJobRenderBackendAt(0, QStringLiteral("cpu"));
+    auto settings = queue->jobSelectiveSettingsAt(0);
+    settings.insert(QStringLiteral("frameRangeMode"),
+                    static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    QVariantList selectedRanges;
+    // Deliberately out of order and overlapping: their union is [1, 7).
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 5}, {QStringLiteral("end"), 7}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 1}, {QStringLiteral("end"), 4}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 3}, {QStringLiteral("end"), 6}});
+    settings.insert(QStringLiteral("selectedFrameRanges"), selectedRanges);
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(0, settings));
+
+    queue->startAllJobs();
+    QElapsedTimer timeout;
+    timeout.start();
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        const QString status = queue->jobStatusAt(0);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(queue->jobCount(), 1)
+        << "Overlapping intervals should normalize into one continuous job";
+    ASSERT_EQ(queue->jobStatusAt(0), QStringLiteral("Completed"))
+        << queue->jobErrorMessageAt(0).toStdString();
+
+    int firstFrame = -1;
+    int endFrame = -1;
+    ASSERT_TRUE(queue->jobFrameRangeAt(0, &firstFrame, &endFrame));
+    EXPECT_EQ(firstFrame, 1);
+    EXPECT_EQ(endFrame, 7);
+    SCOPED_TRACE(queue->jobOutputPathAt(0).toStdString());
+    SCOPED_TRACE(QDir(QFileInfo(outputBase).absolutePath())
+                     .entryList(QDir::Files).join(QStringLiteral(", ")).toStdString());
+    const QFileInfo outputInfo(outputBase);
+    const QDir outputDir(outputInfo.absolutePath());
+    const QString stem = outputInfo.completeBaseName();
+    for (int frame = 0; frame < 8; ++frame) {
+        const QString path = outputDir.filePath(
+            QStringLiteral("%1_f1-7_%2.png").arg(stem).arg(
+                frame, 4, 10, QLatin1Char('0')));
+        const bool expected = frame >= 1 && frame < 7;
+        EXPECT_EQ(QFileInfo::exists(path), expected)
+            << "Unexpected overlap-union output membership for frame " << frame
+            << ": " << path.toStdString();
+        if (expected && QFileInfo::exists(path)) {
+            const QImage image(path);
+            ASSERT_FALSE(image.isNull()) << path.toStdString();
+            EXPECT_EQ(image.size(), QSize(width, height));
+        }
+    }
+}
 
 TEST(RenderQueueLayerImageIntegrationTest,
      ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr)

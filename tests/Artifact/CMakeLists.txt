@@ -2172,6 +2172,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
     )
+    add_test(NAME ArtifactRenderQueueSelectedFrameRangesIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce
+    )
+    set_tests_properties(ArtifactRenderQueueSelectedFrameRangesIntegrationTest PROPERTIES
+        LABELS "render-queue;frame-range;cpu;headless;integration"
+        TIMEOUT 90
+        RUN_SERIAL TRUE
+    )
     add_test(NAME ArtifactShapeVisualTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=ShapeVisualTest.*
