@@ -1553,6 +1553,16 @@ set_tests_properties(ArtifactCoreSequenceGroupContractTest PROPERTIES
     LABELS "sequence;transport;timing;cpu;contract;core"
 )
 
+artifact_add_test(ArtifactCoreStepSequencerContractTest
+    SOURCES
+        StepSequencerContractTest.cpp
+    LIBS
+        ArtifactCoreSequence
+)
+set_tests_properties(ArtifactCoreStepSequencerContractTest PROPERTIES
+    LABELS "sequence;step-sequencer;cpu;contract;core"
+)
+
 artifact_add_test(ArtifactCoreStarfieldSpectralContractTest
     SOURCES
         StarfieldSpectralContractTest.cpp
