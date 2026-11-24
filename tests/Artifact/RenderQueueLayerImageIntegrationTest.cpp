@@ -1333,6 +1333,99 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     SelectedFrameRangesWithoutAValidIntervalFailPreflight)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    const QByteArray previousProjectRoot = qgetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+    const QString previousApplicationName = QCoreApplication::applicationName();
+    const bool previousTestMode = QStandardPaths::isTestModeEnabled();
+    const auto restoreEnvironment = qScopeGuard([&] {
+        if (previousProjectRoot.isNull()) {
+            qunsetenv("ARTIFACT_UI_TEST_PROJECT_ROOT");
+        } else {
+            qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", previousProjectRoot);
+        }
+        QCoreApplication::setApplicationName(previousApplicationName);
+        QStandardPaths::setTestModeEnabled(previousTestMode);
+    });
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueInvalidSelectedRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("InvalidSelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_invalid_selected_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    const QList<QVariantList> invalidRangeCases{
+        {},
+        {QVariantMap{{QStringLiteral("start"), 3},
+                     {QStringLiteral("end"), 3}},
+         QVariantMap{{QStringLiteral("start"), 6},
+                     {QStringLiteral("end"), 2}}}
+    };
+    for (int caseIndex = 0; caseIndex < invalidRangeCases.size(); ++caseIndex) {
+        queue->addRenderQueueForComposition(
+            composition.id, QStringLiteral("InvalidSelectedRanges_%1")
+                               .arg(caseIndex));
+        const int jobIndex = queue->jobCount() - 1;
+        ASSERT_GE(jobIndex, 0);
+        const QString caseOutput = QFileInfo(outputBase).dir().filePath(
+            QStringLiteral("case_%1.png").arg(caseIndex));
+        queue->setJobOutputPathAt(jobIndex, caseOutput);
+        queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("PNG"),
+                                      QStringLiteral("png"), width, height,
+                                      30.0, 8000);
+        auto settings = queue->jobSelectiveSettingsAt(jobIndex);
+        settings.insert(QStringLiteral("frameRangeMode"),
+                        static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+        settings.insert(QStringLiteral("selectedFrameRanges"),
+                        invalidRangeCases[caseIndex]);
+        ASSERT_TRUE(queue->setJobSelectiveSettingsAt(jobIndex, settings));
+
+        const auto preflight = queue->preflightRenderQueueAt(jobIndex);
+        ASSERT_TRUE(preflight.hasErrors());
+        const QString details =
+            Artifact::ArtifactRenderQueueService::formatPreflightDetails(preflight)
+                .join(QLatin1Char('\n'));
+        EXPECT_TRUE(details.contains(
+            QStringLiteral("Selected frame ranges are empty"))) << details.toStdString();
+        EXPECT_EQ(queue->jobStatusAt(jobIndex), QStringLiteral("Pending"));
+        EXPECT_FALSE(QFileInfo::exists(caseOutput));
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr)
 {
     QTemporaryDir projectRoot;
