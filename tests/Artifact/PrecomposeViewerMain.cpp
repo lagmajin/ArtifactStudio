@@ -4586,8 +4586,35 @@ public:
             const bool twoReferencesCreated = addedSecond && !secondWrapperId.isNil() &&
                 manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
                 hasReference(first.precompLayerId) && hasReference(secondWrapperId);
+            const auto compositionCount = ArtifactProjectManager::getInstance().compositionCount();
+            const bool addUndoAvailable = twoReferencesCreated && undo->canUndo();
+            if (addUndoAvailable) undo->undo();
+            const bool addUndoPreservedFirst = addUndoAvailable &&
+                !root->layerById(secondWrapperId) && !hasReference(secondWrapperId) &&
+                root->layerById(first.precompLayerId) && hasReference(first.precompLayerId) &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCount;
+            const bool addRedoAvailable = addUndoPreservedFirst && undo->canRedo();
+            if (addRedoAvailable) undo->redo();
+            secondWrapperId = LayerID{};
+            if (addRedoAvailable) {
+                for (const auto& reference : manager.getPrecompLayersForChild(first.childCompId)) {
+                    if (reference.parentCompId != rootId ||
+                        reference.precompLayerId == first.precompLayerId) continue;
+                    const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                        root->layerById(reference.precompLayerId));
+                    if (wrapper && wrapper->sourceCompositionId() == first.childCompId) {
+                        secondWrapperId = reference.precompLayerId;
+                        break;
+                    }
+                }
+            }
+            const bool addRedoRestoredSecond = addRedoAvailable && !secondWrapperId.isNil() &&
+                root->layerById(first.precompLayerId) && hasReference(first.precompLayerId) &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCount;
             QTemporaryDir tempDir;
-            const bool tempReady = twoReferencesCreated && tempDir.isValid();
+            const bool tempReady = addRedoRestoredSecond && tempDir.isValid();
             const auto filePath = tempReady
                 ? tempDir.filePath(QStringLiteral("shared-child-references.artifact")) : QString{};
             const auto save = tempReady ? ArtifactProjectManager::getInstance().saveToFile(filePath)
@@ -4666,6 +4693,8 @@ public:
                 ArtifactProjectManager::getInstance().compositionCount() + 1 ==
                     compositionCountBeforeFinalDelete;
             result["twoReferencesCreated"] = twoReferencesCreated;
+            result["addUndoPreservedFirst"] = addUndoPreservedFirst;
+            result["addRedoRestoredSecond"] = addRedoRestoredSecond;
             result["saveSucceeded"] = save.success;
             result["mappingsClearedBeforeReload"] = mappingsCleared;
             result["loaded"] = loaded;
