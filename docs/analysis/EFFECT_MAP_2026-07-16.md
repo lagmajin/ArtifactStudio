@@ -1,6 +1,6 @@
 # ArtifactStudio Effect Map
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-11-25
 **Status:** Living analysis
 
 ## Purpose
@@ -93,7 +93,7 @@ Composition `ArtifactEffectService` catalog. The bridge is incomplete.
 | Fill | `Artifact/src/Effects/ColorCorrection/FillEffect.cppm` | Generic resident HLSL mirrors the CPU fill and alpha equations; runtime parity pending |
 | Colorama | `Artifact/src/Effects/ColorCorrection/ColoramaEffect.cppm` | Generic resident HLSL mirrors the CPU palette, HSL, and luma-preservation operations; runtime parity pending |
 | Photo Filter | `Artifact/src/Effects/ColorCorrection/PhotoFilterEffect.cppm` | Generic resident HLSL mirrors the CPU correction order, HSL saturation, and luma preservation; runtime parity pending |
-| Dithering | `Artifact/src/Effects/Dithering/DitheringEffect.cppm` | Generic resident HLSL for Bayer 2×2/4×4; larger matrices and error diffusion remain CPU-reference-only |
+| Dithering | `Artifact/src/Effects/Dithering/DitheringEffect.cpp` | Resident and direct GPU HLSL cover Bayer 2×2/4×4; direct ordered threshold coordinates match the CPU reference; larger matrices and error diffusion use CPU fallback; runtime parity pending |
 | Difference Key | `Artifact/src/Effects/Keying/DifferenceKeyEffect.cppm` | Generic resident HLSL when choke and matte blur are disabled; those finishing operations retain CPU reference behavior |
 | Luma Key | `Artifact/src/Effects/Keying/LumaKeyEffect.cppm` | Generic resident HLSL when choke and matte blur are disabled; those finishing operations retain CPU reference behavior |
 | White Balance | `Artifact/src/Effects/WhiteBalanceEffect.cppm` | Generic resident HLSL now covers temperature, tint, and brightness; runtime parity pending |
