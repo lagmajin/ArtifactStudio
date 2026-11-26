@@ -4583,8 +4583,11 @@ public:
                 }
                 return false;
             };
-            const bool twoReferencesCreated = addedSecond && !secondWrapperId.isNil() &&
-                manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+            const bool secondWrapperFoundAfterAdd = !secondWrapperId.isNil();
+            const auto registeredReferenceCountAfterAdd = static_cast<int>(
+                manager.getPrecompLayersForChild(first.childCompId).size());
+            const bool twoReferencesCreated = addedSecond && secondWrapperFoundAfterAdd &&
+                registeredReferenceCountAfterAdd == 2 &&
                 hasReference(first.precompLayerId) && hasReference(secondWrapperId);
             const auto compositionCount = ArtifactProjectManager::getInstance().compositionCount();
             const bool addUndoAvailable = twoReferencesCreated && undo->canUndo();
@@ -4692,6 +4695,9 @@ public:
                 manager.getPrecompLayersForChild(first.childCompId).isEmpty() &&
                 ArtifactProjectManager::getInstance().compositionCount() + 1 ==
                     compositionCountBeforeFinalDelete;
+            result["secondReferenceAddSucceeded"] = addedSecond;
+            result["secondWrapperFoundAfterAdd"] = secondWrapperFoundAfterAdd;
+            result["registeredReferenceCountAfterAdd"] = registeredReferenceCountAfterAdd;
             result["twoReferencesCreated"] = twoReferencesCreated;
             result["addUndoPreservedFirst"] = addUndoPreservedFirst;
             result["addRedoRestoredSecond"] = addRedoRestoredSecond;
@@ -4707,7 +4713,8 @@ public:
             result["finalChildRemoved"] = finalChildRemoved;
             result["finalDeleteUndoRestored"] = finalDeleteUndoRestored;
             result["finalDeleteRedoRemoved"] = finalDeleteRedoRemoved;
-            result["passed"] = twoReferencesCreated && sharedChildSaveReload && remainingReferencePreserved &&
+            result["passed"] = twoReferencesCreated && addUndoPreservedFirst && addRedoRestoredSecond &&
+                sharedChildSaveReload && remainingReferencePreserved &&
                 undoRestoredBoth && redoPreservedRemaining && finalChildRemoved &&
                 finalDeleteUndoRestored && finalDeleteRedoRemoved;
             if (!result["passed"].toBool())
