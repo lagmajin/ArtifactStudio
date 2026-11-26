@@ -50,11 +50,14 @@ SOURCE_DIRS = (
 )
 SHADER_DIRS = (Path("Artifact/shaders"), Path("Artifact/App/shaders"))
 CONTROLLER = Path("Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp")
+FRAME_EXECUTION = CONTROLLER.with_stem(CONTROLLER.stem + "FrameExecution")
+GPU_PASSES = CONTROLLER.with_stem(CONTROLLER.stem + "GpuPasses")
+FRAME_DIAGNOSTICS = CONTROLLER.with_stem(CONTROLLER.stem + "Diagnostics")
 FOUNDATION = Path("ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx")
 EXECUTOR = Path("Artifact/include/Render/CompositionRenderPassExecutor.ixx")
 # plan 上は宣言されるが pass オブジェクトを持たない既知のステージ:
 #   Flush    : インライン計測のみ
-#   Surface/Mask : per-layer pipeline が直接呼び出し（controller :45503 のコメント参照）
+#   Surface/Mask : per-layer pipeline が直接呼び出し
 DEFAULT_KNOWN_INLINE = {"Flush", "Surface", "Mask"}
 # 既定で詳細表示するマルチパス／エフェクト系シェーダ群（--all-shaders で全件表示）
 NOTABLE_SHADER_RE = re.compile(
@@ -170,13 +173,14 @@ def audit_functional_passes(text: str) -> list[dict]:
     return out
 
 
-def audit_render_graph(controller_text: str, foundation_text: str, executor_text: str) -> dict:
-    declarations = []
-    for match in RENDER_GRAPH_DECL_RE.finditer(controller_text):
-        declarations.append(
-            {"variable": match.group(1), "line": line_of(controller_text, match.start())}
-        )
-    combined = controller_text + foundation_text + executor_text
+def audit_render_graph(controller_sources: dict[Path, str], foundation_text: str, executor_text: str) -> dict:
+    declarations = [
+        {"variable": match.group(1), "file": str(path), "line": line_of(text, match.start())}
+        for path, text in controller_sources.items()
+        for match in RENDER_GRAPH_DECL_RE.finditer(text)
+    ]
+    controller_text = "\n".join(controller_sources.values())
+    combined = "\n".join((controller_text, foundation_text, executor_text))
     serial = len(GRAPH_EXECUTE_RE.findall(combined))
     parallel = len(GRAPH_EXECUTE_PARALLEL_RE.findall(combined))
     in_controller = len(GRAPH_EXECUTE_RE.findall(controller_text))
@@ -269,21 +273,26 @@ def audit_dormant_shaders(root: Path) -> list[dict]:
 
 
 def build_report(root: Path, known_inline: set[str]) -> dict:
-    controller_path = root / CONTROLLER
+    split = any((root / path).is_file() for path in (FRAME_EXECUTION, GPU_PASSES, FRAME_DIAGNOSTICS))
+    frame_source = FRAME_EXECUTION if split else CONTROLLER
+    plan_source = GPU_PASSES if split else CONTROLLER
+    graph_paths = (frame_source, FRAME_DIAGNOSTICS) if split else (frame_source,)
+    graph_sources = {path: read_text(root / path) for path in graph_paths}
+    frame_text = graph_sources[frame_source]
     foundation_path = root / FOUNDATION
     executor_path = root / EXECUTOR
-    controller_text = read_text(controller_path) if controller_path.is_file() else ""
     foundation_text = read_text(foundation_path) if foundation_path.is_file() else ""
     executor_text = read_text(executor_path) if executor_path.is_file() else ""
 
-    declared = audit_plan(controller_text)
-    functional = audit_functional_passes(controller_text)
+    declared = audit_plan(read_text(root / plan_source))
+    functional = audit_functional_passes(frame_text)
     functional_kinds = {p["kind"] for p in functional}
     unresolved = [k for k in declared if k not in functional_kinds and k not in known_inline]
 
     return {
         "root": str(root),
-        "controller": str(CONTROLLER),
+        "controller": str(frame_source),
+        "plan_source": str(plan_source),
         "plan_declared": declared,
         "functional_passes": functional,
         "coverage": {
@@ -292,11 +301,11 @@ def build_report(root: Path, known_inline: set[str]) -> dict:
             "unexpected_gaps": unresolved,
         },
         "executor_calls": {
-            "runWithRenderGraph": len(RUN_SINGLE_RE.findall(controller_text)),
-            "runAllWithRenderGraph": len(RUN_MULTI_RE.findall(controller_text)),
-            "run_direct": len(RUN_DIRECT_RE.findall(controller_text)),
+            "runWithRenderGraph": len(RUN_SINGLE_RE.findall(frame_text)),
+            "runAllWithRenderGraph": len(RUN_MULTI_RE.findall(frame_text)),
+            "run_direct": len(RUN_DIRECT_RE.findall(frame_text)),
         },
-        "render_graph": audit_render_graph(controller_text, foundation_text, executor_text),
+        "render_graph": audit_render_graph(graph_sources, foundation_text, executor_text),
         "adapters": audit_adapters(foundation_text),
         "all_shaders": audit_dormant_shaders(root),
     }
@@ -308,6 +317,7 @@ def render_markdown(report: dict, show_all_shaders: bool = False) -> str:
         "",
         f"- root: `{report['root']}`",
         f"- controller: `{report['controller']}`",
+        f"- plan source: `{report['plan_source']}`",
         "",
         "## 1. Frame pass plan (declared)",
         "",
@@ -407,7 +417,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     known_inline = {s.strip() for s in args.known_inline.split(",") if s.strip()}
-    report = build_report(root, known_inline)
+    try:
+        report = build_report(root, known_inline)
+    except FileNotFoundError as error:
+        print(f"error: required audit source not found: {error.filename}", file=sys.stderr)
+        return 2
     text = (
         json.dumps(report, indent=2, ensure_ascii=False)
         if args.json
@@ -420,6 +434,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {args.output}")
     else:
         print(text)
+
+    if args.check and (not report["plan_declared"] or not report["functional_passes"]):
+        print("FAIL: frame pass plan or executor definitions not found", file=sys.stderr)
+        return 1
 
     if args.check and report["coverage"]["unexpected_gaps"]:
         print(
