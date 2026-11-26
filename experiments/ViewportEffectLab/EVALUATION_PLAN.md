@@ -1,6 +1,6 @@
 # Viewport Effect Lab 評価計画
 
-**最終更新:** 2026-11-25
+**最終更新:** 2026-11-26
 
 独立試作はブラー強度とレイヤー不透明度を同じ数値 Gizmo で操作する。このディレクトリをローカル HTTP で配信し、index.html を開く。素材はコード生成の細線、硬い縁、点光源、半透明図形。640×360、sRGB SDR、固定フレームで、ブラーは Canvas の固定半径 12 px。元画像とブラー結果を強度で補間する。製品経路では、VP から全 effect の共通 `Effect Enabled` を切り替えられる。有効な effect では共通 `Effect Mix` と、effect ごとの専用 scalar descriptor で明示的に opt-in した Float プロパティを数値ドラッグ対象にする。無効中は再有効化 toggle だけを表示する。opt-in 済みエフェクトでは、有限な hard range を持つ Float プロパティも metadata から追加する。整数値は専用 descriptor が hard range と整数 step を定義した項目だけ対象とする。Boolean 値は専用 toggle descriptor のある項目だけチェック状態付きメニュー操作にする。Color プロパティは opt-in 済みエフェクトに限り既存 `FloatColorPicker` から編集し、確定後に effect service 経由で反映する。範囲不明、キーフレーム付き、Expression 付き、Envelope 付きの項目は対象外とする。
 
@@ -504,3 +504,11 @@ White Balance（UI表示名はTint）の Preset（0 Custom / 1 Daylight 5500 K /
 新しいfixtureは作らない。`experiments/CinematicLooksLab/captures/rd0/manifest.json` のseed `20261116`、deterministic 1536×1024 chartを再生成して使い、`gray_ramp` [32,32,464,168]、`skin_patches` [528,32,464,168]、`color_patches` [1024,32,480,168]、`dark_highlight` [1024,232,480,216] を固定ROIにする。自然画像は出典記録済みCC0 portrait working copy（1536×1024、SHA-256 `9c14e3c0206ad6fe080c349368bf29219071892002fc01f1b6fc947af3bd40e2`、face_skin [650,230,300,300] / bright_window [80,180,380,390]）と forest working copy（1536×1024、SHA-256 `b417d6ffe3b494ee80906d6b433544ee7a2afa51c1557dcdf3b8feae9536ce6c`、sunlit_canopy [420,200,520,480] / deep_foliage [80,460,620,480]）を使う。straight-alpha診断には `experiments/CinematicLooksLab/assets/alpha-association-chart.png`（1280×768、SHA-256 `7b3ec6cfda0414d68b4c059e44ea0718e0627820c16b578d40d0e3fc97630f21`）を再利用する。写真とchartはいずれも視覚応答用で、写真を色温度のground truthとはしない。
 
 各Presetの出力をInspectorで同じ温度・Tint・Brightnessを直接設定した出力と同一pathで比較し、保存値とpixel出力の一致を確認する。Preset matrixは全7項目、Tint −1 / 0 / 1、Brightness −1 / 0 / 1 とし、一度に一項目を変える。RGB / lumaの分布、channel clip率、non-finite値、gray rampのRGB spread / neutrality、known flat patchのchannel deltaを全体・ROI別に記録する。6500 K / Tint 0 / Brightness 0はidentity baselineとして反復一致を確認し、TungstenからDaylight / Shadeへ向かう時のchannel response方向も確認する。Alpha chartではalpha 0 / 26 / 64 / 128 / 192 / 255とrampを測定し、straight / premultiplied入力を分けてCPU reference、direct GPU、resident nodeのRGB / alphaと黒・白合成境界を比較する。CPU / direct GPU / resident、Preview / final、D3D12 / Vulkanは実routeごとに記録し、既存 HLSL alpha差の有無を未確認のままparity合格としない。run manifestにはsource / output hash、解像度、frame、設定、色空間・transfer function、display transform、alpha association、GPU / backend / path、ROI座標・画素数、取得日を残す。同一設定反復、1080p frame-time p50 / p95、GPU memory、setter更新costも記録する。色差や性能の許容値はbaseline取得後、候補最終比較前に根拠とともに固定する。Viewport操作、snapshot Undo / Redo、画像・alpha応答、path parity、性能、目視レビューは未実施であり、計画記載だけでPreset画質や製品acceptanceを宣言しない。
+
+## 2026-11-25 — Composition Effect Viewport Target
+
+Composition Viewport の詳細メニューで、レイヤーのない位置は current composition の effect stack を編集対象にする。レイヤー上では引き続きそのレイヤーの effect stack を対象にする。仕上がり画像を変更する新しい処理は加えず、同じ effect instance と Inspector が使う composition property service を再利用する。
+
+製品確認では空白領域とレイヤー上で異なる stack が選ばれること、同じ effect ID が両 stack にあるとき選択対象だけが変わることを確認する。scalar drag、named choice、Boolean toggle、Color picker の cancel / accept、stale menu と composition 切替を試し、Inspector の値一致と操作ごとの Undo / Redo を照合する。Preset または内部状態を複数値で表す effect は、Composition setter の Undo が関連状態を完全復元するか個別確認し、未復元ならその項目を受入済みとしない。
+
+画像比較は既存の deterministic chart と CC0 fixture を使い、composition effect の Inspector 値を基準に同じ frame・設定・path で VP 値を比較する。全体・effect ROI の RGBA 差、alpha、黒 / 白背景境界、Preview / final、利用可能な CPU / GPU / resident path と D3D12 / Vulkan、1080p frame-time p50 / p95 と GPU memory を記録する。実アプリ操作、画像、Undo / Redo、path parity、性能、目視確認は未実施。

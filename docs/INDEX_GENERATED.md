@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-11-25 11:53
+> Generated: 2026-11-26 19:15
 > Total documents: 1541
 
 ---
@@ -197,7 +197,7 @@
 | 20 | `docs/analysis/DCC_THIN_AREA_SURVEY_2026-11-18.md` | DCC ツールとして実装が薄い分野 継続サーベイ | 2026-11-19 | --- | 2026-11-23 | 14.9 KB | DCC, THIN, AREA, SURVEY |
 | 21 | `docs/analysis/DESIRED_IMPORT_FORMATS_2026-04-19.md` | モーショングラフィッカーが本当に欲しいファイルインポート一覧 | 2026-10-04 | --- | 2026-10-04 | 5.8 KB | DESIRED, IMPORT, FORMATS |
 | 22 | `docs/analysis/DILIGENT_PREVIEW_BOTTLENECK_MEMO_2026-08-27.md` | Diligent プレビュー ボトルネック メモ | 2026-11-18 | --- | 2026-11-23 | 5.3 KB | DILIGENT, PREVIEW, BOTTLENECK, MEMO |
-| 23 | `docs/analysis/EFFECT_MAP_2026-07-16.md` | ArtifactStudio Effect Map | 2026-11-25 | --- | 2026-11-23 | 24.4 KB | EFFECT, MAP |
+| 23 | `docs/analysis/EFFECT_MAP_2026-07-16.md` | ArtifactStudio Effect Map | 2026-11-25 | --- | 2026-11-25 | 24.4 KB | EFFECT, MAP |
 | 24 | `docs/analysis/ENVIRONMENTAL_AUDIO_PHYSICS_RESEARCH_2026-10-08.md` | Environmental Audio Physics Research | 2026-10-08 | --- | 2026-10-08 | 8.1 KB | ENVIRONMENTAL, AUDIO, PHYSICS, RESEARCH |
 | 25 | `docs/analysis/FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` | Motion Design Feature Audit — 2026-06-02 | 2026-06-02 | --- | 2026-08-04 | 9.0 KB | FEATURE, AUDIT, MOTION, DESIGN |
 | 26 | `docs/analysis/FINAL_AUDIT_SUMMARY_2026-08-02.md` | ArtifactStudio 全モジュール監査 最終サマリー | 2026-08-02 | --- | 2026-08-04 | 8.4 KB | FINAL, AUDIT, SUMMARY |
@@ -1175,7 +1175,7 @@
 | 547 | `docs/planned/MILESTONE_PRO_MONITORING_SCOPES_2026-08-08.md` | Professional Monitoring Scopes Expansion (2026-08-08) | 2026-08-08 | ** 一部実装（Phase 1a Histogram 統合済み、残作業あり） | 2026-08-16 | 11.7 KB | PRO, MONITORING, SCOPES |
 | 548 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-08-16 | 14.6 KB | PROCEDURAL, GENERATORS, MIR, TAO |
 | 549 | `docs/planned/MILESTONE_PRODUCTION_EMISSIVE_BLOOM_2026-08-08.md` | Production Emissive + GPU Bloom Pipeline (2026-08-08) | 2026-08-08 | ** Emissive入力とCPU／参照Bloomあり / GPU final post-process未接続 | 2026-08-16 | 9.8 KB | PRODUCTION, EMISSIVE, BLOOM |
-| 550 | `docs/planned/MILESTONE_PRODUCTION_IMAGE_EFFECT_CONTROLS_2026-08-20.md` | Production Image Effect Controls | 2026-11-25 | In Progress | 2026-10-29 | 57.2 KB | PRODUCTION, IMAGE, EFFECT, CONTROLS |
+| 550 | `docs/planned/MILESTONE_PRODUCTION_IMAGE_EFFECT_CONTROLS_2026-08-20.md` | Production Image Effect Controls | 2026-11-26 | In Progress | 2026-11-25 | 58.4 KB | PRODUCTION, IMAGE, EFFECT, CONTROLS |
 | 551 | `docs/planned/MILESTONE_PRODUCTION_VOLUME_VOXEL_PIPELINE_2026-08-08.md` | Production Volume / Voxel Pipeline (2026-08-08) | 2026-08-08 | ** Core 参照実装あり / Artifact 統合未着手 | 2026-08-16 | 14.3 KB | PRODUCTION, VOLUME, VOXEL, PIPELINE |
 | 552 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | --- | 2026-11-10 | 9.6 KB | PROFESSIONAL, MEDIA, MATERIALS |
 | 553 | `docs/planned/MILESTONE_PROFESSIONAL_SOFT_BODY_2026-07-11.md` | マイルストーン: Professional Soft Body / Cloth System | 2026-09-22 | In Progress | 2026-09-22 | 7.1 KB | PROFESSIONAL, SOFT, BODY |
@@ -1486,7 +1486,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-25 | --- | 2026-11-24 | 333.6 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-11-25 | --- | 2026-11-25 | 333.6 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.3 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.6 KB | ANALYSIS, FINAL |
