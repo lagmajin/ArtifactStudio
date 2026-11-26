@@ -920,11 +920,13 @@ def validate(root: Path) -> list[str]:
         'if (!probe.ok)',
         'float4 graphBaseColor = float4(1.0f,0.0f,1.0f,1.0f);',
     )
+    controller = Path("Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp")
+    layer_editing = controller.with_stem(controller.stem + "LayerEditing")
     observation_sources = "\n".join((root / relative).read_text(encoding="utf-8") for relative in (
         "ArtifactCore/src/ShaderNode/ArtifactShaderNode.cpp",
         "ArtifactCore/src/Graphics/MeshRenderer.cpp",
         "Artifact/src/Widgets/ArtifactShaderGraphWidget.cpp",
-        "Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cpp",
+        layer_editing if (root / layer_editing).is_file() else controller,
     ))
     if any(fragment not in observation_sources for fragment in expected_observation_sources):
         errors.append("paired entry-path observations no longer match the loader and lowering source")
