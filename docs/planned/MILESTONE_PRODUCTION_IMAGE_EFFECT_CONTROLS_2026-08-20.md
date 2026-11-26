@@ -1,6 +1,6 @@
 # Production Image Effect Controls
 
-**最終更新:** 2026-11-25
+**最終更新:** 2026-11-26
 
 **ステータス:** In Progress
 
@@ -302,6 +302,12 @@ Twist (Geo Transform) の Angle（−720–720°）、Center X / Y（0–100%）
 ### Shared Allow Overscan Viewport Control
 
 Enabled effect の共通 `Allow Overscan` toggle を Composition Viewport 詳細メニューに追加し、既存の effect property service と Undo 経路を使う。effect が disabled の間は再有効化 toggle のみ表示する。rasterizer の positive ROI expansion に反映する既存 property を編集し、render pipeline や effect の画像式は変更しない。境界画素、出力 bounds、alpha、CPU / GPU、Preview / final、D3D12 / Vulkan、Undo / Redo、性能の runtime 評価は `experiments/ViewportEffectLab/EVALUATION_PLAN.md` に従って行い、未実施の間は受入完了としない。
+
+### Composition Effects in the Viewport
+
+Composition Viewport の詳細コンテキストメニューは、カーソル下にレイヤーがある場合はその layer effect stack を、空白領域では current composition effect stack を対象にする。Composition effect も既存の scalar descriptor、数値 metadata、named choice、toggle、FloatColorPicker を使って編集でき、commit は `ArtifactEffectService::setCompositionEffectProperty()` に渡す。ドラッグ preview は effect instance を直接更新し、既存の render-dirty 経路を使う。新しい画像処理式、signal / slot、event wiring は追加しない。
+
+runtime ではレイヤー上／空白領域の対象選択、同じ effect ID が両 stack にある場合の誤更新防止、数値・choice・toggle・color の Undo / Redo、preset-coupled property の snapshot 復元、stale menu、Composition Viewport と Inspector の値一致を確認する。Composition-level 出力の pixel / alpha、Preview / final、CPU / GPU / resident path、D3D12 / Vulkan、性能は `experiments/ViewportEffectLab/EVALUATION_PLAN.md` の条件で比較する。これらは未実施であり、UI 経路の追加だけで受入完了としない。
 
 ### Directional Glow Controls
 
