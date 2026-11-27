@@ -1,7 +1,7 @@
 # Fog and Atmospheric Scattering R&D
 
-**最終更新:** 2026-11-13
-**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、惑星大気sample配置の太陽高度／camera高度robustness・局所fog froxel CPU proxy・light count sweep・log/linear depth distribution sweep・camera translation temporal CPU proxy・froxel XY spatial resolution / fine-volume stress sweep・hard-edged volume boundary・subsample injection・integration convergence decomposition・hard-box ray-interval oracle convergence・projected-box coverage negative result・per-froxel ray-box depth occupancy・multi-box overlap/transmittance・Gaussian analytic optical-depth sweep、GPU式mirror診断、球状大気single-scattering参照を作成。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
+**最終更新:** 2026-11-27
+**ステータス:** In Progress（source audit、CPU積分収束・sample配置・shadow境界stress sweep／位置・幅誤差とpenumbra proxy・combined誤差・camera sequence時間残差とoutlier continuous-ray診断・outlier収束／可視ray母集団・spatial error field・shadowed world point direct-ray時間残差・AABB active-face post-hoc監査・X half-extent scenario/common-cohort・camera translation amplitude・quadrature factor decomposition sweep・aspect-ratio別signed factor追試・幅誤差±2%画像空間追試・ray-cast aspect-ratio静止／sequence画像追試・画像fixture、depth encoding感度診断、cloud/light fog積分と水平極限候補監査、惑星大気sample配置の太陽高度／camera高度robustness・局所fog froxel CPU proxy・light count sweep・log/linear depth distribution sweep・camera translation temporal CPU proxy・froxel XY spatial resolution / fine-volume stress sweep・hard-edged volume boundary・subsample injection・integration convergence decomposition・hard-box ray-interval oracle convergence・projected-box coverage negative result・per-froxel ray-box depth occupancy・multi-box overlap/transmittance・Gaussian analytic optical-depth sweep、GPU式mirror診断、球状大気single-scattering参照、`AtmosphereFogRenderer`実行比較用C++契約テスト＋独立Python oracle＋golden fixture（21+12ケース）、および製品側`builtin.atmospheric_depth`の契約テスト（8ケース）を作成（いずれも実行未確認）。Composition host dispatch不在を再確認。GPU runtime capture・採用判断は未実施）
 
 ## 目的
 
@@ -576,7 +576,7 @@ linear RGB temporal residual vectorのfactor contrastではsegmentation main eff
 
 ### 製品の`Atmospheric Depth`との責務区別（2026-11-12）
 
-source auditで`builtin.atmospheric_depth`（`ArtifactAtmosphericDepthEffect`）を確認した。これはnamed depth input、または有効時のsource luma fallbackからnormalized depthを取り、near/far/curveで作るdepth-based color mixにGaussian-blurred highlights由来のglowを加えるRasterizer-stage effectで、alphaはsource値を保持する。`AtmosphereFogRenderer`はray・height-density・sample countを使う別のCPU volume-renderer APIであり、`heightFogCS.hlsl`も未接続shader資産である。名称にAtmosphericが共通するだけで、`builtin.atmospheric_depth`の出力をvolumetric fog baseline、depth texture契約、host integration evidenceとして扱わない。これはソース静的区別で、どちらもこのturnで実行比較していない。
+source auditで`builtin.atmospheric_depth`（`ArtifactAtmosphericDepthEffect`）を確認した。これはnamed depth input、または有効時のsource luma fallbackからnormalized depthを取り、near/far/curveで作るdepth-based color mixにGaussian-blurred highlights由来のglowを加えるRasterizer-stage effectで、alphaはsource値を保持する。`AtmosphereFogRenderer`はray・height-density・sample countを使う別のCPU volume-renderer APIであり、`heightFogCS.hlsl`も未接続shader資産である。名称にAtmosphericが共通するだけで、`builtin.atmospheric_depth`の出力をvolumetric fog baseline、depth texture契約、host integration evidenceとして扱わない。これはソース静的区別であり、2026-11-12のturnではどちらも実行比較していない。2026-11-27に製品側効果の契約テスト（`tests/Artifact/AtmosphericDepthEffectContractTest.cpp`）を追加し、以降は「CPU runtime実行比較」節を参照する。
 
 ## Depth encoding感度の合成診断（2026-11-12）
 
@@ -817,6 +817,45 @@ F4ではsingle scatteringと位相関数を追加し、影なし／単純なshad
 ### Phase 4 — 判断と実装提案
 
 比較結果から、Composition/postprocess、3D viewport、cloud/volumeごとの推奨候補、共有できる媒質/積分数学、別々に保つべき統合責務、GPU資源予算をまとめる。本番pass、設定UI、保存形式、既定動作を変える提案は個別に切り出す。
+
+## CPU runtime実行比較（`AtmosphereFogRenderer` と独立oracle、2026-11-27）
+
+Phase 1の未実施項目だった「既存`AtmosphereFogRenderer`とのコード実行比較」を、Python側独立oracleとC++契約テストの対で実装した。これは**挙動固定（characterization）**であり物理検証ではない。
+
+### 追加した資産
+
+| 資産 | 役割 |
+|---|---|
+| `tools/fog_runtime_oracle_rd.py` | `ArtifactCore/src/Render/AtmosphereFog.cpp` の runtime 式を倍精度（Python double）でmirrorし、golden fixtureとmanifestを生成する独立スクリプト。sourceの切り詰めpi定数 `3.14159265` を意図的に再現し、`setSettings()`のclampも同時に再現する。 |
+| `tests/fixtures/fog-rd/fog_runtime_golden.json` | 生成されたgolden fixture（schema `artifact.fog.runtime.golden/1`）。`evaluate_fog_cases` 21件、`apply_to_pixel_cases` 12件。 |
+| `tests/ArtifactCore/AtmosphereFogContractTest.cpp` | golden fixtureを読み、`evaluateFog()` / `applyToPixel()` を runtime と照合する GoogleTest。fixture pathは `ARTIFACT_FOG_GOLDEN_PATH` コンパイル定義（環境変数で上書き可）。 |
+| `docs/worklog/artifacts/fog-runtime-oracle-rd-2026-11-27/manifest.json` | script hash、golden hash、case数、許容値、適用範囲のcapture記録。 |
+| `tests/ArtifactCore/CMakeLists.txt` | `ArtifactCoreAtmosphereFogContractTest` として `ArtifactCore` へリンクして登録（labels `core;render;fog;atmosphere;cpu;contract`）。 |
+
+### 照合の内容と固定した既知の近似
+
+- `evaluateFog()` は9種の設定variant（default／低太陽・濃密／高地／散乱なし／高太陽／短 `maxDistance`／負density→0 clamp／無効／sample=1）と5種のray（水平・上向き・下向き・傾斜・地下）を組み合わせた21ケースで照合する。許容絶対誤差は `1e-4`。
+- `applyToPixel()` は12条件（near/mid/far、far超過clamp、near未満pass-through、`maxDistance`上限、無効化、`far<=near` のpass-through を含む）。許容絶対誤差は `1e-5`。
+- 加えて runtime の既知の近似を意図的に固定するcharacterizationテストを置いた。具体的には、(a) phase項が標準Rayleigh位相の0.75倍であること、(b) `applyToPixel()` が指数高さ減衰を使わず `density * heightFalloff * tMax` の線形光学的深さを使うこと、(c) `applyToImage()` がdepthを0..1正規化値として扱い `farPlane` を掛けて8bit RGBへ書き戻すこと、(d) `evaluateFog()` の `tMax` が `maxDistance` でclampされること、(e) 無効化・density=0で入力が変化しないこと。
+
+### 製品側`builtin.atmospheric_depth`の契約テスト（2026-11-27）
+
+「製品の`Atmospheric Depth`との責務区別」節で静的区別のみだった製品側フォグについて、実行比較の契約テストを追加した。`ArtifactAtmosphericDepthEffect` は `Artifact/src/Effect/ArtifactCreativeEffects.cpp` に実装され、named depth input（既定名 `depth`）または source luma fallbackからnormalized depthを取り、`nearDepth`/`farDepth`/`curve` で作ったdepth mixに `glow` のhighlightを加えるRasterizer-stage effectで、alphaはsource値を保持する。`AtmosphereFogRenderer` とは別の責務であり、本テストでも両者を同一視しない。
+
+| 資産 | 役割 |
+|---|---|
+| `tests/Artifact/AtmosphericDepthEffectContractTest.cpp` | 8件の契約テスト。期待値は `normalized = clamp((depth-near)/max(far-near,1e-5),0,1)`、`normalized^curve`、`fog = (1-exp(-density*normalized))*mix`、`rgb = lerp(source, fogColor, fog)` の式をテスト側で再計算して比較する（capture画像の貼り付けではない）。 |
+| `tests/Artifact/CMakeLists.txt` | `ArtifactAtmosphericDepthEffectContractTest` として `ArtifactAppRuntime` をリンクして登録（labels `effect;atmospheric-depth;fog;cpu;contract`）。実装が `Artifact` アプリターゲット側にあるため、`Artifact.Effect.Creative` のimportに `ArtifactAppRuntime` が必要。 |
+
+固定する挙動は、(a) named depth inputが luma fallbackより優先され、要求 input 名が `depth` で要求 frame が `EffectContext::compositionFrame` と一致すること、(b) depth入力は論理redチャネルが使われること、(c) named inputが取得失敗時に luma fallbackへ切り替わること、(d) depth sourceが無く `useLumaFallback=false` ならフレームが不変であること、(e) `mix=0` でフレームが不変であること、(f) `invertDepth` が `1-depth` と等価であること、(g) depthが `[0,1]` へclampされること、(h) alphaが source のまま保たれること、(i) effect ID が `builtin.atmospheric_depth`・表示名 `Atmospheric Depth` であること。
+
+本テストも2026-11-27時点では**ビルド・実行未実施**であり、green 状態は未確認である。実行する場合は既存 `out/build/x64-Debug-Agent` ツリーを再利用し `ArtifactAtmosphericDepthEffectContractTest` のみを対象に実行する。
+
+### 範囲と限界
+
+- oracleはruntimeの式をmirrorしただけなので、**runtimeが記録済み契約から逸脱していないこと**を保証する。物理的な大気・散乱の正しさ、GPU parity、画質・視覚品質は対象外である。
+- fixtureのcaseはCPU runtimeの実装詳細（0.75倍phase、散乱蓄積中の `exp(-total)` 減衰、`fogBlend * 0.5` 環境項、`applyToPixel()` の線形光学的深さ、8bit正規化depth）に結合している。runtimeの式を意図的に変更する場合はfixture再生成と本節の記述更新が同時に必要になる。
+- 本節の時点では**ビルド・テスト実行は未実施**。AGENTS.mdの実行制限に加え、2026-11-27時点ではユーザー指示により configure/build/test を行わない方針で確定している。テストの green 状態は未確認であり、実行する場合は既存 `out/build/x64-Debug-Agent` ツリーを再利用し `ArtifactCoreAtmosphereFogContractTest` のみを対象に実行して結果を本節へ追記する。
 
 ## 参照資料
 

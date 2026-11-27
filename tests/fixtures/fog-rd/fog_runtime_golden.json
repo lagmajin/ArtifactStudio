@@ -1,0 +1,1540 @@
+{
+  "schema": "artifact.fog.runtime.golden/1",
+  "generator": "tools/fog_runtime_oracle_rd.py",
+  "source_reference": "ArtifactCore/src/Render/AtmosphereFog.cpp",
+  "description": "Behavioural mirror of the shipped AtmosphereFogRenderer runtime in double precision. Agreement proves runtime stability against the recorded contract, not physical correctness or GPU parity.",
+  "evaluate_fog_cases": [
+    {
+      "name": "default_horizontal_short",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 5.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.10534409266061472,
+        0.10552895817424138,
+        0.12521261321346294
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "default_horizontal_long",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 30.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.13063856873262178,
+        0.1316984331445314,
+        0.14988477473784503
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "default_upward",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "t_max": 30.0,
+      "background": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "expected_rgb": [
+        0.9952511989590784,
+        0.9957642178842177,
+        0.9962772368093568
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "default_downward",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          10.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "t_max": 30.0,
+      "background": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "expected_rgb": [
+        0.8886174464109187,
+        0.8787763234111527,
+        0.8659743938118509
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "default_tilted",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "direction": [
+          0.8944271909999159,
+          0.2683281572999747,
+          -0.35777087639996635
+        ]
+      },
+      "t_max": 20.0,
+      "background": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "expected_rgb": [
+        0.7819116644274219,
+        0.2075702091493668,
+        0.11238192020048156
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "default_below_ground",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          -2.0,
+          0.0
+        ],
+        "direction": [
+          0.6804138174397717,
+          0.2721655269759087,
+          0.6804138174397717
+        ]
+      },
+      "t_max": 12.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.125957360216638,
+        0.12809370235200915,
+        0.14762493691654988
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "dense_low_sun_horizontal",
+      "settings": {
+        "name": "dense_low_sun",
+        "density": 0.05,
+        "height_falloff": 0.02,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 10.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.8,
+        "absorption": 0.5,
+        "samples": 128,
+        "max_distance": 200.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 150.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.3558716754356293,
+        0.3598672937432557,
+        0.35711209325838245
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "dense_low_sun_upward",
+      "settings": {
+        "name": "dense_low_sun",
+        "density": 0.05,
+        "height_falloff": 0.02,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 10.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.8,
+        "absorption": 0.5,
+        "samples": 128,
+        "max_distance": 200.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "t_max": 80.0,
+      "background": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "expected_rgb": [
+        0.4836496923008348,
+        0.28894581657181323,
+        0.2859747133356788
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "dense_low_sun_below_ground",
+      "settings": {
+        "name": "dense_low_sun",
+        "density": 0.05,
+        "height_falloff": 0.02,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 10.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.8,
+        "absorption": 0.5,
+        "samples": 128,
+        "max_distance": 200.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          -2.0,
+          0.0
+        ],
+        "direction": [
+          0.6804138174397717,
+          0.2721655269759087,
+          0.6804138174397717
+        ]
+      },
+      "t_max": 40.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.23977924034901515,
+        0.2496399532780846,
+        0.26407095455150287
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "high_altitude_horizontal",
+      "settings": {
+        "name": "high_altitude",
+        "density": 0.02,
+        "height_falloff": 0.2,
+        "ground_level": 5.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 256,
+        "max_distance": 500.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 120.0,
+      "background": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "expected_rgb": [
+        0.870529036587653,
+        0.872693280174932,
+        0.87325723272021
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "high_altitude_upward",
+      "settings": {
+        "name": "high_altitude",
+        "density": 0.02,
+        "height_falloff": 0.2,
+        "ground_level": 5.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 256,
+        "max_distance": 500.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "t_max": 200.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.10397784107156623,
+        0.10509072874412237,
+        0.12588629695843562
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "high_altitude_downward",
+      "settings": {
+        "name": "high_altitude",
+        "density": 0.02,
+        "height_falloff": 0.2,
+        "ground_level": 5.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 256,
+        "max_distance": 500.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          10.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "t_max": 60.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.13686533827621075,
+        0.13139047974794502,
+        0.14207222449811713
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "no_scattering_horizontal",
+      "settings": {
+        "name": "no_scattering",
+        "density": 0.08,
+        "height_falloff": 0.1,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.0,
+        "absorption": 0.2,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 40.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.178510256875122,
+        0.17443180197251823,
+        0.17913759608775423
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "no_scattering_downward",
+      "settings": {
+        "name": "no_scattering",
+        "density": 0.08,
+        "height_falloff": 0.1,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.0,
+        "absorption": 0.2,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          10.0,
+          0.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "t_max": 25.0,
+      "background": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "expected_rgb": [
+        0.6655920285292344,
+        0.21878821106580595,
+        0.12312395208099193
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "high_sun_tilted",
+      "settings": {
+        "name": "high_sun",
+        "density": 0.06,
+        "height_falloff": 0.05,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 80.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 96,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "direction": [
+          0.8944271909999159,
+          0.2683281572999747,
+          -0.35777087639996635
+        ]
+      },
+      "t_max": 35.0,
+      "background": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "expected_rgb": [
+        0.90407742120218,
+        0.9069785036730723,
+        0.909070971315345
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "high_sun_horizontal",
+      "settings": {
+        "name": "high_sun",
+        "density": 0.06,
+        "height_falloff": 0.05,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 80.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 96,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 90.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.20114066814692746,
+        0.20262244519071337,
+        0.21347484478905615
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "short_max_distance_clamped",
+      "settings": {
+        "name": "short_max_distance",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 25.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 120.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.12576404791952786,
+        0.1266552905696943,
+        0.1451301808347509
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "short_max_distance_exact",
+      "settings": {
+        "name": "short_max_distance",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 25.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 25.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.12576404791952786,
+        0.1266552905696943,
+        0.1451301808347509
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "negative_density_is_transparent",
+      "settings": {
+        "name": "negative_density_clamped_to_zero",
+        "density": -0.5,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 40.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "disabled_returns_background",
+      "settings": {
+        "name": "disabled",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": false
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 40.0,
+      "background": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "expected_rgb": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "tolerance_abs": 0.0001
+    },
+    {
+      "name": "single_sample",
+      "settings": {
+        "name": "single_sample",
+        "density": 0.09,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 1,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "ray": {
+        "origin": [
+          0.0,
+          2.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "t_max": 10.0,
+      "background": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "expected_rgb": [
+        0.1095490029111342,
+        0.10987930199533141,
+        0.12931400744662525
+      ],
+      "tolerance_abs": 0.0001
+    }
+  ],
+  "apply_to_pixel_cases": [
+    {
+      "name": "default_near",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "depth": 0.25,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.10036361362784516,
+        0.10034861925143918,
+        0.12030738471632271
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "default_mid",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "depth": 25.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.951419378467051,
+        0.9490781436943788,
+        0.9449809828422024
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "default_far",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "depth": 75.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.7328410970115073,
+        0.3140139515851156,
+        0.23431780597698548
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "default_beyond_far_clamped",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "depth": 250.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.29068550957734196,
+        0.2828221895947712,
+        0.2811980596427015
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "default_before_near_passthrough",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "depth": 0.05,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "dense_low_sun_mid",
+      "settings": {
+        "name": "dense_low_sun",
+        "density": 0.05,
+        "height_falloff": 0.02,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 10.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.8,
+        "absorption": 0.5,
+        "samples": 128,
+        "max_distance": 200.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "depth": 50.0,
+      "near_plane": 0.1,
+      "far_plane": 200.0,
+      "expected_rgb": [
+        0.11195104080960049,
+        0.11145821438446232,
+        0.13010294171533235
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "no_scattering_mid",
+      "settings": {
+        "name": "no_scattering",
+        "density": 0.08,
+        "height_falloff": 0.1,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.0,
+        "absorption": 0.2,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "depth": 30.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.7899565546471031,
+        0.2170505002502669,
+        0.12008689070579388
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "negative_density_is_transparent",
+      "settings": {
+        "name": "negative_density_clamped_to_zero",
+        "density": -0.5,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "depth": 40.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "disabled_returns_pixel",
+      "settings": {
+        "name": "disabled",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": false
+      },
+      "pixel_color": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "depth": 40.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.8,
+        0.2,
+        0.1
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "short_max_distance",
+      "settings": {
+        "name": "short_max_distance",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 25.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "depth": 20.0,
+      "near_plane": 0.1,
+      "far_plane": 100.0,
+      "expected_rgb": [
+        0.9897941313968738,
+        0.9893022823075666,
+        0.9884415464012788
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "high_altitude_mid",
+      "settings": {
+        "name": "high_altitude",
+        "density": 0.02,
+        "height_falloff": 0.2,
+        "ground_level": 5.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 256,
+        "max_distance": 500.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        0.1,
+        0.1,
+        0.12
+      ],
+      "depth": 60.0,
+      "near_plane": 0.1,
+      "far_plane": 500.0,
+      "expected_rgb": [
+        0.11148249044584077,
+        0.11100898568518755,
+        0.12970684759339116
+      ],
+      "tolerance_abs": 1e-05
+    },
+    {
+      "name": "degenerate_far_plane_passthrough",
+      "settings": {
+        "name": "default",
+        "density": 0.1,
+        "height_falloff": 0.5,
+        "ground_level": 0.0,
+        "fog_color": [
+          0.5,
+          0.6,
+          0.7
+        ],
+        "horizon_color": [
+          0.67,
+          0.53,
+          0.36
+        ],
+        "sun_angle": 45.0,
+        "sun_intensity": 1.0,
+        "scattering": 0.3,
+        "absorption": 0.1,
+        "samples": 64,
+        "max_distance": 100.0,
+        "enabled": true
+      },
+      "pixel_color": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "depth": 5.0,
+      "near_plane": 10.0,
+      "far_plane": 10.0,
+      "expected_rgb": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tolerance_abs": 1e-05
+    }
+  ]
+}

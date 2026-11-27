@@ -1,0 +1,15 @@
+{
+  "artifact": "fog-runtime-oracle-rd-2026-11-27",
+  "generated_by": "tools/fog_runtime_oracle_rd.py",
+  "script_hash_sha256": "b0c9687e72d1f521d2b6862df2d78ba6a99e3719555d43df42f8b3ca80de177d",
+  "golden_path": "tests/fixtures/fog-rd/fog_runtime_golden.json",
+  "golden_hash_sha256": "b570e1ee2ee4743007d57d0ecdf5431c4b50587e4e964d6089edf8c2dccece93",
+  "source_reference": "ArtifactCore/src/Render/AtmosphereFog.cpp",
+  "evaluate_fog_case_count": 21,
+  "apply_to_pixel_case_count": 12,
+  "tolerance_abs": {
+    "evaluate_fog": 0.0001,
+    "apply_to_pixel": 1e-05
+  },
+  "scope": "CPU double-precision behavioural mirror of the runtime equations. No GPU capture, no physical validation, no visual acceptance."
+}

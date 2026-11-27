@@ -971,6 +971,20 @@ set_tests_properties(ArtifactCreativeHalftoneEffectContractTest PROPERTIES
     LABELS "effect;creative;halftone;cpu;contract"
 )
 
+# Product-side fog effect (builtin.atmospheric_depth). The implementation
+# lives in the Artifact application target, so the test links ArtifactAppRuntime
+# to import Artifact.Effect.Creative.
+artifact_add_test(ArtifactAtmosphericDepthEffectContractTest
+    SOURCES
+        AtmosphericDepthEffectContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactAtmosphericDepthEffectContractTest PROPERTIES
+    LABELS "effect;atmospheric-depth;fog;cpu;contract"
+    TIMEOUT 60
+)
+
 artifact_add_test(ArtifactBevelEffectContractTest
     SOURCES
         BevelEffectContractTest.cpp
